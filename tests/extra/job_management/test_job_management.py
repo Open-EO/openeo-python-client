@@ -833,20 +833,20 @@ class TestCsvJobDatabase:
         assert path.exists()
 
         loaded = db.get_by_status(statuses=["not_started"], max=2)
-        assert db.count_by_status(statuses=["not_started"])["not_started"] >1
+        assert db.count_by_status(statuses=["not_started"])["not_started"] > 1
 
         assert len(loaded) == 2
-        loaded.loc[0,"status"] = "running"
+        loaded.loc[0, "status"] = "running"
         loaded.loc[1, "status"] = "error"
         db.persist(loaded)
         assert db.count_by_status(statuses=["error"])["error"] == 1
 
         all = db.read()
         assert len(all) == len(orig)
-        assert all.loc[0,"status"] == "running"
-        assert all.loc[1,"status"] == "error"
-        if(len(all) >2):
-            assert all.loc[2,"status"] == "not_started"
+        assert all.loc[0, "status"] == "running"
+        assert all.loc[1, "status"] == "error"
+        if len(all) > 2:
+            assert all.loc[2, "status"] == "not_started"
         print(loaded.index)
 
     def test_initialize_from_df(self, tmp_path):

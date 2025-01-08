@@ -20,7 +20,7 @@ import shapely.geometry
 
 import openeo.metadata
 import openeo.processes
-from openeo import collection_property
+from openeo import BatchJob, collection_property
 from openeo.api.process import Parameter
 from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
@@ -243,7 +243,15 @@ def test_filter_bbox_kwargs(con100: Connection, kwargs, expected):
     assert node["arguments"]["extent"] == expected
 
 
-def test_filter_bbox_parameter(con100: Connection):
+@pytest.mark.parametrize(
+    "bbox_param",
+    [
+        Parameter(name="my_bbox", schema={"type": "object"}),
+        Parameter.spatial_extent(name="my_bbox"),
+        Parameter.bounding_box(name="my_bbox"),
+    ],
+)
+def test_filter_bbox_parameter(con100: Connection, bbox_param):
     expected = {
         "process_id": "filter_bbox",
         "arguments": {
@@ -252,7 +260,6 @@ def test_filter_bbox_parameter(con100: Connection):
         },
         "result": True,
     }
-    bbox_param = Parameter(name="my_bbox", schema={"type": "object"})
 
     cube = con100.load_collection("S2").filter_bbox(bbox_param)
     assert _get_leaf_node(cube) == expected
@@ -274,14 +281,14 @@ def test_filter_bbox_parameter_invalid_schema(con100: Connection):
 
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection("S2").filter_bbox(bbox_param)
     assert _get_leaf_node(cube) == expected
 
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema with type 'object' but got {'type': 'string'}.",
+        match="Unexpected parameterized `extent` in `filter_bbox`: expected schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection("S2").filter_bbox(bbox=bbox_param)
     assert _get_leaf_node(cube) == expected
@@ -2301,6 +2308,43 @@ def test_load_collection_parameterized_bands(con100):
     }
 
 
+@pytest.mark.parametrize(
+    ["spatial_extent", "temporal_extent", "spatial_name", "temporal_name"],
+    [
+        (
+            Parameter.spatial_extent(),
+            Parameter.temporal_interval(),
+            "spatial_extent",
+            "temporal_extent",
+        ),
+        (
+            Parameter.bounding_box(name="spatial_extent"),
+            Parameter.temporal_interval(),
+            "spatial_extent",
+            "temporal_extent",
+        ),
+        (
+            Parameter(name="my_bbox", schema={"type": "object"}),
+            Parameter(name="dates", schema={"type": "array"}),
+            "my_bbox",
+            "dates",
+        ),
+    ],
+)
+def test_load_collection_parameterized_extents(con100, spatial_extent, temporal_extent, spatial_name, temporal_name):
+    cube = con100.load_collection("S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": {"from_parameter": spatial_name},
+                "temporal_extent": {"from_parameter": temporal_name},
+            },
+            "process_id": "load_collection",
+        },
+    }
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100, test_data):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
@@ -3543,7 +3587,7 @@ def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add
 
 
 class TestBatchJob:
-    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": {
+    _EXPECTED_SIMPLE_S2_PG = {
         "loadcollection1": {
             "process_id": "load_collection",
             "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None}
@@ -3553,7 +3597,8 @@ class TestBatchJob:
             "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
             "result": True,
         }
-    }}}
+    }
+    _EXPECTED_SIMPLE_S2_JOB = {"process": {"process_graph": _EXPECTED_SIMPLE_S2_PG}}
 
     def _get_handler_post_jobs(
             self, expected_post_data: Optional[dict] = None, job_id: str = "myj0b1", add_header=True,
@@ -3569,11 +3614,69 @@ class TestBatchJob:
 
         return post_jobs
 
-    def test_create_job_basic(self, con100, requests_mock):
+    def test_create_job_basic_old(self, con100, requests_mock):
         requests_mock.post(API_URL + "/jobs", json=self._get_handler_post_jobs())
         cube = con100.load_collection("S2")
         job = cube.create_job(out_format="GTiff")
         assert job.job_id == "myj0b1"
+
+    def test_create_job_basic(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff")
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert job.status() == "created"
+        assert dummy_backend.get_batch_pg() == self._EXPECTED_SIMPLE_S2_PG
+
+    def test_execute_batch_basic(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.execute_batch(out_format="GTiff")
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert job.status() == "finished"
+        assert dummy_backend.get_batch_pg() == self._EXPECTED_SIMPLE_S2_PG
+
+    def test_create_job_with_additional(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", additional={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "blue",
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_create_job_with_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_create_job_with_additional_and_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.create_job(out_format="GTiff", additional={"color": "green"}, job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "green",
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+
+    def test_execute_batch_with_additional_and_job_options(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2")
+        job = cube.execute_batch(out_format="GTiff", additional={"color": "green"}, job_options={"color": "blue"})
+        assert isinstance(job, BatchJob)
+        assert job.job_id == "job-000"
+        assert dummy_backend.get_batch_post_data() == {
+            "color": "green",
+            "job_options": {"color": "blue"},
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
 
     @pytest.mark.parametrize(["add_header", "job_id"], [
         (True, "  "),

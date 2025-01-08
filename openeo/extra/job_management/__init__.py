@@ -41,6 +41,7 @@ from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
 
+
 class _Backend(NamedTuple):
     """Container for backend info/settings"""
 
@@ -68,15 +69,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def exists(self) -> bool:
         """Does the job database already exist, to read job data from?"""
-        ...
-
-    @abc.abstractmethod
-    def read(self) -> pd.DataFrame:
-        """
-        Read job data from the database as pandas DataFrame.
-
-        :return: loaded job data.
-        """
         ...
 
     @abc.abstractmethod
@@ -111,7 +103,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         :return: DataFrame with jobs filtered by status.
         """
         ...
-
 
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
@@ -364,9 +355,9 @@ class MultiBackendJobManager:
 
         # Resume from existing db
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
-        df = job_db.read()
 
         self._stop_thread = False
+
         def run_loop():
 
             # TODO: support user-provided `stats`
@@ -810,6 +801,15 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         # Return self to allow chaining with constructor.
         return self
 
+    @abc.abstractmethod
+    def read(self) -> pd.DataFrame:
+        """
+        Read job data from the database as pandas DataFrame.
+
+        :return: loaded job data.
+        """
+        ...
+
     @property
     def df(self) -> pd.DataFrame:
         if self._df is None:
@@ -856,6 +856,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
 
     .. versionadded:: 0.31.0
     """
+
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
@@ -912,6 +913,7 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
 
     .. versionadded:: 0.31.0
     """
+
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
@@ -934,6 +936,7 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
         metadata = pyarrow.parquet.read_metadata(self.path)
         if b"geo" in metadata.metadata:
             import geopandas
+
             return geopandas.read_parquet(self.path)
         else:
             return pd.read_parquet(self.path)
@@ -1045,6 +1048,7 @@ class ProcessBasedJobCreator:
         `feedback and suggestions for improvement <https://github.com/Open-EO/openeo-python-client/issues>`_.
 
     """
+
     def __init__(
         self,
         *,
@@ -1076,7 +1080,6 @@ class ProcessBasedJobCreator:
             raise NotImplementedError(
                 f"Unsupported process definition source udp_id={self._process_id!r} namespace={self._namespace!r}"
             )
-
 
     def start_job(self, row: pd.Series, connection: Connection, **_) -> BatchJob:
         """

@@ -687,7 +687,14 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         assert f.read() == TIFF_CONTENT
 
 
-def test_list_jobs(con100, requests_mock):
+@pytest.mark.parametrize(
+    ["list_jobs_kwargs", "expected_qs"],
+    [
+        ({}, {}),
+        ({"limit": 123}, {"limit": ["123"]}),
+    ],
+)
+def test_list_jobs(con100, requests_mock, list_jobs_kwargs, expected_qs):
     username = "john"
     password = "j0hn!"
     access_token = "6cc35!"
@@ -700,6 +707,7 @@ def test_list_jobs(con100, requests_mock):
 
     def get_jobs(request, context):
         assert request.headers["Authorization"] == f"Bearer basic//{access_token}"
+        assert request.qs == expected_qs
         return {
             "jobs": [
                 {
@@ -718,7 +726,7 @@ def test_list_jobs(con100, requests_mock):
     requests_mock.get(API_URL + "/jobs", json=get_jobs)
 
     con100.authenticate_basic(username, password)
-    jobs = con100.list_jobs()
+    jobs = con100.list_jobs(**list_jobs_kwargs)
     assert jobs == [
         {"id": "job123", "status": "running", "created": "2021-02-22T09:00:00Z"},
         {"id": "job456", "status": "created", "created": "2021-03-22T10:00:00Z"},

@@ -32,13 +32,17 @@ class DummyBackend:
     """
 
     # TODO: move to openeo.testing
+    # TODO: unify "batch_jobs", "batch_jobs_full" and "extra_job_metadata_fields"?
+    # TODO: unify "sync_requests" and "sync_requests_full"?
 
     __slots__ = (
         "_requests_mock",
         "connection",
         "file_formats",
         "sync_requests",
+        "sync_requests_full",
         "batch_jobs",
+        "batch_jobs_full",
         "validation_requests",
         "next_result",
         "next_validation_errors",
@@ -60,7 +64,9 @@ class DummyBackend:
         self.connection = connection
         self.file_formats = {"input": {}, "output": {}}
         self.sync_requests = []
+        self.sync_requests_full = []
         self.batch_jobs = {}
+        self.batch_jobs_full = {}
         self.validation_requests = []
         self.next_result = self.DEFAULT_RESULT
         self.next_validation_errors = []
@@ -163,7 +169,9 @@ class DummyBackend:
 
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
-        pg = request.json()["process"]["process_graph"]
+        post_data = request.json()
+        pg = post_data["process"]["process_graph"]
+        self.sync_requests_full.append(post_data)
         self.sync_requests.append(pg)
         result = self.next_result
         if isinstance(result, (dict, list)):
@@ -185,6 +193,10 @@ class DummyBackend:
             job_id = f"job-{len(self.batch_jobs):03d}"
         assert job_id not in self.batch_jobs
 
+        # Full post data dump
+        self.batch_jobs_full[job_id] = post_data
+
+        # Batch job essentials
         job_data = {"job_id": job_id, "pg": pg, "status": "created"}
         for field in ["title", "description"]:
             if field in post_data:
@@ -272,6 +284,11 @@ class DummyBackend:
         assert len(self.sync_requests) == 1
         return self.sync_requests[0]
 
+    def get_sync_post_data(self) -> dict:
+        """Get post data of the one and only synchronous job."""
+        assert len(self.sync_requests_full) == 1
+        return self.sync_requests_full[0]
+
     def get_batch_pg(self) -> dict:
         """
         Get process graph of the one and only batch job.
@@ -279,6 +296,14 @@ class DummyBackend:
         """
         assert len(self.batch_jobs) == 1
         return self.batch_jobs[max(self.batch_jobs.keys())]["pg"]
+
+    def get_batch_post_data(self) -> dict:
+        """
+        Get post data of the one and only batch job.
+        Fails when there is none or more than one.
+        """
+        assert len(self.batch_jobs_full) == 1
+        return self.batch_jobs_full[max(self.batch_jobs_full.keys())]
 
     def get_validation_pg(self) -> dict:
         """
