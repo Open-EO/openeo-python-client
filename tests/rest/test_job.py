@@ -151,6 +151,37 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
     ]
 
 
+@pytest.mark.parametrize("show_error_logs", [True, False])
+def test_execute_batch_show_error_logs(con100, requests_mock, show_error_logs):
+    requests_mock.get(API_URL + "/file_formats", json={"output": {"GTiff": {"gis_data_types": ["raster"]}}})
+    requests_mock.get(API_URL + "/collections/SENTINEL2", json={"foo": "bar"})
+    requests_mock.post(API_URL + "/jobs", status_code=201, headers={"OpenEO-Identifier": "f00ba5"})
+    requests_mock.post(API_URL + "/jobs/f00ba5/results", status_code=202)
+    requests_mock.get(API_URL + "/jobs/f00ba5", json={"status": "error", "progress": 100})
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={"logs": [{"id": "34", "level": "error", "message": "nope"}]},
+    )
+
+    stdout = []
+    with fake_time(), pytest.raises(JobFailedException):
+        con100.load_collection("SENTINEL2").execute_batch(
+            max_poll_interval=0.1, print=stdout.append, show_error_logs=show_error_logs
+        )
+
+    expected = [
+        "0:00:01 Job 'f00ba5': send 'start'",
+        "0:00:02 Job 'f00ba5': error (progress 100%)",
+    ]
+    if show_error_logs:
+        expected += [
+            "Your batch job 'f00ba5' failed. Error logs:",
+            [{"id": "34", "level": "error", "message": "nope"}],
+            "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+        ]
+    assert stdout == expected
+
+
 @pytest.mark.parametrize(["error_response", "expected"], [
     (
             {"exc": requests.ConnectionError("time out")},

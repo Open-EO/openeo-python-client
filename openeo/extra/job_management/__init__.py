@@ -104,7 +104,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
-
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
 
@@ -659,16 +658,25 @@ class MultiBackendJobManager:
 
     def _cancel_prolonged_job(self, job: BatchJob, row):
         """Cancel the job if it has been running for too long."""
-        job_running_start_time = rfc3339.parse_datetime(row["running_start_time"], with_timezone=True)
-        elapsed = datetime.datetime.now(tz=datetime.timezone.utc) - job_running_start_time
-        if elapsed > self._cancel_running_job_after:
-            try:
+        try:
+            # Ensure running start time is valid
+            job_running_start_time = rfc3339.parse_datetime(row.get("running_start_time"), with_timezone=True)
+            
+            # Parse the current time into a datetime object with timezone info
+            current_time = rfc3339.parse_datetime(rfc3339.utcnow(), with_timezone=True)
+
+            # Calculate the elapsed time between job start and now
+            elapsed = current_time - job_running_start_time
+
+            if elapsed > self._cancel_running_job_after:
+    
                 _log.info(
                     f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
                 )
                 job.stop()
-            except OpenEoApiError as e:
-                _log.error(f"Failed to cancel long-running job {job.job_id}: {e}")
+                
+        except Exception as e:
+            _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
@@ -729,6 +737,13 @@ class MultiBackendJobManager:
                     self.on_job_cancel(the_job, active.loc[i])
 
                 if self._cancel_running_job_after and new_status == "running":
+                    if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                        _log.warning(
+                            f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
+                            )
+                        stats["job started running"] += 1
+                        active.loc[i, "running_start_time"] = rfc3339.utcnow()
+
                     self._cancel_prolonged_job(the_job, active.loc[i])
 
                 active.loc[i, "status"] = new_status
