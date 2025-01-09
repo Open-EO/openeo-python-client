@@ -33,6 +33,7 @@ from openeo.util import (
     normalize_crs,
     repr_truncate,
     rfc3339,
+    search_list_for_dict_key,
     str_truncate,
     to_bbox_dict,
     url_join,
@@ -1055,3 +1056,41 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_handles_incorrect_crs(self, epsg_input, use_pyproj):
         with pytest.raises(ValueError):
             normalize_crs(epsg_input, use_pyproj=use_pyproj)
+
+    @pytest.mark.parametrize(
+        "list_with_dicts",
+        [
+            [
+                {"x1": "y1"},
+                {"x2": "y2"},
+                {"x3": "y3"},
+                {"x3": "y3"},
+            ]
+        ],
+    )
+    @pytest.mark.parametrize(("key", "expected"), [("x1", "y1"), ("x2", "y2"), ("x4", None)])
+    def test_search_list_for_dict_key(self, list_with_dicts, key, expected):
+        assert search_list_for_dict_key(list_with_dicts, key) == expected
+
+    @pytest.mark.parametrize(
+        "list_with_dicts",
+        [
+            [
+                {"x1": "y1"},
+                {"x2": "y2"},
+                {"x3": "y3"},
+                {"x3": "y4"},
+                {"x2": "y1"},
+            ]
+        ],
+    )
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "x2",
+            "x3",
+        ],
+    )
+    def test_search_list_for_dict_key_value_error(self, list_with_dicts, key):
+        with pytest.raises(ValueError):
+            search_list_for_dict_key(list_with_dicts, key)
