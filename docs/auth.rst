@@ -75,7 +75,7 @@ General options
 
 *   A back-end might support **multiple OpenID Connect providers**.
     The openEO Python Client Library will pick the first one by default,
-    but another another provider can specified explicity with the ``provider_id`` argument, e.g.:
+    but another another provider can specified explicitly with the ``provider_id`` argument, e.g.:
 
     .. code-block:: python
 
@@ -300,30 +300,6 @@ For example:
     >>> connection.authenticate_oidc()
     <Connection to 'https://openeo.example.com/openeo/1.1/' with OidcBearerAuth>
 
-Basic HTTP Auth
-===============
-
-The easiest authentication method is
-based on the Basic HTTP authentication scheme.
-It is however *not recommended* for various reasons,
-such as its limited *security* measures.
-For example, if you are connecting to a back-end with a ``http://`` URL
-instead of a ``https://`` one, you should certainly not use basic HTTP auth.
-
-With these security related caveats out of the way, you authenticate
-using your username and password like this::
-
-    connection.authenticate_basic("john", "j0hn123")
-
-Subsequent usage of the connection object ``connection`` will
-use authenticated calls.
-For example, show information about the authenticated user::
-
-    >>> connection.describe_account()
-    {'user_id': 'john'}
-
-
-
 
 
 
@@ -448,6 +424,32 @@ For example::
     Authorized successfully.
     The OpenID Connect device flow was successful.
     Stored refresh token in '/home/john/.local/share/openeo-python-client/refresh-tokens.json'
+
+
+
+
+Basic HTTP Auth
+===============
+
+The easiest authentication method is
+based on the Basic HTTP authentication scheme.
+It is however *not recommended* for various reasons,
+such as its limited *security* measures.
+For example, if you are connecting to a back-end with a ``http://`` URL
+instead of a ``https://`` one, you should certainly not use basic HTTP auth.
+
+With these security related caveats out of the way, you authenticate
+using your username and password like this::
+
+    connection.authenticate_basic("john", "j0hn123")
+
+Subsequent usage of the connection object ``connection`` will
+use authenticated calls.
+For example, show information about the authenticated user::
+
+    >>> connection.describe_account()
+    {'user_id': 'john'}
+
 
 
 
