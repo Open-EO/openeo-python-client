@@ -2744,7 +2744,36 @@ def test_print_json_file_path(con100, tmp_path, path_factory):
     assert path.read_text() == EXPECTED_JSON_EXPORT_S2_NDVI + "\n"
 
 
-def test_sar_backscatter_defaults(con100):
+def test_sar_backscatter_defaults(con100, requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [
+        {
+            "id": "sar_backscatter",
+            "description": "Computes backscatter from SAR input",
+            "summary": "Computes backscatter from SAR input",
+            "parameters": [
+                {
+                    "default": "gamma0-terrain",
+                    "description": "Select the radiometric correction coefficient.",
+                    "name": "coefficient",
+                    "schema": [
+                        {
+                            "enum": [
+                                "beta0",
+                                "sigma0-ellipsoid",
+                                "sigma0-terrain",
+                                "gamma0-ellipsoid",
+                                "gamma0-terrain",
+                            ],
+                            "type": "string",
+                        },
+                    ],
+                },
+            ],
+            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
+        }
+    ]
+    requests_mock.get(API_URL + "/processes", json={"processes": processes})
     cube = con100.load_collection("S2").sar_backscatter()
     assert _get_leaf_node(cube) == {
         "process_id": "sar_backscatter",
@@ -2762,7 +2791,36 @@ def test_sar_backscatter_defaults(con100):
     }
 
 
-def test_sar_backscatter_custom(con100):
+def test_sar_backscatter_custom(con100, requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [
+        {
+            "id": "sar_backscatter",
+            "description": "Computes backscatter from SAR input",
+            "summary": "Computes backscatter from SAR input",
+            "parameters": [
+                {
+                    "default": "gamma0-terrain",
+                    "description": "Select the radiometric correction coefficient.",
+                    "name": "coefficient",
+                    "schema": [
+                        {
+                            "enum": [
+                                "beta0",
+                                "sigma0-ellipsoid",
+                                "sigma0-terrain",
+                                "gamma0-ellipsoid",
+                                "gamma0-terrain",
+                            ],
+                            "type": "string",
+                        },
+                    ],
+                },
+            ],
+            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
+        }
+    ]
+    requests_mock.get(API_URL + "/processes", json={"processes": processes})
     cube = con100.load_collection("S2")
     cube = cube.sar_backscatter(
         coefficient="sigma0-ellipsoid",
@@ -2786,13 +2844,71 @@ def test_sar_backscatter_custom(con100):
     }
 
 
-def test_sar_backscatter_coefficient_none(con100):
+def test_sar_backscatter_coefficient_none(con100, requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [
+        {
+            "id": "sar_backscatter",
+            "description": "Computes backscatter from SAR input",
+            "summary": "Computes backscatter from SAR input",
+            "parameters": [
+                {
+                    "default": "gamma0-terrain",
+                    "description": "Select the radiometric correction coefficient.",
+                    "name": "coefficient",
+                    "schema": [
+                        {
+                            "enum": [
+                                "beta0",
+                                "sigma0-ellipsoid",
+                                "sigma0-terrain",
+                                "gamma0-ellipsoid",
+                                "gamma0-terrain",
+                            ],
+                            "type": "string",
+                        },
+                    ],
+                },
+            ],
+            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
+        }
+    ]
+    requests_mock.get(API_URL + "/processes", json={"processes": processes})
     cube = con100.load_collection("S2")
     cube = cube.sar_backscatter(coefficient=None)
     assert _get_leaf_node(cube)["arguments"]["coefficient"] is None
 
 
-def test_sar_backscatter_coefficient_invalid(con100):
+def test_sar_backscatter_coefficient_invalid(con100, requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [
+        {
+            "id": "sar_backscatter",
+            "description": "Computes backscatter from SAR input",
+            "summary": "Computes backscatter from SAR input",
+            "parameters": [
+                {
+                    "default": "gamma0-terrain",
+                    "description": "Select the radiometric correction coefficient.",
+                    "name": "coefficient",
+                    "schema": [
+                        {
+                            "enum": [
+                                "beta0",
+                                "sigma0-ellipsoid",
+                                "sigma0-terrain",
+                                "gamma0-ellipsoid",
+                                "gamma0-terrain",
+                            ],
+                            "type": "string",
+                        },
+                    ],
+                },
+            ],
+            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
+        }
+    ]
+    requests_mock.get(API_URL + "/processes", json={"processes": processes})
     cube = con100.load_collection("S2")
     with pytest.raises(OpenEoClientException, match="Invalid.*coef.*unicorn.*Should.*sigma0-ellipsoid.*gamma0-terrain"):
         cube.sar_backscatter(coefficient="unicorn")

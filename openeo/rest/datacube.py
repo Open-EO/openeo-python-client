@@ -59,13 +59,20 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
+from openeo.util import (
+    dict_no_none,
+    guess_format,
+    load_json,
+    normalize_crs,
+    rfc3339,
+    search_list_for_dict_key,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     import xarray
 
-    from openeo.rest.connection import Connection, search_list_for_dict_key
+    from openeo.rest.connection import Connection
     from openeo.udf import XarrayDataCube
 
 
@@ -2724,13 +2731,10 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.4.9
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        if self.connection == None:
-            coefficient_options = [None]
-        else:
+        coefficient_options = [None]
+        if self.connection:
             schema = self.connection.get_schema_from_process_parameter("sar_backscatter", "coefficient")
-            coefficient_options = search_list_for_dict_key(schema, "enum")
-            if coefficient_options is None:
-                coefficient_options = [None]
+            coefficient_options += search_list_for_dict_key(schema, "enum")
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options
