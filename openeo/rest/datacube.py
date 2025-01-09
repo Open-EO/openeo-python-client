@@ -2724,8 +2724,13 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.4.9
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        schema = self.connection.get_schema_from_process_parameter("sar_backscatter", "coefficient")
-        coefficient_options = search_list_for_dict_key(schema, "enum")
+        if self.connection == None:
+            coefficient_options = [None]
+        else:
+            schema = self.connection.get_schema_from_process_parameter("sar_backscatter", "coefficient")
+            coefficient_options = search_list_for_dict_key(schema, "enum")
+            if coefficient_options is None:
+                coefficient_options = [None]
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options

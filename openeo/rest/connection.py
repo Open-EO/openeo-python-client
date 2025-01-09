@@ -1068,7 +1068,7 @@ class Connection(RestApiConnection):
 
     def get_schema_from_process_parameter(
         self, process_id: str, parameter_id: str, namespace: Optional[str] = None
-    ) -> dict:
+    ) -> Union[dict, list]:
         """
         Returns schema of the parameter of the process from the back end.
 
@@ -2123,6 +2123,4 @@ def search_list_for_dict_key(lst: list, key: str) -> Union[dict, list]:
                 result = item[key]
             else:
                 raise OpenEoClientException("Multiple keys found with value {v}.".format(v=key))
-    if result is None:
-        raise OpenEoClientException("No dictionary found with the key {k}.".format(k=key))
     return result
