@@ -84,6 +84,7 @@ from openeo.util import (
     ContextTimer,
     LazyLoadCache,
     dict_no_none,
+    ensure_dir,
     ensure_list,
     load_json_resource,
     repr_truncate,
@@ -1771,7 +1772,9 @@ class Connection(RestApiConnection):
         )
 
         if outputfile is not None:
-            with Path(outputfile).open(mode="wb") as f:
+            target = Path(outputfile)
+            ensure_dir(target.parent)
+            with target.open(mode="wb") as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
         else:

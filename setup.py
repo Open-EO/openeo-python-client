@@ -22,6 +22,7 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
+    "urllib3<2.3.0",  # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
     "netCDF4>=1.7.0",
     "matplotlib",  # TODO: eliminate matplotlib as test dependency
     "geopandas",

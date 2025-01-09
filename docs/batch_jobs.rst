@@ -292,8 +292,8 @@ When using
 :py:meth:`job.start_and_wait() <openeo.rest.job.BatchJob.start_and_wait>`
 or :py:meth:`cube.execute_batch() <openeo.rest.datacube.DataCube.execute_batch>`
 to run a batch job and it fails,
-the openEO Python client library will automatically
-print the batch job logs and instructions to help with further investigation:
+the openEO Python client library will print (by default)
+the batch job's error logs and instructions to help with further investigation:
 
 .. code-block:: pycon
 
