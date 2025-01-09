@@ -1085,6 +1085,7 @@ class Connection(RestApiConnection):
                 for parameter in schema.parameters:
                     if parameter.name == parameter_id:
                         return parameter.schema.schema
+                raise OpenEoClientException("Parameter does not exist.")
         raise OpenEoClientException("Process does not exist.")
 
     def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
@@ -2110,10 +2111,10 @@ def search_list_for_dict_key(lst: list, key: str) -> Union[dict, list]:
     """
     Searches a value of the dict that matches with the key in the list.
 
-    :param lst: list with dictionaries
-    :param parameters: list of the
+    :param lst: list with dictionaries.
+    :param key: The key for which the value is searched for.
 
-    :return: value that matches key
+    :return: value that matches key.
     """
     result = None
     for item in lst:
