@@ -4012,8 +4012,8 @@ class TestMultiResultHandling:
         }
 
 
-def test_webeditor(requests_mock):
+def test_web_editor(requests_mock):
     requests_mock.get(API_URL, json=build_capabilities())
     con = Connection(API_URL)
-    assert con.webeditor() == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F"
-    assert con.webeditor(anonymous=True) == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F&discover=1"
+    assert con.web_editor() == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F"
+    assert con.web_editor(anonymous=True) == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F&discover=1"

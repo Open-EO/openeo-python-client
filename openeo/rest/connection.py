@@ -1968,7 +1968,7 @@ class Connection(RestApiConnection):
             }),
         }
 
-    def webeditor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
+    def web_editor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
         """
         Generate URL to open this backend in the openEO Web Editor.
         """
