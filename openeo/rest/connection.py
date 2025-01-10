@@ -9,6 +9,7 @@ import logging
 import os
 import shlex
 import sys
+import urllib.parse
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -1966,6 +1967,18 @@ class Connection(RestApiConnection):
                 "processing:software": capabilities.get("processing:software"),
             }),
         }
+
+    def webeditor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
+        """
+        Generate URL to open this backend in the openEO Web Editor.
+        """
+        # TODO: add option to directly open link with `webbrowser.open()`?
+        # TODO: add option to print (or jupyter-aware display) the link instead of returning it?
+        params = {"server": self.root_url}
+        if anonymous:
+            params["discover"] = "1"
+        url = f"{editor_url}?{urllib.parse.urlencode(params)}"
+        return url
 
 
 def connect(
