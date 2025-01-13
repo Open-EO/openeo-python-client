@@ -317,6 +317,7 @@ and observations are filtered out:
 
 .. image:: _static/images/basics/evi-masked-composite.png
 
+.. _aggregate-spatial-evi
 
 Aggregated EVI timeseries
 ===========================
