@@ -21,7 +21,7 @@ from typing import (
     Optional,
     Union,
 )
-
+import os
 import numpy
 import pandas as pd
 import requests
@@ -492,7 +492,7 @@ class MultiBackendJobManager:
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
-        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running", "downloading"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
 
@@ -523,7 +523,7 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
-            running = job_db.get_by_status(statuses=["created", "queued", "running"])
+            running = job_db.get_by_status(statuses=["created", "queued", "running"]) #TODO I believe we need to get downloading out?
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
@@ -606,26 +606,43 @@ class MultiBackendJobManager:
                 df.loc[i, "status"] = "skipped"
                 stats["start_job skipped"] += 1
 
+
     def on_job_done(self, job: BatchJob, row):
         """
         Handles jobs that have finished. Can be overridden to provide custom behaviour.
 
         Default implementation downloads the results into a folder containing the title.
+        Default implementation runs the download in a separate thread.
 
         :param job: The job that has finished.
         :param row: DataFrame row containing the job's metadata.
         """
-        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
-
         job_metadata = job.describe()
         job_dir = self.get_job_dir(job.job_id)
         metadata_path = self.get_job_metadata_path(job.job_id)
-
         self.ensure_job_dir_exists(job.job_id)
-        job.get_results().download_files(target=job_dir)
 
+        # Start download in a separate thread
+        downloader = Thread(target=lambda: (
+            self._job_download(job, job_dir, row)  # Invoke the download logic directly
+        ))
+        downloader.start()
+
+        # Write the job metadata to a file
         with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
+
+    def _job_download(self, job, job_dir, row):
+        """
+        Download the job's results and update the job status after the download completes.
+        """
+        try:
+            # Start downloading the job's results
+            job.get_results().download_files(target=job_dir)
+
+        except Exception as e:
+            # If the download fails, set the status to 'error'
+            _log.error(f"Error downloading job {job.job_id}: {e}")
 
     def on_job_error(self, job: BatchJob, row):
         """
@@ -696,6 +713,7 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
+ 
     def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
         """
         Tracks status (and stats) of running jobs (in place).
@@ -703,7 +721,7 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+        active = job_db.get_by_status(statuses=["created", "queued", "running", "downloading"]).copy()
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
@@ -720,10 +738,20 @@ class MultiBackendJobManager:
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
                 )
 
-                if new_status == "finished":
-                    stats["job finished"] += 1
+   
+                #---------------------------------------
+
+                if new_status == "finished" and previous_status != "downloading":
+                    new_status = "downloading"
                     self.on_job_done(the_job, active.loc[i])
 
+                if previous_status == "downloading":
+                    if  self.get_job_metadata_path(job_id).exists():
+                        new_status = "finished"
+                        stats["job finished"] += 1
+                    else:
+                        new_status = "downloading"
+                        
                 if previous_status != "error" and new_status == "error":
                     stats["job failed"] += 1
                     self.on_job_error(the_job, active.loc[i])
