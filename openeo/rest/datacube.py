@@ -35,6 +35,7 @@ from openeo.internal.processes.builder import (
     convert_callable_to_pgnode,
     get_parameter_names,
 )
+from openeo.internal.processes.parse import Process
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 from openeo.metadata import (
     Band,
@@ -2739,10 +2740,19 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.4.9
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        coefficient_options = [None]
-        if self.connection:
-            schema = self.connection.get_schema_from_process_parameter("sar_backscatter", "coefficient")
-            coefficient_options += search_list_for_dict_key(schema, "enum")
+        try:
+            schema = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter("coefficient")
+            coefficient_options = search_list_for_dict_key(schema, "enum") + [None]
+        except Exception:
+            log.warning(f"Failed to extract option for coefficient in sar_backscatter")
+            coefficient_options = [
+                "beta0",
+                "sigma0-ellipsoid",
+                "sigma0-terrain",
+                "gamma0-ellipsoid",
+                "gamma0-terrain",
+                None,
+            ]
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options

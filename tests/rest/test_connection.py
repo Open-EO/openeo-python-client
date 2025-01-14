@@ -2874,31 +2874,6 @@ def test_list_processes_namespace(requests_mock):
     assert m.call_count == 1
 
 
-def test_get_schema_from_process_parameter(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    processes = [
-        {
-            "id": "incr",
-            "description": "Increment a value",
-            "summary": "Increment a value",
-            "parameters": [{"name": "x", "description": "value", "schema": {"type": "integer"}}],
-            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
-        },
-        {
-            "id": "pi",
-            "description": "Pi",
-            "summary": "Pi",
-            "parameters": [],
-            "returns": {"description": "value of pi", "schema": {"type": "number"}},
-        },
-    ]
-    m = requests_mock.get(API_URL + "processes", json={"processes": processes})
-    conn = Connection(API_URL)
-    assert conn.list_processes() == processes
-    schema = conn.get_schema_from_process_parameter("incr", "x")
-    assert schema == {"type": "integer"}
-
-
 def test_get_job(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

@@ -127,6 +127,12 @@ class Process(typing.NamedTuple):
         with Path(path).open("r") as f:
             return cls.from_json(f.read())
 
+    def get_parameter(self, parameter_id: str) -> Union[dict, list]:
+        for parameter in self.parameters:
+            if parameter.name == parameter_id:
+                return parameter.schema.schema
+        raise LookupError(f"Expected parameter {parameter_id} not found.")
+
 
 def parse_all_from_dir(path: Union[str, Path], pattern="*.json") -> Iterator[Process]:
     """Parse all openEO process files in given directory"""

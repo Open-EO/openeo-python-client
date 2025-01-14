@@ -1067,28 +1067,6 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def get_schema_from_process_parameter(
-        self, process_id: str, parameter_id: str, namespace: Optional[str] = None
-    ) -> Union[dict, list]:
-        """
-        Returns schema of the parameter of the process from the back end.
-
-        :param process_id: The id of the process.
-        :param parameter_id: The id of the parameter.
-        :param namespace: The namespace of the process.
-
-        :return: schema of the parameter in the process.
-        """
-        processes = self.list_processes(namespace)
-        for process in processes:
-            if process["id"] == process_id:
-                schema = Process.from_dict(process)
-                for parameter in schema.parameters:
-                    if parameter.name == parameter_id:
-                        return parameter.schema.schema
-                raise OpenEoClientException("Parameter does not exist.")
-        raise OpenEoClientException("Process does not exist.")
-
     def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
         """
         Lists all jobs of the authenticated user.
