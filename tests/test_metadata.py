@@ -139,6 +139,8 @@ def test_band_dimension_set_labels():
     assert metadata.band_dimension.band_names == ["some_name"]
     assert newdim.band_names == ["1", "2", "3"]
 
+    assert metadata.dimension("bs").band_names == ["some_name"]
+
     metadata = CubeMetadata(dimensions=[bdim])
     newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
     assert metadata.band_dimension.band_names == ["some_name"]
@@ -678,6 +680,13 @@ def test_cubemetadata_add_temporal_dimension_duplicate():
     with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
         _ = metadata.add_dimension("date", "2020-05-15", "temporal")
 
+
+def test_cubemetadata_add_spatial_dimension():
+    metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=[4,6])])
+    updated = metadata.add_dimension(SpatialDimension(name="y", extent=[51,56]))
+
+    assert ["x"] == metadata.dimension_names()
+    assert ["x", "y"] == updated.dimension_names()
 
 def test_collectionmetadata_drop_dimension():
     metadata = CollectionMetadata(
