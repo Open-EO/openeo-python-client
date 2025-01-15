@@ -2353,7 +2353,7 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
@@ -2478,6 +2478,7 @@ class DataCube(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
         show_error_logs: bool = True,
+        log_level: Optional[str] = None,
         # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2496,15 +2497,20 @@ class DataCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
@@ -2531,6 +2537,7 @@ class DataCube(_ProcessGraphAbstraction):
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
+            log_level=log_level,
         )
         return job.run_synchronous(
             outputfile=outputfile,
@@ -2552,6 +2559,7 @@ class DataCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        log_level: Optional[str] = None,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2575,14 +2583,19 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         :return: Created job.
 
-        .. versionadded:: 0.32.0
+        .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added ``additional`` argument.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
@@ -2605,6 +2618,7 @@ class DataCube(_ProcessGraphAbstraction):
             validate=validate,
             additional=additional,
             job_options=job_options,
+            log_level=log_level,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")

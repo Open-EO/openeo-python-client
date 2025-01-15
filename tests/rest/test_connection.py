@@ -2955,6 +2955,38 @@ def test_create_job_with_additional_and_job_options(dummy_backend):
     }
 
 
+def test_create_job_log_level_basic(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        log_level="warning",
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "log_level": "warning",
+    }
+
+
+@pytest.mark.parametrize(
+    ["create_kwargs", "expected"],
+    [
+        ({}, {}),
+        ({"log_level": None}, {}),
+        ({"log_level": "error"}, {"log_level": "error"}),
+    ],
+)
+def test_create_job_log_level(dummy_backend, create_kwargs, expected):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        **create_kwargs,
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        **expected,
+    }
+
+
 @pytest.mark.parametrize(
     "pg",
     [
