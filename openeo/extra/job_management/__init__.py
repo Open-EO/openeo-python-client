@@ -643,18 +643,6 @@ class MultiBackendJobManager:
         downloader = Thread(target=download_task, daemon=True)
         downloader.start()
 
-    def _job_download(self, job, job_dir, row):
-        """
-        Download the job's results and update the job status after the download completes.
-        """
-        try:
-            # Start downloading the job's results
-            job.get_results().download_files(target=job_dir)
-
-        except Exception as e:
-            # If the download fails, set the status to 'error'
-            _log.error(f"Error downloading job {job.job_id}: {e}")
-
     def on_job_error(self, job: BatchJob, row):
         """
         Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.
