@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Argument `spatial_extent` in `load_collection` supports Shapely objects and loading GeoJSON from a local path.
 - Added `show_error_logs` argument to `cube.execute_batch()`/`job.start_and_wait()`/... to toggle the automatic printing of error logs on failure ([#505](https://github.com/Open-EO/openeo-python-client/issues/505))
 - Added `Connection.web_editor()` to build link to the openEO backend in the openEO Web Editor
 - Add support for `log_level` in `create_job()` and `execute_job()` ([#704](https://github.com/Open-EO/openeo-python-client/issues/704))
 - Add initial support for "geometry" dimension type in `CubeMetadata` ([#705](https://github.com/Open-EO/openeo-python-client/issues/705))
 - Add support for parameterized `bands` argument in `load_stac()`
+- Argument `spatial_extent` in `load_collection()`/`load_stac()`: add support for Shapely objects and loading GeoJSON from a local path. ([#678](https://github.com/Open-EO/openeo-python-client/issues/678))
 
 ### Changed
 

@@ -138,7 +138,7 @@ class TestDataCube:
         }
 
     def test_load_collection_connectionless_shapely_spatial_extent(self):
-        polygon = shapely.Polygon(((0.0,1.0),(2.0,1.0),(3.0,2.0),(1.5,0.0),(0.0,1.0)))
+        polygon = shapely.geometry.Polygon(((0.0, 1.0), (2.0, 1.0), (3.0, 2.0), (1.5, 0.0), (0.0, 1.0)))
         cube = DataCube.load_collection("T3", spatial_extent=polygon)
         assert cube.flat_graph() == {
             "loadcollection1": {
