@@ -143,7 +143,7 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Optional[Connection] = None,
-        spatial_extent: Union[Dict[str, float], Parameter, shapely.geometry.base.BaseGeometry, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
@@ -161,8 +161,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
             - a bounding box dictionary
             - a Shapely geometry object
-            - a GeoJSON-style dictionary,
-            - a path (:py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+            - a GeoJSON-style dictionary
+            - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
@@ -185,27 +185,20 @@ class DataCube(_ProcessGraphAbstraction):
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
 
         .. versionchanged:: 0.37.0
-            Add support for passing a Shapely geometry or a local path to a GeoJSON file to the ``spatial_extent`` argument.
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
-
-        if isinstance(spatial_extent, Parameter):
-            if not schema_supports(spatial_extent.schema, type="object"):
-                warnings.warn(
-                    "Unexpected parameterized `spatial_extent` in `load_collection`:"
-                    f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
-                )
-        elif spatial_extent is None or (
-            isinstance(spatial_extent, dict) and spatial_extent.keys() & {"west", "east", "north", "south"}
-        ):
-            pass
-        else:
-            valid_geojson_types = [
-                "Polygon", "MultiPolygon", "Feature", "FeatureCollection"
-            ]
-            spatial_extent = _get_geometry_argument(argument=spatial_extent, valid_geojson_types=valid_geojson_types,
-                                                    connection=connection)
+        spatial_extent = _get_geometry_argument(
+            argument=spatial_extent,
+            valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
+            connection=connection,
+            allow_none=True,
+            allow_parameter=True,
+            allow_bounding_box=True,
+            argument_name="spatial_extent",
+            process_id="load_collection",
+        )
 
         arguments = {
             'id': collection_id,
@@ -390,11 +383,22 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.33.0
 
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         arguments = {"url": url}
-        # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
-            arguments["spatial_extent"] = spatial_extent
+            arguments["spatial_extent"] = _get_geometry_argument(
+                argument=spatial_extent,
+                valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
+                connection=connection,
+                allow_none=True,
+                allow_parameter=True,
+                allow_bounding_box=True,
+                argument_name="spatial_extent",
+                process_id="load_stac",
+            )
+
         if temporal_extent:
             arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
         bands = cls._get_bands(bands, process_id="load_stac")
@@ -2892,23 +2896,47 @@ def _get_geometry_argument(
         Parameter,
         _FromNodeMixin,
     ],
+    *,
     valid_geojson_types: List[str],
     connection: Connection = None,
     crs: Optional[str] = None,
-) -> Union[dict, Parameter, PGNode]:
+    allow_parameter: bool = True,
+    allow_bounding_box: bool = False,
+    allow_none: bool = False,
+    argument_name: str = "n/a",
+    process_id: str = "n/a",
+) -> Union[dict, Parameter, PGNode, _FromNodeMixin, None]:
     """
-    Convert input to a geometry as "geojson" subtype object or vectorcube.
+    Convert input to a geometry as "geojson" subtype object or vector cube.
 
     :param crs: value that encodes a coordinate reference system.
         See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
+    :param allow_parameter: allow argument to be a :py:class:`Parameter` instance, and pass-through as such
+    :param allow_none: allow argument to be ``None`` and pass-through as such
+    :param allow_bounding_box: allow argument to be a bounding box dictionary and pass-through as such
     """
-    if isinstance(argument, Parameter):
+    # Some quick exit shortcuts
+    if allow_parameter and isinstance(argument, Parameter):
+        if not schema_supports(argument.schema, type="object"):
+            warnings.warn(
+                f"Unexpected parameterized `{argument_name}` in `{process_id}`:"
+                f" expected schema compatible with type 'object' but got {argument.schema!r}."
+            )
         return argument
     elif isinstance(argument, _FromNodeMixin):
+        # Typical use case here: VectorCube instance
         return argument.from_node()
+    elif allow_none and argument is None:
+        return argument
+    elif (
+        allow_bounding_box
+        and isinstance(argument, dict)
+        and all(k in argument for k in ["west", "south", "east", "north"])
+    ):
+        return argument
 
+    # Support URL based geometry references (with `load_url` and best-effort format guess)
     if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
-        # Geometry provided as URL: load with `load_url` (with best-effort format guess)
         url = urllib.parse.urlparse(argument)
         suffix = pathlib.Path(url.path.lower()).suffix
         format = {
@@ -2919,7 +2947,8 @@ def _get_geometry_argument(
             ".geoparquet": "Parquet",
         }.get(suffix, suffix.split(".")[-1])
         return connection.load_url(url=argument, format=format)
-    #
+
+    # Support loading GeoJSON from local files
     if (
         isinstance(argument, (str, pathlib.Path))
         and pathlib.Path(argument).is_file()
@@ -2933,6 +2962,8 @@ def _get_geometry_argument(
     else:
         raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
 
+    # The assumption at this point is that we are working with a GeoJSON style dictionary
+    assert isinstance(geometry, dict)
     if geometry.get("type") not in valid_geojson_types:
         raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
             t=geometry.get("type"), s=valid_geojson_types
