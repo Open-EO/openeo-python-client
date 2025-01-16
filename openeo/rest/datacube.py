@@ -383,6 +383,8 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.33.0
 
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         arguments = {"url": url}
         if spatial_extent:

@@ -1256,7 +1256,7 @@ class Connection(RestApiConnection):
     def load_collection(
         self,
         collection_id: Union[str, Parameter],
-        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
@@ -1355,7 +1355,7 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
@@ -1457,6 +1457,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_stac(
             url=url,
