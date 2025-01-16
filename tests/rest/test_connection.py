@@ -17,6 +17,7 @@ import shapely.geometry
 
 import openeo
 from openeo import BatchJob
+from openeo.api.process import Parameter
 from openeo.capabilities import ApiVersionException
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
@@ -2681,6 +2682,51 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
         assert cube.metadata.band_names == ["B03", "B02"]
 
+    @pytest.mark.parametrize(
+        "bands",
+        [
+            ["B02", "B03"],
+            ("B02", "B03"),
+            iter(["B02", "B03"]),
+        ],
+    )
+    def test_bands_iterable(self, con120, bands):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": ["B02", "B03"],
+                },
+                "result": True,
+            }
+        }
+
+    def test_bands_empty(self, con120):
+        with pytest.raises(OpenEoClientException, match="Bands array should not be empty"):
+            _ = con120.load_stac("https://provider.test/dataset", bands=[])
+
+    def test_bands_parameterized(self, con120):
+        bands = Parameter(name="my_bands", schema={"type": "array", "items": {"type": "string"}})
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": {"from_parameter": "my_bands"},
+                },
+                "result": True,
+            }
+        }
+
 
 @pytest.mark.parametrize(
     "data",
@@ -2952,6 +2998,38 @@ def test_create_job_with_additional_and_job_options(dummy_backend):
         "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
         "color": "blue",
         "job_options": {"color": "green"},
+    }
+
+
+def test_create_job_log_level_basic(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        log_level="warning",
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "log_level": "warning",
+    }
+
+
+@pytest.mark.parametrize(
+    ["create_kwargs", "expected"],
+    [
+        ({}, {}),
+        ({"log_level": None}, {}),
+        ({"log_level": "error"}, {"log_level": "error"}),
+    ],
+)
+def test_create_job_log_level(dummy_backend, create_kwargs, expected):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        **create_kwargs,
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        **expected,
     }
 
 
@@ -4010,3 +4088,10 @@ class TestMultiResultHandling:
                 "result": True,
             },
         }
+
+
+def test_web_editor(requests_mock):
+    requests_mock.get(API_URL, json=build_capabilities())
+    con = Connection(API_URL)
+    assert con.web_editor() == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F"
+    assert con.web_editor(anonymous=True) == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F&discover=1"

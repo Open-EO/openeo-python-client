@@ -9,6 +9,7 @@ import logging
 import os
 import shlex
 import sys
+import urllib.parse
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -892,7 +893,7 @@ class Connection(RestApiConnection):
 
         :return: list of dictionaries with basic collection metadata.
         """
-        # TODO: add caching #383
+        # TODO: add caching #383, but reset cache on auth change #254
         data = self.get('/collections', expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
@@ -1257,7 +1258,7 @@ class Connection(RestApiConnection):
         collection_id: Union[str, Parameter],
         spatial_extent: Union[Dict[str, float], Parameter, shapely.geometry.base.BaseGeometry, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
         ] = None,
@@ -1356,7 +1357,7 @@ class Connection(RestApiConnection):
         url: str,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
@@ -1824,6 +1825,7 @@ class Connection(RestApiConnection):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1844,13 +1846,18 @@ class Connection(RestApiConnection):
             (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :return: Created job
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``job_options``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
@@ -1858,7 +1865,7 @@ class Connection(RestApiConnection):
             process_graph=process_graph,
             additional=additional,
             job_options=job_options,
-            **dict_no_none(title=title, description=description, plan=plan, budget=budget)
+            **dict_no_none(title=title, description=description, plan=plan, budget=budget, log_level=log_level),
         )
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
@@ -1975,6 +1982,18 @@ class Connection(RestApiConnection):
                 "processing:software": capabilities.get("processing:software"),
             }),
         }
+
+    def web_editor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
+        """
+        Generate URL to open this backend in the openEO Web Editor.
+        """
+        # TODO: add option to directly open link with `webbrowser.open()`?
+        # TODO: add option to print (or jupyter-aware display) the link instead of returning it?
+        params = {"server": self.root_url}
+        if anonymous:
+            params["discover"] = "1"
+        url = f"{editor_url}?{urllib.parse.urlencode(params)}"
+        return url
 
 
 def connect(

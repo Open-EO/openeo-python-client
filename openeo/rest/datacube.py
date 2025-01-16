@@ -145,7 +145,7 @@ class DataCube(_ProcessGraphAbstraction):
         connection: Optional[Connection] = None,
         spatial_extent: Union[Dict[str, float], Parameter, shapely.geometry.base.BaseGeometry, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
             None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
@@ -217,10 +217,9 @@ class DataCube(_ProcessGraphAbstraction):
         metadata: Optional[CollectionMetadata] = (
             connection.collection_metadata(collection_id) if connection and fetch_metadata else None
         )
-        if bands:
-            if isinstance(bands, str):
-                bands = [bands]
-            elif isinstance(bands, Parameter):
+        if bands is not None:
+            bands = cls._get_bands(bands, process_id="load_collection")
+            if isinstance(bands, Parameter):
                 metadata = None
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
@@ -291,7 +290,7 @@ class DataCube(_ProcessGraphAbstraction):
         url: str,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
         connection: Optional[Connection] = None,
     ) -> DataCube:
@@ -398,7 +397,8 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
             arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
-        if bands:
+        bands = cls._get_bands(bands, process_id="load_stac")
+        if bands is not None:
             arguments["bands"] = bands
         if properties:
             arguments["properties"] = {
@@ -407,7 +407,7 @@ class DataCube(_ProcessGraphAbstraction):
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
-            if bands:
+            if isinstance(bands, list):
                 # TODO: also apply spatial/temporal filters to metadata?
                 metadata = metadata.filter_bands(band_names=bands)
         except Exception:
@@ -447,6 +447,24 @@ class DataCube(_ProcessGraphAbstraction):
             return list(
                 get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor)
             )
+
+    @staticmethod
+    def _get_bands(
+        bands: Union[Iterable[str], Parameter, str, None], process_id: str
+    ) -> Union[None, List[str], Parameter]:
+        """Normalize band array for processes like load_collection, load_stac"""
+        if bands is None:
+            pass
+        elif isinstance(bands, str):
+            bands = [bands]
+        elif isinstance(bands, Parameter):
+            pass
+        else:
+            # Coerce to list
+            bands = list(bands)
+            if len(bands) == 0:
+                raise OpenEoClientException(f"Bands array should not be empty (process {process_id!r})")
+        return bands
 
     @openeo_process
     def filter_temporal(
@@ -2309,7 +2327,7 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
@@ -2434,6 +2452,7 @@ class DataCube(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
         show_error_logs: bool = True,
+        log_level: Optional[str] = None,
         # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2452,15 +2471,20 @@ class DataCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
@@ -2487,6 +2511,7 @@ class DataCube(_ProcessGraphAbstraction):
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
+            log_level=log_level,
         )
         return job.run_synchronous(
             outputfile=outputfile,
@@ -2508,6 +2533,7 @@ class DataCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        log_level: Optional[str] = None,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2531,14 +2557,19 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         :return: Created job.
 
-        .. versionadded:: 0.32.0
+        .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added ``additional`` argument.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
@@ -2561,6 +2592,7 @@ class DataCube(_ProcessGraphAbstraction):
             validate=validate,
             additional=additional,
             job_options=job_options,
+            log_level=log_level,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")

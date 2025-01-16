@@ -11,6 +11,7 @@ import re
 from datetime import date, datetime
 from unittest import mock
 
+import dirty_equals
 import numpy as np
 import pytest
 import requests
@@ -897,6 +898,21 @@ class TestExecuteBatch:
     def test_create_job_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
         s2cube.create_job(auto_add_save_result=auto_add_save_result)
         assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+    @pytest.mark.parametrize(
+        ["create_kwargs", "expected"],
+        [
+            ({}, {}),
+            ({"log_level": None}, {}),
+            ({"log_level": "error"}, {"log_level": "error"}),
+        ],
+    )
+    def test_create_job_log_level(self, s2cube, dummy_backend, create_kwargs, expected):
+        s2cube.create_job(**create_kwargs)
+        assert dummy_backend.get_batch_post_data() == {
+            "process": {"process_graph": dirty_equals.IsPartialDict()},
+            **expected,
+        }
 
     def test_execute_batch_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
         s2cube.execute_batch()
