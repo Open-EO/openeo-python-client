@@ -1258,7 +1258,7 @@ class Connection(RestApiConnection):
         collection_id: Union[str, Parameter],
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
         ] = None,
@@ -1348,7 +1348,7 @@ class Connection(RestApiConnection):
         url: str,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """

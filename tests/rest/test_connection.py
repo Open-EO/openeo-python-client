@@ -17,6 +17,7 @@ import shapely.geometry
 
 import openeo
 from openeo import BatchJob
+from openeo.api.process import Parameter
 from openeo.capabilities import ApiVersionException
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
@@ -2680,6 +2681,51 @@ class TestLoadStac:
 
         cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
         assert cube.metadata.band_names == ["B03", "B02"]
+
+    @pytest.mark.parametrize(
+        "bands",
+        [
+            ["B02", "B03"],
+            ("B02", "B03"),
+            iter(["B02", "B03"]),
+        ],
+    )
+    def test_bands_iterable(self, con120, bands):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": ["B02", "B03"],
+                },
+                "result": True,
+            }
+        }
+
+    def test_bands_empty(self, con120):
+        with pytest.raises(OpenEoClientException, match="Bands array should not be empty"):
+            _ = con120.load_stac("https://provider.test/dataset", bands=[])
+
+    def test_bands_parameterized(self, con120):
+        bands = Parameter(name="my_bands", schema={"type": "array", "items": {"type": "string"}})
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": {"from_parameter": "my_bands"},
+                },
+                "result": True,
+            }
+        }
 
 
 @pytest.mark.parametrize(

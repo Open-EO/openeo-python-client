@@ -145,7 +145,7 @@ class DataCube(_ProcessGraphAbstraction):
         connection: Optional[Connection] = None,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
             None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
@@ -198,10 +198,9 @@ class DataCube(_ProcessGraphAbstraction):
         metadata: Optional[CollectionMetadata] = (
             connection.collection_metadata(collection_id) if connection and fetch_metadata else None
         )
-        if bands:
-            if isinstance(bands, str):
-                bands = [bands]
-            elif isinstance(bands, Parameter):
+        if bands is not None:
+            bands = cls._get_bands(bands, process_id="load_collection")
+            if isinstance(bands, Parameter):
                 metadata = None
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
@@ -272,7 +271,7 @@ class DataCube(_ProcessGraphAbstraction):
         url: str,
         spatial_extent: Union[Dict[str, float], Parameter, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
         connection: Optional[Connection] = None,
     ) -> DataCube:
@@ -379,7 +378,8 @@ class DataCube(_ProcessGraphAbstraction):
             arguments["spatial_extent"] = spatial_extent
         if temporal_extent:
             arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
-        if bands:
+        bands = cls._get_bands(bands, process_id="load_stac")
+        if bands is not None:
             arguments["bands"] = bands
         if properties:
             arguments["properties"] = {
@@ -388,7 +388,7 @@ class DataCube(_ProcessGraphAbstraction):
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
-            if bands:
+            if isinstance(bands, list):
                 # TODO: also apply spatial/temporal filters to metadata?
                 metadata = metadata.filter_bands(band_names=bands)
         except Exception:
@@ -428,6 +428,24 @@ class DataCube(_ProcessGraphAbstraction):
             return list(
                 get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor)
             )
+
+    @staticmethod
+    def _get_bands(
+        bands: Union[Iterable[str], Parameter, str, None], process_id: str
+    ) -> Union[None, List[str], Parameter]:
+        """Normalize band array for processes like load_collection, load_stac"""
+        if bands is None:
+            pass
+        elif isinstance(bands, str):
+            bands = [bands]
+        elif isinstance(bands, Parameter):
+            pass
+        else:
+            # Coerce to list
+            bands = list(bands)
+            if len(bands) == 0:
+                raise OpenEoClientException(f"Bands array should not be empty (process {process_id!r})")
+        return bands
 
     @openeo_process
     def filter_temporal(

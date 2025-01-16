@@ -2309,6 +2309,34 @@ def test_load_collection_parameterized_bands(con100):
 
 
 @pytest.mark.parametrize(
+    "bands",
+    [
+        ["B02", "B03"],
+        ("B02", "B03"),
+        iter(["B02", "B03"]),
+    ],
+)
+def test_load_collection_bands_iterable(con100, bands):
+    cube = con100.load_collection("S2", bands=bands)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+                "bands": ["B02", "B03"],
+            },
+        },
+    }
+
+
+def test_load_collection_empty_bands_array(con100):
+    with pytest.raises(OpenEoClientException, match="Bands array should not be empty"):
+        _ = con100.load_collection("S2", bands=[])
+
+
+@pytest.mark.parametrize(
     ["spatial_extent", "temporal_extent", "spatial_name", "temporal_name"],
     [
         (
