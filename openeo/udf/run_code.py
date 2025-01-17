@@ -246,12 +246,8 @@ def execute_local_udf(
     :param fmt: format of the file if datacube is string
     :return: the resulting DataCube
     """
-    if isinstance(udf, openeo.UDF):
-        udf_code = udf.code
-    elif isinstance(udf, str):
-        udf_code = udf
-    else:
-        raise ValueError(udf)
+    if isinstance(udf, str):
+        udf = openeo.UDF(code=udf)
 
     if isinstance(datacube, (str, pathlib.Path)):
         d = XarrayDataCube.from_file(path=datacube, fmt=fmt)
@@ -278,7 +274,7 @@ def execute_local_udf(
     # signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)
 
     # run the udf through the same routine as it would have been parsed in the backend
-    result = run_udf_code(udf_code, udf_data)
+    result = run_udf_code(udf.code, udf_data)
     return result
 
 
