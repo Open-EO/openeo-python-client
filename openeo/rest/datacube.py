@@ -676,7 +676,7 @@ class DataCube(_ProcessGraphAbstraction):
             "MultiLineString",
             "Polygon",
             "MultiPolygon",
-            "GeometryCollection",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
             "FeatureCollection",
         ]
         geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
@@ -1174,8 +1174,15 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
+            "Feature",
+            "FeatureCollection",
         ]
         geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection= self.connection, crs=crs)
         reducer = build_child_callback(reducer, parent_parameters=["data"])
@@ -1453,7 +1460,7 @@ class DataCube(_ProcessGraphAbstraction):
         valid_geojson_types = [
             "Polygon",
             "MultiPolygon",
-            "GeometryCollection",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
             "Feature",
             "FeatureCollection",
         ]
@@ -2034,8 +2041,16 @@ class DataCube(_ProcessGraphAbstraction):
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
-        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
-        mask = _get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=srs)
+        valid_geojson_types = [
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
+            "Feature",
+            "FeatureCollection",
+        ]
+        mask = _get_geometry_argument(
+            mask, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=srs
+        )
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(
@@ -2971,6 +2986,12 @@ def _get_geometry_argument(
         raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
             t=geometry.get("type"), s=valid_geojson_types
         ))
+    if geometry.get("type") == "GeometryCollection":
+        # TODO #706 Fully drop GeometryCollection support
+        warnings.warn(
+            "Usage of GeoJSON type 'GeometryCollection' is deprecated/invalid. Support in openEO Python client will be dropped. Use a FeatureCollection instead.",
+            category=DeprecationWarning,
+        )
     if crs:
         # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
         warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")

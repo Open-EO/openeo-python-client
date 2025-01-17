@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Raise exception when providing empty bands array to `load_collection`/`load_stac` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424), [Open-EO/openeo-processes#372](https://github.com/Open-EO/openeo-processes/issues/372))
+- Start showing deprecation warnings on usage of GeoJSON "GeometryCollection" (in `filter_spatial`, `aggregate_spatial`, `chunk_polygon`, `mask_polygon`). Use a GeoJSON FeatureCollection instead. ([#706](https://github.com/Open-EO/openeo-python-client/issues/706), [Open-EO/openeo-processes#389](https://github.com/Open-EO/openeo-processes/issues/389))
 
 ### Removed
 

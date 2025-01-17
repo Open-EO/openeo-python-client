@@ -48,6 +48,7 @@ basic_geometry_types = [
         {"type": "MultiPolygon", "coordinates": [[[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]]]},
     ),
     (
+        # TODO #706 Stop allowing GeometryCollection
         shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
         {
             "type": "GeometryCollection",
@@ -450,8 +451,9 @@ def test_aggregate_spatial_basic(con100: Connection):
     (
             shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
             {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
-    ),
-    (
+        ),
+        (
+            # TODO #706 Stop allowing GeometryCollection
             shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
             {"type": "GeometryCollection", "geometries": [
                 {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
