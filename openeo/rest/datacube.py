@@ -282,7 +282,7 @@ class DataCube(_ProcessGraphAbstraction):
     def load_stac(
         cls,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,

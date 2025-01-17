@@ -2460,7 +2460,7 @@ class TestLoadCollection:
         cube.execute()
         assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
             "id": "S2",
-            "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
             "temporal_extent": None,
         }
 
@@ -2527,7 +2527,7 @@ class TestLoadCollection:
         ],
     )
     @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_load_collection_spatial_extent_path(self, geojson, dummy_backend, tmp_path, path_factory):
+    def test_load_collection_spatial_extent_local_path(self, geojson, dummy_backend, tmp_path, path_factory):
         path = tmp_path / "geometry.json"
         with path.open("w") as f:
             json.dump(geojson, f)
@@ -2935,8 +2935,8 @@ class TestLoadStac:
         cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
         cube.execute()
         assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
-            "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
             "url": "https://stac.test/data",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
         }
 
     @pytest.mark.parametrize(
@@ -2953,8 +2953,8 @@ class TestLoadStac:
         cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
         cube.execute()
         assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
-            "spatial_extent": spatial_extent,
             "url": "https://stac.test/data",
+            "spatial_extent": spatial_extent,
         }
 
     @pytest.mark.parametrize(
@@ -3008,7 +3008,7 @@ class TestLoadStac:
         ],
     )
     @pytest.mark.parametrize("path_factory", [str, Path])
-    def test_load_stac_spatial_extent_path(self, geojson, dummy_backend, tmp_path, path_factory):
+    def test_load_stac_spatial_extent_local_path(self, geojson, dummy_backend, tmp_path, path_factory):
         path = tmp_path / "geometry.json"
         with path.open("w") as f:
             json.dump(geojson, f)
