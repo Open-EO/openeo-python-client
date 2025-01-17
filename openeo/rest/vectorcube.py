@@ -260,6 +260,7 @@ class VectorCube(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
         show_error_logs: bool = True,
+        log_level: Optional[str] = None,
         # TODO: avoid using kwargs as format options
         **format_options,
     ) -> BatchJob:
@@ -279,6 +280,8 @@ class VectorCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -286,11 +289,14 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         cube = self
         if auto_add_save_result:
@@ -311,6 +317,7 @@ class VectorCube(_ProcessGraphAbstraction):
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
+            log_level=log_level,
         )
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
@@ -333,6 +340,7 @@ class VectorCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        log_level: Optional[str] = None,
         **format_options,
     ) -> BatchJob:
         """
@@ -351,11 +359,16 @@ class VectorCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         :return: Created job.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: avoid using all kwargs as format_options
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
@@ -377,6 +390,7 @@ class VectorCube(_ProcessGraphAbstraction):
             additional=additional,
             job_options=job_options,
             validate=validate,
+            log_level=log_level,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")

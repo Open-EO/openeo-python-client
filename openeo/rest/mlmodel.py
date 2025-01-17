@@ -72,6 +72,7 @@ class MlModel(_ProcessGraphAbstraction):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         show_error_logs: bool = True,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         """
         Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
@@ -87,12 +88,17 @@ class MlModel(_ProcessGraphAbstraction):
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         job = self.create_job(
             title=title,
@@ -101,6 +107,7 @@ class MlModel(_ProcessGraphAbstraction):
             budget=budget,
             additional=additional,
             job_options=job_options,
+            log_level=log_level,
         )
         return job.run_synchronous(
             # TODO #135 support multi file result sets too
@@ -120,6 +127,7 @@ class MlModel(_ProcessGraphAbstraction):
         budget: Optional[float] = None,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         """
         Sends a job to the backend and returns a ClientJob instance.
@@ -133,10 +141,15 @@ class MlModel(_ProcessGraphAbstraction):
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
         :param format_options: String Parameters for the job result format
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :return: Created job.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: centralize `create_job` for `DataCube`, `VectorCube`, `MlModel`, ...
         pg = self
@@ -151,4 +164,5 @@ class MlModel(_ProcessGraphAbstraction):
             budget=budget,
             additional=additional,
             job_options=job_options,
+            log_level=log_level,
         )

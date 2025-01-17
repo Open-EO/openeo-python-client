@@ -632,7 +632,7 @@ def test_collectionmetadata_add_band_dimension_duplicate():
         _ = metadata.add_dimension("layer", "red", "bands")
 
 
-def test_cubemetadata_add_band_dimension_dublicate():
+def test_cubemetadata_add_band_dimension_duplicate():
     metadata = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
     metadata = metadata.add_dimension("layer", "red", "bands")
     with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
@@ -678,6 +678,20 @@ def test_cubemetadata_add_temporal_dimension_duplicate():
     with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
         _ = metadata.add_dimension("date", "2020-05-15", "temporal")
 
+
+def test_cube_metadata_add_dimension_geometry():
+    orig = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
+    new = orig.add_dimension(name="fields", label="Mol", type="geometry")
+
+    assert orig.dimension_names() == ["t"]
+    assert not orig.has_geometry_dimension()
+    with pytest.raises(MetadataException):
+        orig.geometry_dimension()
+
+    assert new.dimension_names() == ["t", "fields"]
+    assert new.has_geometry_dimension()
+    assert new.geometry_dimension.name == "fields"
+    assert new.geometry_dimension.type == "geometry"
 
 def test_collectionmetadata_drop_dimension():
     metadata = CollectionMetadata(

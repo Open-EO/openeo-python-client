@@ -307,6 +307,31 @@ def test_run_local_udf_from_file_netcdf(tmp_path):
     assert result[2, 0, 4, 3] == _ndvi(2034, 2134)
 
 
+def test_run_local_udf_from_file_netcdf_with_context(tmp_path):
+    udf_code = _get_udf_code("multiply_factor.py")
+    xdc = _build_xdc(
+        ts=[numpy.datetime64("2020-08-01"), numpy.datetime64("2020-08-11"), numpy.datetime64("2020-08-21")],
+        bands=["bandzero", "bandone"],
+        xs=[10.0, 11.0, 12.0, 13.0, 14.0],
+        ys=[20.0, 21.0, 22.0, 23.0, 24.0, 25.0],
+    )
+    assert xdc.array.shape == (3, 2, 5, 6)
+    data_path = tmp_path / "data.nc"
+    xdc.save_to_file(path=data_path, fmt="netcdf")
+
+    factor = 100
+    udf = UDF(udf_code, runtime="Python", context={"factor": factor})
+    res = execute_local_udf(udf, data_path, fmt="netcdf")
+
+    assert isinstance(res, UdfData)
+    result = res.get_datacube_list()[0].get_array()
+
+    assert result.shape == (3, 2, 6, 5)
+    swapped_result = result.transpose("t", "bands", "x", "y")
+    expected = xdc.array * factor
+    xarray.testing.assert_equal(swapped_result, expected)
+
+
 def _is_package_available(name: str) -> bool:
     # TODO: move this to a more general test utility module.
     return importlib.util.find_spec(name) is not None

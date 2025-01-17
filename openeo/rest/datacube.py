@@ -143,9 +143,9 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Optional[Connection] = None,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
             None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
@@ -158,7 +158,14 @@ class DataCube(_ProcessGraphAbstraction):
         :param collection_id: image collection identifier
         :param connection: The backend connection to use.
             Can be ``None`` to work without connection and collection metadata.
-        :param spatial_extent: limit data to specified bounding box or polygons
+        :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a bounding box dictionary
+            - a Shapely geometry object
+            - a GeoJSON-style dictionary
+            - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a URL to a publicly accessible GeoJSON document
+            - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -177,19 +184,25 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
+        spatial_extent = _get_geometry_argument(
+            argument=spatial_extent,
+            valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
+            connection=connection,
+            allow_none=True,
+            allow_parameter=True,
+            allow_bounding_box=True,
+            argument_name="spatial_extent",
+            process_id="load_collection",
+        )
 
-        if isinstance(spatial_extent, Parameter):
-            if not schema_supports(spatial_extent.schema, type="object"):
-                warnings.warn(
-                    "Unexpected parameterized `spatial_extent` in `load_collection`:"
-                    f" expected schema compatible with type 'object' but got {spatial_extent.schema!r}."
-                )
         arguments = {
             'id': collection_id,
-            # TODO: spatial_extent could also be a "geojson" subtype object, so we might want to allow (and convert) shapely shapes as well here.
             'spatial_extent': spatial_extent,
             'temporal_extent': temporal_extent,
         }
@@ -198,10 +211,9 @@ class DataCube(_ProcessGraphAbstraction):
         metadata: Optional[CollectionMetadata] = (
             connection.collection_metadata(collection_id) if connection and fetch_metadata else None
         )
-        if bands:
-            if isinstance(bands, str):
-                bands = [bands]
-            elif isinstance(bands, Parameter):
+        if bands is not None:
+            bands = cls._get_bands(bands, process_id="load_collection")
+            if isinstance(bands, Parameter):
                 metadata = None
             if metadata:
                 bands = [b if isinstance(b, str) else metadata.band_dimension.band_name(b) for b in bands]
@@ -270,9 +282,9 @@ class DataCube(_ProcessGraphAbstraction):
     def load_stac(
         cls,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
         connection: Optional[Connection] = None,
     ) -> DataCube:
@@ -372,14 +384,26 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionadded:: 0.33.0
 
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         arguments = {"url": url}
-        # TODO #425 more normalization/validation of extent/band parameters
         if spatial_extent:
-            arguments["spatial_extent"] = spatial_extent
+            arguments["spatial_extent"] = _get_geometry_argument(
+                argument=spatial_extent,
+                valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
+                connection=connection,
+                allow_none=True,
+                allow_parameter=True,
+                allow_bounding_box=True,
+                argument_name="spatial_extent",
+                process_id="load_stac",
+            )
+
         if temporal_extent:
             arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
-        if bands:
+        bands = cls._get_bands(bands, process_id="load_stac")
+        if bands is not None:
             arguments["bands"] = bands
         if properties:
             arguments["properties"] = {
@@ -388,7 +412,7 @@ class DataCube(_ProcessGraphAbstraction):
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
-            if bands:
+            if isinstance(bands, list):
                 # TODO: also apply spatial/temporal filters to metadata?
                 metadata = metadata.filter_bands(band_names=bands)
         except Exception:
@@ -428,6 +452,24 @@ class DataCube(_ProcessGraphAbstraction):
             return list(
                 get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent, convertor=convertor)
             )
+
+    @staticmethod
+    def _get_bands(
+        bands: Union[Iterable[str], Parameter, str, None], process_id: str
+    ) -> Union[None, List[str], Parameter]:
+        """Normalize band array for processes like load_collection, load_stac"""
+        if bands is None:
+            pass
+        elif isinstance(bands, str):
+            bands = [bands]
+        elif isinstance(bands, Parameter):
+            pass
+        else:
+            # Coerce to list
+            bands = list(bands)
+            if len(bands) == 0:
+                raise OpenEoClientException(f"Bands array should not be empty (process {process_id!r})")
+        return bands
 
     @openeo_process
     def filter_temporal(
@@ -628,10 +670,16 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
+            "FeatureCollection",
         ]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=None)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
         return self.process(
             process_id='filter_spatial',
             arguments={
@@ -1058,75 +1106,6 @@ class DataCube(_ProcessGraphAbstraction):
             }
         ))
 
-    def _get_geometry_argument(
-        self,
-        argument: Union[
-            shapely.geometry.base.BaseGeometry,
-            dict,
-            str,
-            pathlib.Path,
-            Parameter,
-            _FromNodeMixin,
-        ],
-        valid_geojson_types: List[str],
-        crs: Optional[str] = None,
-    ) -> Union[dict, Parameter, PGNode]:
-        """
-        Convert input to a geometry as "geojson" subtype object or vectorcube.
-
-        :param crs: value that encodes a coordinate reference system.
-            See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
-        """
-        if isinstance(argument, Parameter):
-            return argument
-        elif isinstance(argument, _FromNodeMixin):
-            return argument.from_node()
-
-        if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
-            # Geometry provided as URL: load with `load_url` (with best-effort format guess)
-            url = urllib.parse.urlparse(argument)
-            suffix = pathlib.Path(url.path.lower()).suffix
-            format = {
-                ".json": "GeoJSON",
-                ".geojson": "GeoJSON",
-                ".pq": "Parquet",
-                ".parquet": "Parquet",
-                ".geoparquet": "Parquet",
-            }.get(suffix, suffix.split(".")[-1])
-            return self.connection.load_url(url=argument, format=format)
-
-        if (
-            isinstance(argument, (str, pathlib.Path))
-            and pathlib.Path(argument).is_file()
-            and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
-        ):
-            geometry = load_json(argument)
-        elif isinstance(argument, shapely.geometry.base.BaseGeometry):
-            geometry = mapping(argument)
-        elif isinstance(argument, dict):
-            geometry = argument
-        else:
-            raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
-
-        if geometry.get("type") not in valid_geojson_types:
-            raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
-                t=geometry.get("type"), s=valid_geojson_types
-            ))
-        if crs:
-            # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
-            warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
-            # TODO #204 alternative for non-standard CRS in GeoJSON object?
-            epsg_code = normalize_crs(crs)
-            if epsg_code is not None:
-                # proj did recognize the CRS
-                crs_name = f"EPSG:{epsg_code}"
-            else:
-                # proj did not recognise this CRS
-                warnings.warn(f"non-Lon-Lat CRS {crs!r} is not known to the proj library and might not be supported.")
-                crs_name = crs
-            geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
-        return geometry
-
     @openeo_process
     def aggregate_spatial(
         self,
@@ -1195,10 +1174,17 @@ class DataCube(_ProcessGraphAbstraction):
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
         valid_geojson_types = [
-            "Point", "MultiPoint", "LineString", "MultiLineString",
-            "Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
+            "Feature",
+            "FeatureCollection",
         ]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, crs=crs)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection= self.connection, crs=crs)
         reducer = build_child_callback(reducer, parent_parameters=["data"])
         return VectorCube(
             graph=self._build_pgnode(
@@ -1474,12 +1460,12 @@ class DataCube(_ProcessGraphAbstraction):
         valid_geojson_types = [
             "Polygon",
             "MultiPolygon",
-            "GeometryCollection",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
             "Feature",
             "FeatureCollection",
         ]
-        chunks = self._get_geometry_argument(
-            chunks, valid_geojson_types=valid_geojson_types
+        chunks = _get_geometry_argument(
+            chunks, valid_geojson_types=valid_geojson_types, connection=self.connection
         )
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
@@ -1568,7 +1554,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         process = build_child_callback(process, parent_parameters=["data"], connection=self.connection)
         valid_geojson_types = ["Polygon", "MultiPolygon", "Feature", "FeatureCollection"]
-        geometries = self._get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types)
+        geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection)
         mask_value = float(mask_value) if mask_value is not None else None
         return self.process(
             process_id="apply_polygon",
@@ -2055,8 +2041,16 @@ class DataCube(_ProcessGraphAbstraction):
             Instead, it's possible to provide a client-side path to a GeoJSON file
             (which will be loaded client-side to get the geometries as GeoJSON construct).
         """
-        valid_geojson_types = ["Polygon", "MultiPolygon", "GeometryCollection", "Feature", "FeatureCollection"]
-        mask = self._get_geometry_argument(mask, valid_geojson_types=valid_geojson_types, crs=srs)
+        valid_geojson_types = [
+            "Polygon",
+            "MultiPolygon",
+            "GeometryCollection",  # TODO #706 stop allowing GeometryCollection
+            "Feature",
+            "FeatureCollection",
+        ]
+        mask = _get_geometry_argument(
+            mask, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=srs
+        )
         return self.process(
             process_id="mask_polygon",
             arguments=dict_no_none(
@@ -2353,7 +2347,7 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
@@ -2478,6 +2472,7 @@ class DataCube(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
         show_error_logs: bool = True,
+        log_level: Optional[str] = None,
         # TODO: deprecate `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2496,15 +2491,20 @@ class DataCube(_ProcessGraphAbstraction):
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: start showing deprecation warnings about these inconsistent argument names
         if "format" in format_options and not out_format:
@@ -2531,6 +2531,7 @@ class DataCube(_ProcessGraphAbstraction):
             job_options=job_options,
             validate=validate,
             auto_add_save_result=False,
+            log_level=log_level,
         )
         return job.run_synchronous(
             outputfile=outputfile,
@@ -2552,6 +2553,7 @@ class DataCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        log_level: Optional[str] = None,
         # TODO: avoid `format_options` as keyword arguments
         **format_options,
     ) -> BatchJob:
@@ -2575,14 +2577,19 @@ class DataCube(_ProcessGraphAbstraction):
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         :return: Created job.
 
-        .. versionadded:: 0.32.0
+        .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added ``additional`` argument.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
@@ -2605,6 +2612,7 @@ class DataCube(_ProcessGraphAbstraction):
             validate=validate,
             additional=additional,
             job_options=job_options,
+            log_level=log_level,
         )
 
     send_job = legacy_alias(create_job, name="send_job", since="0.10.0")
@@ -2893,3 +2901,108 @@ class DataCube(_ProcessGraphAbstraction):
                 label_separator=label_separator,
             ),
         )
+
+
+def _get_geometry_argument(
+    argument: Union[
+        shapely.geometry.base.BaseGeometry,
+        dict,
+        str,
+        pathlib.Path,
+        Parameter,
+        _FromNodeMixin,
+    ],
+    *,
+    valid_geojson_types: List[str],
+    connection: Connection = None,
+    crs: Optional[str] = None,
+    allow_parameter: bool = True,
+    allow_bounding_box: bool = False,
+    allow_none: bool = False,
+    argument_name: str = "n/a",
+    process_id: str = "n/a",
+) -> Union[dict, Parameter, PGNode, _FromNodeMixin, None]:
+    """
+    Normalize a user input to a openEO-compatible geometry representation,
+    like a GeoJSON construct, vector cube reference, bounding box construct,
+    a parameter reference, ...
+
+    :param crs: value that encodes a coordinate reference system.
+        See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
+    :param allow_parameter: allow argument to be a :py:class:`Parameter` instance, and pass-through as such
+    :param allow_none: allow argument to be ``None`` and pass-through as such
+    :param allow_bounding_box: allow argument to be a bounding box dictionary and pass-through as such
+    """
+    # Some quick exit shortcuts
+    if allow_parameter and isinstance(argument, Parameter):
+        if not schema_supports(argument.schema, type="object"):
+            warnings.warn(
+                f"Schema mismatch with parameter given to `{argument_name}` in `{process_id}`:"
+                f" expected a schema compatible with type 'object' but got {argument.schema!r}."
+            )
+        return argument
+    elif isinstance(argument, _FromNodeMixin):
+        # Typical use case here: VectorCube instance
+        return argument.from_node()
+    elif allow_none and argument is None:
+        return argument
+    elif (
+        allow_bounding_box
+        and isinstance(argument, dict)
+        and all(k in argument for k in ["west", "south", "east", "north"])
+    ):
+        return argument
+
+    # Support URL based geometry references (with `load_url` and best-effort format guess)
+    if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
+        url = urllib.parse.urlparse(argument)
+        suffix = pathlib.Path(url.path.lower()).suffix
+        format = {
+            ".json": "GeoJSON",
+            ".geojson": "GeoJSON",
+            ".pq": "Parquet",
+            ".parquet": "Parquet",
+            ".geoparquet": "Parquet",
+        }.get(suffix, suffix.split(".")[-1])
+        return connection.load_url(url=argument, format=format)
+
+    # Support loading GeoJSON from local files
+    if (
+        isinstance(argument, (str, pathlib.Path))
+        and pathlib.Path(argument).is_file()
+        and pathlib.Path(argument).suffix.lower() in [".json", ".geojson"]
+    ):
+        geometry = load_json(argument)
+    elif isinstance(argument, shapely.geometry.base.BaseGeometry):
+        geometry = mapping(argument)
+    elif isinstance(argument, dict):
+        geometry = argument
+    else:
+        raise OpenEoClientException(f"Invalid geometry argument: {argument!r}")
+
+    # The assumption at this point is that we are working with a GeoJSON style dictionary
+    assert isinstance(geometry, dict)
+    if geometry.get("type") not in valid_geojson_types:
+        raise OpenEoClientException("Invalid geometry type {t!r}, must be one of {s}".format(
+            t=geometry.get("type"), s=valid_geojson_types
+        ))
+    if geometry.get("type") == "GeometryCollection":
+        # TODO #706 Fully drop GeometryCollection support
+        warnings.warn(
+            "Usage of GeoJSON type 'GeometryCollection' is deprecated/invalid. Support in openEO Python client will be dropped. Use a FeatureCollection instead.",
+            category=DeprecationWarning,
+        )
+    if crs:
+        # TODO: don't warn when the crs is Lon-Lat like EPSG:4326?
+        warnings.warn(f"Geometry with non-Lon-Lat CRS {crs!r} is only supported by specific back-ends.")
+        # TODO #204 alternative for non-standard CRS in GeoJSON object?
+        epsg_code = normalize_crs(crs)
+        if epsg_code is not None:
+            # proj did recognize the CRS
+            crs_name = f"EPSG:{epsg_code}"
+        else:
+            # proj did not recognise this CRS
+            warnings.warn(f"non-Lon-Lat CRS {crs!r} is not known to the proj library and might not be supported.")
+            crs_name = crs
+        geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
+    return geometry

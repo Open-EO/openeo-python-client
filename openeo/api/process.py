@@ -467,6 +467,9 @@ def schema_supports(schema: Union[dict, List[dict]], type: str, subtype: Optiona
         elif isinstance(actual_type, list):
             if type not in actual_type:
                 return False
+        elif actual_type is None:
+            # Without explicit "type", anything is accepted
+            return True
         else:
             raise ValueError(actual_type)
         if subtype:

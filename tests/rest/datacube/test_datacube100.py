@@ -48,6 +48,7 @@ basic_geometry_types = [
         {"type": "MultiPolygon", "coordinates": [[[[1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0]]]]},
     ),
     (
+        # TODO #706 Stop allowing GeometryCollection
         shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
         {
             "type": "GeometryCollection",
@@ -450,8 +451,9 @@ def test_aggregate_spatial_basic(con100: Connection):
     (
             shapely.geometry.MultiPolygon([shapely.geometry.box(0, 0, 1, 1)]),
             {"type": "MultiPolygon", "coordinates": [(((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)]},
-    ),
-    (
+        ),
+        (
+            # TODO #706 Stop allowing GeometryCollection
             shapely.geometry.GeometryCollection([shapely.geometry.box(0, 0, 1, 1)]),
             {"type": "GeometryCollection", "geometries": [
                 {"type": "Polygon", "coordinates": (((1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0), (1.0, 0.0)),)}
@@ -2306,6 +2308,34 @@ def test_load_collection_parameterized_bands(con100):
             "process_id": "load_collection",
         },
     }
+
+
+@pytest.mark.parametrize(
+    "bands",
+    [
+        ["B02", "B03"],
+        ("B02", "B03"),
+        iter(["B02", "B03"]),
+    ],
+)
+def test_load_collection_bands_iterable(con100, bands):
+    cube = con100.load_collection("S2", bands=bands)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+                "bands": ["B02", "B03"],
+            },
+        },
+    }
+
+
+def test_load_collection_empty_bands_array(con100):
+    with pytest.raises(OpenEoClientException, match="Bands array should not be empty"):
+        _ = con100.load_collection("S2", bands=[])
 
 
 @pytest.mark.parametrize(

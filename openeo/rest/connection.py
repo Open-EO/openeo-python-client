@@ -9,6 +9,7 @@ import logging
 import os
 import shlex
 import sys
+import urllib.parse
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -894,7 +895,7 @@ class Connection(RestApiConnection):
 
         :return: list of dictionaries with basic collection metadata.
         """
-        # TODO: add caching #383
+        # TODO: add caching #383, but reset cache on auth change #254
         data = self.get('/collections', expected_status=200).json()["collections"]
         return VisualList("collections", data=data)
 
@@ -1257,9 +1258,9 @@ class Connection(RestApiConnection):
     def load_collection(
         self,
         collection_id: Union[str, Parameter],
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
         ] = None,
@@ -1270,7 +1271,14 @@ class Connection(RestApiConnection):
         Load a DataCube by collection id.
 
         :param collection_id: image collection identifier
-        :param spatial_extent: limit data to specified bounding box or polygons
+        :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a bounding box dictionary
+            - a Shapely geometry object
+            - a GeoJSON-style dictionary
+            - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a URL to a publicly accessible GeoJSON document
+            - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -1289,6 +1297,9 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_collection(
             collection_id=collection_id,
@@ -1347,9 +1358,9 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
@@ -1449,6 +1460,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_stac(
             url=url,
@@ -1554,7 +1568,7 @@ class Connection(RestApiConnection):
         return VectorCube.load_geojson(connection=self, data=data, properties=properties)
 
     @openeo_process
-    def load_url(self, url: str, format: str, options: Optional[dict] = None):
+    def load_url(self, url: str, format: str, options: Optional[dict] = None) -> VectorCube:
         """
         Loads a file from a URL
 
@@ -1817,6 +1831,7 @@ class Connection(RestApiConnection):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1837,13 +1852,18 @@ class Connection(RestApiConnection):
             (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :return: Created job
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``job_options``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
@@ -1851,7 +1871,7 @@ class Connection(RestApiConnection):
             process_graph=process_graph,
             additional=additional,
             job_options=job_options,
-            **dict_no_none(title=title, description=description, plan=plan, budget=budget)
+            **dict_no_none(title=title, description=description, plan=plan, budget=budget, log_level=log_level),
         )
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
@@ -1968,6 +1988,18 @@ class Connection(RestApiConnection):
                 "processing:software": capabilities.get("processing:software"),
             }),
         }
+
+    def web_editor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
+        """
+        Generate URL to open this backend in the openEO Web Editor.
+        """
+        # TODO: add option to directly open link with `webbrowser.open()`?
+        # TODO: add option to print (or jupyter-aware display) the link instead of returning it?
+        params = {"server": self.root_url}
+        if anonymous:
+            params["discover"] = "1"
+        url = f"{editor_url}?{urllib.parse.urlencode(params)}"
+        return url
 
 
 def connect(
