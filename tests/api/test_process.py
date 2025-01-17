@@ -291,3 +291,11 @@ def test_schema_supports_list():
     assert schema_supports(schema, type="object") is True
     assert schema_supports(schema, type="object", subtype="datacube") is True
     assert schema_supports(schema, type="object", subtype="geojson") is False
+
+
+def test_default_parameter_supports_anything():
+    parameter = Parameter(name="foo")
+    assert schema_supports(parameter.schema, type="string") is True
+    assert schema_supports(parameter.schema, type="number") is True
+    assert schema_supports(parameter.schema, type="object") is True
+    assert schema_supports(parameter.schema, type="object", subtype="datacube") is True

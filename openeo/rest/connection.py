@@ -1256,7 +1256,7 @@ class Connection(RestApiConnection):
     def load_collection(
         self,
         collection_id: Union[str, Parameter],
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
@@ -1269,7 +1269,14 @@ class Connection(RestApiConnection):
         Load a DataCube by collection id.
 
         :param collection_id: image collection identifier
-        :param spatial_extent: limit data to specified bounding box or polygons
+        :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+            - a bounding box dictionary
+            - a Shapely geometry object
+            - a GeoJSON-style dictionary
+            - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a URL to a publicly accessible GeoJSON document
+            - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -1288,6 +1295,9 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_collection(
             collection_id=collection_id,
@@ -1346,7 +1356,7 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
@@ -1448,6 +1458,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_stac(
             url=url,
@@ -1553,7 +1566,7 @@ class Connection(RestApiConnection):
         return VectorCube.load_geojson(connection=self, data=data, properties=properties)
 
     @openeo_process
-    def load_url(self, url: str, format: str, options: Optional[dict] = None):
+    def load_url(self, url: str, format: str, options: Optional[dict] = None) -> VectorCube:
         """
         Loads a file from a URL
 
