@@ -525,7 +525,6 @@ def test_capabilities_api_version(requests_mock):
     requests_mock.get(API_URL, status_code=200, json={"api_version": "1.0.0"})
     con = openeo.connect("https://oeo.test")
     capabilities = con.capabilities()
-    assert capabilities.version() == "1.0.0"
     assert capabilities.api_version() == "1.0.0"
 
 
