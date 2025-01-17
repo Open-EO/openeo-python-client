@@ -113,6 +113,7 @@ class RestApiConnection:
         slow_response_threshold: Optional[float] = None,
     ):
         self._root_url = root_url
+        self._auth = None
         self.auth = auth or NullAuth()
         self.session = session or requests.Session()
         self.default_timeout = default_timeout or DEFAULT_TIMEOUT
@@ -128,6 +129,18 @@ class RestApiConnection:
     @property
     def root_url(self):
         return self._root_url
+
+    @property
+    def auth(self) -> Union[AuthBase, None]:
+        return self._auth
+
+    @auth.setter
+    def auth(self, auth: Union[AuthBase, None]):
+        self._auth = auth
+        self._on_auth_update()
+
+    def _on_auth_update(self):
+        pass
 
     def build_url(self, path: str):
         return url_join(self._root_url, path)
@@ -340,12 +353,12 @@ class Connection(RestApiConnection):
         if "://" not in url:
             url = "https://" + url
         self._orig_url = url
+        self._capabilities_cache = LazyLoadCache()
         super().__init__(
             root_url=self.version_discovery(url, session=session, timeout=default_timeout),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
         )
-        self._capabilities_cache = LazyLoadCache()
 
         # Initial API version check.
         self._api_version.require_at_least(self._MINIMUM_API_VERSION)
@@ -379,6 +392,10 @@ class Connection(RestApiConnection):
         except Exception:
             # Be very lenient about failing on the well-known URI strategy.
             return url
+
+    def _on_auth_update(self):
+        super()._on_auth_update()
+        self._capabilities_cache.clear()
 
     def _get_auth_config(self) -> AuthConfig:
         if self._auth_config is None:

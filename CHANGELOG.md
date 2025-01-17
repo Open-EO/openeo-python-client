@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear capabilities cache on login ([#254](https://github.com/Open-EO/openeo-python-client/issues/254))
+
 
 ## [0.36.0] - 2024-12-10
 
