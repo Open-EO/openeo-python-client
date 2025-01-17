@@ -164,6 +164,7 @@ class DataCube(_ProcessGraphAbstraction):
             - a GeoJSON-style dictionary
             - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
               which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a URL to a publicly accessible GeoJSON document
             - a :py:class:`~openeo.api.process.Parameter` instance.
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
@@ -2907,7 +2908,9 @@ def _get_geometry_argument(
     process_id: str = "n/a",
 ) -> Union[dict, Parameter, PGNode, _FromNodeMixin, None]:
     """
-    Convert input to a geometry as "geojson" subtype object or vector cube.
+    Normalize a user input to a openEO-compatible geometry representation,
+    like a GeoJSON construct, vector cube reference, bounding box construct,
+    a parameter reference, ...
 
     :param crs: value that encodes a coordinate reference system.
         See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.
@@ -2919,8 +2922,8 @@ def _get_geometry_argument(
     if allow_parameter and isinstance(argument, Parameter):
         if not schema_supports(argument.schema, type="object"):
             warnings.warn(
-                f"Unexpected parameterized `{argument_name}` in `{process_id}`:"
-                f" expected schema compatible with type 'object' but got {argument.schema!r}."
+                f"Schema mismatch with parameter given to `{argument_name}` in `{process_id}`:"
+                f" expected a schema compatible with type 'object' but got {argument.schema!r}."
             )
         return argument
     elif isinstance(argument, _FromNodeMixin):
