@@ -2396,25 +2396,196 @@ class TestAuthenticateOidcAccessToken:
             connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="nope")
 
 
-def test_load_collection_arguments_100(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    conn = Connection(API_URL)
-    requests_mock.get(API_URL + "collections/FOO", json={
-        "summaries": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
-    })
-    spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
-    temporal_extent = ["2019-01-01", "2019-01-22"]
-    im = conn.load_collection(
-        "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
-    )
-    assert im._pg.process_id == "load_collection"
-    assert im._pg.arguments == {
-        "id": "FOO",
-        "spatial_extent": spatial_extent,
-        "temporal_extent": temporal_extent,
-        "bands": ["red", "green"]
+class TestLoadCollection:
+    def test_load_collection_arguments_basic(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        temporal_extent = ["2019-01-01", "2019-01-22"]
+        cube = dummy_backend.connection.load_collection(
+            "S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["B2", "B3"]
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+                    "temporal_extent": ["2019-01-01", "2019-01-22"],
+                    "bands": ["B2", "B3"],
+                },
+                "result": True,
+            }
+        }
+
+    def test_load_collection_spatial_extent_bbox(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+            "temporal_extent": None,
+        }
+
+    # TODO: make this more reusable
+    GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
+    GEOJSON_LINESTRING_01 = {"type": "LineString", "coordinates": [[3, 50], [4, 51], [5, 53]]}
+    GEOJSON_POLYGON_01 = {
+        "type": "Polygon",
+        "coordinates": [[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]],
+    }
+    GEOJSON_MULTIPOLYGON_01 = {
+        "type": "MultiPolygon",
+        "coordinates": [[[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]]],
+    }
+    GEOJSON_FEATURE_01 = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": GEOJSON_POLYGON_01,
+    }
+    GEOJSON_FEATURE_02 = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": GEOJSON_MULTIPOLYGON_01,
+    }
+    GEOJSON_FEATURECOLLECTION_01 = {
+        "type": "FeatureCollection",
+        "features": [
+            GEOJSON_FEATURE_01,
+            GEOJSON_FEATURE_02,
+        ],
+    }
+    GEOJSON_GEOMETRYCOLLECTION_01 = {
+        "type": "GeometryCollection",
+        "geometries": [
+            GEOJSON_POINT_01,
+            GEOJSON_POLYGON_01,
+        ],
     }
 
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURE_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
+    )
+    def test_load_collection_spatial_extent_geojson(self, dummy_backend, spatial_extent):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": spatial_extent,
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [GEOJSON_POINT_01, GEOJSON_LINESTRING_01, GEOJSON_GEOMETRYCOLLECTION_01],
+    )
+    def test_load_collection_spatial_extent_geojson_wrong_type(self, con120, spatial_extent):
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = con120.load_collection("S2", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+        ],
+    )
+    def test_load_collection_spatial_extent_shapely(self, geojson, dummy_backend):
+        spatial_extent = shapely.geometry.shape(geojson)
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": geojson,
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POINT_01,
+            GEOJSON_GEOMETRYCOLLECTION_01,
+        ],
+    )
+    def test_load_collection_spatial_extent_shapely_wrong_type(self, geojson, dummy_backend):
+        spatial_extent = shapely.geometry.shape(geojson)
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
+    )
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_load_collection_spatial_extent_path(self, geojson, dummy_backend, tmp_path, path_factory):
+        path = tmp_path / "geometry.json"
+        with path.open("w") as f:
+            json.dump(geojson, f)
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=path_factory(path))
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": geojson,
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_url(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent="https://geo.test/geometry.json")
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"url": "https://geo.test/geometry.json", "format": "GeoJSON"},
+            },
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": {"from_node": "loadurl1"}, "temporal_extent": None},
+                "result": True,
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "parameter",
+        [
+            Parameter("zpatial_extent"),
+            Parameter.spatial_extent("zpatial_extent"),
+            Parameter.geojson("zpatial_extent"),
+        ],
+    )
+    def test_load_collection_spatial_extent_parameter(self, dummy_backend, parameter, recwarn):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=parameter)
+        assert len(recwarn) == 0
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_parameter_schema_mismatch(self, dummy_backend, recwarn):
+        cube = dummy_backend.connection.load_collection(
+            "S2", spatial_extent=Parameter.number("zpatial_extent", description="foo")
+        )
+        assert [str(w.message) for w in recwarn] == [
+            "Schema mismatch with parameter given to `spatial_extent` in `load_collection`: expected a schema compatible with type 'object' but got {'type': 'number'}."
+        ]
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+            "temporal_extent": None,
+        }
 
 def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})

@@ -411,7 +411,7 @@ def test_build_parameterized_cube_load_collection_invalid_bbox_schema(con100):
     bbox = Parameter.string("bbox", description="Spatial extent")
     with pytest.warns(
         UserWarning,
-        match="Unexpected parameterized `spatial_extent` in `load_collection`: expected schema compatible with type 'object' but got {'type': 'string'}.",
+        match="Schema mismatch with parameter given to `spatial_extent` in `load_collection`: expected a schema compatible with type 'object' but got {'type': 'string'}.",
     ):
         cube = con100.load_collection(layer, spatial_extent=bbox, temporal_extent=dates)
 
