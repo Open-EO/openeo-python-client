@@ -2587,6 +2587,29 @@ class TestLoadCollection:
             "temporal_extent": None,
         }
 
+    def test_load_collection_spatial_extent_vector_cube(self, dummy_backend):
+        vector_cube = VectorCube.load_url(
+            connection=dummy_backend.connection, url="https://geo.test/geometry.json", format="GeoJSON"
+        )
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=vector_cube)
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"format": "GeoJSON", "url": "https://geo.test/geometry.json"},
+            },
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                    "temporal_extent": None,
+                },
+                "result": True,
+            },
+        }
+
+
 def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     con = Connection(API_URL)
