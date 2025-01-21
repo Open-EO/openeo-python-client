@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.37.0] - 2025-01-21 - "SAP10" release
+
+### Added
+
 - Added `show_error_logs` argument to `cube.execute_batch()`/`job.start_and_wait()`/... to toggle the automatic printing of error logs on failure ([#505](https://github.com/Open-EO/openeo-python-client/issues/505))
 - Added `Connection.web_editor()` to build link to the openEO backend in the openEO Web Editor
 - Add support for `log_level` in `create_job()` and `execute_job()` ([#704](https://github.com/Open-EO/openeo-python-client/issues/704))
@@ -21,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raise exception when providing empty bands array to `load_collection`/`load_stac` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424), [Open-EO/openeo-processes#372](https://github.com/Open-EO/openeo-processes/issues/372))
 - Start showing deprecation warnings on usage of GeoJSON "GeometryCollection" (in `filter_spatial`, `aggregate_spatial`, `chunk_polygon`, `mask_polygon`). Use a GeoJSON FeatureCollection instead. ([#706](https://github.com/Open-EO/openeo-python-client/issues/706), [Open-EO/openeo-processes#389](https://github.com/Open-EO/openeo-processes/issues/389))
 - The `context` parameter is now used in `execute_local_udf` ([#556](https://github.com/Open-EO/openeo-python-client/issues/556)
-
-### Removed
 
 ### Fixed
 
