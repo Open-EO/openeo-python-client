@@ -206,6 +206,7 @@ class MultiBackendJobManager:
         poll_sleep: int = 60,
         root_dir: Optional[Union[str, Path]] = ".",
         *,
+        download: Optional[bool] = True,
         cancel_running_job_after: Optional[int] = None,
     ):
         """Create a MultiBackendJobManager."""
@@ -220,6 +221,7 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
+        self._download = download
         self._thread = None
 
     def add_backend(
@@ -517,7 +519,7 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):
-            self._track_statuses(job_db, stats=stats)
+            jobs_done, jobs_error, jobs_canceled = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
@@ -539,6 +541,16 @@ class MultiBackendJobManager:
                         job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
                         total_added += 1
+
+        # Act on jobs
+        for job, metadata in jobs_error:
+            self.on_job_error(job, metadata)
+
+        for job, metadata in jobs_canceled:
+            self.on_job_cancel(job, metadata)
+
+        for job, metadata in jobs_done:
+            self.on_job_done(job, metadata)
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -618,15 +630,16 @@ class MultiBackendJobManager:
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
         job_metadata = job.describe()
-        job_dir = self.get_job_dir(job.job_id)
         metadata_path = self.get_job_metadata_path(job.job_id)
-
-        self.ensure_job_dir_exists(job.job_id)
-        job.get_results().download_files(target=job_dir)
-
         with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
 
+        if self._download:
+            job_dir = self.get_job_dir(job.job_id)
+            self.ensure_job_dir_exists(job.job_id)
+            job.get_results().download_files(target=job_dir)
+
+        
     def on_job_error(self, job: BatchJob, row):
         """
         Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.
@@ -704,6 +717,11 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+
+        jobs_done = []
+        jobs_error = []
+        jobs_canceled = []
+
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
@@ -722,19 +740,19 @@ class MultiBackendJobManager:
 
                 if new_status == "finished":
                     stats["job finished"] += 1
-                    self.on_job_done(the_job, active.loc[i])
+                    jobs_done.append((the_job, active.loc[i]))
 
                 if previous_status != "error" and new_status == "error":
                     stats["job failed"] += 1
-                    self.on_job_error(the_job, active.loc[i])
-
-                if previous_status in {"created", "queued"} and new_status == "running":
-                    stats["job started running"] += 1
-                    active.loc[i, "running_start_time"] = rfc3339.utcnow()
+                    jobs_error.append((the_job, active.loc[i]))
 
                 if new_status == "canceled":
                     stats["job canceled"] += 1
                     self.on_job_cancel(the_job, active.loc[i])
+
+                if previous_status in {"created", "queued"} and new_status == "running":
+                    stats["job started running"] += 1
+                    active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
                 if self._cancel_running_job_after and new_status == "running":
                     if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
@@ -762,6 +780,8 @@ class MultiBackendJobManager:
 
         stats["job_db persist"] += 1
         job_db.persist(active)
+
+        return jobs_done, jobs_error, jobs_canceled
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
