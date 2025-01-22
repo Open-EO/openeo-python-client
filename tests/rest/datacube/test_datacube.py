@@ -751,6 +751,95 @@ def test_resample_spatial(s2cube):
     ]
 
 
+def test_resample_cube_spatial(s2cube):
+    cube1 = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
+    cube2 = s2cube.resample_spatial(resolution=10, projection=32631)
+
+    cube12 = cube1.resample_cube_spatial(target=cube2)
+    assert get_download_graph(cube12, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 4578,
+                "resolution": [2.0, 3.0],
+            },
+        },
+        "resamplespatial2": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 32631,
+                "resolution": 10,
+            },
+        },
+        "resamplecubespatial1": {
+            "arguments": {
+                "data": {"from_node": "resamplespatial1"},
+                "method": "near",
+                "target": {"from_node": "resamplespatial2"},
+            },
+            "process_id": "resample_cube_spatial",
+        },
+    }
+    assert cube12.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=10),
+        SpatialDimension(name="y", extent=None, crs=32631, step=10),
+    ]
+
+    cube21 = cube2.resample_cube_spatial(target=cube1)
+    assert get_download_graph(cube21, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 32631,
+                "resolution": 10,
+            },
+        },
+        "resamplespatial2": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 4578,
+                "resolution": [2.0, 3.0],
+            },
+        },
+        "resamplecubespatial1": {
+            "arguments": {
+                "data": {"from_node": "resamplespatial1"},
+                "method": "near",
+                "target": {"from_node": "resamplespatial2"},
+            },
+            "process_id": "resample_cube_spatial",
+        },
+    }
+    assert cube21.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
+        SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
+    ]
+
+
+def test_resample_cube_spatial_no_metadata(s2cube_without_metadata):
+    cube1 = s2cube_without_metadata.resample_spatial(resolution=[2.0, 3.0], projection=4578)
+    cube2 = s2cube_without_metadata.resample_spatial(resolution=10, projection=32631)
+    assert cube1.metadata is None
+    assert cube2.metadata is None
+
+    cube12 = cube1.resample_cube_spatial(target=cube2)
+    assert cube12.metadata is None
+
+
+
+
 def test_merge(s2cube, api_version, test_data):
     merged = s2cube.ndvi().merge(s2cube)
     expected_graph = test_data.load_json("{v}/merge_ndvi_self.json".format(v=api_version))

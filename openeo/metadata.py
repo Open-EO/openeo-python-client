@@ -424,7 +424,7 @@ class CubeMetadata:
         self,
         resolution: Union[int, float, Tuple[float, float], Tuple[int, int]] = 0.0,
         projection: Union[int, str, None] = None,
-    ):
+    ) -> CubeMetadata:
         resolution = normalize_resample_resolution(resolution)
         if self._dimensions is None:
             # Best-effort fallback to work with
@@ -451,6 +451,8 @@ class CubeMetadata:
 
         return self._clone_and_update(dimensions=dimensions)
 
+    def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
+        return self._clone_and_update(dimensions=list(target._dimensions))
 
 class CollectionMetadata(CubeMetadata):
     """

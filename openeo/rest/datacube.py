@@ -783,7 +783,15 @@ class DataCube(_ProcessGraphAbstraction):
         :param method: Resampling method to use.
         :return:
         """
-        return self.process("resample_cube_spatial", {"data": self, "target": target, "method": method})
+        if self.metadata and target.metadata:
+            metadata = self.metadata.resample_cube_spatial(target=target.metadata)
+        else:
+            metadata = None
+        return self.process(
+            process_id="resample_cube_spatial",
+            arguments={"data": self, "target": target, "method": method},
+            metadata=metadata,
+        )
 
     @openeo_process
     def resample_cube_temporal(
