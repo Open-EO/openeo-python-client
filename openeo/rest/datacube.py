@@ -749,16 +749,26 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def resample_spatial(
-            self, resolution: Union[float, Tuple[float, float]], projection: Union[int, str] = None,
-            method: str = 'near', align: str = 'upper-left'
+        self,
+        resolution: Union[int, float, Tuple[float, float], Tuple[int, int]] = 0.0,
+        projection: Union[int, str, None] = None,
+        method: str = "near",
+        align: str = "upper-left",
     ) -> DataCube:
-        return self.process('resample_spatial', {
-            'data': THIS,
-            'resolution': resolution,
-            'projection': projection,
-            'method': method,
-            'align': align
-        })
+        metadata = (
+            self.metadata.resample_spatial(resolution=resolution, projection=projection) if self.metadata else None
+        )
+        return self.process(
+            process_id="resample_spatial",
+            arguments={
+                "data": THIS,
+                "resolution": resolution,
+                "projection": projection,
+                "method": method,
+                "align": align,
+            },
+            metadata=metadata,
+        )
 
     def resample_cube_spatial(self, target: DataCube, method: str = "near") -> DataCube:
         """

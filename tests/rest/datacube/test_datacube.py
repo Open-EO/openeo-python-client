@@ -20,6 +20,7 @@ import shapely.geometry
 
 from openeo import collection_property
 from openeo.api.process import Parameter
+from openeo.metadata import SpatialDimension
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -730,12 +731,24 @@ def test_apply_kernel(s2cube):
 
 
 def test_resample_spatial(s2cube):
-    im = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "resample_spatial"
-    assert "data" in graph["arguments"]
-    assert graph["arguments"]["resolution"] == [2.0, 3.0]
-    assert graph["arguments"]["projection"] == 4578
+    cube = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": [2.0, 3.0],
+                "projection": 4578,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
+        SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
+    ]
 
 
 def test_merge(s2cube, api_version, test_data):
