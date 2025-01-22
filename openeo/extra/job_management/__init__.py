@@ -630,13 +630,14 @@ class MultiBackendJobManager:
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
         job_metadata = job.describe()
+        job_dir = self.get_job_dir(job.job_id)
+        self.ensure_job_dir_exists(job.job_id)
         metadata_path = self.get_job_metadata_path(job.job_id)
-        with metadata_path.open("w", encoding="utf-8") as f:
-            json.dump(job_metadata, f, ensure_ascii=False)
 
         if self._download:
-            job_dir = self.get_job_dir(job.job_id)
-            self.ensure_job_dir_exists(job.job_id)
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
+
             job.get_results().download_files(target=job_dir)
 
         
