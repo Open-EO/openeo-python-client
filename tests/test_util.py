@@ -12,7 +12,6 @@ import pyproj
 import pytest
 import shapely.geometry
 
-from openeo.capabilities import ComparableVersion
 from openeo.util import (
     BBoxDict,
     ContextTimer,

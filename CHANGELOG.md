@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Improved tracking of metadata changes with `resample_spatial` and `resample_cube_spatial` ([#690](https://github.com/Open-EO/openeo-python-client/issues/690))
+- Move `ComparableVersion` to `openeo.utils.version` (related to [#611](https://github.com/Open-EO/openeo-python-client/issues/611))
 
 ### Removed
 

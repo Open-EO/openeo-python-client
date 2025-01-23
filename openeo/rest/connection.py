@@ -33,7 +33,6 @@ from requests import Response
 from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
-from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
@@ -92,6 +91,7 @@ from openeo.util import (
     str_truncate,
     url_join,
 )
+from openeo.utils.version import ComparableVersion
 
 _log = logging.getLogger(__name__)
 
