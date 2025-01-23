@@ -21,18 +21,23 @@ from openeo.metadata import (
 )
 from openeo.testing.stac import StacDummyBuilder
 
+CUBE_METADATA_XYTB = CubeMetadata(
+    dimensions=[
+        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
+        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.1),
+        TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+        BandDimension(name="bands", bands=[Band("B2"), Band("B3")]),
+    ]
+)
 
-@pytest.fixture
-def xytb_cube_metadata() -> CubeMetadata:
-    """Generic 4D cube (x, y, temporal, band) metadata"""
-    return CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
-            SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.1),
-            TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
-            BandDimension(name="bands", bands=[Band("B2"), Band("B3")]),
-        ]
-    )
+CUBE_METADATA_TBXY = CubeMetadata(
+    dimensions=[
+        TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+        BandDimension(name="bands", bands=[Band("B2"), Band("B3")]),
+        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
+        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.1),
+    ]
+)
 
 
 def test_metadata_get():
@@ -941,20 +946,22 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
         ({"resolution": [11, 22], "projection": 32631}, {"crs": 32631, "step": 11}, {"crs": 32631, "step": 22}),
     ],
 )
-def test_metadata_resample_spatial(xytb_cube_metadata, kwargs, expected_x, expected_y):
-    metadata = xytb_cube_metadata.resample_spatial(**kwargs)
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_spatial(cube_metadata, kwargs, expected_x, expected_y):
+    metadata = cube_metadata.resample_spatial(**kwargs)
     assert isinstance(metadata, CubeMetadata)
     assert metadata.spatial_dimensions == [
         SpatialDimension(name="x", extent=[2, 7], **expected_x),
         SpatialDimension(name="y", extent=[49, 52], **expected_y),
     ]
-    assert metadata.temporal_dimension == xytb_cube_metadata.temporal_dimension
-    assert metadata.band_dimension == xytb_cube_metadata.band_dimension
+    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+    assert metadata.band_dimension == cube_metadata.band_dimension
 
 
-def test_metadata_resample_cube_spatial(xytb_cube_metadata):
-    metadata1 = xytb_cube_metadata.resample_spatial(resolution=(11, 22), projection=32631)
-    metadata2 = xytb_cube_metadata.resample_spatial(resolution=0.5)
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_cube_spatial(cube_metadata):
+    metadata1 = cube_metadata.resample_spatial(resolution=(11, 22), projection=32631)
+    metadata2 = cube_metadata.resample_spatial(resolution=0.5)
 
     assert metadata1.spatial_dimensions == [
         SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),

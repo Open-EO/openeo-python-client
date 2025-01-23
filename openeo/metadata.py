@@ -437,16 +437,17 @@ class CubeMetadata:
             dimensions = list(self._dimensions)
 
         # Find and replace spatial dimensions
-        spatial_indixes = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
-        if len(spatial_indixes) != 2:
-            raise MetadataException(f"Expected two spatial resolutions but found {spatial_indixes=}")
-        for i in spatial_indixes:
+        spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
+        if len(spatial_indices) != 2:
+            raise MetadataException(f"Expected two spatial resolutions but found {spatial_indices=}")
+        assert len(resolution) == 2
+        for i, r in zip(spatial_indices, resolution):
             dim: SpatialDimension = dimensions[i]
             dimensions[i] = SpatialDimension(
                 name=dim.name,
                 extent=dim.extent,
                 crs=projection or dim.crs,
-                step=resolution[i] if resolution[i] else dim.step,
+                step=r if r != 0.0 else dim.step,
             )
 
         return self._clone_and_update(dimensions=dimensions)
