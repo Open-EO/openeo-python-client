@@ -5,6 +5,7 @@ def normalize_resample_resolution(
     resolution: Union[int, float, Tuple[float, float], Tuple[int, int]]
 ) -> Tuple[Union[int, float], Union[int, float]]:
     """Normalize a resolution value, as used in the `resample_spatial` process to a two-element tuple."""
+    # This is a stricter version than clean_number_pair()
     if isinstance(resolution, (int, float)):
         return (resolution, resolution)
     elif (
