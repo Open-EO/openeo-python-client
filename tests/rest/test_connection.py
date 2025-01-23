@@ -18,7 +18,6 @@ import shapely.geometry
 import openeo
 from openeo import BatchJob
 from openeo.api.process import Parameter
-from openeo.capabilities import ApiVersionException
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
 from openeo.rest import (
@@ -44,6 +43,7 @@ from openeo.rest.connection import (
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
+from openeo.utils.version import ApiVersionException
 
 from .auth.test_cli import auth_config, refresh_token_store
 

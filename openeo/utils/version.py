@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import re
-from abc import ABC
 from typing import Tuple, Union
 
 # Type annotation aliases
@@ -149,6 +148,7 @@ class ComparableVersion:
     def require_at_least(self, other: Union[str, "ComparableVersion"]):
         """Raise exception if self is not at least other."""
         if not self.at_least(other):
+            # TODO: eliminate openEO (API) reference here in generic ComparableVersion class
             raise ApiVersionException(f"openEO API version should be at least {other!s}, but got {self!s}.")
 
 
