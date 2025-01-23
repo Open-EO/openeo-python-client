@@ -751,6 +751,26 @@ def test_resample_spatial(s2cube):
     ]
 
 
+def test_resample_spatial_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.resample_spatial(resolution=(3, 5), projection=4578)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": [3, 5],
+                "projection": 4578,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[None, None], crs=4578, step=3.0),
+        SpatialDimension(name="y", extent=[None, None], crs=4578, step=5.0),
+    ]
+
+
 def test_resample_cube_spatial(s2cube):
     cube1 = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
     cube2 = s2cube.resample_spatial(resolution=10, projection=32631)
@@ -828,16 +848,27 @@ def test_resample_cube_spatial(s2cube):
     ]
 
 
-def test_resample_cube_spatial_no_metadata(s2cube_without_metadata):
-    cube1 = s2cube_without_metadata.resample_spatial(resolution=[2.0, 3.0], projection=4578)
-    cube2 = s2cube_without_metadata.resample_spatial(resolution=10, projection=32631)
-    assert cube1.metadata is None
-    assert cube2.metadata is None
+def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadata):
+    cube = s2cube_without_metadata
+    target = s2cube.resample_spatial(resolution=10, projection=32631)
+    assert cube.metadata is None
+    assert target.metadata is not None
 
-    cube12 = cube1.resample_cube_spatial(target=cube2)
-    assert cube12.metadata is None
+    result = cube.resample_cube_spatial(target=target)
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=10),
+        SpatialDimension(name="y", extent=None, crs=32631, step=10),
+    ]
 
 
+def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):
+    cube = s2cube.resample_spatial(resolution=10, projection=32631)
+    target = s2cube_without_metadata
+    assert cube.metadata is not None
+    assert target.metadata is None
+
+    result = cube.resample_cube_spatial(target=target)
+    assert result.metadata is None
 
 
 def test_merge(s2cube, api_version, test_data):

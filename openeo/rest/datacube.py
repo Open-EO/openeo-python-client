@@ -40,6 +40,7 @@ from openeo.metadata import (
     Band,
     BandDimension,
     CollectionMetadata,
+    CubeMetadata,
     SpatialDimension,
     TemporalDimension,
     metadata_from_stac,
@@ -67,6 +68,10 @@ if typing.TYPE_CHECKING:
 
     from openeo.rest.connection import Connection
     from openeo.udf import XarrayDataCube
+
+
+# Sentinel value for arguments that are unset (when `None` has a different meaning)
+_UNSET = object()
 
 
 log = logging.getLogger(__name__)
@@ -97,7 +102,7 @@ class DataCube(_ProcessGraphAbstraction):
         self,
         process_id: str,
         arguments: Optional[dict] = None,
-        metadata: Optional[CollectionMetadata] = None,
+        metadata: Optional[CubeMetadata] = _UNSET,
         namespace: Optional[str] = None,
         **kwargs,
     ) -> DataCube:
@@ -111,7 +116,11 @@ class DataCube(_ProcessGraphAbstraction):
         :return: new DataCube instance
         """
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
-        return DataCube(graph=pg, connection=self._connection, metadata=metadata or self.metadata)
+        return DataCube(
+            graph=pg,
+            connection=self._connection,
+            metadata=self.metadata if metadata is _UNSET else metadata,
+        )
 
     graph_add_node = legacy_alias(process, "graph_add_node", since="0.1.1")
 
@@ -750,14 +759,12 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def resample_spatial(
         self,
-        resolution: Union[int, float, Tuple[float, float], Tuple[int, int]] = 0.0,
+        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
         projection: Union[int, str, None] = None,
         method: str = "near",
         align: str = "upper-left",
     ) -> DataCube:
-        metadata = (
-            self.metadata.resample_spatial(resolution=resolution, projection=projection) if self.metadata else None
-        )
+        metadata = (self.metadata or CubeMetadata()).resample_spatial(resolution=resolution, projection=projection)
         return self.process(
             process_id="resample_spatial",
             arguments={
@@ -783,8 +790,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param method: Resampling method to use.
         :return:
         """
-        if self.metadata and target.metadata:
-            metadata = self.metadata.resample_cube_spatial(target=target.metadata)
+        if target.metadata:
+            metadata = (self.metadata or CubeMetadata()).resample_cube_spatial(target=target.metadata)
         else:
             metadata = None
         return self.process(

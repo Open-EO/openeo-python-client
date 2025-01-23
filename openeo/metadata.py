@@ -422,7 +422,7 @@ class CubeMetadata:
 
     def resample_spatial(
         self,
-        resolution: Union[int, float, Tuple[float, float], Tuple[int, int]] = 0.0,
+        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
         projection: Union[int, str, None] = None,
     ) -> CubeMetadata:
         resolution = normalize_resample_resolution(resolution)
