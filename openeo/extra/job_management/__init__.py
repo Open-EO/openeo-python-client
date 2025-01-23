@@ -519,7 +519,7 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):
-            jobs_done, jobs_error, jobs_canceled = self._track_statuses(job_db, stats=stats)
+            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
@@ -543,14 +543,14 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Act on jobs
-        for job, metadata in jobs_error:
-            self.on_job_error(job, metadata)
+        for job, row in jobs_error:
+            self.on_job_error(job, row)
 
-        for job, metadata in jobs_canceled:
-            self.on_job_cancel(job, metadata)
+        for job, row in jobs_cancel:
+            self.on_job_cancel(job, row)
 
-        for job, metadata in jobs_done:
-            self.on_job_done(job, metadata)
+        for job, row in jobs_done:
+            self.on_job_done(job, row)
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -629,12 +629,12 @@ class MultiBackendJobManager:
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
 
-        job_metadata = job.describe()
-        job_dir = self.get_job_dir(job.job_id)
-        self.ensure_job_dir_exists(job.job_id)
-        metadata_path = self.get_job_metadata_path(job.job_id)
-
         if self._download:
+
+            job_metadata = job.describe()
+            job_dir = self.get_job_dir(job.job_id)
+            self.ensure_job_dir_exists(job.job_id)
+            metadata_path = self.get_job_metadata_path(job.job_id)
             with metadata_path.open("w", encoding="utf-8") as f:
                 json.dump(job_metadata, f, ensure_ascii=False)
 
@@ -721,7 +721,7 @@ class MultiBackendJobManager:
 
         jobs_done = []
         jobs_error = []
-        jobs_canceled = []
+        jobs_cancel = []
 
         for i in active.index:
             job_id = active.loc[i, "id"]
@@ -749,7 +749,7 @@ class MultiBackendJobManager:
 
                 if new_status == "canceled":
                     stats["job canceled"] += 1
-                    self.on_job_cancel(the_job, active.loc[i])
+                    jobs_cancel.append((the_job, active.loc[i]))
 
                 if previous_status in {"created", "queued"} and new_status == "running":
                     stats["job started running"] += 1
@@ -782,7 +782,7 @@ class MultiBackendJobManager:
         stats["job_db persist"] += 1
         job_db.persist(active)
 
-        return jobs_done, jobs_error, jobs_canceled
+        return jobs_done, jobs_error, jobs_cancel
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
