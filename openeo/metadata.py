@@ -304,12 +304,7 @@ class CubeMetadata:
 
     @property
     def spatial_dimensions(self) -> List[SpatialDimension]:
-        lst = [d for d in self._dimensions if isinstance(d, SpatialDimension)]
-        if lst:
-            assert len(lst) == 2
-            assert lst[0].name == "x"
-            assert lst[1].name == "y"
-        return lst
+        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
 
     def has_geometry_dimension(self):
         return any(isinstance(d, GeometryDimension) for d in self._dimensions)
@@ -447,13 +442,11 @@ class CubeMetadata:
             raise MetadataException(f"Expected two spatial resolutions but found {spatial_indixes=}")
         for i in spatial_indixes:
             dim: SpatialDimension = dimensions[i]
-            assert dim.name in ["x", "y"]
-            resolution_i = 0 if dim.name == "x" else 1
             dimensions[i] = SpatialDimension(
                 name=dim.name,
                 extent=dim.extent,
                 crs=projection or dim.crs,
-                step=resolution[resolution_i] if resolution[resolution_i] else dim.step,
+                step=resolution[i] if resolution[i] else dim.step,
             )
 
         return self._clone_and_update(dimensions=dimensions)
