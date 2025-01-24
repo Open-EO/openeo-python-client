@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from openeo.internal.jupyter import render_component
 from openeo.util import deep_get
@@ -53,3 +53,13 @@ class OpenEoCapabilities:
 
     def _repr_html_(self):
         return render_component("capabilities", data=self.capabilities, parameters={"url": self.url})
+
+    def get_federation(self) -> Union[Dict[str, dict], None]:
+        """
+        Lists all back-ends (with details, such as URL) that are part of the federation
+        if this backend acts as a federated backend,
+        as specified in the openEO Federation Extension.
+        Returns ``None`` otherwise
+        """
+        # TODO: also check related conformance class in `/conformance`?
+        return self.get("federation")

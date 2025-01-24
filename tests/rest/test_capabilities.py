@@ -49,3 +49,20 @@ class TestOpenEoCapabilities:
         assert OpenEoCapabilities({"billing": None}).list_plans() == []
         assert OpenEoCapabilities({"billing": {"plans": []}}).list_plans() == []
         assert OpenEoCapabilities({"billing": {"plans": [{"name": "free"}]}}).list_plans() == [{"name": "free"}]
+
+    def test_federation_absent(self):
+        assert OpenEoCapabilities({}).get_federation() is None
+
+    def test_federation_present(self):
+        data = {
+            "api_version": "1.2.3",
+            "federation": {
+                "a": {"url": "https://a.test/openeo/v2", "title": "A backend"},
+                "bb": {"url": "https://openeo.b.test/v9"},
+            },
+        }
+        capabilities = OpenEoCapabilities(data)
+        assert capabilities.get_federation() == {
+            "a": {"url": "https://a.test/openeo/v2", "title": "A backend"},
+            "bb": {"url": "https://openeo.b.test/v9"},
+        }
