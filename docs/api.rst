@@ -63,6 +63,13 @@ openeo.metadata
    :members: CollectionMetadata, BandDimension, SpatialDimension, TemporalDimension
 
 
+openeo.rest.capabilities
+------------------------
+
+.. automodule:: openeo.rest.capabilities
+   :members: OpenEoCapabilities
+
+
 openeo.api.process
 --------------------
 

@@ -70,11 +70,11 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
+from openeo.rest.capabilities import OpenEoCapabilities
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
-from openeo.rest.rest_capabilities import RESTCapabilities
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
@@ -927,13 +927,13 @@ class Connection(RestApiConnection):
         """
         return [collection['id'] for collection in self.list_collections() if 'id' in collection]
 
-    def capabilities(self) -> RESTCapabilities:
+    def capabilities(self) -> OpenEoCapabilities:
         """
-        Loads all available capabilities.
+        Fetch the openEO capabilities document.
         """
         return self._capabilities_cache.get(
             "capabilities",
-            load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
+            load=lambda: OpenEoCapabilities(data=self.get("/", expected_status=200).json(), url=self._orig_url),
         )
 
     def list_input_formats(self) -> dict:
