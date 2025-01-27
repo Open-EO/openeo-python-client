@@ -66,7 +66,7 @@ from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
-from openeo.rest.models.general import CollectionListingResponse
+from openeo.rest.models.general import CollectionListingResponse, ProcessListingResponse
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
@@ -823,23 +823,22 @@ class Connection(RestApiConnection):
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self, namespace: Optional[str] = None) -> List[dict]:
-        # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
+    def list_processes(self, namespace: Optional[str] = None) -> ProcessListingResponse:
         """
         Loads all available processes of the back end.
 
         :param namespace: The namespace for which to list processes.
 
-        :return: processes_dict: Dict All available processes of the back end.
+        :return: listing of available processes
         """
+        # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
         if namespace is None:
-            processes = self._capabilities_cache.get(
-                key=("processes", "backend"),
-                load=lambda: self.get('/processes', expected_status=200).json()["processes"]
+            response = self._capabilities_cache.get(
+                key=("processes", "backend"), load=lambda: self.get("/processes", expected_status=200).json()
             )
         else:
-            processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
-        return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
+            response = self.get("/processes/" + namespace, expected_status=200).json()
+        return ProcessListingResponse(data=response)
 
     def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """

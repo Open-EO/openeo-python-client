@@ -3407,6 +3407,23 @@ def test_list_processes_namespace(requests_mock):
     assert m.call_count == 1
 
 
+def test_list_processes_extra_metadata(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    m = requests_mock.get(
+        API_URL + "processes",
+        json={
+            "processes": [{"id": "add"}, {"id": "mask"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/processes?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    conn = Connection(API_URL)
+    processes = conn.list_processes()
+    assert processes == [{"id": "add"}, {"id": "mask"}]
+    assert processes.links == [Link(rel="next", href="https://oeo.test/processes?page=2", type=None, title=None)]
+    assert processes.ext_federation.missing == ["oeob"]
+
+
 def test_get_job(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)

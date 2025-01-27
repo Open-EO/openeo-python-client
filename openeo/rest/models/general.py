@@ -47,10 +47,44 @@ class CollectionListingResponse(list):
 
     @property
     def links(self) -> List[Link]:
-        """Get links from collections response."""
+        """Get links related to this resource."""
         return [Link.from_dict(d) for d in self._data.get("links", [])]
 
     @property
     def ext_federation(self) -> FederationExtension:
-        """Accessor for federation extension data."""
+        """Accessor for federation extension data related to this resource."""
+        return FederationExtension(self._data)
+
+
+class ProcessListingResponse(list):
+    """
+    Container for process metadata listing received from a ``GET /processes`` request.
+
+    This object mimics a list of process metadata dictionaries,
+    which was the original return API of :py:meth:`~openeo.rest.connection.Connection.list_processes()`,
+    but now also includes additional metadata like links and extensions.
+
+    :param data: response data from a ``GET /processes`` request
+    """
+
+    __slots__ = ["_data"]
+
+    def __init__(self, data: dict):
+        self._data = data
+        # Mimic original list of process metadata dictionaries
+        super().__init__(data["processes"])
+
+    def _repr_html_(self):
+        return render_component(
+            component="processes", data=self, parameters={"show-graph": True, "provide-download": False}
+        )
+
+    @property
+    def links(self) -> List[Link]:
+        """Get links related to this resource."""
+        return [Link.from_dict(d) for d in self._data.get("links", [])]
+
+    @property
+    def ext_federation(self) -> FederationExtension:
+        """Accessor for federation extension data related to this resource."""
         return FederationExtension(self._data)
