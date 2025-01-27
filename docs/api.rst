@@ -70,6 +70,16 @@ openeo.rest.capabilities
    :members: OpenEoCapabilities
 
 
+openeo.rest.models
+-------------------
+
+.. automodule:: openeo.rest.models.general
+    :members:
+
+.. automodule:: openeo.rest.models.federation_extension
+    :members: FederationExtension
+
+
 openeo.api.process
 --------------------
 

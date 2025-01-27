@@ -40,6 +40,7 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
+from openeo.rest.models.general import Link
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
@@ -3327,6 +3328,23 @@ def test_list_collections(requests_mock):
     )
     con = Connection(API_URL)
     assert con.list_collections() == collections
+
+
+def test_list_collections_extra_metadata(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "collections",
+        json={
+            "collections": [{"id": "S2"}, {"id": "NDVI"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/collections?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    con = Connection(API_URL)
+    collections = con.list_collections()
+    assert collections == [{"id": "S2"}, {"id": "NDVI"}]
+    assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
+    assert collections.ext_federation.missing == ["oeob"]
 
 
 def test_describe_collection(requests_mock):

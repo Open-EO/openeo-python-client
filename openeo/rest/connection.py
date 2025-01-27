@@ -66,6 +66,7 @@ from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.models.general import CollectionListingResponse
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
@@ -671,7 +672,7 @@ class Connection(RestApiConnection):
     def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
-    def list_collections(self) -> List[dict]:
+    def list_collections(self) -> CollectionListingResponse:
         """
         List basic metadata of all collections provided by the back-end.
 
@@ -684,8 +685,8 @@ class Connection(RestApiConnection):
         :return: list of dictionaries with basic collection metadata.
         """
         # TODO: add caching #383, but reset cache on auth change #254
-        data = self.get('/collections', expected_status=200).json()["collections"]
-        return VisualList("collections", data=data)
+        data = self.get("/collections", expected_status=200).json()
+        return CollectionListingResponse(data)
 
     def list_collection_ids(self) -> List[str]:
         """
