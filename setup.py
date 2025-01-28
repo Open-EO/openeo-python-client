@@ -77,7 +77,8 @@ setup(
         "xarray>=0.12.3",
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
-        "pystac>=1.5.0",
+        # TODO #715 compatibility with pystac 1.12
+        "pystac>=1.5.0,<1.12",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
