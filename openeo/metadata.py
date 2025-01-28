@@ -12,6 +12,7 @@ import pystac.extensions.item_assets
 
 from openeo.internal.jupyter import render_component
 from openeo.util import Rfc3339, deep_get
+from openeo.utils.normalize import normalize_resample_resolution
 
 _log = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class DimensionAlreadyExistsException(MetadataException):
 
 
 # TODO: make these dimension classes immutable data classes
+# TODO: align better with STAC datacube extension
+# TODO: align/adapt/integrate with pystac's datacube extension implementation?
 class Dimension:
     """Base class for dimensions."""
 
@@ -58,6 +61,8 @@ class Dimension:
 
 
 class SpatialDimension(Dimension):
+    # TODO: align better with STAC datacube extension: e.g. support "axis" (x or y)
+
     DEFAULT_CRS = 4326
 
     def __init__(
@@ -257,6 +262,10 @@ class CubeMetadata:
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
 
+    def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
+        return f"CubeMetadata({bands} - {self.dimension_names()})"
+
     def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)
@@ -411,10 +420,40 @@ class CubeMetadata:
             raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
         return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
-    def __str__(self) -> str:
-        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
-        return f"CubeMetadata({bands} - {self.dimension_names()})"
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
+        projection: Union[int, str, None] = None,
+    ) -> CubeMetadata:
+        resolution = normalize_resample_resolution(resolution)
+        if self._dimensions is None:
+            # Best-effort fallback to work with
+            dimensions = [
+                SpatialDimension(name="x", extent=[None, None]),
+                SpatialDimension(name="y", extent=[None, None]),
+            ]
+        else:
+            # Make sure to work with a copy (to edit in-place)
+            dimensions = list(self._dimensions)
 
+        # Find and replace spatial dimensions
+        spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
+        if len(spatial_indices) != 2:
+            raise MetadataException(f"Expected two spatial dimensions but found {spatial_indices=}")
+        assert len(resolution) == 2
+        for i, r in zip(spatial_indices, resolution):
+            dim: SpatialDimension = dimensions[i]
+            dimensions[i] = SpatialDimension(
+                name=dim.name,
+                extent=dim.extent,
+                crs=projection or dim.crs,
+                step=r if r != 0.0 else dim.step,
+            )
+
+        return self._clone_and_update(dimensions=dimensions)
+
+    def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
+        return self._clone_and_update(dimensions=list(target._dimensions))
 
 class CollectionMetadata(CubeMetadata):
     """

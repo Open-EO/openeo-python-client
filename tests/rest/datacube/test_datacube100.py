@@ -22,7 +22,6 @@ import openeo.metadata
 import openeo.processes
 from openeo import BatchJob, collection_property
 from openeo.api.process import Parameter
-from openeo.capabilities import ComparableVersion
 from openeo.internal.graph_building import PGNode
 from openeo.internal.process_graph_visitor import ProcessGraphVisitException
 from openeo.internal.warnings import UserDeprecationWarning
@@ -30,6 +29,7 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube
+from openeo.utils.version import ComparableVersion
 
 from .. import get_download_graph
 from .conftest import API_URL, DEFAULT_S2_METADATA, setup_collection_metadata
