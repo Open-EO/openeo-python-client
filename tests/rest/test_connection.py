@@ -3710,16 +3710,29 @@ class TestUserDefinedProcesses:
 
     def test_list_udps(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
-        conn = Connection(API_URL)
-
         udp = test_data.load_json("1.0.0/udp_details.json")
-
         requests_mock.get(API_URL + "process_graphs", json={"processes": [udp]})
 
+        conn = Connection(API_URL)
         user_udps = conn.list_user_defined_processes()
+        assert user_udps == [udp]
 
-        assert len(user_udps) == 1
-        assert user_udps[0] == udp
+    def test_list_udps_extra_metadata(self, requests_mock, test_data):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        requests_mock.get(
+            API_URL + "process_graphs",
+            json={
+                "processes": [{"id": "myevi"}],
+                "links": [{"rel": "about", "href": "https://oeo.test/my-evi"}],
+                "federation:missing": ["oeob"],
+            },
+        )
+
+        conn = Connection(API_URL)
+        udps = conn.list_user_defined_processes()
+        assert udps == [{"id": "myevi"}]
+        assert udps.links == [Link(rel="about", href="https://oeo.test/my-evi")]
+        assert udps.ext_federation.missing == ["oeob"]
 
 
     def test_list_udps_unsupported(self, requests_mock):

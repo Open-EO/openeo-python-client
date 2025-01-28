@@ -66,7 +66,11 @@ from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
-from openeo.rest.models.general import CollectionListingResponse, ProcessListingResponse
+from openeo.rest.models.general import (
+    CollectionListingResponse,
+    ProcessListingResponse,
+    UserDefinedProcessListingResponse,
+)
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
@@ -928,13 +932,13 @@ class Connection(RestApiConnection):
         )
         return udp
 
-    def list_user_defined_processes(self) -> List[dict]:
+    def list_user_defined_processes(self) -> UserDefinedProcessListingResponse:
         """
         Lists all user-defined processes of the authenticated user.
         """
         self.assert_user_defined_process_support()
-        data = self.get("/process_graphs", expected_status=200).json()["processes"]
-        return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
+        data = self.get("/process_graphs", expected_status=200).json()
+        return UserDefinedProcessListingResponse(data=data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
