@@ -904,7 +904,8 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
             import geopandas
 
             # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
-            df = geopandas.GeoDataFrame(df, geometry=geopandas.GeoSeries.from_wkt(df["geometry"]))
+            df.geometry = geopandas.GeoSeries.from_wkt(df["geometry"])
+            df = geopandas.GeoDataFrame(df)
         return df
 
     def persist(self, df: pd.DataFrame):

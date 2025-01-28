@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `CsvJobDatabase`: workaround GeoPandas issue when there is a column named "crs" ([#714](https://github.com/Open-EO/openeo-python-client/issues/714))
+
 
 ## [0.37.0] - 2025-01-21 - "SAP10" release
 

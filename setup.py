@@ -25,7 +25,7 @@ tests_require = [
     "urllib3<2.3.0",  # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
     "netCDF4>=1.7.0",
     "matplotlib",  # TODO: eliminate matplotlib as test dependency
-    "geopandas",
+    "geopandas>0.13.2",
     "flake8>=5.0.0",
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
