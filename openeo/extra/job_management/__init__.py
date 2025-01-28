@@ -206,7 +206,6 @@ class MultiBackendJobManager:
         poll_sleep: int = 60,
         root_dir: Optional[Union[str, Path]] = ".",
         *,
-        download: Optional[bool] = True,
         cancel_running_job_after: Optional[int] = None,
     ):
         """Create a MultiBackendJobManager."""
@@ -221,7 +220,6 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
-        self._download = download
         self._thread = None
 
     def add_backend(
@@ -628,17 +626,15 @@ class MultiBackendJobManager:
         :param row: DataFrame row containing the job's metadata.
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
+        job_metadata = job.describe()
+        job_dir = self.get_job_dir(job.job_id)
+        self.ensure_job_dir_exists(job.job_id)
+        metadata_path = self.get_job_metadata_path(job.job_id)
+        
+        with metadata_path.open("w", encoding="utf-8") as f:
+            json.dump(job_metadata, f, ensure_ascii=False)
 
-        if self._download:
-
-            job_metadata = job.describe()
-            job_dir = self.get_job_dir(job.job_id)
-            self.ensure_job_dir_exists(job.job_id)
-            metadata_path = self.get_job_metadata_path(job.job_id)
-            with metadata_path.open("w", encoding="utf-8") as f:
-                json.dump(job_metadata, f, ensure_ascii=False)
-
-            job.get_results().download_files(target=job_dir)
+        job.get_results().download_files(target=job_dir)
 
         
     def on_job_error(self, job: BatchJob, row):
