@@ -70,7 +70,6 @@ from openeo.rest.models.general import (
     CollectionListingResponse,
     JobListingResponse,
     ProcessListingResponse,
-    UserDefinedProcessListingResponse,
 )
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
@@ -696,7 +695,7 @@ class Connection(RestApiConnection):
         # TODO: add caching #383, but reset cache on auth change #254
         # TODO #677 add pagination support?
         data = self.get("/collections", expected_status=200).json()
-        return CollectionListingResponse(data)
+        return CollectionListingResponse(response_data=data)
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -942,18 +941,18 @@ class Connection(RestApiConnection):
         )
         return udp
 
-    def list_user_defined_processes(self) -> UserDefinedProcessListingResponse:
+    def list_user_defined_processes(self) -> ProcessListingResponse:
         """
         Lists all user-defined processes of the authenticated user.
 
         .. versionchanged:: 0.38.0
-            Returns a :py:class:`~openeo.rest.models.general.UserDefinedProcessListingResponse` object
+            Returns a :py:class:`~openeo.rest.models.general.ProcessListingResponse` object
             instead of a simple ``List[dict]``.
         """
         # TODO #677 add pagination support?
         self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()
-        return UserDefinedProcessListingResponse(response_data=data)
+        return ProcessListingResponse(response_data=data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
