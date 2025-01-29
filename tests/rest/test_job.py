@@ -13,8 +13,6 @@ from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientExc
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 
-from .test_connection import _credentials_basic_handler
-
 API_URL = "https://oeo.test"
 
 TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
@@ -719,6 +717,7 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         assert f.read() == TIFF_CONTENT
 
 
+
 @pytest.mark.parametrize(
     ["list_jobs_kwargs", "expected_qs"],
     [
@@ -726,19 +725,10 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         ({"limit": 123}, {"limit": ["123"]}),
     ],
 )
-def test_list_jobs(con100, requests_mock, list_jobs_kwargs, expected_qs):
-    username = "john"
-    password = "j0hn!"
-    access_token = "6cc35!"
-    requests_mock.get(
-        API_URL + "/credentials/basic",
-        text=_credentials_basic_handler(
-            username=username, password=password, access_token=access_token
-        ),
-    )
+def test_list_jobs(con100, requests_mock, list_jobs_kwargs, expected_qs, basic_auth):
 
     def get_jobs(request, context):
-        assert request.headers["Authorization"] == f"Bearer basic//{access_token}"
+        assert request.headers["Authorization"] == f"Bearer basic//{basic_auth.access_token}"
         assert request.qs == expected_qs
         return {
             "jobs": [
@@ -757,7 +747,7 @@ def test_list_jobs(con100, requests_mock, list_jobs_kwargs, expected_qs):
 
     requests_mock.get(API_URL + "/jobs", json=get_jobs)
 
-    con100.authenticate_basic(username, password)
+    con100.authenticate_basic(basic_auth.username, basic_auth.password)
     jobs = con100.list_jobs(**list_jobs_kwargs)
     assert jobs == [
         {"id": "job123", "status": "running", "created": "2021-02-22T09:00:00Z"},
@@ -765,18 +755,10 @@ def test_list_jobs(con100, requests_mock, list_jobs_kwargs, expected_qs):
     ]
 
 
-def test_list_jobs_extra_metadata(con100, requests_mock, caplog):
-    # TODO: avoid this boilerplate duplication
-    username = "john"
-    password = "j0hn!"
-    access_token = "6cc35!"
-    requests_mock.get(
-        API_URL + "/credentials/basic",
-        text=_credentials_basic_handler(username=username, password=password, access_token=access_token),
-    )
+def test_list_jobs_extra_metadata(con100, requests_mock, caplog, basic_auth):
 
     def get_jobs(request, context):
-        assert request.headers["Authorization"] == f"Bearer basic//{access_token}"
+        assert request.headers["Authorization"] == f"Bearer basic//{basic_auth.access_token}"
         return {
             "jobs": [
                 {
@@ -798,7 +780,7 @@ def test_list_jobs_extra_metadata(con100, requests_mock, caplog):
 
     requests_mock.get(API_URL + "/jobs", json=get_jobs)
 
-    con100.authenticate_basic(username, password)
+    con100.authenticate_basic(basic_auth.username, basic_auth.password)
     jobs = con100.list_jobs()
     assert jobs == [
         {"id": "job123", "status": "running", "created": "2021-02-22T09:00:00Z"},

@@ -3,12 +3,11 @@ Helpers, mocks for testing (OIDC) authentication
 """
 
 import base64
-import contextlib
+import dataclasses
 import json
 import urllib.parse
 import uuid
 from typing import List, Optional, Union
-from unittest import mock
 
 import requests
 import requests_mock.request
@@ -290,3 +289,37 @@ class OidcMock:
             for r in self.requests_mock.request_history
             if (method is None or method.lower() == r.method.lower()) and (url is None or url == r.url)
         ]
+
+
+def build_basic_auth_header(username: str, password: str) -> str:
+    """Generate basic auth header (per RFC 7617) from given username and password."""
+    credentials = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("utf-8")
+    return f"Basic {credentials}"
+
+
+@dataclasses.dataclass(frozen=True)
+class SimpleBasicAuthMocker:
+    """
+    Helper to create a test fixture for simple basic auth handling in openEO context:
+    set up `/credentials/basic` handling with a fixed username/password/access_token combo.
+    """
+
+    username: str = "john"
+    password: str = "j0hn!"
+    access_token: str = "6cc3570k3n"
+
+    def expected_auth_header(self) -> str:
+        return build_basic_auth_header(username=self.username, password=self.password)
+
+    def setup_credentials_basic_handler(self, *, api_root: str, requests_mock):
+        """Set up `requests_mock` handler for `/credentials/basic` endpoint."""
+        expected_auth_header = self.expected_auth_header()
+
+        def credentials_basic_handler(request, context):
+            assert request.headers["Authorization"] == expected_auth_header
+            return json.dumps({"access_token": self.access_token})
+
+        return requests_mock.get(
+            url_join(api_root, "/credentials/basic"),
+            text=credentials_basic_handler,
+        )
