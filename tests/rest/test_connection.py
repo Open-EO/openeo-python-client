@@ -3330,7 +3330,7 @@ def test_list_collections(requests_mock):
     assert con.list_collections() == collections
 
 
-def test_list_collections_extra_metadata(requests_mock):
+def test_list_collections_extra_metadata(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     requests_mock.get(
         API_URL + "collections",
@@ -3345,6 +3345,7 @@ def test_list_collections_extra_metadata(requests_mock):
     assert collections == [{"id": "S2"}, {"id": "NDVI"}]
     assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
     assert collections.ext_federation.missing == ["oeob"]
+    assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
 
 
 def test_describe_collection(requests_mock):
@@ -3407,7 +3408,7 @@ def test_list_processes_namespace(requests_mock):
     assert m.call_count == 1
 
 
-def test_list_processes_extra_metadata(requests_mock):
+def test_list_processes_extra_metadata(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     m = requests_mock.get(
         API_URL + "processes",
@@ -3422,6 +3423,7 @@ def test_list_processes_extra_metadata(requests_mock):
     assert processes == [{"id": "add"}, {"id": "mask"}]
     assert processes.links == [Link(rel="next", href="https://oeo.test/processes?page=2", type=None, title=None)]
     assert processes.ext_federation.missing == ["oeob"]
+    assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
 def test_get_job(requests_mock):
@@ -3717,7 +3719,7 @@ class TestUserDefinedProcesses:
         user_udps = conn.list_user_defined_processes()
         assert user_udps == [udp]
 
-    def test_list_udps_extra_metadata(self, requests_mock, test_data):
+    def test_list_udps_extra_metadata(self, requests_mock, test_data, caplog):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
         requests_mock.get(
             API_URL + "process_graphs",
@@ -3733,6 +3735,7 @@ class TestUserDefinedProcesses:
         assert udps == [{"id": "myevi"}]
         assert udps.links == [Link(rel="about", href="https://oeo.test/my-evi")]
         assert udps.ext_federation.missing == ["oeob"]
+        assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
     def test_list_udps_unsupported(self, requests_mock):

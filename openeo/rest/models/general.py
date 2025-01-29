@@ -25,6 +25,7 @@ class Link:
         return cls(rel=data["rel"], href=data["href"], type=data.get("type"), title=data.get("title"))
 
     # TODO: add _html_repr_ for Jupyter integration
+    # TODO: also provide container for list of links with methods to easily look up by `rel` or `type`
 
 
 class CollectionListingResponse(list):
@@ -38,7 +39,7 @@ class CollectionListingResponse(list):
         :py:meth:`~openeo.rest.connection.Connection.list_collections()`,
         but now also provides methods/properties to access additional response data.
 
-    :param data: response data from a ``GET /collections`` request
+    :param response_data: response data from a ``GET /collections`` request
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_collections()`
 
@@ -47,10 +48,12 @@ class CollectionListingResponse(list):
 
     __slots__ = ["_data"]
 
-    def __init__(self, data: dict):
-        self._data = data
+    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+        self._data = response_data
         # Mimic original list of collection metadata dictionaries
-        super().__init__(data["collections"])
+        super().__init__(response_data["collections"])
+        if warn_on_federation_missing:
+            self.ext_federation.warn_on_missing(resource_name="collection listing")
 
     def _repr_html_(self):
         return render_component(component="collections", data=self)
@@ -77,7 +80,7 @@ class ProcessListingResponse(list):
         :py:meth:`~openeo.rest.connection.Connection.list_processes()`,
         but now also provides methods/properties to access additional response data.
 
-    :param data: response data from a ``GET /processes`` request
+    :param response_data: response data from a ``GET /processes`` request
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_processes()`
 
@@ -86,10 +89,12 @@ class ProcessListingResponse(list):
 
     __slots__ = ["_data"]
 
-    def __init__(self, data: dict):
-        self._data = data
+    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+        self._data = response_data
         # Mimic original list of process metadata dictionaries
-        super().__init__(data["processes"])
+        super().__init__(response_data["processes"])
+        if warn_on_federation_missing:
+            self.ext_federation.warn_on_missing(resource_name="process listing")
 
     def _repr_html_(self):
         return render_component(
@@ -118,25 +123,69 @@ class UserDefinedProcessListingResponse(list):
         :py:meth:`~openeo.rest.connection.Connection.list_user_defined_processes()`,
         but now also provides methods/properties to access additional response data.
 
-    :param data: response data from a ``GET /process_graphs`` request
+    :param response_data: response data from a ``GET /process_graphs`` request
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_user_defined_processes()`
 
     .. versionadded:: 0.38.0
-
     """
+
+    # TODO: this is a copy of ProcessListingResponse, but with different class name
 
     __slots__ = ["_data"]
 
-    def __init__(self, data: dict):
-        self._data = data
+    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+        self._data = response_data
         # Mimic original list of process metadata dictionaries
-        super().__init__(data["processes"])
+        super().__init__(response_data["processes"])
+        if warn_on_federation_missing:
+            self.ext_federation.warn_on_missing(resource_name="process listing")
 
     def _repr_html_(self):
         return render_component(
             component="processes", data=self, parameters={"show-graph": True, "provide-download": False}
         )
+
+    @property
+    def links(self) -> List[Link]:
+        """Get links related to this resource."""
+        return [Link.from_dict(d) for d in self._data.get("links", [])]
+
+    @property
+    def ext_federation(self) -> FederationExtension:
+        """Accessor for federation extension data related to this resource."""
+        return FederationExtension(self._data)
+
+
+class JobListingResponse(list):
+    """
+    Container for job metadata listing received
+    from a ``GET /jobs`` request.
+
+    .. note::
+        This object mimics a simple ``List[dict]`` with job metadata,
+        which was the original return API of
+        :py:meth:`~openeo.rest.connection.Connection.list_jobs()`,
+        but now also provides methods/properties to access additional response data.
+
+    :param response_data: response data from a ``GET /jobs`` request
+
+    .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_jobs()`
+
+    .. versionadded:: 0.38.0
+    """
+
+    __slots__ = ["_data"]
+
+    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+        self._data = response_data
+        # Mimic original list of process metadata dictionaries
+        super().__init__(response_data["jobs"])
+        if warn_on_federation_missing:
+            self.ext_federation.warn_on_missing(resource_name="job listing")
+
+    def _repr_html_(self):
+        return render_component(component="data-table", data=self, parameters={"columns": "jobs"})
 
     @property
     def links(self) -> List[Link]:

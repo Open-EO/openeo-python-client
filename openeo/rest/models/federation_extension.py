@@ -1,5 +1,7 @@
+import logging
 from typing import List, Union
 
+_log = logging.getLogger(__name__)
 
 class FederationExtension:
     """
@@ -22,3 +24,11 @@ class FederationExtension:
             Or None, when ``federation:missing`` is not present in response.
         """
         return self._data.get("federation:missing", None)
+
+    def warn_on_missing(self, resource_name: str) -> None:
+        """
+        Warn about presence of ``federation:missing`` in the resource.
+        """
+        missing = self.missing
+        if missing:
+            _log.warning(f"Partial {resource_name}: missing federation components: {missing!r}.")

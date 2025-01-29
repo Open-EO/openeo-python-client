@@ -68,6 +68,7 @@ from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.models.general import (
     CollectionListingResponse,
+    JobListingResponse,
     ProcessListingResponse,
     UserDefinedProcessListingResponse,
 )
@@ -687,8 +688,13 @@ class Connection(RestApiConnection):
             it is recommended to use :py:meth:`~openeo.rest.connection.Connection.describe_collection` instead.
 
         :return: list of dictionaries with basic collection metadata.
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.CollectionListingResponse` object
+            instead of a simple ``List[dict]``.
         """
         # TODO: add caching #383, but reset cache on auth change #254
+        # TODO #677 add pagination support?
         data = self.get("/collections", expected_status=200).json()
         return CollectionListingResponse(data)
 
@@ -834,15 +840,20 @@ class Connection(RestApiConnection):
         :param namespace: The namespace for which to list processes.
 
         :return: listing of available processes
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.ProcessListingResponse` object
+            instead of a simple ``List[dict]``.
         """
         # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
+        # TODO #677 add pagination support?
         if namespace is None:
             response = self._capabilities_cache.get(
                 key=("processes", "backend"), load=lambda: self.get("/processes", expected_status=200).json()
             )
         else:
             response = self.get("/processes/" + namespace, expected_status=200).json()
-        return ProcessListingResponse(data=response)
+        return ProcessListingResponse(response_data=response)
 
     def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
@@ -861,26 +872,25 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
+    def list_jobs(self, limit: Union[int, None] = None) -> JobListingResponse:
         """
-        Lists all jobs of the authenticated user.
+        Lists (batch) jobs metadata of the authenticated user.
 
         :param limit: maximum number of jobs to return. Setting this limit enables pagination.
 
         :return: job_list: Dict of all jobs of the user.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added ``limit`` argument
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.JobListingResponse` object
+            instead of simple ``List[dict]``.
         """
         # TODO: Parse the result so that Job classes returned?
-        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
-        if resp.get("federation:missing"):
-            _log.warning("Partial user job listing due to missing federation components: {c}".format(
-                c=",".join(resp["federation:missing"])
-            ))
         # TODO: when pagination is enabled: how to expose link to next page?
-        jobs = resp["jobs"]
-        return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
+        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
+        return JobListingResponse(response_data=resp)
 
     def assert_user_defined_process_support(self):
         """
@@ -935,10 +945,15 @@ class Connection(RestApiConnection):
     def list_user_defined_processes(self) -> UserDefinedProcessListingResponse:
         """
         Lists all user-defined processes of the authenticated user.
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.UserDefinedProcessListingResponse` object
+            instead of a simple ``List[dict]``.
         """
+        # TODO #677 add pagination support?
         self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()
-        return UserDefinedProcessListingResponse(data=data)
+        return UserDefinedProcessListingResponse(response_data=data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
