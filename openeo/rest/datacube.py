@@ -168,6 +168,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param connection: The backend connection to use.
             Can be ``None`` to work without connection and collection metadata.
         :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+
             - a bounding box dictionary
             - a Shapely geometry object
             - a GeoJSON-style dictionary
@@ -175,6 +176,7 @@ class DataCube(_ProcessGraphAbstraction):
               which will be loaded automatically to get the geometries as GeoJSON construct.
             - a URL to a publicly accessible GeoJSON document
             - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
