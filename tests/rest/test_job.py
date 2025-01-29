@@ -1,7 +1,9 @@
+import itertools
 import json
 import logging
 import re
 from pathlib import Path
+from typing import Optional
 from unittest import mock
 
 import pytest
@@ -12,6 +14,7 @@ import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
+from openeo.rest.models.logs import LogEntry
 
 API_URL = "https://oeo.test"
 
@@ -307,109 +310,197 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
     ]
 
 
-def test_get_job_logs(con100, requests_mock):
-    requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={
-        'logs': [{
-            'id': "123abc",
-            'level': 'error',
-            'message': "error processing batch job"
-        }]
-    })
+class LogGenerator:
+    """Helper to generate log entry (dicts) with auto-generated ids, messages, etc."""
 
-    log_entries = con100.job("f00ba5").logs(offset="123abc")
+    def __init__(self):
+        self._auto_id = itertools.count().__next__
 
-    assert log_entries[0].message == "error processing batch job"
+    def _auto_message(self, id: str, level: str) -> str:
+        greeting = {"debug": "Yo", "info": "Hello", "warning": "Beware", "error": "Halt!"}.get(level, "Greetings")
+        return f"{greeting} {id}"
+
+    def log(self, message: Optional[str] = None, *, id: Optional[str] = None, level: str = "info") -> dict:
+        id = id or f"abc{self._auto_id():03d}"
+        message = message or self._auto_message(id=id, level=level)
+        return {"id": id, "level": level, "message": message}
+
+    def debug(self, **kwargs) -> dict:
+        return self.log(level="debug", **kwargs)
+
+    def info(self, **kwargs) -> dict:
+        return self.log(level="info", **kwargs)
+
+    def warning(self, **kwargs) -> dict:
+        return self.log(level="warning", **kwargs)
+
+    def error(self, **kwargs) -> dict:
+        return self.log(level="error", **kwargs)
+
+    def __call__(self, **kwargs):
+        return self.log(**kwargs)
 
 
-def test_get_job_logs_returns_debug_loglevel_by_default(con100, requests_mock):
+@pytest.fixture
+def log_generator() -> LogGenerator:
+    return LogGenerator()
+
+
+def test_get_job_logs_basic(con100, requests_mock, log_generator):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
         json={
             "logs": [
-                {
-                    "id": "123abc",
-                    "level": "error",
-                    "message": "error processing batch job",
-                },
-                {
-                    "id": "234abc",
-                    "level": "debug",
-                    "message": "Some debug info we want to filter out",
-                },
-                {
-                    "id": "345abc",
-                    "level": "info",
-                    "message": "Some general info we want to filter out",
-                },
-                {
-                    "id": "345abc",
-                    "level": "warning",
-                    "message": "Some warning we want to filter out",
-                },
+                log_generator.info(message="Starting"),
+                log_generator.error(message="Nope!"),
             ]
         },
     )
 
-    log_entries = con100.job("f00ba5").logs()
+    logs = con100.job("f00ba5").logs(offset="TODO")
+    # Original interface
+    assert logs == [
+        {"id": "abc000", "level": "info", "message": "Starting"},
+        {"id": "abc001", "level": "error", "message": "Nope!"},
+    ]
+    assert logs == [
+        LogEntry(id="abc000", level="info", message="Starting"),
+        LogEntry(id="abc001", level="error", message="Nope!"),
+    ]
+    # Explicit property to get log entry listing
+    assert logs.logs == [
+        LogEntry(id="abc000", level="info", message="Starting"),
+        LogEntry(id="abc001", level="error", message="Nope!"),
+    ]
 
-    assert len(log_entries) == 4
-    assert log_entries[0].level == "error"
-    assert log_entries[1].level == "debug"
-    assert log_entries[2].level == "info"
-    assert log_entries[3].level == "warning"
+
+def test_get_job_logs_extra_metadata(con100, requests_mock, log_generator):
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [log_generator.info(message="Hello world")],
+            "links": [
+                {"rel": "next", "href": "https://oeo.test/jobs/f00ba5/logs?offset=123abc"},
+            ],
+            "federation:missing": ["eoeb"],
+        },
+    )
+
+    logs = con100.job("f00ba5").logs()
+    assert logs.logs == [
+        LogEntry(id="abc000", level="info", message="Hello world"),
+    ]
+    assert logs.links == [
+        Link(rel="next", href="https://oeo.test/jobs/f00ba5/logs?offset=123abc"),
+    ]
+    assert logs.ext_federation.missing == ["eoeb"]
+
+
+def test_get_job_logs_level_handling_default(con100, requests_mock, log_generator):
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                log_generator.error(),
+                log_generator.debug(),
+                log_generator.info(),
+                log_generator.warning(),
+            ]
+        },
+    )
+    logs = con100.job("f00ba5").logs()
+    assert logs == [
+        {"id": "abc000", "level": "error", "message": "Halt! abc000"},
+        {"id": "abc001", "level": "debug", "message": "Yo abc001"},
+        {"id": "abc002", "level": "info", "message": "Hello abc002"},
+        {"id": "abc003", "level": "warning", "message": "Beware abc003"},
+    ]
 
 
 @pytest.mark.parametrize(
-    ["log_level", "exp_num_messages"],
+    ["levels", "expected"],
     [
-        (None, 4),  # Default is DEBUG / show all log levels.
-        (logging.ERROR, 1),
-        ("error", 1),
-        ("ERROR", 1),
-        (logging.WARNING, 2),
-        ("warning", 2),
-        ("WARNING", 2),
-        (logging.INFO, 3),
-        ("INFO", 3),
-        ("info", 3),
-        (logging.DEBUG, 4),
-        ("DEBUG", 4),
-        ("debug", 4),
+        ([logging.ERROR, "error", "ERROR"], [{"id": "abc005", "level": "error", "message": "Halt! abc005"}]),
+        (
+            [logging.WARNING, "warning", "WARNING"],
+            [
+                {"id": "abc004", "level": "warning", "message": "Beware abc004"},
+                {"id": "abc005", "level": "error", "message": "Halt! abc005"},
+            ],
+        ),
+        (
+            [logging.INFO, "INFO", "info"],
+            [
+                {"id": "abc000", "level": "info", "message": "Hello abc000"},
+                {"id": "abc003", "level": "info", "message": "Hello abc003"},
+                {"id": "abc004", "level": "warning", "message": "Beware abc004"},
+                {"id": "abc005", "level": "error", "message": "Halt! abc005"},
+            ],
+        ),
+        (
+            [logging.DEBUG, "DEBUG", "debug", None, 0],
+            [
+                {"id": "abc000", "level": "info", "message": "Hello abc000"},
+                {"id": "abc001", "level": "debug", "message": "Yo abc001"},
+                {"id": "abc002", "level": "weird", "message": "Greetings abc002"},
+                {"id": "abc003", "level": "info", "message": "Hello abc003"},
+                {"id": "abc004", "level": "warning", "message": "Beware abc004"},
+                {"id": "abc005", "level": "error", "message": "Halt! abc005"},
+            ],
+        ),
     ],
 )
-def test_get_job_logs_keeps_loglevel_that_is_higher_or_equal(
-    con100, requests_mock, log_level, exp_num_messages
-):
+def test_get_job_logs_level_handling_custom(con100, requests_mock, log_generator, levels, expected):
     requests_mock.get(
         API_URL + "/jobs/f00ba5/logs",
         json={
             "logs": [
-                {
-                    "id": "123abc",
-                    "level": "error",
-                    "message": "error processing batch job",
-                },
-                {
-                    "id": "234abc",
-                    "level": "debug",
-                    "message": "Some debug info we want to filter out",
-                },
-                {
-                    "id": "345abc",
-                    "level": "info",
-                    "message": "Some general info we want to filter out",
-                },
-                {
-                    "id": "345abc",
-                    "level": "warning",
-                    "message": "Some warning we want to filter out",
-                },
+                log_generator.info(),
+                log_generator.debug(),
+                log_generator.log(level="weird"),
+                log_generator.info(),
+                log_generator.warning(),
+                log_generator.error(),
             ]
         },
     )
 
-    log_entries = con100.job("f00ba5").logs(level=log_level)
-    assert len(log_entries) == exp_num_messages
+    for level in levels:
+        logs = con100.job("f00ba5").logs(level=level)
+        assert logs == expected
+
+
+@pytest.mark.parametrize(
+    ["response_extra", "expected"],
+    [
+        (
+            {},
+            [{"id": "abc001", "level": "error", "message": "Halt! abc001"}],
+        ),
+        (
+            {"level": "warning"},
+            [
+                {"id": "abc000", "level": "info", "message": "Not a warning"},
+                {"id": "abc001", "level": "error", "message": "Halt! abc001"},
+            ],
+        ),
+    ],
+)
+def test_get_job_logs_level_handling_custom_with_backend_level(
+    con100, requests_mock, log_generator, response_extra, expected
+):
+    """If backend response includes a "level": trust it (no client-side filtering)."""
+    requests_mock.get(
+        API_URL + "/jobs/f00ba5/logs",
+        json={
+            "logs": [
+                log_generator.info(message="Not a warning"),
+                log_generator.error(),
+            ],
+            **response_extra,
+        },
+    )
+    assert con100.job("f00ba5").logs(level="warning") == expected
 
 
 def test_create_job_100(con100, requests_mock):

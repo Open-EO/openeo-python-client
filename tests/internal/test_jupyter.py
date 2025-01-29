@@ -1,5 +1,5 @@
-from openeo.api.logs import LogEntry
 from openeo.internal.jupyter import render_component
+from openeo.rest.models.logs import LogEntry
 
 
 def test_render_component_logs():

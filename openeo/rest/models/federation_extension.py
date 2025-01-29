@@ -20,6 +20,15 @@ class FederationExtension:
         Get the ``federation:missing`` property (if any) of the resource,
         which lists back-ends that were not available during the request.
 
+        Example usage with collection listing request
+        (using :py:meth:`~openeo.rest.connection.Connection.list_collections()`):
+
+        .. code-block:: pycon
+
+            >>> collections = connection.list_collections()
+            >>> collections.ext_federation.missing
+            ["backend1"]
+
         :return: list of back-end IDs that were not available.
             Or None, when ``federation:missing`` is not present in response.
         """
@@ -27,7 +36,7 @@ class FederationExtension:
 
     def warn_on_missing(self, resource_name: str) -> None:
         """
-        Warn about presence of ``federation:missing`` in the resource.
+        Warn about presence of non-empty ``federation:missing`` in the resource.
         """
         missing = self.missing
         if missing:
