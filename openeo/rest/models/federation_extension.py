@@ -6,7 +6,9 @@ _log = logging.getLogger(__name__)
 class FederationExtension:
     """
     Wrapper the openEO Federation extension as defined by
-    https://github.com/Open-EO/openeo-api/tree/draft/extensions/federation
+    https://github.com/Open-EO/openeo-api/tree/master/extensions/federation
+
+    .. seealso:: :ref:`federation-extension`
     """
 
     __slots__ = ["_data"]

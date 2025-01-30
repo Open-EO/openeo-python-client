@@ -60,6 +60,10 @@ class OpenEoCapabilities:
         if this backend acts as a federated backend,
         as specified in the openEO Federation Extension.
         Returns ``None`` otherwise
+
+        .. versionadded:: 0.38.0
         """
         # TODO: also check related conformance class in `/conformance`?
+        # TODO: refactor into FederationExtension
+        # TODO: return a richer object instead of raw dicts?
         return self.get("federation")
