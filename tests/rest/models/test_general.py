@@ -59,4 +59,4 @@ class TestCollectionListingResponse:
     )
     def test_federation_missing(self, data, expected):
         collections = CollectionListingResponse(data)
-        assert collections.ext_federation.missing == expected
+        assert collections.ext_federation_missing() == expected

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 
 from openeo.internal.jupyter import render_component
-from openeo.rest.models.federation_extension import FederationExtension
+from openeo.rest.models import federation_extension
 from openeo.rest.models.logs import LogEntry, normalize_log_level
 
 
@@ -43,8 +43,6 @@ class CollectionListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /collections`` request
-    :param warn_on_federation_missing: whether to automatically warn
-        about missing federation components.
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_collections()`
 
@@ -53,12 +51,12 @@ class CollectionListingResponse(list):
 
     __slots__ = ["_data"]
 
-    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+    def __init__(self, response_data: dict):
         self._data = response_data
         # Mimic original list of collection metadata dictionaries
         super().__init__(response_data["collections"])
-        if warn_on_federation_missing:
-            self.ext_federation.warn_on_missing(resource_name="collection listing")
+
+        self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
         return render_component(component="collections", data=self)
@@ -68,11 +66,20 @@ class CollectionListingResponse(list):
         """Get links related to this resource."""
         return [Link.from_dict(d) for d in self._data.get("links", [])]
 
-    @property
-    def ext_federation(self) -> FederationExtension:
-        """Accessor for federation extension data related to this resource."""
-        return FederationExtension(self._data)
+    def ext_federation_missing(self, *, auto_warn: bool = False) -> Union[None, List[str]]:
+        """
+        List of backends IDs (from the federation)
+        that were not available during the resource listing request.
 
+        :param auto_warn: whether to automatically log a warning if missing federation components are detected.
+
+        .. seealso:: :ref:`federation-extension`
+
+        .. warning:: this API is experimental and subject to change.
+        """
+        return federation_extension.get_federation_missing(
+            data=self._data, resource_name="collection listing", auto_warn=auto_warn
+        )
 
 class ProcessListingResponse(list):
     """
@@ -86,22 +93,21 @@ class ProcessListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /processes`` request
-    :param warn_on_federation_missing: whether to automatically warn
-        about missing federation components.
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_processes()`
 
     .. versionadded:: 0.38.0
     """
 
+
     __slots__ = ["_data"]
 
-    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+    def __init__(self, response_data: dict):
         self._data = response_data
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["processes"])
-        if warn_on_federation_missing:
-            self.ext_federation.warn_on_missing(resource_name="process listing")
+
+        self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
         return render_component(
@@ -113,11 +119,20 @@ class ProcessListingResponse(list):
         """Get links related to this resource."""
         return [Link.from_dict(d) for d in self._data.get("links", [])]
 
-    @property
-    def ext_federation(self) -> FederationExtension:
-        """Accessor for federation extension data related to this resource."""
-        return FederationExtension(self._data)
+    def ext_federation_missing(self, *, auto_warn: bool = False) -> Union[None, List[str]]:
+        """
+        List of backends IDs (from the federation)
+        that were not available during the resource listing request.
 
+        :param auto_warn: whether to automatically log a warning if missing federation components are detected.
+
+        .. seealso:: :ref:`federation-extension`
+
+        .. warning:: this API is experimental and subject to change.
+        """
+        return federation_extension.get_federation_missing(
+            data=self._data, resource_name="process listing", auto_warn=auto_warn
+        )
 
 class JobListingResponse(list):
     """
@@ -132,22 +147,21 @@ class JobListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /jobs`` request
-    :param warn_on_federation_missing: whether to automatically warn
-        about missing federation components.
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_jobs()`
 
     .. versionadded:: 0.38.0
     """
 
+
     __slots__ = ["_data"]
 
-    def __init__(self, response_data: dict, *, warn_on_federation_missing: bool = True):
+    def __init__(self, response_data: dict):
         self._data = response_data
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["jobs"])
-        if warn_on_federation_missing:
-            self.ext_federation.warn_on_missing(resource_name="job listing")
+
+        self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
         return render_component(component="data-table", data=self, parameters={"columns": "jobs"})
@@ -157,11 +171,20 @@ class JobListingResponse(list):
         """Get links related to this resource."""
         return [Link.from_dict(d) for d in self._data.get("links", [])]
 
-    @property
-    def ext_federation(self) -> FederationExtension:
-        """Accessor for federation extension data related to this resource."""
-        return FederationExtension(self._data)
+    def ext_federation_missing(self, *, auto_warn: bool = False) -> Union[None, List[str]]:
+        """
+        List of backends IDs (from the federation)
+        that were not available during the resource listing request.
 
+        :param auto_warn: whether to automatically log a warning if missing federation components are detected.
+
+        .. seealso:: :ref:`federation-extension`
+
+        .. warning:: this API is experimental and subject to change.
+        """
+        return federation_extension.get_federation_missing(
+            data=self._data, resource_name="job listing", auto_warn=auto_warn
+        )
 
 class LogsResponse(list):
     """
@@ -178,8 +201,6 @@ class LogsResponse(list):
 
     :param response_data: response data from a ``GET /jobs/{job_id}/logs``
         or ``GET /services/{service_id}/logs`` request.
-    :param warn_on_federation_missing: whether to automatically warn
-        about missing federation components.
 
     .. seealso:: :py:meth:`~openeo.rest.job.BatchJob.logs()`
         and :py:meth:`~openeo.rest.service.Service.logs()`
@@ -187,11 +208,10 @@ class LogsResponse(list):
     .. versionadded:: 0.38.0
     """
 
+
     __slots__ = ["_data"]
 
-    def __init__(
-        self, response_data: dict, *, log_level: Optional[str] = None, warn_on_federation_missing: bool = True
-    ):
+    def __init__(self, response_data: dict, *, log_level: Optional[str] = None):
         self._data = response_data
 
         logs = response_data.get("logs", [])
@@ -214,8 +234,8 @@ class LogsResponse(list):
         # Mimic original list of process metadata dictionaries
         super().__init__(logs)
 
-        if warn_on_federation_missing:
-            self.ext_federation.warn_on_missing(resource_name="log listing")
+        self.ext_federation_missing(auto_warn=True)
+
 
     def _repr_html_(self):
         return render_component(component="logs", data=self)
@@ -230,7 +250,17 @@ class LogsResponse(list):
         """Get links related to this resource."""
         return [Link.from_dict(d) for d in self._data.get("links", [])]
 
-    @property
-    def ext_federation(self) -> FederationExtension:
-        """Accessor for federation extension data related to this resource."""
-        return FederationExtension(self._data)
+    def ext_federation_missing(self, *, auto_warn: bool = False) -> Union[None, List[str]]:
+        """
+        List of backends IDs (from the federation)
+        that were not available during the resource listing request.
+
+        :param auto_warn: whether to automatically log a warning if missing federation components are detected.
+
+        .. seealso:: :ref:`federation-extension`
+
+        .. warning:: this API is experimental and subject to change.
+        """
+        return federation_extension.get_federation_missing(
+            data=self._data, resource_name="log listing", auto_warn=auto_warn
+        )

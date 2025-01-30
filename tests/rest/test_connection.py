@@ -3325,7 +3325,7 @@ def test_list_collections_extra_metadata(requests_mock, caplog):
     collections = con.list_collections()
     assert collections == [{"id": "S2"}, {"id": "NDVI"}]
     assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
-    assert collections.ext_federation.missing == ["oeob"]
+    assert collections.ext_federation_missing() == ["oeob"]
     assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
 
 
@@ -3403,7 +3403,7 @@ def test_list_processes_extra_metadata(requests_mock, caplog):
     processes = conn.list_processes()
     assert processes == [{"id": "add"}, {"id": "mask"}]
     assert processes.links == [Link(rel="next", href="https://oeo.test/processes?page=2", type=None, title=None)]
-    assert processes.ext_federation.missing == ["oeob"]
+    assert processes.ext_federation_missing() == ["oeob"]
     assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
@@ -3715,7 +3715,7 @@ class TestUserDefinedProcesses:
         udps = conn.list_user_defined_processes()
         assert udps == [{"id": "myevi"}]
         assert udps.links == [Link(rel="about", href="https://oeo.test/my-evi")]
-        assert udps.ext_federation.missing == ["oeob"]
+        assert udps.ext_federation_missing() == ["oeob"]
         assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 

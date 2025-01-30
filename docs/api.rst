@@ -76,9 +76,6 @@ openeo.rest.models
 .. automodule:: openeo.rest.models.general
     :members:
 
-.. automodule:: openeo.rest.models.federation_extension
-    :members: FederationExtension
-
 .. automodule:: openeo.rest.models.logs
     :members: LogEntry, normalize_log_level
 

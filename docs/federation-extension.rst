@@ -24,19 +24,22 @@ in a couple of resources.
 .. versionadded:: 0.38.0
     initial support to access federation extension related metadata.
 
+.. warning:: this API is experimental and subject to change.
+
+
 Backend details
 ---------------
 
 Participating backends in a federation are listed under the ``federation`` field
 of the capabilities document (``GET /``) and can be inspected
-using :py:meth:`OpenEoCapabilities.get_federation() <openeo.rest.capabilities.OpenEoCapabilities.get_federation>`:
+using :py:meth:`OpenEoCapabilities.ext_federation_backend_details() <openeo.rest.capabilities.OpenEoCapabilities.ext_federation_backend_details>`:
 
 .. code-block:: python
 
     import openeo
     connection = openeo.connect(url=...)
     capabilities = connection.capabilities()
-    print("Federated backends:", capabilities.get_federation())
+    print("Federated backends:", capabilities.ext_federation_backend_details())
 
 
 Unavailable backends (``federation:missing``)
@@ -57,12 +60,11 @@ and can be inspected as follows:
     connection = openeo.connect(url=...)
     collections = connection.list_collections()
     print("Number of collections:", len(collections))
-    print("Missing federation components:", collections.ext_federation.missing)
+    print("Missing federation components:", collections.ext_federation_missing())
 
 
 Note that the ``collections`` object in this example, returned by
 :py:meth:`Connection.list_collections() <openeo.rest.connection.Connection.list_collections>`,
 acts at the surface as a simple list of dictionaries with collection metadata,
 but also provides additional properties/methods like
-:py:attr:`ext_federation <openeo.rest.models.general.CollectionListingResponse.ext_federation>`.
-This is an accessor (an instance of :py:class:`FederationExtension <openeo.rest.models.federation_extension.FederationExtension>`)
+:py:attr:`ext_federation_missing() <openeo.rest.models.general.CollectionListingResponse.ext_federation_missing>`.

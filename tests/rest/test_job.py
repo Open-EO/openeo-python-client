@@ -393,7 +393,7 @@ def test_get_job_logs_extra_metadata(con100, requests_mock, log_generator):
     assert logs.links == [
         Link(rel="next", href="https://oeo.test/jobs/f00ba5/logs?offset=123abc"),
     ]
-    assert logs.ext_federation.missing == ["eoeb"]
+    assert logs.ext_federation_missing() == ["eoeb"]
 
 
 def test_get_job_logs_level_handling_default(con100, requests_mock, log_generator):
@@ -878,5 +878,5 @@ def test_list_jobs_extra_metadata(con100, requests_mock, caplog, basic_auth):
         {"id": "job456", "status": "created", "created": "2021-03-22T10:00:00Z"},
     ]
     assert jobs.links == [Link(rel="next", href="https://oeo.test/jobs?limit=2&offset=2")]
-    assert jobs.ext_federation.missing == ["oeob"]
+    assert jobs.ext_federation_missing() == ["oeob"]
     assert "Partial job listing: missing federation components: ['oeob']." in caplog.text
