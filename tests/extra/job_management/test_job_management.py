@@ -282,6 +282,54 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
+    def test_threaded_job_execution(self, tmp_path, job_manager):
+        """Test that jobs are launched in multiple threads and properly persisted."""
+
+        # Create a mock job database with 5 jobs
+        df = pd.DataFrame({
+            "year": [2018, 2019, 2020, 2021, 2022],
+            "status": ["not_started"] * 5,
+            "backend_name": ["foo", "foo", "bar", "bar", "foo"]
+        })
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
+
+        # Mocks for job launching & persisting
+        job_manager._launch_job = mock.MagicMock()
+        job_db.persist = mock.MagicMock()
+
+        # Track thread starts
+        thread_events = [threading.Event() for _ in range(5)]
+
+        def mock_start_job(job_index):
+            """Mock function to simulate a job running in a separate thread."""
+            thread_events[job_index].set()  # Mark that this job started
+            sleep(0.5)  # Simulate job processing delay
+
+        # Measure thread count before starting
+        initial_thread_count = threading.active_count()
+
+        # Run job execution
+        with mock.patch("threading.Thread", wraps=threading.Thread) as mock_thread:
+            # We pass different job indexes to each mock job function to simulate multiple jobs running.
+            job_manager.run_jobs(job_db=job_db, start_job=lambda job_index: mock_start_job(job_index))
+
+            # Ensure jobs are running in separate threads (i.e., at least 5 threads for 5 jobs)
+            assert mock_thread.call_count >= 5, f"Expected at least 5 threads, but got {mock_thread.call_count}"
+
+        # Ensure at least 2 threads were added (since we are running multiple jobs)
+        assert threading.active_count() > initial_thread_count, f"Expected more threads to be spawned, but got {threading.active_count()}."
+
+        # Ensure all threads were triggered (with timeout to avoid infinite waiting)
+        for event in thread_events:
+            assert event.wait(timeout=2), "A job thread did not start within the timeout."
+
+        # Ensure jobs were persisted at least once
+        assert job_db.persist.call_count >= 1, "Jobs should be persisted after execution."
+
+        # Ensure all jobs have a "finished" status in the CSV
+        assert all(pd.read_csv(job_db_path)["status"] == "finished"), "All jobs should be marked as finished."
+
     def test_normalize_df(self):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
         df_normalized = MultiBackendJobManager._normalize_df(df)
