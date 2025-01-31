@@ -9,7 +9,7 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Semaphore
 from typing import (
     Any,
     Callable,
@@ -222,6 +222,7 @@ class MultiBackendJobManager:
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
         self._thread = None
+        self._max_concurrent_job_launch = 5
 
     def add_backend(
         self,
@@ -506,43 +507,85 @@ class MultiBackendJobManager:
         return stats
 
     def _job_update_loop(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
+        """Handles job updates, including status checks and launching new jobs."""
         if not self.backends:
             raise RuntimeError("No backends registered")
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):
-            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
+            self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
+        self._launch_pending_jobs(job_db, start_job, stats)
+
+        self._handle_completed_jobs(stats)
+
+
+    def _launch_pending_jobs(self, job_db, start_job, stats):
+        """Launches jobs concurrently with controlled threading."""
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
             stats["job_db get_by_status"] += 1
+
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
 
-            threads = []
-            for backend_name in self.backends:
-                backend_load = per_backend.get(backend_name, 0)
-                available_slots = self.backends[backend_name].parallel_jobs - backend_load
+            jobs_to_add = self._get_jobs_to_launch(not_started, per_backend)
+            self._run_job_threads(jobs_to_add, start_job, not_started, stats, job_db)
 
-                for i in not_started.index[:available_slots]:
-                    thread = Thread(target=self._launch_job, args=(start_job, not_started, i, backend_name, stats))
-                    thread.start()
-                    threads.append((thread, i))
+    def _get_jobs_to_launch(self, not_started, per_backend):
+        """Determines which jobs to launch based on backend availability."""
+        jobs_to_add = []
+        total_added = 0
 
-            for thread, i in threads:
-                thread.join()  # Ensure all jobs finish before moving on
-                stats["job launch"] += 1
-                job_db.persist(not_started.loc[i : i + 1])
-                stats["job_db persist"] += 1
+        for backend_name in self.backends:
+            backend_load = per_backend.get(backend_name, 0)
+            if backend_load < self.backends[backend_name].parallel_jobs:
+                to_add = self.backends[backend_name].parallel_jobs - backend_load
+                indices_to_add = not_started.index[total_added : total_added + to_add]
 
-        for job, row in jobs_error:
+                if not indices_to_add.empty:
+                    jobs_to_add.extend((i, backend_name) for i in indices_to_add)
+
+                total_added += len(indices_to_add)
+
+        return jobs_to_add
+
+    def _run_job_threads(self, jobs_to_add, start_job, not_started, stats, job_db):
+        """Manages threading for job launching."""
+        semaphore = Semaphore(self._max_concurrent_job_launch)
+        threads = []
+
+        def job_worker(i, backend_name):
+            with semaphore:
+                try:
+                    self._launch_job(start_job, not_started, i, backend_name, stats)
+                    stats["job launch"] += 1
+                    job_db.persist(not_started.loc[i : i + 1])  # Persist each job as it's launched
+                    stats["job_db persist"] += 1
+                except Exception as e:
+                    _log.error(f"Job launch failed for index {i}: {e}")
+
+        for i, backend_name in jobs_to_add:
+            thread = Thread(target=job_worker, args=(i, backend_name))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+    def _handle_completed_jobs(self, stats):
+        """Processes completed, canceled, and errored jobs."""
+        for job, row in self.jobs_error:
             self.on_job_error(job, row)
-        for job, row in jobs_cancel:
+
+        for job, row in self.jobs_cancel:
             self.on_job_cancel(job, row)
-        for job, row in jobs_done:
+
+        #TODO downloading will be a blocker, run in seperate threads
+        for job, row in self.jobs_done:
             self.on_job_done(job, row)
 
 
@@ -711,9 +754,9 @@ class MultiBackendJobManager:
 
         active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
 
-        jobs_done = []
-        jobs_error = []
-        jobs_cancel = []
+        self.jobs_done = []
+        self.jobs_error = []
+        self.jobs_cancel = []
 
         for i in active.index:
             job_id = active.loc[i, "id"]
@@ -733,15 +776,15 @@ class MultiBackendJobManager:
 
                 if new_status == "finished":
                     stats["job finished"] += 1
-                    jobs_done.append((the_job, active.loc[i]))
+                    self.jobs_done.append((the_job, active.loc[i]))
 
                 if previous_status != "error" and new_status == "error":
                     stats["job failed"] += 1
-                    jobs_error.append((the_job, active.loc[i]))
+                    self.jobs_error.append((the_job, active.loc[i]))
 
                 if new_status == "canceled":
                     stats["job canceled"] += 1
-                    jobs_cancel.append((the_job, active.loc[i]))
+                    self.jobs_cancel.append((the_job, active.loc[i]))
 
                 if previous_status in {"created", "queued"} and new_status == "running":
                     stats["job started running"] += 1
@@ -773,8 +816,6 @@ class MultiBackendJobManager:
 
         stats["job_db persist"] += 1
         job_db.persist(active)
-
-        return jobs_done, jobs_error, jobs_cancel
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
