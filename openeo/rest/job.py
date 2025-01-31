@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Union
 
 import requests
 
-from openeo.api.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.internal.documentation import openeo_endpoint
 from openeo.internal.jupyter import (
     VisualDict,
@@ -26,6 +25,8 @@ from openeo.rest import (
     OpenEoApiPlainError,
     OpenEoClientException,
 )
+from openeo.rest.models.general import LogsResponse
+from openeo.rest.models.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -184,9 +185,7 @@ class BatchJob:
         """
         return JobResults(job=self)
 
-    def logs(
-        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
-    ) -> List[LogEntry]:
+    def logs(self, offset: Optional[str] = None, level: Union[str, int, None] = None) -> LogsResponse:
         """Retrieve job logs.
 
         :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
@@ -217,22 +216,8 @@ class BatchJob:
             params["offset"] = offset
         if level is not None:
             params["level"] = log_level_name(level)
-        response = self.connection.get(url, params=params, expected_status=200)
-        logs = response.json()["logs"]
-
-        # Only filter logs when specified.
-        # We should still support client-side log_level filtering because not all backends
-        # support the minimum log level parameter.
-        if level is not None:
-            log_level = normalize_log_level(level)
-            logs = (
-                log
-                for log in logs
-                if normalize_log_level(log.get("level")) >= log_level
-            )
-
-        entries = [LogEntry(log) for log in logs]
-        return VisualList("logs", data=entries)
+        response_data = self.connection.get(url, params=params, expected_status=200).json()
+        return LogsResponse(response_data=response_data, log_level=level)
 
     def run_synchronous(
         self,

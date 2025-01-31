@@ -11,7 +11,7 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
-import requests.auth
+import requests
 import requests_mock
 import shapely.geometry
 
@@ -30,7 +30,7 @@ from openeo.rest import (
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
-from openeo.rest.auth.testing import ABSENT, OidcMock
+from openeo.rest.auth.testing import ABSENT, OidcMock, SimpleBasicAuthMocker
 from openeo.rest.connection import (
     DEFAULT_TIMEOUT,
     DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
@@ -40,6 +40,7 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
+from openeo.rest.models.general import Link
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
@@ -563,10 +564,8 @@ def _get_capabilities_auth_dependent(request, context):
     return capabilities
 
 
-def test_capabilities_caching_after_authenticate_basic(requests_mock):
-    user, pwd = "john262", "J0hndo3"
+def test_capabilities_caching_after_authenticate_basic(requests_mock, basic_auth):
     get_capabilities_mock = requests_mock.get(API_URL, json=_get_capabilities_auth_dependent)
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
     con = Connection(API_URL)
     assert con.capabilities().capabilities["endpoints"] == [
@@ -577,7 +576,7 @@ def test_capabilities_caching_after_authenticate_basic(requests_mock):
     con.capabilities()
     assert get_capabilities_mock.call_count == 1
 
-    con.authenticate_basic(username=user, password=pwd)
+    con.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     assert get_capabilities_mock.call_count == 1
     assert con.capabilities().capabilities["endpoints"] == [
         {"methods": ["GET"], "path": "/credentials/basic"},
@@ -714,30 +713,17 @@ def test_api_error_non_json(requests_mock):
     assert exc.message == "olapola"
 
 
-def _credentials_basic_handler(username, password, access_token="w3lc0m3"):
-    # TODO: better reuse of this helper
-    expected_auth = requests.auth._basic_auth_str(username=username, password=password)
-
-    def handler(request, context):
-        assert request.headers["Authorization"] == expected_auth
-        return json.dumps({"access_token": access_token})
-
-    return handler
-
-
-def test_create_connection_lazy_auth_config(requests_mock, api_version):
-    user, pwd = "john262", "J0hndo3"
+def test_create_connection_lazy_auth_config(requests_mock, api_version, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
     with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
         # Don't create default AuthConfig when not necessary
         conn = Connection(API_URL)
         assert AuthConfig.call_count == 0
-        conn.authenticate_basic(user, pwd)
+        conn.authenticate_basic(basic_auth.username, basic_auth.password)
         assert AuthConfig.call_count == 0
         # call `authenticate_basic` so that fallback AuthConfig is created/used lazily
-        AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
+        AuthConfig.return_value.get_basic_auth.return_value = (basic_auth.username, basic_auth.password)
         conn.authenticate_basic()
         assert AuthConfig.call_count == 1
         conn.authenticate_basic()
@@ -784,29 +770,25 @@ def test_authenticate_basic_no_support(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
 
 
-def test_authenticate_basic(requests_mock, api_version):
-    user, pwd = "john262", "J0hndo3"
+def test_authenticate_basic(requests_mock, api_version, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username=user, password=pwd)
+    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//w3lc0m3"
+    assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
-def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
-    user, pwd = "john281", "J0hndo3"
+def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
-    auth_config.set_basic_auth(backend=API_URL, username=user, password=pwd)
+    auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//w3lc0m3"
+    assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
 @pytest.mark.slow
@@ -3329,6 +3311,24 @@ def test_list_collections(requests_mock):
     assert con.list_collections() == collections
 
 
+def test_list_collections_extra_metadata(requests_mock, caplog):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "collections",
+        json={
+            "collections": [{"id": "S2"}, {"id": "NDVI"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/collections?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    con = Connection(API_URL)
+    collections = con.list_collections()
+    assert collections == [{"id": "S2"}, {"id": "NDVI"}]
+    assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
+    assert collections.ext_federation_missing() == ["oeob"]
+    assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
+
+
 def test_describe_collection(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     requests_mock.get(
@@ -3387,6 +3387,24 @@ def test_list_processes_namespace(requests_mock):
     conn = Connection(API_URL)
     assert conn.list_processes(namespace="foo") == processes
     assert m.call_count == 1
+
+
+def test_list_processes_extra_metadata(requests_mock, caplog):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    m = requests_mock.get(
+        API_URL + "processes",
+        json={
+            "processes": [{"id": "add"}, {"id": "mask"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/processes?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    conn = Connection(API_URL)
+    processes = conn.list_processes()
+    assert processes == [{"id": "add"}, {"id": "mask"}]
+    assert processes.links == [Link(rel="next", href="https://oeo.test/processes?page=2", type=None, title=None)]
+    assert processes.ext_federation_missing() == ["oeob"]
+    assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
 def test_get_job(requests_mock):
@@ -3675,16 +3693,30 @@ class TestUserDefinedProcesses:
 
     def test_list_udps(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
-        conn = Connection(API_URL)
-
         udp = test_data.load_json("1.0.0/udp_details.json")
-
         requests_mock.get(API_URL + "process_graphs", json={"processes": [udp]})
 
+        conn = Connection(API_URL)
         user_udps = conn.list_user_defined_processes()
+        assert user_udps == [udp]
 
-        assert len(user_udps) == 1
-        assert user_udps[0] == udp
+    def test_list_udps_extra_metadata(self, requests_mock, test_data, caplog):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        requests_mock.get(
+            API_URL + "process_graphs",
+            json={
+                "processes": [{"id": "myevi"}],
+                "links": [{"rel": "about", "href": "https://oeo.test/my-evi"}],
+                "federation:missing": ["oeob"],
+            },
+        )
+
+        conn = Connection(API_URL)
+        udps = conn.list_user_defined_processes()
+        assert udps == [{"id": "myevi"}]
+        assert udps.links == [Link(rel="about", href="https://oeo.test/my-evi")]
+        assert udps.ext_federation_missing() == ["oeob"]
+        assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
     def test_list_udps_unsupported(self, requests_mock):
@@ -3915,9 +3947,10 @@ def test_connect_auto_auth_from_config_basic(
     """))
     user, pwd = "john", "j0hn"
     for u, a in [(default, "Hell0!"), (other, "Wazz6!")]:
-        auth_config.set_basic_auth(backend=u, username=user, password=pwd)
+        basic_auth_mocker = SimpleBasicAuthMocker(username=user, password=pwd, access_token=a)
+        auth_config.set_basic_auth(backend=u, username=basic_auth_mocker.username, password=basic_auth_mocker.password)
         requests_mock.get(u, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
-        requests_mock.get(f"{u}/credentials/basic", text=_credentials_basic_handler(user, pwd, access_token=a))
+        basic_auth_mocker.setup_credentials_basic_handler(api_root=u, requests_mock=requests_mock)
 
     if use_default:
         # Without arguments: use default

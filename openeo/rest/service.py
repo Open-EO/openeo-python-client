@@ -3,8 +3,9 @@ from __future__ import annotations
 import typing
 from typing import List, Optional, Union
 
-from openeo.api.logs import LogEntry, log_level_name
-from openeo.internal.jupyter import VisualDict, VisualList
+from openeo.internal.jupyter import VisualDict
+from openeo.rest.models.general import LogsResponse
+from openeo.rest.models.logs import LogEntry, log_level_name
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -42,9 +43,7 @@ class Service:
         # DELETE /services/{service_id}
         self.connection.delete("/services/{}".format(self.service_id), expected_status=204)
 
-    def logs(
-        self, offset: Optional[str] = None, level: Optional[Union[str, int]] = None
-    ) -> List[LogEntry]:
+    def logs(self, offset: Optional[str] = None, level: Union[str, int, None] = None) -> List[LogEntry]:
         """Retrieve service logs."""
         url = f"/service/{self.service_id}/logs"
         params = {}
@@ -52,7 +51,5 @@ class Service:
             params["offset"] = offset
         if level is not None:
             params["level"] = log_level_name(level)
-        resp = self.connection.get(url, params=params, expected_status=200)
-        logs = resp.json()["logs"]
-        entries = [LogEntry(log) for log in logs]
-        return VisualList("logs", data=entries)
+        response_data = self.connection.get(url, params=params, expected_status=200).json()
+        return LogsResponse(response_data=response_data, log_level=level)

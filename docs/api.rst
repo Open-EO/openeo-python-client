@@ -70,18 +70,22 @@ openeo.rest.capabilities
    :members: OpenEoCapabilities
 
 
+openeo.rest.models
+-------------------
+
+.. automodule:: openeo.rest.models.general
+    :members:
+
+.. automodule:: openeo.rest.models.logs
+    :members: LogEntry, normalize_log_level
+
+
 openeo.api.process
 --------------------
 
 .. automodule:: openeo.api.process
     :members: Parameter
 
-
-openeo.api.logs
------------------
-
-.. automodule:: openeo.api.logs
-    :members: LogEntry, normalize_log_level
 
 
 openeo.rest.connection
