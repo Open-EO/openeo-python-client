@@ -401,6 +401,7 @@ class MultiBackendJobManager:
         else:
             _log.error("No job thread to stop")
 
+
     def run_jobs(
         self,
         df: Optional[pd.DataFrame] = None,
@@ -504,14 +505,7 @@ class MultiBackendJobManager:
 
         return stats
 
-    def _job_update_loop(
-        self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
-    ):
-        """
-        Inner loop logic of job management:
-        go through the necessary jobs to check for status updates,
-        trigger status events, start new jobs when there is room for them, etc.
-        """
+    def _job_update_loop(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
         if not self.backends:
             raise RuntimeError("No backends registered")
 
@@ -522,34 +516,34 @@ class MultiBackendJobManager:
             stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
-        if len(not_started) > 0:
-            # Check number of jobs running at each backend
+        if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
-            total_added = 0
+
+            threads = []
             for backend_name in self.backends:
                 backend_load = per_backend.get(backend_name, 0)
-                if backend_load < self.backends[backend_name].parallel_jobs:
-                    to_add = self.backends[backend_name].parallel_jobs - backend_load
-                    for i in not_started.index[total_added : total_added + to_add]:
-                        self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
-                        stats["job launch"] += 1
+                available_slots = self.backends[backend_name].parallel_jobs - backend_load
 
-                        job_db.persist(not_started.loc[i : i + 1])
-                        stats["job_db persist"] += 1
-                        total_added += 1
+                for i in not_started.index[:available_slots]:
+                    thread = Thread(target=self._launch_job, args=(start_job, not_started, i, backend_name, stats))
+                    thread.start()
+                    threads.append((thread, i))
 
-        # Act on jobs
-        for job, row in jobs_done:
-            self.on_job_done(job, row)
+            for thread, i in threads:
+                thread.join()  # Ensure all jobs finish before moving on
+                stats["job launch"] += 1
+                job_db.persist(not_started.loc[i : i + 1])
+                stats["job_db persist"] += 1
 
         for job, row in jobs_error:
             self.on_job_error(job, row)
-
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
+        for job, row in jobs_done:
+            self.on_job_done(job, row)
 
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
