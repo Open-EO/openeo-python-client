@@ -3,7 +3,7 @@ from openeo.rest.auth.oidc import (
     OidcClientInfo,
     OidcProviderInfo,
 )
-from openeo.rest.auth.testing import OidcMock
+from openeo.rest.auth.testing import OidcMock, build_basic_auth_header
 
 
 class TestOidcMock:
@@ -33,3 +33,7 @@ class TestOidcMock:
         assert [r.url for r in oidc_mock.get_request_history("/token")] == [
             "https://oidc.test/token"
         ]
+
+
+def test_build_basic_auth_header():
+    assert build_basic_auth_header("john", "56(r61!?") == "Basic am9objo1NihyNjEhPw=="

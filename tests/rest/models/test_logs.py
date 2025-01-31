@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from openeo.api.logs import LogEntry, log_level_name, normalize_log_level
+from openeo.rest.models.logs import LogEntry, log_level_name, normalize_log_level
 
 
 def test_log_entry_empty():

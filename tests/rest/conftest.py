@@ -1,4 +1,6 @@
 import contextlib
+import dataclasses
+import json
 import re
 import typing
 from unittest import mock
@@ -7,7 +9,9 @@ import pytest
 import time_machine
 
 from openeo.rest._testing import DummyBackend, build_capabilities
+from openeo.rest.auth.testing import SimpleBasicAuthMocker, build_basic_auth_header
 from openeo.rest.connection import Connection
+from openeo.util import url_join
 
 API_URL = "https://oeo.test/"
 
@@ -119,3 +123,14 @@ def another_dummy_backend(requests_mock) -> DummyBackend:
     another_dummy_backend.setup_file_format("GTiff")
     another_dummy_backend.setup_file_format("netCDF")
     return another_dummy_backend
+
+
+@pytest.fixture
+def basic_auth(requests_mock) -> SimpleBasicAuthMocker:
+    """
+    Fixture for simple basic auth handling in openEO context:
+    set up /credentials/basic handling with a fixed username/password/access_token combo.
+    """
+    fixture = SimpleBasicAuthMocker()
+    fixture.setup_credentials_basic_handler(api_root=API_URL, requests_mock=requests_mock)
+    return fixture

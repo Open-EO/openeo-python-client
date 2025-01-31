@@ -1,4 +1,5 @@
 import copy
+import datetime
 import json
 import logging
 import re
@@ -7,7 +8,6 @@ from pathlib import Path
 from time import sleep
 from typing import Callable, Union
 from unittest import mock
-import datetime
 
 import dirty_equals
 import geopandas
@@ -40,6 +40,7 @@ from openeo.extra.job_management import (
 )
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
+from openeo.utils.version import ComparableVersion
 
 
 @pytest.fixture
@@ -976,6 +977,30 @@ class TestCsvJobDatabase:
             on_exists="skip",
         )
         assert set(db.read()["some_number"]) == {1, 2, 3}
+
+    @pytest.mark.skipif(
+        ComparableVersion(geopandas.__version__) < "0.14",
+        reason="This issue has no workaround with geopandas < 0.14 (highest available version on Python 3.8 is 0.13.2)",
+    )
+    def test_read_with_crs_column(self, tmp_path):
+        """
+        Having a column named "crs" can cause obscure error messages when creating a GeoPandas dataframe
+        https://github.com/Open-EO/openeo-python-client/issues/714
+        """
+        source_df = pd.DataFrame(
+            {
+                "crs": [1234],
+                "geometry": ["Point(2 3)"],
+            }
+        )
+        path = tmp_path / "jobs.csv"
+        source_df.to_csv(path, index=False)
+        result_df = CsvJobDatabase(path).read()
+        assert isinstance(result_df, geopandas.GeoDataFrame)
+        assert result_df.to_dict(orient="list") == {
+            "crs": [1234],
+            "geometry": [shapely.geometry.Point(2, 3)],
+        }
 
 
 class TestParquetJobDatabase:

@@ -64,6 +64,7 @@ Table of contents
    process_mapping
    development
    best_practices
+   Federation extension <federation-extension>
    changelog
 
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add initial support for accessing [Federation Extension](https://github.com/Open-EO/openeo-api/tree/master/extensions/federation) related metadata ([#668](https://github.com/Open-EO/openeo-python-client/issues/668))
+
 ### Changed
 
 - Improved tracking of metadata changes with `resample_spatial` and `resample_cube_spatial` ([#690](https://github.com/Open-EO/openeo-python-client/issues/690))
@@ -20,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unnecessary base class `openeo.capabilities.Capabilities` [#611](https://github.com/Open-EO/openeo-python-client/issues/611)
 
 ### Fixed
+
+- `CsvJobDatabase`: workaround GeoPandas issue (on Python>3.9) when there is a column named "crs" ([#714](https://github.com/Open-EO/openeo-python-client/issues/714))
 
 
 ## [0.37.0] - 2025-01-21 - "SAP10" release
