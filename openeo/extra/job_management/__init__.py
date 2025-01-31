@@ -19,6 +19,7 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -541,14 +542,15 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Act on jobs
+        for job, row in jobs_done:
+            self.on_job_done(job, row)
+
         for job, row in jobs_error:
             self.on_job_error(job, row)
 
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
 
-        for job, row in jobs_done:
-            self.on_job_done(job, row)
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -706,7 +708,7 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
+    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None) -> Tuple[List, List, List]:
         """
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
