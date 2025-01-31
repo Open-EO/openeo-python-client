@@ -3,6 +3,7 @@ from typing import Dict, List, Union
 
 _log = logging.getLogger(__name__)
 
+
 def get_backend_details(data: dict) -> Union[Dict[str, dict], None]:
     """
     Get federated backend details from capabilities document (``GET /``)
@@ -15,6 +16,7 @@ def get_backend_details(data: dict) -> Union[Dict[str, dict], None]:
 def get_federation_missing(data: dict, *, resource_name: str, auto_warn: bool = False) -> Union[List[str], None]:
     """
     Get "federation:missing" field from response data, if present.
+
     :param data: response data
     :param resource_name: name of the requested resource (listing)
     :param auto_warn: whether to automatically log a warning if missing federation components are detected.

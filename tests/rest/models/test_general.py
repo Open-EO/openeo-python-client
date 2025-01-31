@@ -1,6 +1,13 @@
 import pytest
 
-from openeo.rest.models.general import CollectionListingResponse, Link
+from openeo.rest.models.general import (
+    CollectionListingResponse,
+    JobListingResponse,
+    Link,
+    LogsResponse,
+    ProcessListingResponse,
+)
+from openeo.rest.models.logs import LogEntry
 
 
 class TestLink:
@@ -60,3 +67,123 @@ class TestCollectionListingResponse:
     def test_federation_missing(self, data, expected):
         collections = CollectionListingResponse(data)
         assert collections.ext_federation_missing() == expected
+
+
+class TestProcessListingResponse:
+    def test_basic(self):
+        data = {"processes": [{"id": "ndvi"}, {"id": "s2mask"}]}
+        processes = ProcessListingResponse(data)
+        assert processes == [{"id": "ndvi"}, {"id": "s2mask"}]
+        assert repr(processes) == "[{'id': 'ndvi'}, {'id': 's2mask'}]"
+
+    def test_links(self):
+        data = {
+            "processes": [{"id": "ndvi"}, {"id": "s2mask"}],
+            "links": [
+                {"rel": "self", "href": "https://openeo.test/processes"},
+                {"rel": "next", "href": "https://openeo.test/processes?page=2"},
+            ],
+        }
+        processes = ProcessListingResponse(data)
+        assert processes.links == [
+            Link(rel="self", href="https://openeo.test/processes"),
+            Link(rel="next", href="https://openeo.test/processes?page=2"),
+        ]
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {"processes": [{"id": "ndvi"}], "federation:missing": ["wow"]},
+                ["wow"],
+            ),
+            (
+                {"processes": [{"id": "ndvi"}]},
+                None,
+            ),
+        ],
+    )
+    def test_federation_missing(self, data, expected):
+        processes = ProcessListingResponse(data)
+        assert processes.ext_federation_missing() == expected
+
+
+class TestJobListingResponse:
+    def test_basic(self):
+        data = {"jobs": [{"id": "job-01"}, {"id": "job-02"}]}
+        jobs = JobListingResponse(data)
+        assert jobs == [{"id": "job-01"}, {"id": "job-02"}]
+        assert repr(jobs) == "[{'id': 'job-01'}, {'id': 'job-02'}]"
+
+    def test_links(self):
+        data = {
+            "jobs": [{"id": "job-01"}, {"id": "job-02"}],
+            "links": [
+                {"rel": "self", "href": "https://openeo.test/jobs"},
+                {"rel": "next", "href": "https://openeo.test/jobs?page=2"},
+            ],
+        }
+        jobs = JobListingResponse(data)
+        assert jobs.links == [
+            Link(rel="self", href="https://openeo.test/jobs"),
+            Link(rel="next", href="https://openeo.test/jobs?page=2"),
+        ]
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {"jobs": [{"id": "job-01"}], "federation:missing": ["wow"]},
+                ["wow"],
+            ),
+            (
+                {"jobs": [{"id": "job-01"}]},
+                None,
+            ),
+        ],
+    )
+    def test_federation_missing(self, data, expected):
+        jobs = JobListingResponse(data)
+        assert jobs.ext_federation_missing() == expected
+
+
+class TestLogsResponse:
+    def test_basic(self):
+        data = {"logs": [{"id": "log-01", "level": "info", "message": "hello"}]}
+        logs = LogsResponse(data)
+        assert logs == [{"id": "log-01", "level": "info", "message": "hello"}]
+        assert logs == [LogEntry(id="log-01", level="info", message="hello")]
+        assert logs.logs == [{"id": "log-01", "level": "info", "message": "hello"}]
+        assert logs.logs == [LogEntry(id="log-01", level="info", message="hello")]
+        assert repr(logs) == "[{'id': 'log-01', 'level': 'info', 'message': 'hello'}]"
+
+    def test_links(self):
+        data = {
+            "logs": [{"id": "log-01", "level": "info", "message": "hello"}],
+            "links": [
+                {"rel": "self", "href": "https://openeo.test/logs"},
+                {"rel": "next", "href": "https://openeo.test/logs?page=2"},
+            ],
+        }
+        logs = LogsResponse(data)
+        assert logs.links == [
+            Link(rel="self", href="https://openeo.test/logs"),
+            Link(rel="next", href="https://openeo.test/logs?page=2"),
+        ]
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {"logs": [{"id": "log-01", "level": "info", "message": "hello"}], "federation:missing": ["wow"]},
+                ["wow"],
+            ),
+            (
+                {"logs": [{"id": "log-01", "level": "info", "message": "hello"}]},
+                None,
+            ),
+        ],
+    )
+    def test_federation_missing(self, data, expected):
+        logs = LogsResponse(data)
+        assert logs.ext_federation_missing() == expected

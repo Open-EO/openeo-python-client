@@ -81,6 +81,7 @@ class CollectionListingResponse(list):
             data=self._data, resource_name="collection listing", auto_warn=auto_warn
         )
 
+
 class ProcessListingResponse(list):
     """
     Container for process metadata listing received
@@ -98,7 +99,6 @@ class ProcessListingResponse(list):
 
     .. versionadded:: 0.38.0
     """
-
 
     __slots__ = ["_data"]
 
@@ -134,6 +134,7 @@ class ProcessListingResponse(list):
             data=self._data, resource_name="process listing", auto_warn=auto_warn
         )
 
+
 class JobListingResponse(list):
     """
     Container for job metadata listing received
@@ -152,7 +153,6 @@ class JobListingResponse(list):
 
     .. versionadded:: 0.38.0
     """
-
 
     __slots__ = ["_data"]
 
@@ -186,6 +186,7 @@ class JobListingResponse(list):
             data=self._data, resource_name="job listing", auto_warn=auto_warn
         )
 
+
 class LogsResponse(list):
     """
     Container for job/service logs as received
@@ -207,7 +208,6 @@ class LogsResponse(list):
 
     .. versionadded:: 0.38.0
     """
-
 
     __slots__ = ["_data"]
 
@@ -235,7 +235,6 @@ class LogsResponse(list):
         super().__init__(logs)
 
         self.ext_federation_missing(auto_warn=True)
-
 
     def _repr_html_(self):
         return render_component(component="logs", data=self)
