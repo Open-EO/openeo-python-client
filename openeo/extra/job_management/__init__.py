@@ -518,7 +518,6 @@ class MultiBackendJobManager:
             stats["track_statuses"] += 1
 
         self._launch_pending_jobs(job_db, start_job, stats)
-
         self._handle_completed_jobs(stats)
 
 
@@ -576,17 +575,20 @@ class MultiBackendJobManager:
         for thread in threads:
             thread.join()
 
-    def _handle_completed_jobs(self, stats):
+    def _handle_completed_jobs(self,stats):
         """Processes completed, canceled, and errored jobs."""
+        #TODO downloading will be a blocker, run in seperate threads
+        for job, row in self.jobs_done:
+            self.on_job_done(job, row)
+        
         for job, row in self.jobs_error:
             self.on_job_error(job, row)
 
         for job, row in self.jobs_cancel:
             self.on_job_cancel(job, row)
-
-        #TODO downloading will be a blocker, run in seperate threads
-        for job, row in self.jobs_done:
-            self.on_job_done(job, row)
+        
+        for job, row in self.jobs_prolonged:
+            self._cancel_prolonged_job(job, row)
 
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
@@ -757,6 +759,7 @@ class MultiBackendJobManager:
         self.jobs_done = []
         self.jobs_error = []
         self.jobs_cancel = []
+        self.jobs_prolonged = []
 
         for i in active.index:
             job_id = active.loc[i, "id"]
@@ -798,7 +801,8 @@ class MultiBackendJobManager:
                         stats["job started running"] += 1
                         active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    self._cancel_prolonged_job(the_job, active.loc[i])
+                    #TODO; move this outide of the track_statuses loop, towards, handle completed jobs
+                    self.jobs_prolonged.append((the_job, active.loc[i]))
 
                 active.loc[i, "status"] = new_status
 
