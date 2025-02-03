@@ -542,7 +542,7 @@ class MultiBackendJobManager:
             jobs_to_add = self._get_jobs_to_launch(not_started, per_backend)
             self._run_job_threads(jobs_to_add, start_job, not_started, stats, job_db)
 
-    def _get_jobs_to_launch(self, not_started, per_backend):
+    def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: dict) -> List[Tuple[int, str]]:
         """Determines which jobs to launch based on backend availability."""
         jobs_to_add = []
         total_added = 0
@@ -605,7 +605,7 @@ class MultiBackendJobManager:
             thread.join()
             
 
-    def _handle_completed_jobs(self,stats):
+    def _handle_completed_jobs(self, stats):
         """Processes completed, canceled, and errored jobs."""
         #TODO downloading will be a blocker, run in seperate threads
         for job, row in self.jobs_done:
