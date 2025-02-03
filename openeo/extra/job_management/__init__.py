@@ -517,8 +517,7 @@ class MultiBackendJobManager:
 
         with ignore_connection_errors(context="get statuses"):
             self._track_statuses(job_db, stats=stats)
-            with self._stats_lock:
-                stats["track_statuses"] += 1
+            stats["track_statuses"] += 1
 
         self._launch_pending_jobs(job_db, start_job, stats)
         self._handle_completed_jobs(stats)
@@ -529,8 +528,7 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
-            with self._stats_lock:
-                stats["job_db get_by_status"] += 1
+            stats["job_db get_by_status"] += 1
 
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
