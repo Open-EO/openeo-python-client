@@ -224,6 +224,7 @@ class MultiBackendJobManager:
         self._thread = None
         self._max_concurrent_job_launch = 5
         self._stats_lock = Lock()
+        self._db_lock = Lock()
 
     def add_backend(
         self,
@@ -516,7 +517,8 @@ class MultiBackendJobManager:
 
         with ignore_connection_errors(context="get statuses"):
             self._track_statuses(job_db, stats=stats)
-            stats["track_statuses"] += 1
+            with self._stats_lock:
+                stats["track_statuses"] += 1
 
         self._launch_pending_jobs(job_db, start_job, stats)
         self._handle_completed_jobs(stats)
@@ -527,7 +529,8 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
-            stats["job_db get_by_status"] += 1
+            with self._stats_lock:
+                stats["job_db get_by_status"] += 1
 
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
@@ -562,11 +565,12 @@ class MultiBackendJobManager:
             with semaphore:
                 try:
                     self._launch_job(start_job, not_started, i, backend_name, stats)
+                        
+                    with self._db_lock:
+                        job_db.persist(not_started.loc[i : i + 1])
+                          
                     with self._stats_lock:
                         stats["job launch"] += 1
-
-                    job_db.persist(not_started.loc[i : i + 1])  
-                    with self._stats_lock:
                         stats["job_db persist"] += 1
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
