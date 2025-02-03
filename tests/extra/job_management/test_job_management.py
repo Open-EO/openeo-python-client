@@ -5,7 +5,7 @@ import logging
 import re
 import threading
 from pathlib import Path
-from time import sleep, time
+from time import sleep
 from typing import Callable, Union
 from unittest import mock
 

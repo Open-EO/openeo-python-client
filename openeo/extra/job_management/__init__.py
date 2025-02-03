@@ -9,7 +9,7 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread, Semaphore
+from threading import Thread, Semaphore, Lock
 from typing import (
     Any,
     Callable,
@@ -223,6 +223,7 @@ class MultiBackendJobManager:
         )
         self._thread = None
         self._max_concurrent_job_launch = 5
+        self._stats_lock = Lock()
 
     def add_backend(
         self,
@@ -561,9 +562,12 @@ class MultiBackendJobManager:
             with semaphore:
                 try:
                     self._launch_job(start_job, not_started, i, backend_name, stats)
-                    stats["job launch"] += 1
-                    job_db.persist(not_started.loc[i : i + 1])  # Persist each job as it's launched
-                    stats["job_db persist"] += 1
+                    with self._stats_lock:
+                        stats["job launch"] += 1
+
+                    job_db.persist(not_started.loc[i : i + 1])  
+                    with self._stats_lock:
+                        stats["job_db persist"] += 1
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
 
