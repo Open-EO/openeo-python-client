@@ -10,6 +10,7 @@ import time
 import warnings
 from pathlib import Path
 from threading import Thread, Semaphore, Lock
+
 from typing import (
     Any,
     Callable,
@@ -223,8 +224,11 @@ class MultiBackendJobManager:
         )
         self._thread = None
         self._max_concurrent_job_launch = 5
-        self._stats_lock = Lock()
         self._db_lock = Lock()
+        self.jobs_done = []
+        self.jobs_error = []
+        self.jobs_cancel = []
+        self.jobs_prolonged = []
 
     def add_backend(
         self,
@@ -523,7 +527,7 @@ class MultiBackendJobManager:
         self._handle_completed_jobs(stats)
 
 
-    def _launch_pending_jobs(self, job_db, start_job, stats):
+    def _launch_pending_jobs(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
         """Launches jobs concurrently with controlled threading."""
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
@@ -536,7 +540,7 @@ class MultiBackendJobManager:
             jobs_to_add = self._get_jobs_to_launch(not_started, per_backend)
             self._run_job_threads(jobs_to_add, start_job, not_started, stats, job_db)
 
-    def _get_jobs_to_launch(self, not_started, per_backend):
+    def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> list[tuple[Any, str]]:
         """Determines which jobs to launch based on backend availability."""
         jobs_to_add = []
         total_added = 0
@@ -554,7 +558,7 @@ class MultiBackendJobManager:
 
         return jobs_to_add
 
-    def _run_job_threads(self, jobs_to_add, start_job, not_started, stats, job_db):
+    def _run_job_threads(self, jobs_to_add: list[tuple[Any, str]], start_job: Callable[[], 'BatchJob'], not_started: pd.DataFrame, stats: Dict[str, int], job_db: 'JobDatabaseInterface') -> None:
         """Manages threading for job launching."""
         semaphore = Semaphore(self._max_concurrent_job_launch)
         threads = []
@@ -563,13 +567,12 @@ class MultiBackendJobManager:
             with semaphore:
                 try:
                     self._launch_job(start_job, not_started, i, backend_name, stats)
+                    stats["job launch"] += 1
                         
                     with self._db_lock:
                         job_db.persist(not_started.loc[i : i + 1])
                           
-                    with self._stats_lock:
-                        stats["job launch"] += 1
-                        stats["job_db persist"] += 1
+                    stats["job_db persist"] += 1
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
 
@@ -580,6 +583,7 @@ class MultiBackendJobManager:
 
         for thread in threads:
             thread.join()
+            
 
     def _handle_completed_jobs(self,stats):
         """Processes completed, canceled, and errored jobs."""
@@ -761,11 +765,6 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
-
-        self.jobs_done = []
-        self.jobs_error = []
-        self.jobs_cancel = []
-        self.jobs_prolonged = []
 
         for i in active.index:
             job_id = active.loc[i, "id"]
