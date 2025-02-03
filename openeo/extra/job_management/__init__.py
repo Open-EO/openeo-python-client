@@ -540,7 +540,7 @@ class MultiBackendJobManager:
             jobs_to_add = self._get_jobs_to_launch(not_started, per_backend)
             self._run_job_threads(jobs_to_add, start_job, not_started, stats, job_db)
 
-    def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> list[tuple[Any, str]]:
+    def _get_jobs_to_launch(self, not_started: Any, per_backend: Dict[str, int]) -> list[tuple[Any, str]]:
         """Determines which jobs to launch based on backend availability."""
         jobs_to_add = []
         total_added = 0
@@ -558,7 +558,7 @@ class MultiBackendJobManager:
 
         return jobs_to_add
 
-    def _run_job_threads(self, jobs_to_add: list[tuple[Any, str]], start_job: Callable[[], 'BatchJob'], not_started: pd.DataFrame, stats: Dict[str, int], job_db: 'JobDatabaseInterface') -> None:
+    def _run_job_threads(self, jobs_to_add: list[tuple[Any, str]], start_job: Callable[[], 'BatchJob'], not_started: Any, stats: Dict[str, int], job_db: 'JobDatabaseInterface') -> None:
         """Manages threading for job launching."""
         semaphore = Semaphore(self._max_concurrent_job_launch)
         threads = []
