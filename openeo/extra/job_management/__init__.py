@@ -579,8 +579,10 @@ class MultiBackendJobManager:
             while not job_queue.empty():
                 i, backend_name = job_queue.get()
                 try:
-                    # Process job
-                    self._launch_job(start_job, not_started, i, backend_name, stats)
+                    # Pass a copy of the row to avoid race conditions
+                    job_row = not_started.loc[i].copy()
+                    self._launch_job(start_job, job_row, backend_name, stats)
+                    
                     stats["job launch"] += 1
                     
                     with self._db_lock:
