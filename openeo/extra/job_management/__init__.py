@@ -9,9 +9,8 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Lock
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from queue import Queue
 
 
@@ -236,6 +235,7 @@ class MultiBackendJobManager:
         self._thread = None
         # Maximum number of jobs to launch concurrently
         self._max_concurrent_job_launch = 5
+        self.lock = Lock()
         
 
     def add_backend(
@@ -531,11 +531,11 @@ class MultiBackendJobManager:
             self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
-        self._launch_jobs(job_db, start_job, stats)
+        self._launch_job_threads(job_db, start_job, stats)
         self._handle_completed_jobs(stats)
 
 
-    def _launch_jobs(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
+    def _launch_job_threads(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
         """Launch jobs dynamically while running threads."""
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
@@ -626,47 +626,47 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
+        with self.lock:
+            df.loc[i, "backend_name"] = backend_name
+            row = df.loc[i]
+            try:
+                _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
+                connection = self._get_connection(backend_name, resilient=True)
 
-        df.loc[i, "backend_name"] = backend_name
-        row = df.loc[i]
-        try:
-            _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
-            connection = self._get_connection(backend_name, resilient=True)
-
-            stats["start_job call"] += 1
-            job = start_job(
-                row=row,
-                connection_provider=self._get_connection,
-                connection=connection,
-                provider=backend_name,
-            )
-        except requests.exceptions.ConnectionError as e:
-            _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
-            df.loc[i, "status"] = "start_failed"
-            stats["start_job error"] += 1
-        else:
-            df.loc[i, "start_time"] = rfc3339.utcnow()
-            if job:
-                df.loc[i, "id"] = job.job_id
-                with ignore_connection_errors(context="get status"):
-                    status = job.status()
-                    stats["job get status"] += 1
-                    df.loc[i, "status"] = status
-                    if status == "created":
-                        # start job if not yet done by callback
-                        try:
-                            job.start()
-                            stats["job start"] += 1
-                            df.loc[i, "status"] = job.status()
-                            stats["job get status"] += 1
-                        except OpenEoApiError as e:
-                            _log.error(e)
-                            df.loc[i, "status"] = "start_failed"
-                            stats["job start error"] += 1
+                stats["start_job call"] += 1
+                job = start_job(
+                    row=row,
+                    connection_provider=self._get_connection,
+                    connection=connection,
+                    provider=backend_name,
+                )
+            except requests.exceptions.ConnectionError as e:
+                _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
+                df.loc[i, "status"] = "start_failed"
+                stats["start_job error"] += 1
             else:
-                # TODO: what is this "skipping" about actually?
-                df.loc[i, "status"] = "skipped"
-                stats["start_job skipped"] += 1
+                df.loc[i, "start_time"] = rfc3339.utcnow()
+                if job:
+                    df.loc[i, "id"] = job.job_id
+                    with ignore_connection_errors(context="get status"):
+                        status = job.status()
+                        stats["job get status"] += 1
+                        df.loc[i, "status"] = status
+                        if status == "created":
+                            # start job if not yet done by callback
+                            try:
+                                job.start()
+                                stats["job start"] += 1
+                                df.loc[i, "status"] = job.status()
+                                stats["job get status"] += 1
+                            except OpenEoApiError as e:
+                                _log.error(e)
+                                df.loc[i, "status"] = "start_failed"
+                                stats["job start error"] += 1
+                else:
+                    # TODO: what is this "skipping" about actually?
+                    df.loc[i, "status"] = "skipped"
+                    stats["start_job skipped"] += 1
 
     def on_job_done(self, job: BatchJob, row):
         """
