@@ -687,22 +687,3 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
             raise ValueError(f"Can not normalize CRS data {type(crs)}")
 
     return crs
-
-
-def search_list_for_dict_key(lst: list, key: str) -> Union[dict, list]:
-    """
-    Searches a value of the dict that matches with the key in the list.
-
-    :param lst: list with dictionaries.
-    :param key: The key for which the value is searched for.
-
-    :return: value that matches key.
-    """
-    result = None
-    for item in lst:
-        if key in item:
-            if result is None:
-                result = item[key]
-            else:
-                raise ValueError("Multiple keys found with value {v}.".format(v=key))
-    return result

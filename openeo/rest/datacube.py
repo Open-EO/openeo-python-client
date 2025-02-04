@@ -66,7 +66,6 @@ from openeo.util import (
     load_json,
     normalize_crs,
     rfc3339,
-    search_list_for_dict_key,
 )
 
 if typing.TYPE_CHECKING:
@@ -2741,10 +2740,10 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
         try:
-            schema = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter("coefficient")
-            coefficient_options = search_list_for_dict_key(schema, "enum") + [None]
-        except Exception:
-            log.warning(f"Failed to extract option for coefficient in sar_backscatter")
+            schema = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter("coefficient").schema
+            coefficient_options = schema.get_enum_options("enum") + [None]
+        except Exception as e:
+            log.warning(f"Failed to extract coefficient options for process `sar_backscatter`: {e}")
             coefficient_options = [
                 "beta0",
                 "sigma0-ellipsoid",

@@ -43,6 +43,20 @@ class Schema(typing.NamedTuple):
             return any(is_geojson_schema(s) for s in self.schema)
         return False
 
+    def get_enum_options(self,name):
+        result = None
+        if isinstance(self.schema,list):
+            for item in self.schema:
+                if name in item:
+                    if result is None:
+                        result = item[name]
+                    else:
+                        raise ValueError("Multiple entries found with name {v}.".format(v=name))
+        elif isinstance(self.schema,dict):
+            if name in self.schema:
+                result = self.schema[name]
+        return result
+
 
 _NO_DEFAULT = object()
 
@@ -127,11 +141,11 @@ class Process(typing.NamedTuple):
         with Path(path).open("r") as f:
             return cls.from_json(f.read())
 
-    def get_parameter(self, parameter_id: str) -> Union[dict, list]:
+    def get_parameter(self, name: str) -> Parameter:
         for parameter in self.parameters:
-            if parameter.name == parameter_id:
-                return parameter.schema.schema
-        raise LookupError(f"Expected parameter {parameter_id} not found.")
+            if parameter.name == name:
+                return parameter
+        raise LookupError(f"Parameter {name!r} not found.")
 
 
 def parse_all_from_dir(path: Union[str, Path], pattern="*.json") -> Iterator[Process]:
