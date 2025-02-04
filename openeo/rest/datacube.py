@@ -60,13 +60,7 @@ from openeo.rest.mlmodel import MlModel
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import (
-    dict_no_none,
-    guess_format,
-    load_json,
-    normalize_crs,
-    rfc3339,
-)
+from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
