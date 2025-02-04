@@ -12,6 +12,7 @@ import pystac.extensions.item_assets
 
 from openeo.internal.jupyter import render_component
 from openeo.util import Rfc3339, deep_get
+from openeo.utils.normalize import normalize_resample_resolution
 
 _log = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class DimensionAlreadyExistsException(MetadataException):
 
 
 # TODO: make these dimension classes immutable data classes
+# TODO: align better with STAC datacube extension
+# TODO: align/adapt/integrate with pystac's datacube extension implementation?
 class Dimension:
     """Base class for dimensions."""
 
@@ -58,6 +61,8 @@ class Dimension:
 
 
 class SpatialDimension(Dimension):
+    # TODO: align better with STAC datacube extension: e.g. support "axis" (x or y)
+
     DEFAULT_CRS = 4326
 
     def __init__(
@@ -213,6 +218,19 @@ class BandDimension(Dimension):
     def rename(self, name) -> Dimension:
         return BandDimension(name=name, bands=self.bands)
 
+
+class GeometryDimension(Dimension):
+    # TODO: how to model/store labels of geometry dimension?
+    def __init__(self, name: str):
+        super().__init__(name=name, type="geometry")
+
+    def rename(self, name) -> Dimension:
+        return GeometryDimension(name=name)
+
+    def rename_labels(self, target, source) -> Dimension:
+        return GeometryDimension(name=self.name)
+
+
 class CubeMetadata:
     """
     Interface for metadata of a data cube.
@@ -229,7 +247,7 @@ class CubeMetadata:
         if dimensions is not None:
             for dim in self._dimensions:
                 # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
-                # TODO: add spacial dimension handling?
+                # TODO: add spatial dimension handling?
                 if dim.type == "bands":
                     if isinstance(dim, BandDimension):
                         self._band_dimension = dim
@@ -243,6 +261,10 @@ class CubeMetadata:
 
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
+
+    def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
+        return f"CubeMetadata({bands} - {self.dimension_names()})"
 
     def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
@@ -283,6 +305,16 @@ class CubeMetadata:
     @property
     def spatial_dimensions(self) -> List[SpatialDimension]:
         return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
+
+    def has_geometry_dimension(self):
+        return any(isinstance(d, GeometryDimension) for d in self._dimensions)
+
+    @property
+    def geometry_dimension(self) -> GeometryDimension:
+        for d in self._dimensions:
+            if isinstance(d, GeometryDimension):
+                return d
+        raise MetadataException("No geometry dimension")
 
     @property
     def bands(self) -> List[Band]:
@@ -365,7 +397,7 @@ class CubeMetadata:
         dimensions = [d for d in self._dimensions if not isinstance(d, SpatialDimension)]
         return self._clone_and_update(dimensions=dimensions)
 
-    def add_dimension(self, name: str, label: Union[str, float], type: str = None) -> CubeMetadata:
+    def add_dimension(self, name: str, label: Union[str, float], type: Optional[str] = None) -> CubeMetadata:
         """Create new CubeMetadata object with added dimension"""
         if any(d.name == name for d in self._dimensions):
             raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
@@ -375,6 +407,8 @@ class CubeMetadata:
             dim = SpatialDimension(name=name, extent=[label, label])
         elif type == "temporal":
             dim = TemporalDimension(name=name, extent=[label, label])
+        elif type == "geometry":
+            dim = GeometryDimension(name=name)
         else:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
@@ -386,10 +420,40 @@ class CubeMetadata:
             raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
         return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
 
-    def __str__(self) -> str:
-        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
-        return f"CubeMetadata({bands} - {self.dimension_names()})"
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
+        projection: Union[int, str, None] = None,
+    ) -> CubeMetadata:
+        resolution = normalize_resample_resolution(resolution)
+        if self._dimensions is None:
+            # Best-effort fallback to work with
+            dimensions = [
+                SpatialDimension(name="x", extent=[None, None]),
+                SpatialDimension(name="y", extent=[None, None]),
+            ]
+        else:
+            # Make sure to work with a copy (to edit in-place)
+            dimensions = list(self._dimensions)
 
+        # Find and replace spatial dimensions
+        spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
+        if len(spatial_indices) != 2:
+            raise MetadataException(f"Expected two spatial dimensions but found {spatial_indices=}")
+        assert len(resolution) == 2
+        for i, r in zip(spatial_indices, resolution):
+            dim: SpatialDimension = dimensions[i]
+            dimensions[i] = SpatialDimension(
+                name=dim.name,
+                extent=dim.extent,
+                crs=projection or dim.crs,
+                step=r if r != 0.0 else dim.step,
+            )
+
+        return self._clone_and_update(dimensions=dimensions)
+
+    def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
+        return self._clone_and_update(dimensions=list(target._dimensions))
 
 class CollectionMetadata(CubeMetadata):
     """

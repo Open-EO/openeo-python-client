@@ -9,13 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `show_error_logs` argument to `cube.execute_batch()`/`job.start_and_wait()`/... to toggle the automatic printing of error logs on failure ([#505](https://github.com/Open-EO/openeo-python-client/issues/505))
+- Add initial support for accessing [Federation Extension](https://github.com/Open-EO/openeo-api/tree/master/extensions/federation) related metadata ([#668](https://github.com/Open-EO/openeo-python-client/issues/668))
 
 ### Changed
 
+- Improved tracking of metadata changes with `resample_spatial` and `resample_cube_spatial` ([#690](https://github.com/Open-EO/openeo-python-client/issues/690))
+- Move `ComparableVersion` to `openeo.utils.version` (related to [#611](https://github.com/Open-EO/openeo-python-client/issues/611))
+- Deprecate `openeo.rest.rest_capabilities.RESTCapabilities` and introduce replacement `openeo.rest.capabilities.OpenEoCapabilities` ([#611](https://github.com/Open-EO/openeo-python-client/issues/611), [#610](https://github.com/Open-EO/openeo-python-client/issues/610))
+- `MultiBackendJobManager`: start new jobs before downloading the results of finished jobs to use time more efficiently ([#633](https://github.com/Open-EO/openeo-python-client/issues/633))
+
 ### Removed
 
+- Remove unnecessary base class `openeo.capabilities.Capabilities` [#611](https://github.com/Open-EO/openeo-python-client/issues/611)
+
 ### Fixed
+
+- `CsvJobDatabase`: workaround GeoPandas issue (on Python>3.9) when there is a column named "crs" ([#714](https://github.com/Open-EO/openeo-python-client/issues/714))
+
+
+## [0.37.0] - 2025-01-21 - "SAP10" release
+
+### Added
+
+- Added `show_error_logs` argument to `cube.execute_batch()`/`job.start_and_wait()`/... to toggle the automatic printing of error logs on failure ([#505](https://github.com/Open-EO/openeo-python-client/issues/505))
+- Added `Connection.web_editor()` to build link to the openEO backend in the openEO Web Editor
+- Add support for `log_level` in `create_job()` and `execute_job()` ([#704](https://github.com/Open-EO/openeo-python-client/issues/704))
+- Add initial support for "geometry" dimension type in `CubeMetadata` ([#705](https://github.com/Open-EO/openeo-python-client/issues/705))
+- Add support for parameterized `bands` argument in `load_stac()`
+- Argument `spatial_extent` in `load_collection()`/`load_stac()`: add support for Shapely objects, loading GeoJSON from a local path and loading geometry from GeoJSON/GeoParquet URL. ([#678](https://github.com/Open-EO/openeo-python-client/issues/678))
+
+### Changed
+
+- Raise exception when providing empty bands array to `load_collection`/`load_stac` ([#424](https://github.com/Open-EO/openeo-python-client/issues/424), [Open-EO/openeo-processes#372](https://github.com/Open-EO/openeo-processes/issues/372))
+- Start showing deprecation warnings on usage of GeoJSON "GeometryCollection" (in `filter_spatial`, `aggregate_spatial`, `chunk_polygon`, `mask_polygon`). Use a GeoJSON FeatureCollection instead. ([#706](https://github.com/Open-EO/openeo-python-client/issues/706), [Open-EO/openeo-processes#389](https://github.com/Open-EO/openeo-processes/issues/389))
+- The `context` parameter is now used in `execute_local_udf` ([#556](https://github.com/Open-EO/openeo-python-client/issues/556)
+
+### Fixed
+
+- Clear capabilities cache on login ([#254](https://github.com/Open-EO/openeo-python-client/issues/254))
 
 
 ## [0.36.0] - 2024-12-10

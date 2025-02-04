@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import shlex
-import sys
+import urllib.parse
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -28,34 +28,25 @@ from typing import (
 
 import requests
 import shapely.geometry.base
-from requests import Response
 from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
-from openeo.capabilities import ApiVersionException, ComparableVersion
 from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
-from openeo.metadata import (
-    Band,
-    BandDimension,
-    CollectionMetadata,
-    SpatialDimension,
-    TemporalDimension,
-)
+from openeo.metadata import CollectionMetadata
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
     CapabilitiesException,
     OpenEoApiError,
-    OpenEoApiPlainError,
     OpenEoClientException,
-    OpenEoRestError,
 )
-from openeo.rest._datacube import _ProcessGraphAbstraction, build_child_callback
-from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, NullAuth, OidcBearerAuth
+from openeo.rest._connection import DEFAULT_TIMEOUT, RestApiConnection
+from openeo.rest._datacube import _ProcessGraphAbstraction
+from openeo.rest.auth.auth import BasicBearerAuth, BearerAuth, OidcBearerAuth
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
 from openeo.rest.auth.oidc import (
     DefaultOidcClientGrant,
@@ -70,234 +61,35 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
+from openeo.rest.capabilities import OpenEoCapabilities
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
-from openeo.rest.rest_capabilities import RESTCapabilities
+from openeo.rest.models.general import (
+    CollectionListingResponse,
+    JobListingResponse,
+    ProcessListingResponse,
+)
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import (
-    ContextTimer,
     LazyLoadCache,
     dict_no_none,
     ensure_dir,
-    ensure_list,
     load_json_resource,
-    repr_truncate,
     rfc3339,
-    str_truncate,
-    url_join,
 )
+from openeo.utils.version import ComparableVersion
+
+__all__ = ["Connection", "connect"]
 
 _log = logging.getLogger(__name__)
 
 # Default timeouts for requests
-# TODO: get default_timeout from config?
-DEFAULT_TIMEOUT = 20 * 60
 DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE = 30 * 60
-
-
-class RestApiConnection:
-    """Base connection class implementing generic REST API request functionality"""
-
-    def __init__(
-        self,
-        root_url: str,
-        auth: Optional[AuthBase] = None,
-        session: Optional[requests.Session] = None,
-        default_timeout: Optional[int] = None,
-        slow_response_threshold: Optional[float] = None,
-    ):
-        self._root_url = root_url
-        self.auth = auth or NullAuth()
-        self.session = session or requests.Session()
-        self.default_timeout = default_timeout or DEFAULT_TIMEOUT
-        self.default_headers = {
-            "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
-                cv=openeo.client_version(),
-                py=sys.implementation.name, pv=".".join(map(str, sys.version_info[:3])),
-                pl=sys.platform
-            )
-        }
-        self.slow_response_threshold = slow_response_threshold
-
-    @property
-    def root_url(self):
-        return self._root_url
-
-    def build_url(self, path: str):
-        return url_join(self._root_url, path)
-
-    def _merged_headers(self, headers: dict) -> dict:
-        """Merge default headers with given headers"""
-        result = self.default_headers.copy()
-        if headers:
-            result.update(headers)
-        return result
-
-    def _is_external(self, url: str) -> bool:
-        """Check if given url is external (not under root url)"""
-        root = self.root_url.rstrip("/")
-        return not (url == root or url.startswith(root + '/'))
-
-    def request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: Optional[dict] = None,
-        headers: Optional[dict] = None,
-        auth: Optional[AuthBase] = None,
-        check_error: bool = True,
-        expected_status: Optional[Union[int, Iterable[int]]] = None,
-        **kwargs,
-    ):
-        """Generic request send"""
-        url = self.build_url(path)
-        # Don't send default auth headers to external domains.
-        auth = auth or (self.auth if not self._is_external(url) else None)
-        slow_response_threshold = kwargs.pop("slow_response_threshold", self.slow_response_threshold)
-        if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(
-                "Request `{m} {u}` with params {p}, headers {h}, auth {a}, kwargs {k}".format(
-                    m=method.upper(),
-                    u=url,
-                    p=params,
-                    h=headers and headers.keys(),
-                    a=type(auth).__name__,
-                    k=list(kwargs.keys()),
-                )
-            )
-        with ContextTimer() as timer:
-            resp = self.session.request(
-                method=method,
-                url=url,
-                params=params,
-                headers=self._merged_headers(headers),
-                auth=auth,
-                timeout=kwargs.pop("timeout", self.default_timeout),
-                **kwargs
-            )
-        if slow_response_threshold and timer.elapsed() > slow_response_threshold:
-            _log.warning("Slow response: `{m} {u}` took {e:.2f}s (>{t:.2f}s)".format(
-                m=method.upper(), u=str_truncate(url, width=64),
-                e=timer.elapsed(), t=slow_response_threshold
-            ))
-        if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(
-                f"openEO request `{resp.request.method} {resp.request.path_url}` -> response {resp.status_code} headers {resp.headers!r}"
-            )
-        # Check for API errors and unexpected HTTP status codes as desired.
-        status = resp.status_code
-        expected_status = ensure_list(expected_status) if expected_status else []
-        if check_error and status >= 400 and status not in expected_status:
-            self._raise_api_error(resp)
-        if expected_status and status not in expected_status:
-            raise OpenEoRestError("Got status code {s!r} for `{m} {p}` (expected {e!r}) with body {body}".format(
-                m=method.upper(), p=path, s=status, e=expected_status, body=resp.text)
-            )
-        return resp
-
-    def _raise_api_error(self, response: requests.Response):
-        """Convert API error response to Python exception"""
-        status_code = response.status_code
-        try:
-            info = response.json()
-        except Exception:
-            info = None
-
-        # Valid JSON object with "code" and "message" fields indicates a proper openEO API error.
-        if isinstance(info, dict):
-            error_code = info.get("code")
-            error_message = info.get("message")
-            if error_code and isinstance(error_code, str) and error_message and isinstance(error_message, str):
-                raise OpenEoApiError(
-                    http_status_code=status_code,
-                    code=error_code,
-                    message=error_message,
-                    id=info.get("id"),
-                    url=info.get("url"),
-                )
-
-        # Failed to parse it as a compliant openEO API error: show body as-is in the exception.
-        text = response.text
-        error_message = None
-        _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
-
-        # TODO: eliminate this VITO-backend specific error massaging?
-        if status_code == 502 and "Proxy Error" in text:
-            error_message = (
-                "Received 502 Proxy Error."
-                " This typically happens when a synchronous openEO processing request takes too long and is aborted."
-                " Consider using a batch job instead."
-            )
-
-        raise OpenEoApiPlainError(message=text, http_status_code=status_code, error_message=error_message)
-
-    def get(
-        self,
-        path: str,
-        *,
-        params: Optional[dict] = None,
-        stream: bool = False,
-        auth: Optional[AuthBase] = None,
-        **kwargs,
-    ) -> Response:
-        """
-        Do GET request to REST API.
-
-        :param path: API path (without root url)
-        :param params: Additional query parameters
-        :param stream: True if the get request should be streamed, else False
-        :param auth: optional custom authentication to use instead of the default one
-        :return: response: Response
-        """
-        return self.request("get", path=path, params=params, stream=stream, auth=auth, **kwargs)
-
-    def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
-        """
-        Do POST request to REST API.
-
-        :param path: API path (without root url)
-        :param json: Data (as dictionary) to be posted with JSON encoding)
-        :return: response: Response
-        """
-        return self.request("post", path=path, json=json, allow_redirects=False, **kwargs)
-
-    def delete(self, path: str, **kwargs) -> Response:
-        """
-        Do DELETE request to REST API.
-
-        :param path: API path (without root url)
-        :return: response: Response
-        """
-        return self.request("delete", path=path, allow_redirects=False, **kwargs)
-
-    def patch(self, path: str, **kwargs) -> Response:
-        """
-        Do PATCH request to REST API.
-
-        :param path: API path (without root url)
-        :return: response: Response
-        """
-        return self.request("patch", path=path, allow_redirects=False, **kwargs)
-
-    def put(self, path: str, headers: Optional[dict] = None, data: Optional[dict] = None, **kwargs) -> Response:
-        """
-        Do PUT request to REST API.
-
-        :param path: API path (without root url)
-        :param headers: headers that gets added to the request.
-        :param data: data that gets added to the request.
-        :return: response: Response
-        """
-        return self.request("put", path=path, data=data, headers=headers, allow_redirects=False, **kwargs)
-
-    def __repr__(self):
-        return "<{c} to {r!r} with {a}>".format(c=type(self).__name__, r=self._root_url, a=type(self.auth).__name__)
 
 
 class Connection(RestApiConnection):
@@ -339,12 +131,12 @@ class Connection(RestApiConnection):
         if "://" not in url:
             url = "https://" + url
         self._orig_url = url
+        self._capabilities_cache = LazyLoadCache()
         super().__init__(
             root_url=self.version_discovery(url, session=session, timeout=default_timeout),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
         )
-        self._capabilities_cache = LazyLoadCache()
 
         # Initial API version check.
         self._api_version.require_at_least(self._MINIMUM_API_VERSION)
@@ -378,6 +170,10 @@ class Connection(RestApiConnection):
         except Exception:
             # Be very lenient about failing on the well-known URI strategy.
             return url
+
+    def _on_auth_update(self):
+        super()._on_auth_update()
+        self._capabilities_cache.clear()
 
     def _get_auth_config(self) -> AuthConfig:
         if self._auth_config is None:
@@ -880,7 +676,7 @@ class Connection(RestApiConnection):
     def user_jobs(self) -> List[dict]:
         return self.list_jobs()
 
-    def list_collections(self) -> List[dict]:
+    def list_collections(self) -> CollectionListingResponse:
         """
         List basic metadata of all collections provided by the back-end.
 
@@ -891,10 +687,15 @@ class Connection(RestApiConnection):
             it is recommended to use :py:meth:`~openeo.rest.connection.Connection.describe_collection` instead.
 
         :return: list of dictionaries with basic collection metadata.
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.CollectionListingResponse` object
+            instead of a simple ``List[dict]``.
         """
-        # TODO: add caching #383
-        data = self.get('/collections', expected_status=200).json()["collections"]
-        return VisualList("collections", data=data)
+        # TODO: add caching #383, but reset cache on auth change #254
+        # TODO #677 add pagination support?
+        data = self.get("/collections", expected_status=200).json()
+        return CollectionListingResponse(response_data=data)
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -909,13 +710,13 @@ class Connection(RestApiConnection):
         """
         return [collection['id'] for collection in self.list_collections() if 'id' in collection]
 
-    def capabilities(self) -> RESTCapabilities:
+    def capabilities(self) -> OpenEoCapabilities:
         """
-        Loads all available capabilities.
+        Fetch the openEO capabilities document.
         """
         return self._capabilities_cache.get(
             "capabilities",
-            load=lambda: RESTCapabilities(data=self.get('/', expected_status=200).json(), url=self._orig_url)
+            load=lambda: OpenEoCapabilities(data=self.get("/", expected_status=200).json(), url=self._orig_url),
         )
 
     def list_input_formats(self) -> dict:
@@ -1031,23 +832,27 @@ class Connection(RestApiConnection):
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         return CollectionMetadata(metadata=self.describe_collection(name))
 
-    def list_processes(self, namespace: Optional[str] = None) -> List[dict]:
-        # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
+    def list_processes(self, namespace: Optional[str] = None) -> ProcessListingResponse:
         """
         Loads all available processes of the back end.
 
         :param namespace: The namespace for which to list processes.
 
-        :return: processes_dict: Dict All available processes of the back end.
+        :return: listing of available processes
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.ProcessListingResponse` object
+            instead of a simple ``List[dict]``.
         """
+        # TODO: Maybe format the result dictionary so that the process_id is the key of the dictionary.
+        # TODO #677 add pagination support?
         if namespace is None:
-            processes = self._capabilities_cache.get(
-                key=("processes", "backend"),
-                load=lambda: self.get('/processes', expected_status=200).json()["processes"]
+            response = self._capabilities_cache.get(
+                key=("processes", "backend"), load=lambda: self.get("/processes", expected_status=200).json()
             )
         else:
-            processes = self.get('/processes/' + namespace, expected_status=200).json()["processes"]
-        return VisualList("processes", data=processes, parameters={'show-graph': True, 'provide-download': False})
+            response = self.get("/processes/" + namespace, expected_status=200).json()
+        return ProcessListingResponse(response_data=response)
 
     def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
@@ -1066,26 +871,25 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def list_jobs(self, limit: Union[int, None] = None) -> List[dict]:
+    def list_jobs(self, limit: Union[int, None] = None) -> JobListingResponse:
         """
-        Lists all jobs of the authenticated user.
+        Lists (batch) jobs metadata of the authenticated user.
 
         :param limit: maximum number of jobs to return. Setting this limit enables pagination.
 
         :return: job_list: Dict of all jobs of the user.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added ``limit`` argument
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.JobListingResponse` object
+            instead of simple ``List[dict]``.
         """
         # TODO: Parse the result so that Job classes returned?
-        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
-        if resp.get("federation:missing"):
-            _log.warning("Partial user job listing due to missing federation components: {c}".format(
-                c=",".join(resp["federation:missing"])
-            ))
         # TODO: when pagination is enabled: how to expose link to next page?
-        jobs = resp["jobs"]
-        return VisualList("data-table", data=jobs, parameters={'columns': 'jobs'})
+        resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
+        return JobListingResponse(response_data=resp)
 
     def assert_user_defined_process_support(self):
         """
@@ -1137,13 +941,18 @@ class Connection(RestApiConnection):
         )
         return udp
 
-    def list_user_defined_processes(self) -> List[dict]:
+    def list_user_defined_processes(self) -> ProcessListingResponse:
         """
         Lists all user-defined processes of the authenticated user.
+
+        .. versionchanged:: 0.38.0
+            Returns a :py:class:`~openeo.rest.models.general.ProcessListingResponse` object
+            instead of a simple ``List[dict]``.
         """
+        # TODO #677 add pagination support?
         self.assert_user_defined_process_support()
-        data = self.get("/process_graphs", expected_status=200).json()["processes"]
-        return VisualList("processes", data=data, parameters={'show-graph': True, 'provide-download': False})
+        data = self.get("/process_graphs", expected_status=200).json()
+        return ProcessListingResponse(response_data=data)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
@@ -1255,9 +1064,9 @@ class Connection(RestApiConnection):
     def load_collection(
         self,
         collection_id: Union[str, Parameter],
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[None, List[str], Parameter] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
         ] = None,
@@ -1268,7 +1077,16 @@ class Connection(RestApiConnection):
         Load a DataCube by collection id.
 
         :param collection_id: image collection identifier
-        :param spatial_extent: limit data to specified bounding box or polygons
+        :param spatial_extent: limit data to specified bounding box or polygons. Can be provided in different ways:
+
+            - a bounding box dictionary
+            - a Shapely geometry object
+            - a GeoJSON-style dictionary
+            - a path (as :py:class:`str` or :py:class:`~pathlib.Path`) to a local, client-side GeoJSON file,
+              which will be loaded automatically to get the geometries as GeoJSON construct.
+            - a URL to a publicly accessible GeoJSON document
+            - a :py:class:`~openeo.api.process.Parameter` instance.
+
         :param temporal_extent: limit data to specified temporal interval.
             Typically, just a two-item list or tuple containing start and end date.
             See :ref:`filtering-on-temporal-extent-section` for more details on temporal extent handling and shorthand notation.
@@ -1287,6 +1105,9 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.26.0
             Add :py:func:`~openeo.rest.graph_building.collection_property` support to ``properties`` argument.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_collection(
             collection_id=collection_id,
@@ -1345,9 +1166,9 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Union[Dict[str, float], Parameter, None] = None,
+        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Optional[List[str]] = None,
+        bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
     ) -> DataCube:
         """
@@ -1447,6 +1268,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.23.0
             Argument ``temporal_extent``: add support for year/month shorthand notation
             as discussed at :ref:`date-shorthand-handling`.
+
+        .. versionchanged:: 0.37.0
+            Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
         """
         return DataCube.load_stac(
             url=url,
@@ -1552,7 +1376,7 @@ class Connection(RestApiConnection):
         return VectorCube.load_geojson(connection=self, data=data, properties=properties)
 
     @openeo_process
-    def load_url(self, url: str, format: str, options: Optional[dict] = None):
+    def load_url(self, url: str, format: str, options: Optional[dict] = None) -> VectorCube:
         """
         Loads a file from a URL
 
@@ -1815,6 +1639,7 @@ class Connection(RestApiConnection):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         """
         Create a new job from given process graph on the back-end.
@@ -1835,13 +1660,18 @@ class Connection(RestApiConnection):
             (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :return: Created job
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added argument ``job_options``.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``log_level``.
         """
         # TODO move all this (BatchJob factory) logic to BatchJob?
 
@@ -1849,7 +1679,7 @@ class Connection(RestApiConnection):
             process_graph=process_graph,
             additional=additional,
             job_options=job_options,
-            **dict_no_none(title=title, description=description, plan=plan, budget=budget)
+            **dict_no_none(title=title, description=description, plan=plan, budget=budget, log_level=log_level),
         )
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
@@ -1966,6 +1796,18 @@ class Connection(RestApiConnection):
                 "processing:software": capabilities.get("processing:software"),
             }),
         }
+
+    def web_editor(self, *, editor_url: str = "https://editor.openeo.org/", anonymous: bool = False) -> str:
+        """
+        Generate URL to open this backend in the openEO Web Editor.
+        """
+        # TODO: add option to directly open link with `webbrowser.open()`?
+        # TODO: add option to print (or jupyter-aware display) the link instead of returning it?
+        params = {"server": self.root_url}
+        if anonymous:
+            params["discover"] = "1"
+        url = f"{editor_url}?{urllib.parse.urlencode(params)}"
+        return url
 
 
 def connect(

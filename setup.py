@@ -25,7 +25,9 @@ tests_require = [
     "urllib3<2.3.0",  # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
     "netCDF4>=1.7.0",
     "matplotlib",  # TODO: eliminate matplotlib as test dependency
-    "geopandas",
+    # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
+    "geopandas>=0.14; python_version>='3.9'",
+    "geopandas",  # Best-effort geopandas dependency for Python 3.8
     "flake8>=5.0.0",
     "time_machine",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
@@ -74,10 +76,11 @@ setup(
         "requests>=2.26.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
-        "xarray>=0.12.3",
+        "xarray>=0.12.3,!=2025.01.2",
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
-        "pystac>=1.5.0",
+        # TODO #715 compatibility with pystac 1.12
+        "pystac>=1.5.0,<1.12",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",

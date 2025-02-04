@@ -4,11 +4,11 @@ from unittest import mock
 
 import pytest
 
-from openeo.capabilities import ApiVersionException
 from openeo.rest.auth import cli
 from openeo.rest.auth.cli import CliToolException
 from openeo.rest.auth.config import AuthConfig, RefreshTokenStore
 from openeo.rest.auth.testing import OidcMock
+from openeo.utils.version import ApiVersionException
 
 
 def mock_input(*args: str):

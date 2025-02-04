@@ -19,6 +19,7 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -517,7 +518,7 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):
-            self._track_statuses(job_db, stats=stats)
+            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
@@ -539,6 +540,17 @@ class MultiBackendJobManager:
                         job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
                         total_added += 1
+
+        # Act on jobs
+        for job, row in jobs_done:
+            self.on_job_done(job, row)
+
+        for job, row in jobs_error:
+            self.on_job_error(job, row)
+
+        for job, row in jobs_cancel:
+            self.on_job_cancel(job, row)
+
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -696,7 +708,7 @@ class MultiBackendJobManager:
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
 
-    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
+    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None) -> Tuple[List, List, List]:
         """
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
@@ -704,6 +716,11 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+
+        jobs_done = []
+        jobs_error = []
+        jobs_cancel = []
+
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
@@ -722,19 +739,19 @@ class MultiBackendJobManager:
 
                 if new_status == "finished":
                     stats["job finished"] += 1
-                    self.on_job_done(the_job, active.loc[i])
+                    jobs_done.append((the_job, active.loc[i]))
 
                 if previous_status != "error" and new_status == "error":
                     stats["job failed"] += 1
-                    self.on_job_error(the_job, active.loc[i])
+                    jobs_error.append((the_job, active.loc[i]))
+
+                if new_status == "canceled":
+                    stats["job canceled"] += 1
+                    jobs_cancel.append((the_job, active.loc[i]))
 
                 if previous_status in {"created", "queued"} and new_status == "running":
                     stats["job started running"] += 1
                     active.loc[i, "running_start_time"] = rfc3339.utcnow()
-
-                if new_status == "canceled":
-                    stats["job canceled"] += 1
-                    self.on_job_cancel(the_job, active.loc[i])
 
                 if self._cancel_running_job_after and new_status == "running":
                     if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
@@ -762,6 +779,8 @@ class MultiBackendJobManager:
 
         stats["job_db persist"] += 1
         job_db.persist(active)
+
+        return jobs_done, jobs_error, jobs_cancel
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
@@ -904,7 +923,8 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
             import geopandas
 
             # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
-            df = geopandas.GeoDataFrame(df, geometry=geopandas.GeoSeries.from_wkt(df["geometry"]))
+            df.geometry = geopandas.GeoSeries.from_wkt(df["geometry"])
+            df = geopandas.GeoDataFrame(df)
         return df
 
     def persist(self, df: pd.DataFrame):

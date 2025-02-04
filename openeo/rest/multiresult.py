@@ -82,6 +82,7 @@ class MultiResult(FlatGraphableMixin):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         return self._connection.create_job(
             process_graph=self._multi_leaf_graph,
@@ -90,6 +91,7 @@ class MultiResult(FlatGraphableMixin):
             additional=additional,
             job_options=job_options,
             validate=validate,
+            log_level=log_level,
         )
 
     def execute_batch(
@@ -100,6 +102,7 @@ class MultiResult(FlatGraphableMixin):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
+        log_level: Optional[str] = None,
     ) -> BatchJob:
         job = self.create_job(
             title=title,
@@ -107,5 +110,6 @@ class MultiResult(FlatGraphableMixin):
             additional=additional,
             job_options=job_options,
             validate=validate,
+            log_level=log_level,
         )
         return job.run_synchronous()

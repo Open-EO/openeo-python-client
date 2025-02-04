@@ -9,7 +9,6 @@ import numpy
 import pytest
 import xarray
 
-from openeo.capabilities import ComparableVersion
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
@@ -18,6 +17,7 @@ from openeo.testing.results import (
     assert_xarray_dataarray_allclose,
     assert_xarray_dataset_allclose,
 )
+from openeo.utils.version import ComparableVersion
 
 
 class TestCompareXarray:

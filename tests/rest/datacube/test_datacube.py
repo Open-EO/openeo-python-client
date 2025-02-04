@@ -11,6 +11,7 @@ import re
 from datetime import date, datetime
 from unittest import mock
 
+import dirty_equals
 import numpy as np
 import pytest
 import requests
@@ -19,6 +20,7 @@ import shapely.geometry
 
 from openeo import collection_property
 from openeo.api.process import Parameter
+from openeo.metadata import SpatialDimension
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -136,6 +138,72 @@ class TestDataCube:
             }
         }
 
+    def test_load_collection_spatial_extent_bbox(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        cube = DataCube.load_collection("S2", spatial_extent=spatial_extent, connection=dummy_backend.connection)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_shapely(self, dummy_backend):
+        polygon = shapely.geometry.Polygon([(3, 51), (4, 51), (4, 52), (3, 52)])
+        cube = DataCube.load_collection("S2", spatial_extent=polygon, connection=dummy_backend.connection)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {
+                "type": "Polygon",
+                "coordinates": [[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]],
+            },
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+    def test_load_collection_spatial_extent_local_path(self, dummy_backend, path_factory, test_data):
+        path = path_factory(test_data.get_path("geojson/polygon02.json"))
+        cube = DataCube.load_collection("S2", spatial_extent=path, connection=dummy_backend.connection)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"type": "Polygon", "coordinates": [[[3, 50], [4, 50], [4, 51], [3, 50]]]},
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_url(self, dummy_backend):
+        cube = DataCube.load_collection(
+            "S2", spatial_extent="https://geo.test/geometry.json", connection=dummy_backend.connection
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"format": "GeoJSON", "url": "https://geo.test/geometry.json"},
+            },
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                    "temporal_extent": None,
+                },
+                "result": True,
+            },
+        }
+
+    def test_load_collection_spatial_extent_parameter(self, dummy_backend):
+        cube = DataCube.load_collection(
+            "S2", spatial_extent=Parameter.geojson("zpatial_extent"), connection=dummy_backend.connection
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+            "temporal_extent": None,
+        }
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {
@@ -178,6 +246,71 @@ class TestDataCube:
             },
         }
 
+    def test_load_stac_spatial_extent_bbox(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        cube = DataCube.load_stac(
+            "https://stac.test/data", spatial_extent=spatial_extent, connection=dummy_backend.connection
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+        }
+
+    def test_load_stac_spatial_extent_shapely(self, dummy_backend):
+        polygon = shapely.geometry.Polygon([(3, 51), (4, 51), (4, 52), (3, 52)])
+        cube = DataCube.load_stac("https://stac.test/data", spatial_extent=polygon, connection=dummy_backend.connection)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {
+                "type": "Polygon",
+                "coordinates": [[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]],
+            },
+        }
+
+    @pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+    def test_load_stac_spatial_extent_local_path(self, dummy_backend, path_factory, test_data):
+        path = path_factory(test_data.get_path("geojson/polygon02.json"))
+        cube = DataCube.load_stac("https://stac.test/data", spatial_extent=path, connection=dummy_backend.connection)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"type": "Polygon", "coordinates": [[[3, 50], [4, 50], [4, 51], [3, 50]]]},
+        }
+
+    def test_load_stac_spatial_extent_url(self, dummy_backend):
+        cube = DataCube.load_stac(
+            "https://stac.test/data",
+            spatial_extent="https://geo.test/geometry.json",
+            connection=dummy_backend.connection,
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"format": "GeoJSON", "url": "https://geo.test/geometry.json"},
+            },
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://stac.test/data",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                },
+                "result": True,
+            },
+        }
+
+    def test_load_stac_spatial_extent_parameter(self, dummy_backend):
+        spatial_extent = Parameter.geojson("zpatial_extent")
+        cube = DataCube.load_stac(
+            "https://stac.test/data", spatial_extent=spatial_extent, connection=dummy_backend.connection
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+        }
 
 def test_filter_temporal_basic_positional_args(s2cube):
     im = s2cube.filter_temporal("2016-01-01", "2016-03-10")
@@ -598,12 +731,144 @@ def test_apply_kernel(s2cube):
 
 
 def test_resample_spatial(s2cube):
-    im = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "resample_spatial"
-    assert "data" in graph["arguments"]
-    assert graph["arguments"]["resolution"] == [2.0, 3.0]
-    assert graph["arguments"]["projection"] == 4578
+    cube = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": [2.0, 3.0],
+                "projection": 4578,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
+        SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
+    ]
+
+
+def test_resample_spatial_no_metadata(s2cube_without_metadata):
+    cube = s2cube_without_metadata.resample_spatial(resolution=(3, 5), projection=4578)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": [3, 5],
+                "projection": 4578,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[None, None], crs=4578, step=3.0),
+        SpatialDimension(name="y", extent=[None, None], crs=4578, step=5.0),
+    ]
+
+
+def test_resample_cube_spatial(s2cube):
+    cube1 = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
+    cube2 = s2cube.resample_spatial(resolution=10, projection=32631)
+
+    cube12 = cube1.resample_cube_spatial(target=cube2)
+    assert get_download_graph(cube12, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 4578,
+                "resolution": [2.0, 3.0],
+            },
+        },
+        "resamplespatial2": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 32631,
+                "resolution": 10,
+            },
+        },
+        "resamplecubespatial1": {
+            "arguments": {
+                "data": {"from_node": "resamplespatial1"},
+                "method": "near",
+                "target": {"from_node": "resamplespatial2"},
+            },
+            "process_id": "resample_cube_spatial",
+        },
+    }
+    assert cube12.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=10),
+        SpatialDimension(name="y", extent=None, crs=32631, step=10),
+    ]
+
+    cube21 = cube2.resample_cube_spatial(target=cube1)
+    assert get_download_graph(cube21, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 32631,
+                "resolution": 10,
+            },
+        },
+        "resamplespatial2": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "align": "upper-left",
+                "data": {"from_node": "loadcollection1"},
+                "method": "near",
+                "projection": 4578,
+                "resolution": [2.0, 3.0],
+            },
+        },
+        "resamplecubespatial1": {
+            "arguments": {
+                "data": {"from_node": "resamplespatial1"},
+                "method": "near",
+                "target": {"from_node": "resamplespatial2"},
+            },
+            "process_id": "resample_cube_spatial",
+        },
+    }
+    assert cube21.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
+        SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
+    ]
+
+
+def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadata):
+    cube = s2cube_without_metadata
+    target = s2cube.resample_spatial(resolution=10, projection=32631)
+    assert cube.metadata is None
+    assert target.metadata is not None
+
+    result = cube.resample_cube_spatial(target=target)
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=10),
+        SpatialDimension(name="y", extent=None, crs=32631, step=10),
+    ]
+
+
+def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):
+    cube = s2cube.resample_spatial(resolution=10, projection=32631)
+    target = s2cube_without_metadata
+    assert cube.metadata is not None
+    assert target.metadata is None
+
+    result = cube.resample_cube_spatial(target=target)
+    assert result.metadata is None
 
 
 def test_merge(s2cube, api_version, test_data):
@@ -870,6 +1135,21 @@ class TestExecuteBatch:
     def test_create_job_auto_add_save_result(self, s2cube, dummy_backend, auto_add_save_result, process_ids):
         s2cube.create_job(auto_add_save_result=auto_add_save_result)
         assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
+
+    @pytest.mark.parametrize(
+        ["create_kwargs", "expected"],
+        [
+            ({}, {}),
+            ({"log_level": None}, {}),
+            ({"log_level": "error"}, {"log_level": "error"}),
+        ],
+    )
+    def test_create_job_log_level(self, s2cube, dummy_backend, create_kwargs, expected):
+        s2cube.create_job(**create_kwargs)
+        assert dummy_backend.get_batch_post_data() == {
+            "process": {"process_graph": dirty_equals.IsPartialDict()},
+            **expected,
+        }
 
     def test_execute_batch_defaults(self, s2cube, get_create_job_pg, recwarn, caplog):
         s2cube.execute_batch()

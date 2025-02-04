@@ -153,7 +153,7 @@ class DummyBackend:
             json={
                 "id": collection_id,
                 # define temporal  and band dim
-                "cube:dimensions": {"t": {"type": "temporal"}, "bands": {"type": "bands"}},
+                "cube:dimensions": cube_dimensions,
             },
         )
         return self

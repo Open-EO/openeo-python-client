@@ -11,13 +11,13 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
-import requests.auth
+import requests
 import requests_mock
 import shapely.geometry
 
 import openeo
 from openeo import BatchJob
-from openeo.capabilities import ApiVersionException
+from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
 from openeo.rest import (
@@ -30,7 +30,7 @@ from openeo.rest import (
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
-from openeo.rest.auth.testing import ABSENT, OidcMock
+from openeo.rest.auth.testing import ABSENT, OidcMock, SimpleBasicAuthMocker
 from openeo.rest.connection import (
     DEFAULT_TIMEOUT,
     DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
@@ -40,17 +40,57 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
+from openeo.rest.models.general import Link
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
+from openeo.utils.version import ApiVersionException
 
 from .auth.test_cli import auth_config, refresh_token_store
 
 API_URL = "https://oeo.test/"
 
+# TODO: eliminate this and replace with `build_capabilities` usage
 BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
 
+
+GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
+GEOJSON_LINESTRING_01 = {"type": "LineString", "coordinates": [[3, 50], [4, 51], [5, 53]]}
+GEOJSON_POLYGON_01 = {
+    "type": "Polygon",
+    "coordinates": [[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]],
+}
+GEOJSON_MULTIPOLYGON_01 = {
+    "type": "MultiPolygon",
+    "coordinates": [[[[3, 51], [4, 51], [4, 52], [3, 52], [3, 51]]]],
+}
+GEOJSON_FEATURE_01 = {
+    "type": "Feature",
+    "properties": {},
+    "geometry": GEOJSON_POLYGON_01,
+}
+GEOJSON_FEATURE_02 = {
+    "type": "Feature",
+    "properties": {},
+    "geometry": GEOJSON_MULTIPOLYGON_01,
+}
+GEOJSON_FEATURECOLLECTION_01 = {
+    "type": "FeatureCollection",
+    "features": [
+        GEOJSON_FEATURE_01,
+        GEOJSON_FEATURE_02,
+    ],
+}
+GEOJSON_GEOMETRYCOLLECTION_01 = {
+    "type": "GeometryCollection",
+    "geometries": [
+        GEOJSON_POINT_01,
+        GEOJSON_POLYGON_01,
+    ],
+}
+
 # Trick to avoid linting/auto-formatting tools to complain about or fix unused imports of these pytest fixtures
+# TODO: use proper way to reuse fixtures instead of this hack
 auth_config = auth_config
 refresh_token_store = refresh_token_store
 
@@ -486,7 +526,6 @@ def test_capabilities_api_version(requests_mock):
     requests_mock.get(API_URL, status_code=200, json={"api_version": "1.0.0"})
     con = openeo.connect("https://oeo.test")
     capabilities = con.capabilities()
-    assert capabilities.version() == "1.0.0"
     assert capabilities.api_version() == "1.0.0"
 
 
@@ -512,6 +551,102 @@ def test_capabilities_caching(requests_mock):
     assert m.call_count == 1
     assert con.capabilities().api_version() == "1.0.0"
     assert m.call_count == 1
+
+
+def _get_capabilities_auth_dependent(request, context):
+    capabilities = build_capabilities()
+    capabilities["endpoints"] = [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+    ]
+    if "Authorization" in request.headers:
+        capabilities["endpoints"].append({"methods": ["GET"], "path": "/me"})
+    return capabilities
+
+
+def test_capabilities_caching_after_authenticate_basic(requests_mock, basic_auth):
+    get_capabilities_mock = requests_mock.get(API_URL, json=_get_capabilities_auth_dependent)
+
+    con = Connection(API_URL)
+    assert con.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+    ]
+    assert get_capabilities_mock.call_count == 1
+    con.capabilities()
+    assert get_capabilities_mock.call_count == 1
+
+    con.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
+    assert get_capabilities_mock.call_count == 1
+    assert con.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+        {"methods": ["GET"], "path": "/me"},
+    ]
+
+    assert get_capabilities_mock.call_count == 2
+
+
+def test_capabilities_caching_after_authenticate_oidc_refresh_token(requests_mock):
+    client_id = "myclient"
+    refresh_token = "fr65h!"
+    get_capabilities_mock = requests_mock.get(API_URL, json=_get_capabilities_auth_dependent)
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "OI!", "scopes": ["openid"]}]},
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        expected_fields={"refresh_token": refresh_token},
+    )
+
+    conn = Connection(API_URL)
+    assert conn.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+    ]
+
+    assert get_capabilities_mock.call_count == 1
+    conn.capabilities()
+    assert get_capabilities_mock.call_count == 1
+
+    conn.authenticate_oidc_refresh_token(client_id=client_id, refresh_token=refresh_token)
+    assert get_capabilities_mock.call_count == 1
+    assert conn.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+        {"methods": ["GET"], "path": "/me"},
+    ]
+    assert get_capabilities_mock.call_count == 2
+
+
+def test_capabilities_caching_after_authenticate_oidc_access_token(requests_mock):
+    get_capabilities_mock = requests_mock.get(API_URL, json=_get_capabilities_auth_dependent)
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": "https://oidc.test", "title": "OI!", "scopes": ["openid"]}]},
+    )
+
+    conn = Connection(API_URL)
+    assert conn.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+    ]
+
+    assert get_capabilities_mock.call_count == 1
+    conn.capabilities()
+    assert get_capabilities_mock.call_count == 1
+
+    conn.authenticate_oidc_access_token(access_token="6cc355!")
+    assert get_capabilities_mock.call_count == 1
+    assert conn.capabilities().capabilities["endpoints"] == [
+        {"methods": ["GET"], "path": "/credentials/basic"},
+        {"methods": ["GET"], "path": "/credentials/oidc"},
+        {"methods": ["GET"], "path": "/me"},
+    ]
+    assert get_capabilities_mock.call_count == 2
 
 
 def test_file_formats(requests_mock):
@@ -578,30 +713,17 @@ def test_api_error_non_json(requests_mock):
     assert exc.message == "olapola"
 
 
-def _credentials_basic_handler(username, password, access_token="w3lc0m3"):
-    # TODO: better reuse of this helper
-    expected_auth = requests.auth._basic_auth_str(username=username, password=password)
-
-    def handler(request, context):
-        assert request.headers["Authorization"] == expected_auth
-        return json.dumps({"access_token": access_token})
-
-    return handler
-
-
-def test_create_connection_lazy_auth_config(requests_mock, api_version):
-    user, pwd = "john262", "J0hndo3"
+def test_create_connection_lazy_auth_config(requests_mock, api_version, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
     with mock.patch('openeo.rest.connection.AuthConfig') as AuthConfig:
         # Don't create default AuthConfig when not necessary
         conn = Connection(API_URL)
         assert AuthConfig.call_count == 0
-        conn.authenticate_basic(user, pwd)
+        conn.authenticate_basic(basic_auth.username, basic_auth.password)
         assert AuthConfig.call_count == 0
         # call `authenticate_basic` so that fallback AuthConfig is created/used lazily
-        AuthConfig.return_value.get_basic_auth.return_value = (user, pwd)
+        AuthConfig.return_value.get_basic_auth.return_value = (basic_auth.username, basic_auth.password)
         conn.authenticate_basic()
         assert AuthConfig.call_count == 1
         conn.authenticate_basic()
@@ -648,29 +770,25 @@ def test_authenticate_basic_no_support(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
 
 
-def test_authenticate_basic(requests_mock, api_version):
-    user, pwd = "john262", "J0hndo3"
+def test_authenticate_basic(requests_mock, api_version, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username=user, password=pwd)
+    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//w3lc0m3"
+    assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
-def test_authenticate_basic_from_config(requests_mock, api_version, auth_config):
-    user, pwd = "john281", "J0hndo3"
+def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    requests_mock.get(API_URL + 'credentials/basic', text=_credentials_basic_handler(user, pwd))
-    auth_config.set_basic_auth(backend=API_URL, username=user, password=pwd)
+    auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//w3lc0m3"
+    assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
 @pytest.mark.slow
@@ -2395,24 +2513,189 @@ class TestAuthenticateOidcAccessToken:
             connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="nope")
 
 
-def test_load_collection_arguments_100(requests_mock):
-    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
-    conn = Connection(API_URL)
-    requests_mock.get(API_URL + "collections/FOO", json={
-        "summaries": {"eo:bands": [{"name": "red"}, {"name": "green"}, {"name": "blue"}]}
-    })
-    spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
-    temporal_extent = ["2019-01-01", "2019-01-22"]
-    im = conn.load_collection(
-        "FOO", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["red", "green"]
+class TestLoadCollection:
+    def test_load_collection_arguments_basic(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        temporal_extent = ["2019-01-01", "2019-01-22"]
+        cube = dummy_backend.connection.load_collection(
+            "S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["B2", "B3"]
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1},
+                    "temporal_extent": ["2019-01-01", "2019-01-22"],
+                    "bands": ["B2", "B3"],
+                },
+                "result": True,
+            }
+        }
+
+    def test_load_collection_spatial_extent_bbox(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURE_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
     )
-    assert im._pg.process_id == "load_collection"
-    assert im._pg.arguments == {
-        "id": "FOO",
-        "spatial_extent": spatial_extent,
-        "temporal_extent": temporal_extent,
-        "bands": ["red", "green"]
-    }
+    def test_load_collection_spatial_extent_geojson(self, dummy_backend, spatial_extent):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": spatial_extent,
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [GEOJSON_POINT_01, GEOJSON_LINESTRING_01, GEOJSON_GEOMETRYCOLLECTION_01],
+    )
+    def test_load_collection_spatial_extent_geojson_wrong_type(self, dummy_backend, spatial_extent):
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+        ],
+    )
+    def test_load_collection_spatial_extent_shapely(self, geojson, dummy_backend):
+        spatial_extent = shapely.geometry.shape(geojson)
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": geojson,
+            "temporal_extent": None,
+        }
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POINT_01,
+            GEOJSON_GEOMETRYCOLLECTION_01,
+        ],
+    )
+    def test_load_collection_spatial_extent_shapely_wrong_type(self, geojson, dummy_backend):
+        spatial_extent = shapely.geometry.shape(geojson)
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
+    )
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_load_collection_spatial_extent_local_path(self, geojson, dummy_backend, tmp_path, path_factory):
+        path = tmp_path / "geometry.json"
+        with path.open("w") as f:
+            json.dump(geojson, f)
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=path_factory(path))
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": geojson,
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_url(self, dummy_backend):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent="https://geo.test/geometry.json")
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {
+                    "url": "https://geo.test/geometry.json",
+                    "format": "GeoJSON",
+                },
+            },
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                    "temporal_extent": None,
+                },
+                "result": True,
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "parameter",
+        [
+            Parameter("zpatial_extent"),
+            Parameter.spatial_extent("zpatial_extent"),
+            Parameter.geojson("zpatial_extent"),
+        ],
+    )
+    def test_load_collection_spatial_extent_parameter(self, dummy_backend, parameter, recwarn):
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=parameter)
+        assert len(recwarn) == 0
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_parameter_schema_mismatch(self, dummy_backend, recwarn):
+        cube = dummy_backend.connection.load_collection(
+            "S2", spatial_extent=Parameter.number("zpatial_extent", description="foo")
+        )
+        assert [str(w.message) for w in recwarn] == [
+            "Schema mismatch with parameter given to `spatial_extent` in `load_collection`: expected a schema compatible with type 'object' but got {'type': 'number'}."
+        ]
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+            "temporal_extent": None,
+        }
+
+    def test_load_collection_spatial_extent_vector_cube(self, dummy_backend):
+        vector_cube = VectorCube.load_url(
+            connection=dummy_backend.connection, url="https://geo.test/geometry.json", format="GeoJSON"
+        )
+        cube = dummy_backend.connection.load_collection("S2", spatial_extent=vector_cube)
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"format": "GeoJSON", "url": "https://geo.test/geometry.json"},
+            },
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                    "temporal_extent": None,
+                },
+                "result": True,
+            },
+        }
 
 
 def test_load_result(requests_mock):
@@ -2681,6 +2964,220 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
         assert cube.metadata.band_names == ["B03", "B02"]
 
+    @pytest.mark.parametrize(
+        "bands",
+        [
+            ["B02", "B03"],
+            ("B02", "B03"),
+            iter(["B02", "B03"]),
+        ],
+    )
+    def test_bands_iterable(self, con120, bands):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": ["B02", "B03"],
+                },
+                "result": True,
+            }
+        }
+
+    def test_bands_empty(self, con120):
+        with pytest.raises(OpenEoClientException, match="Bands array should not be empty"):
+            _ = con120.load_stac("https://provider.test/dataset", bands=[])
+
+    def test_bands_parameterized(self, con120):
+        bands = Parameter(name="my_bands", schema={"type": "array", "items": {"type": "string"}})
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            bands=bands,
+        )
+        assert cube.flat_graph() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://provider.test/dataset",
+                    "bands": {"from_parameter": "my_bands"},
+                },
+                "result": True,
+            }
+        }
+
+    def test_load_stac_spatial_extent_bbox(self, dummy_backend):
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+        }
+
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURE_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
+    )
+    def test_load_stac_spatial_extent_geojson(self, dummy_backend, spatial_extent):
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": spatial_extent,
+        }
+
+    @pytest.mark.parametrize(
+        "spatial_extent",
+        [
+            GEOJSON_POINT_01,
+            GEOJSON_LINESTRING_01,
+            GEOJSON_GEOMETRYCOLLECTION_01,
+        ],
+    )
+    def test_load_stac_spatial_extent_geojson_wrong_type(self, dummy_backend, spatial_extent):
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POLYGON_01,
+            GEOJSON_MULTIPOLYGON_01,
+        ],
+    )
+    def test_load_stac_spatial_extent_shapely(self, dummy_backend, geojson):
+        spatial_extent = shapely.geometry.shape(geojson)
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": geojson,
+        }
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_POINT_01,
+            GEOJSON_GEOMETRYCOLLECTION_01,
+        ],
+    )
+    def test_load_stac_spatial_extent_shapely_wront_type(self, dummy_backend, geojson):
+        spatial_extent = shapely.geometry.shape(geojson)
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        with pytest.raises(OpenEoClientException, match="Invalid geometry type"):
+            _ = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+
+    @pytest.mark.parametrize(
+        "geojson",
+        [
+            GEOJSON_MULTIPOLYGON_01,
+            GEOJSON_FEATURECOLLECTION_01,
+        ],
+    )
+    @pytest.mark.parametrize("path_factory", [str, Path])
+    def test_load_stac_spatial_extent_local_path(self, geojson, dummy_backend, tmp_path, path_factory):
+        path = tmp_path / "geometry.json"
+        with path.open("w") as f:
+            json.dump(geojson, f)
+
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=path_factory(path))
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": geojson,
+        }
+
+    def test_load_stac_spatial_extent_url(self, dummy_backend):
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac(
+            "https://stac.test/data", spatial_extent="https://geo.test/geometry.json"
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {
+                    "url": "https://geo.test/geometry.json",
+                    "format": "GeoJSON",
+                },
+            },
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://stac.test/data",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                },
+                "result": True,
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "parameter",
+        [
+            Parameter("zpatial_extent"),
+            Parameter.spatial_extent("zpatial_extent"),
+            Parameter.geojson("zpatial_extent"),
+        ],
+    )
+    def test_load_stac_spatial_extent_parameter(self, dummy_backend, parameter, recwarn):
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=parameter)
+        assert len(recwarn) == 0
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+        }
+
+    def test_load_stac_spatial_extent_parameter_schema_mismatch(self, dummy_backend, recwarn):
+        cube = dummy_backend.connection.load_stac(
+            "https://stac.test/data", spatial_extent=Parameter.number("zpatial_extent", description="foo")
+        )
+        assert [str(w.message) for w in recwarn] == [
+            "Schema mismatch with parameter given to `spatial_extent` in `load_stac`: expected a schema compatible with type 'object' but got {'type': 'number'}."
+        ]
+
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"from_parameter": "zpatial_extent"},
+        }
+
+    def test_load_stac_spatial_extent_vector_cube(self, dummy_backend):
+        vector_cube = VectorCube.load_url(
+            connection=dummy_backend.connection, url="https://geo.test/geometry.json", format="GeoJSON"
+        )
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=vector_cube)
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadurl1": {
+                "process_id": "load_url",
+                "arguments": {"format": "GeoJSON", "url": "https://geo.test/geometry.json"},
+            },
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://stac.test/data",
+                    "spatial_extent": {"from_node": "loadurl1"},
+                },
+                "result": True,
+            },
+        }
+
 
 @pytest.mark.parametrize(
     "data",
@@ -2814,6 +3311,24 @@ def test_list_collections(requests_mock):
     assert con.list_collections() == collections
 
 
+def test_list_collections_extra_metadata(requests_mock, caplog):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    requests_mock.get(
+        API_URL + "collections",
+        json={
+            "collections": [{"id": "S2"}, {"id": "NDVI"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/collections?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    con = Connection(API_URL)
+    collections = con.list_collections()
+    assert collections == [{"id": "S2"}, {"id": "NDVI"}]
+    assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
+    assert collections.ext_federation_missing() == ["oeob"]
+    assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
+
+
 def test_describe_collection(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     requests_mock.get(
@@ -2872,6 +3387,24 @@ def test_list_processes_namespace(requests_mock):
     conn = Connection(API_URL)
     assert conn.list_processes(namespace="foo") == processes
     assert m.call_count == 1
+
+
+def test_list_processes_extra_metadata(requests_mock, caplog):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    m = requests_mock.get(
+        API_URL + "processes",
+        json={
+            "processes": [{"id": "add"}, {"id": "mask"}],
+            "links": [{"rel": "next", "href": "https://oeo.test/processes?page=2"}],
+            "federation:missing": ["oeob"],
+        },
+    )
+    conn = Connection(API_URL)
+    processes = conn.list_processes()
+    assert processes == [{"id": "add"}, {"id": "mask"}]
+    assert processes.links == [Link(rel="next", href="https://oeo.test/processes?page=2", type=None, title=None)]
+    assert processes.ext_federation_missing() == ["oeob"]
+    assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
 def test_get_job(requests_mock):
@@ -2952,6 +3485,38 @@ def test_create_job_with_additional_and_job_options(dummy_backend):
         "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
         "color": "blue",
         "job_options": {"color": "green"},
+    }
+
+
+def test_create_job_log_level_basic(dummy_backend):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        log_level="warning",
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        "log_level": "warning",
+    }
+
+
+@pytest.mark.parametrize(
+    ["create_kwargs", "expected"],
+    [
+        ({}, {}),
+        ({"log_level": None}, {}),
+        ({"log_level": "error"}, {"log_level": "error"}),
+    ],
+)
+def test_create_job_log_level(dummy_backend, create_kwargs, expected):
+    job = dummy_backend.connection.create_job(
+        {"foo1": {"process_id": "foo"}},
+        **create_kwargs,
+    )
+    assert isinstance(job, BatchJob)
+    assert dummy_backend.get_batch_post_data() == {
+        "process": {"process_graph": {"foo1": {"process_id": "foo"}}},
+        **expected,
     }
 
 
@@ -3128,16 +3693,30 @@ class TestUserDefinedProcesses:
 
     def test_list_udps(self, requests_mock, test_data):
         requests_mock.get(API_URL, json=build_capabilities(udp=True))
-        conn = Connection(API_URL)
-
         udp = test_data.load_json("1.0.0/udp_details.json")
-
         requests_mock.get(API_URL + "process_graphs", json={"processes": [udp]})
 
+        conn = Connection(API_URL)
         user_udps = conn.list_user_defined_processes()
+        assert user_udps == [udp]
 
-        assert len(user_udps) == 1
-        assert user_udps[0] == udp
+    def test_list_udps_extra_metadata(self, requests_mock, test_data, caplog):
+        requests_mock.get(API_URL, json=build_capabilities(udp=True))
+        requests_mock.get(
+            API_URL + "process_graphs",
+            json={
+                "processes": [{"id": "myevi"}],
+                "links": [{"rel": "about", "href": "https://oeo.test/my-evi"}],
+                "federation:missing": ["oeob"],
+            },
+        )
+
+        conn = Connection(API_URL)
+        udps = conn.list_user_defined_processes()
+        assert udps == [{"id": "myevi"}]
+        assert udps.links == [Link(rel="about", href="https://oeo.test/my-evi")]
+        assert udps.ext_federation_missing() == ["oeob"]
+        assert "Partial process listing: missing federation components: ['oeob']." in caplog.text
 
 
     def test_list_udps_unsupported(self, requests_mock):
@@ -3368,9 +3947,10 @@ def test_connect_auto_auth_from_config_basic(
     """))
     user, pwd = "john", "j0hn"
     for u, a in [(default, "Hell0!"), (other, "Wazz6!")]:
-        auth_config.set_basic_auth(backend=u, username=user, password=pwd)
+        basic_auth_mocker = SimpleBasicAuthMocker(username=user, password=pwd, access_token=a)
+        auth_config.set_basic_auth(backend=u, username=basic_auth_mocker.username, password=basic_auth_mocker.password)
         requests_mock.get(u, json={"api_version": "1.0.0", "endpoints": BASIC_ENDPOINTS})
-        requests_mock.get(f"{u}/credentials/basic", text=_credentials_basic_handler(user, pwd, access_token=a))
+        basic_auth_mocker.setup_credentials_basic_handler(api_root=u, requests_mock=requests_mock)
 
     if use_default:
         # Without arguments: use default
@@ -4010,3 +4590,10 @@ class TestMultiResultHandling:
                 "result": True,
             },
         }
+
+
+def test_web_editor(requests_mock):
+    requests_mock.get(API_URL, json=build_capabilities())
+    con = Connection(API_URL)
+    assert con.web_editor() == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F"
+    assert con.web_editor(anonymous=True) == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F&discover=1"

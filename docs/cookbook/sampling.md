@@ -1,7 +1,6 @@
 
 # Dataset sampling
 
-
 A number of use cases do not require a full datacube to be computed,
 but rather want to extract a result at specific locations.
 Examples include extracting training data for model calibration, or computing the result for
@@ -9,12 +8,29 @@ areas where validation data is available.
 
 An important constraint is that most implementations assume that sampling is an operation 
 on relatively small areas, of for instance up to 512x512 pixels (but often much smaller). 
-When extracting larger areas, it is recommended to look into running a separate job per 'sample'.
+When extracting polygons with larger areas, it is recommended to look into running a separate job per 'sample'.
+Some more important performance notices are mentioned later in the chapter, please read them carefully 
+to get best results.
 
 Sampling can be done for points or polygons:
 
 - point extractions basically result in a 'vector cube', so can be exported into tabular formats.
 - polygon extractions  can be stored to an individual netCDF per polygon so in this case the output is a sparse raster cube.
+
+Note that sampling many points or polygons may require to send a large amount of geometry, which sometimes makes the size
+of the requests too large when it is included inline as GeoJson. Therefore, we recommend to upload your vector data to a
+public url, and to load it in openEO using {py:meth}`openeo.rest.connection.Connection.load_url`.
+
+## Sampling at point locations
+
+To sample point locations, the `openeo.rest.datacube.DataCube.aggregate_spatial` method can be used. The reducer can be a 
+commonly supported reducer like `min`, `max` or `mean` and will receive only one value as input in most cases. Note that
+in edge cases, a point can intersect with up to 4 pixels. If this is not desirable, it might be worth trying to align 
+points with pixel centers, which does require more advanced knowledge of the pixel grid of your data cube.
+
+More information on `aggregate_spatial` is available [here](_aggregate-spatial-evi).
+
+## Sampling polygons as rasters
 
 To indicate to openEO that we only want to compute the datacube for certain polygon features, we use the
 `openeo.rest.datacube.DataCube.filter_spatial` method.
@@ -59,3 +75,5 @@ When doing large scale (e.g. continental) sampling, it is usually not possible o
 batch job. The recommendation here is to apply a spatial grouping to your sampling locations, with a single group covering
 an area of around 100x100km. The optimal size of a group may be backend dependant. Also remember that when working with
 data in the UTM projection, you may want to avoid covering multiple UTM zones in a single group.
+
+See also how to manage [multiple jobs](_job-manager).
