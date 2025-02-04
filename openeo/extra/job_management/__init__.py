@@ -9,7 +9,9 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread, Semaphore, Lock
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from queue import Queue
 
 
@@ -232,10 +234,8 @@ class MultiBackendJobManager:
 
         # Thread to run the jobs in
         self._thread = None
-
         # Maximum number of jobs to launch concurrently
         self._max_concurrent_job_launch = 5
-        self._db_lock = Lock()
         
 
     def add_backend(
@@ -531,13 +531,12 @@ class MultiBackendJobManager:
             self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
-        self._launch_pending_jobs(job_db, start_job, stats)
+        self._launch_jobs(job_db, start_job, stats)
         self._handle_completed_jobs(stats)
 
 
-    def _launch_pending_jobs(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
-        """Launches jobs concurrently with controlled threading."""
-
+    def _launch_jobs(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
+        """Launch jobs dynamically while running threads."""
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
@@ -546,59 +545,45 @@ class MultiBackendJobManager:
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
 
-            jobs_to_add = self._get_jobs_to_launch(not_started, per_backend)
-            self._run_job_threads(jobs_to_add, start_job, not_started, stats, job_db)
+            # Start a thread pool to handle job launching
+            with ThreadPoolExecutor(max_workers=self._max_concurrent_job_launch) as executor:
+                # Start by adding jobs to the queue
+                job_queue = self._get_jobs_to_launch(not_started, per_backend)
+                futures = []
+
+                while not job_queue.empty():
+                    i, backend_name = job_queue.get()
+                    # Submit a job launch task to the executor
+                    futures.append(executor.submit(self._launch_job, start_job, not_started, i, backend_name, stats))
+
+                # Process the results as they complete
+                for future in as_completed(futures):
+                    try:
+                        # If the job launched successfully, update the database
+                        job_db.persist(not_started)
+                        stats["job_db persist"] += 1
+                    except Exception as e:
+                        _log.error(f"Job launch failed: {e}")
 
     def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Queue:
         """Determines which jobs to launch based on backend availability and fills a queue."""
         job_queue = Queue()
         total_added = 0
 
+        # For each backend, check how many slots are available
         for backend_name in self.backends:
-            backend_load = per_backend.get(backend_name, 0)
-            available_slots = self.backends[backend_name].parallel_jobs - backend_load
+            backend_load = per_backend.get(backend_name, 0)  # number of running jobs on that backend
+            available_slots = self.backends[backend_name].parallel_jobs - backend_load  # slots remaining
 
+            # If there are available slots, we assign jobs from the not_started DataFrame
             indices_to_add = not_started.index[total_added : total_added + available_slots]
-
+            
             for i in indices_to_add:
-                job_queue.put((i, backend_name))
+                job_queue.put((i, backend_name))  # Add job index and backend name to the queue
 
-            total_added += len(indices_to_add)
+            total_added += len(indices_to_add)  # Update the total number of jobs added
 
         return job_queue
-
-    def _run_job_threads(
-        self, 
-        job_queue: Queue, 
-        start_job: Callable[[], BatchJob], 
-        not_started: pd.DataFrame, 
-        stats: Optional[dict], 
-        job_db: JobDatabaseInterface
-    ) -> None:
-        """Manages threading for job launching using a queue and thread pool."""
-        
-        def job_worker():
-            while not job_queue.empty():
-                i, backend_name = job_queue.get()
-                try:
-                    self._launch_job(start_job, not_started, i, backend_name, stats)
-                    stats["job launch"] += 1
-
-                    with self._db_lock:
-                        job_db.persist(not_started.loc[i: i + 1])
-                        stats["job_db persist"] += 1
-                except Exception as e:
-                    _log.error(f"Job launch failed for index {i}: {e}")
-                finally:
-                    job_queue.task_done()
-
-        num_threads = min(job_queue.qsize(), self._max_concurrent_job_launch)
-        threads = [Thread(target=job_worker) for _ in range(num_threads)]
-
-        for thread in threads:
-            thread.start()
-
-        job_queue.join()
 
             
     def _handle_completed_jobs(self, stats):
