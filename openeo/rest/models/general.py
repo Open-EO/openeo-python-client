@@ -263,3 +263,39 @@ class LogsResponse(list):
         return federation_extension.get_federation_missing(
             data=self._data, resource_name="log listing", auto_warn=auto_warn
         )
+
+
+class ValidationResponse(list):
+    """
+    Container for process metadata listing received
+    from a ``POST /validation`` request.
+
+    .. note::
+        This object mimics, for backward compatibility reasons,
+        the interface of simple list of validation error dictionaries (``List[dict]``),
+        :py:meth:`~openeo.rest.connection.Connection.validate_process_graph()`,
+        but now also provides methods/properties to access additional response data.
+
+    :param response_data: response data from a ``POST /validation`` request
+
+    .. seealso:: :py:meth:`openeo.rest.connection.Connection.validate_process_graph()`
+
+    .. versionadded:: 0.38.0
+    """
+
+    __slots__ = ["_data"]
+
+    def __init__(self, response_data: dict):
+        self._data = response_data
+        # Mimic original list of validation error dictionaries
+        super().__init__(response_data["errors"])
+
+    def ext_federation_backends(self) -> Union[None, List[str]]:
+        """
+        Get "federation:backends" value from validation response.
+
+        .. seealso:: :ref:`federation-extension`
+
+        .. warning:: this API is experimental and subject to change.
+        """
+        return federation_extension.get_federation_backends(data=self._data)

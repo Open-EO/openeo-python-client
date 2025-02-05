@@ -4597,3 +4597,40 @@ def test_web_editor(requests_mock):
     con = Connection(API_URL)
     assert con.web_editor() == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F"
     assert con.web_editor(anonymous=True) == "https://editor.openeo.org/?server=https%3A%2F%2Foeo.test%2F&discover=1"
+
+
+def test_validate_process_graph(con120, dummy_backend):
+    dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
+    cube = con120.load_collection("S2")
+    res = con120.validate_process_graph(cube)
+    assert res == [{"code": "OddSupport", "message": "Odd values are not supported."}]
+
+
+@pytest.mark.parametrize(
+    ["validation_response", "expected_errors", "expected_backends"],
+    [
+        (
+            {"errors": []},
+            [],
+            None,
+        ),
+        (
+            {"errors": [], "federation:backends": ["oeoa", "oeob"]},
+            [],
+            ["oeoa", "oeob"],
+        ),
+        (
+            {"errors": [{"code": "Nope", "message": "Nope!"}], "federation:backends": ["oeoa", "oeob"]},
+            [{"code": "Nope", "message": "Nope!"}],
+            ["oeoa", "oeob"],
+        ),
+    ],
+)
+def test_validate_process_graph_extra_metadata(
+    con120, dummy_backend, validation_response, expected_errors, expected_backends
+):
+    dummy_backend.next_validation_errors = validation_response
+    cube = con120.load_collection("S2")
+    res = con120.validate_process_graph(cube)
+    assert res == expected_errors
+    assert res.ext_federation_backends() == expected_backends

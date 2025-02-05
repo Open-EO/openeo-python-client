@@ -277,7 +277,10 @@ class DummyBackend:
         """Handler of `POST /validation` (validate process graph)."""
         pg = request.json()["process_graph"]
         self.validation_requests.append(pg)
-        return {"errors": self.next_validation_errors}
+        if isinstance(self.next_validation_errors, list):
+            return {"errors": self.next_validation_errors}
+        else:
+            return self.next_validation_errors
 
     def get_sync_pg(self) -> dict:
         """Get one and only synchronous process graph"""

@@ -26,3 +26,13 @@ def get_federation_missing(data: dict, *, resource_name: str, auto_warn: bool = 
     if auto_warn and missing:
         _log.warning(f"Partial {resource_name}: missing federation components: {missing!r}.")
     return missing
+
+
+def get_federation_backends(data: dict) -> Union[List[str], None]:
+    """
+    Get "federation:backends" field from response data, if present.
+    :param data: response data
+    :return:
+    """
+    backends = data.get("federation:backends", None)
+    return backends

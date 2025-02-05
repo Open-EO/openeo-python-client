@@ -70,6 +70,7 @@ from openeo.rest.models.general import (
     CollectionListingResponse,
     JobListingResponse,
     ProcessListingResponse,
+    ValidationResponse,
 )
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
@@ -965,7 +966,7 @@ class Connection(RestApiConnection):
 
     def validate_process_graph(
         self, process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]]
-    ) -> List[dict]:
+    ) -> ValidationResponse:
         """
         Validate a process graph without executing it.
 
@@ -979,7 +980,8 @@ class Connection(RestApiConnection):
         :return: list of errors (dictionaries with "code" and "message" fields)
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
-        return self.post(path="/validation", json=pg_with_metadata, expected_status=200).json()["errors"]
+        data = self.post(path="/validation", json=pg_with_metadata, expected_status=200).json()
+        return ValidationResponse(response_data=data)
 
     @property
     def _api_version(self) -> ComparableVersion:
