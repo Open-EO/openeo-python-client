@@ -9,7 +9,7 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread, Lock
+from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue
 
@@ -235,7 +235,7 @@ class MultiBackendJobManager:
         self._thread = None
         # Maximum number of jobs to launch concurrently
         self._max_concurrent_job_launch = 5
-        self.lock = Lock()
+
         
 
     def add_backend(
@@ -536,56 +536,43 @@ class MultiBackendJobManager:
 
 
     def _launch_job_threads(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
-        """Launch jobs dynamically while running threads."""
+        """Launch jobs dynamically while running threads, ensuring correct backend assignment."""
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
+        results = []
+        job_assignments = {}
+
         if not not_started.empty:
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
             stats["job_db get_by_status"] += 1
 
+            # Compute how many jobs are already running per backend
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
 
-            # Start a thread pool to handle job launching
-            with ThreadPoolExecutor(max_workers=self._max_concurrent_job_launch) as executor:
-                # Start by adding jobs to the queue
-                job_queue = self._get_jobs_to_launch(not_started, per_backend)
-                futures = []
+            # Assign jobs to backends before launching threads
+            job_assignments = self._assign_jobs_to_backends(not_started, per_backend)
 
-                while not job_queue.empty():
-                    i, backend_name = job_queue.get()
-                    # Submit a job launch task to the executor
-                    futures.append(executor.submit(self._launch_job, start_job, not_started, i, backend_name, stats))
+        with ThreadPoolExecutor(max_workers=self._max_concurrent_job_launch) as executor:
+            futures = {
+                executor.submit(self._launch_job, start_job, not_started.loc[i], backend_name, stats): i
+                for i, backend_name in job_assignments.items()
+            }
 
-                # Process the results as they complete
-                for future in as_completed(futures):
-                    try:
-                        # If the job launched successfully, update the database
-                        job_db.persist(not_started)
-                        stats["job_db persist"] += 1
-                    except Exception as e:
-                        _log.error(f"Job launch failed: {e}")
+            for future in as_completed(futures):
+                i, job_id, backend_name, status = future.result()
+                results.append((i, job_id, backend_name, status))
 
-    def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Queue:
-        """Determines which jobs to launch based on backend availability and fills a queue."""
-        job_queue = Queue()
-        total_added = 0
+            # Update DataFrame safely
+            for i, job_id, backend_name, status in results:
+                not_started.loc[i, "backend_name"] = backend_name
+                not_started.loc[i, "id"] = job_id
+                not_started.loc[i, "start_time"] = rfc3339.utcnow()
+                not_started.loc[i, "status"] = status
 
-        # For each backend, check how many slots are available
-        for backend_name in self.backends:
-            backend_load = per_backend.get(backend_name, 0)  # number of running jobs on that backend
-            available_slots = self.backends[backend_name].parallel_jobs - backend_load  # slots remaining
+            # Persist updates to the database
+            job_db.persist(not_started)
+            stats["job_db persist"] += 1
 
-            # If there are available slots, we assign jobs from the not_started DataFrame
-            indices_to_add = not_started.index[total_added : total_added + available_slots]
-            
-            for i in indices_to_add:
-                job_queue.put((i, backend_name))  # Add job index and backend name to the queue
-
-            total_added += len(indices_to_add)  # Update the total number of jobs added
-
-        return job_queue
-
-            
     def _handle_completed_jobs(self, stats):
         """Processes completed, canceled, and errored jobs."""
         #TODO downloading will be a blocker, run in seperate threads
@@ -602,71 +589,62 @@ class MultiBackendJobManager:
             self._cancel_prolonged_job(job, row)
 
 
-    def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
-        """Helper method for launching jobs
+    def _launch_job(self, start_job,row, backend_name, stats=None):
+        """Launch a job on a backend. Runs in a worker thread."""
+        stats["start_job call"] += 1
+        try:
+            _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
+            connection = self._get_connection(backend_name, resilient=True)
 
-        :param start_job:
-            A callback which will be invoked with the row of the dataframe for which a job should be started.
-            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
+            job = start_job(
+                row=row,
+                connection_provider=self._get_connection,
+                connection=connection,
+                provider=backend_name,
+            )
 
-            See also:
-            `MultiBackendJobManager.run_jobs` for the parameters and return type of this callable
+            if job:
+                with ignore_connection_errors(context="get status"):
+                    status = job.status()
+                    if status == "created":
+                        try:
+                            job.start()
+                            status = job.status()
+                        except OpenEoApiError as e:
+                            _log.error(e)
+                            status = "start_failed"
 
-            Even though it is called here in `_launch_job` and that is where the constraints
-            really come from, the public method `run_jobs` needs to document `start_job` anyway,
-            so let's avoid duplication in the docstrings.
-
-        :param df:
-            DataFrame that specifies the jobs, and tracks the jobs' statuses.
-
-        :param i:
-            index of the job's row in dataframe df
-
-        :param backend_name:
-            name of the backend that will execute the job.
-        """
-        stats = stats if stats is not None else collections.defaultdict(int)
-        with self.lock:
-            df.loc[i, "backend_name"] = backend_name
-            row = df.loc[i]
-            try:
-                _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
-                connection = self._get_connection(backend_name, resilient=True)
-
-                stats["start_job call"] += 1
-                job = start_job(
-                    row=row,
-                    connection_provider=self._get_connection,
-                    connection=connection,
-                    provider=backend_name,
-                )
-            except requests.exceptions.ConnectionError as e:
-                _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
-                df.loc[i, "status"] = "start_failed"
-                stats["start_job error"] += 1
+                return row.name, job.job_id, backend_name, status  # Return job details
             else:
-                df.loc[i, "start_time"] = rfc3339.utcnow()
-                if job:
-                    df.loc[i, "id"] = job.job_id
-                    with ignore_connection_errors(context="get status"):
-                        status = job.status()
-                        stats["job get status"] += 1
-                        df.loc[i, "status"] = status
-                        if status == "created":
-                            # start job if not yet done by callback
-                            try:
-                                job.start()
-                                stats["job start"] += 1
-                                df.loc[i, "status"] = job.status()
-                                stats["job get status"] += 1
-                            except OpenEoApiError as e:
-                                _log.error(e)
-                                df.loc[i, "status"] = "start_failed"
-                                stats["job start error"] += 1
-                else:
-                    # TODO: what is this "skipping" about actually?
-                    df.loc[i, "status"] = "skipped"
-                    stats["start_job skipped"] += 1
+                return row.name, None, backend_name, "skipped"
+
+        except requests.exceptions.ConnectionError:
+            _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
+            return row.name, None, backend_name, "start_failed"
+
+    def _assign_jobs_to_backends(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Dict[int, str]:
+        """
+        Assigns jobs to backends based on available capacity.
+        
+        :param not_started: DataFrame with jobs to start
+        :param per_backend: Dictionary with running job counts per backend
+        :return: Dictionary {job_index: backend_name}
+        """
+        job_assignments = {}
+        total_added = 0
+
+        for backend_name, backend in self.backends.items():
+            running_count = per_backend.get(backend_name, 0)
+            available_slots = backend.parallel_jobs - running_count
+
+            if available_slots > 0:
+                indices_to_add = not_started.index[total_added : total_added + available_slots]
+                for i in indices_to_add:
+                    job_assignments[i] = backend_name
+
+                total_added += len(indices_to_add)
+
+        return job_assignments
 
     def on_job_done(self, job: BatchJob, row):
         """
