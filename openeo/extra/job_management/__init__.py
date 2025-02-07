@@ -9,7 +9,8 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Event
+from queue import Queue, Empty
 from typing import (
     Any,
     Callable,
@@ -30,6 +31,8 @@ import shapely.errors
 import shapely.geometry.base
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
+from concurrent.futures import ThreadPoolExecutor
+
 
 from openeo import BatchJob, Connection
 from openeo.internal.processes.parse import (
@@ -222,6 +225,11 @@ class MultiBackendJobManager:
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
         self._thread = None
+        self._max_workers = 4
+        # Queue for passing job outcomes from worker tasks to the output thread.
+        self.job_output_queue = Queue()
+        # Event used to signal shutdown of the output thread.
+        self.stop_event = Event()
 
     def add_backend(
         self,
@@ -493,16 +501,33 @@ class MultiBackendJobManager:
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
-        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-            self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
-            stats["run_jobs loop"] += 1
 
-            # Show current stats and sleep
-            _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-            time.sleep(self.poll_sleep)
-            stats["sleep"] += 1
+        # Start the output thread.
+        output_thread = Thread(
+            target=lambda: self._output_queue_worker(df, job_db),
+            name="output-worker",
+            daemon=True,
+        )
+        output_thread.start()
 
-        return stats
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+                self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
+                stats["run_jobs loop"] += 1
+
+                # Show current stats and sleep
+                _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
+                time.sleep(self.poll_sleep)
+                stats["sleep"] += 1
+
+
+            # Wait for any remaining tasks to complete.
+            executor.shutdown(wait=True)
+             # Signal the output thread to stop.
+            self.job_output_queue.put(None)
+            output_thread.join()
+
+            return stats
 
     def _job_update_loop(
         self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
@@ -689,6 +714,45 @@ class MultiBackendJobManager:
                 
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
+
+    def _output_queue_worker(self,
+        df: Optional[pd.DataFrame] = None,
+        job_db: Union[str, Path, JobDatabaseInterface, None] = None,):
+        """
+        Dedicated thread that:
+         - Constantly checks the output queue for job outcomes.
+         - For each result, it updates the DataFrame (optionally calling job.status())
+           and persists the updated row via the job database.
+        """
+        while True:
+            try:
+                item = self.job_output_queue.get(timeout=self.poll_sleep)
+            except Empty:
+                if self.stop_event.is_set():
+                    break
+                continue
+
+            if item is None:  # Sentinel to signal shutdown.
+                break
+
+            index, outcome, job = item
+
+            # Update the DataFrame.
+            df.loc[index, "status"] = outcome
+            if outcome == "started":
+                try:
+                    status = job.status()
+                except Exception as e:
+                    _log.error(f"Error retrieving status for index {index}: {e}", exc_info=True)
+                    status = "status_error"
+                df.loc[index, "status"] = status
+
+            # Persist the updated row.
+            try:
+                job_db.persist(self.df.loc[index : index + 1])
+            except Exception as persist_err:
+                _log.error(f"Error persisting update for index {index}: {persist_err}")
+            self.job_output_queue.task_done()
 
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
