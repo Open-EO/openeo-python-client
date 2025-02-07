@@ -359,8 +359,8 @@ class Connection(RestApiConnection):
 
         .. deprecated:: 0.19.0
             Usage of the Authorization Code flow is deprecated (because of its complexity) and will be removed.
-            It is recommended to use the Device Code flow  with :py:meth:`authenticate_oidc_device`
-            or Client Credentials flow with :py:meth:`authenticate_oidc_client_credentials`.
+            It is recommended to use the Device Code flow  with :py:meth:`Connection.authenticate_oidc_device`
+            or Client Credentials flow with :py:meth:`Connection.authenticate_oidc_client_credentials`.
         """
         provider_id, client_info = self._get_oidc_provider_and_client_info(
             provider_id=provider_id, client_id=client_id, client_secret=client_secret,
@@ -612,8 +612,6 @@ class Connection(RestApiConnection):
         :param access_token: OIDC access token
         :param provider_id: id of the OIDC provider as listed by the openEO backend (``/credentials/oidc``).
             If not specified, the first (default) OIDC provider will be used.
-        :param skip_verification: Skip clients-side verification of the provider_id
-            against the backend's list of providers to avoid and related OIDC configuration
 
         .. versionadded:: 0.31.0
 
@@ -622,6 +620,23 @@ class Connection(RestApiConnection):
         """
         provider_id, _ = self._get_oidc_provider(provider_id=provider_id, parse_info=False)
         self.auth = OidcBearerAuth(provider_id=provider_id, access_token=access_token)
+        self._oidc_auth_renewer = None
+        return self
+
+    def authenticate_bearer_token(self, bearer_token: str) -> Connection:
+        """
+        Set up authorization headers directly with a bearer token.
+
+        .. warning::
+            This helper is for advanced usage only.
+            In general, it is recommended to use the more standard OIDC authentication methods
+            like :py:meth:`Connection.authenticate_oidc`.
+
+        :param bearer_token: openEO-style bearer token.
+
+        .. versionadded:: 0.38.0
+        """
+        self.auth = BearerAuth(bearer=bearer_token)
         self._oidc_auth_renewer = None
         return self
 

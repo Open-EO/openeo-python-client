@@ -2512,6 +2512,12 @@ class TestAuthenticateOidcAccessToken:
         ):
             connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#", provider_id="nope")
 
+    def test_authenticate_bearer_token(self):
+        connection = Connection(API_URL)
+        connection.authenticate_bearer_token("custom/foo/b666r")
+        assert isinstance(connection.auth, BearerAuth)
+        assert connection.auth.bearer == "custom/foo/b666r"
+
 
 class TestLoadCollection:
     def test_load_collection_arguments_basic(self, dummy_backend):
