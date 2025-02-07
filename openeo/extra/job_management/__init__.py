@@ -531,11 +531,11 @@ class MultiBackendJobManager:
             self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
-        self._launch_job_threads(job_db, start_job, stats)
+        self._launch_jobs(job_db, start_job, stats)
         self._handle_completed_jobs(stats)
 
 
-    def _launch_job_threads(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
+    def _launch_jobs(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
         """This function selects which jobs to start, assigns them to available backends,
          and then uses a thread pool to launch them concurrently."""
 
@@ -554,52 +554,56 @@ class MultiBackendJobManager:
             # Assign jobs to backends before launching threads
             job_assignments = self._assign_jobs_to_backends(not_started, per_backend)
 
-        results = []
+        results = self._submit_jobs_to_threads(not_started, job_assignments, start_job)
+        self._handle_launched_jobs(job_db, not_started, results, stats)
 
+    def _assign_jobs_to_backends(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Dict[int, str]:
+        """
+        Assigns jobs to backends based on available capacity.
+        
+        :param not_started: DataFrame with jobs to start
+        :param per_backend: Dictionary with running job counts per backend
+        :return: Dictionary {job_index: backend_name}
+        """
+        job_assignments = {}
+        total_added = 0
+
+        for backend_name, backend in self.backends.items():
+            running_count = per_backend.get(backend_name, 0)
+            available_slots = backend.parallel_jobs - running_count
+
+            if available_slots > 0:
+                indices_to_add = not_started.index[total_added : total_added + available_slots]
+                for i in indices_to_add:
+                    job_assignments[i] = backend_name
+
+                total_added += len(indices_to_add)
+
+        return job_assignments
+
+
+    def _submit_jobs_to_threads(self, not_started: pd.DataFrame, job_assignments: Dict[int, str],
+                                   start_job: Callable[[], BatchJob]) -> List[tuple]:
+        """
+        Submits job launch tasks to the thread pool.
+        
+        Returns:
+            A list of tuples (job_index, job_id, backend_name, status) from the worker results.
+        """
+        results = []
         with ThreadPoolExecutor(max_workers=self._max_concurrent_job_launch) as executor:
             futures = {
                 executor.submit(self._start_job_on_backend, start_job, not_started.loc[i], backend_name): i
                 for i, backend_name in job_assignments.items()
             }
-
             for future in as_completed(futures):
-                i, job_id, backend_name, status = future.result()
-                results.append((i, job_id, backend_name, status))
+                result = future.result()  # expected: (index, job_id, backend_name, status)
+                results.append(result)
 
-
-        # Update DataFrame safely
-        for i, job_id, backend_name, status in results:
-            stats["start_job call"] += 1
-            stats[f"job_{status}"] += 1
-            self.update_job_row(not_started, i, {
-                "backend_name": backend_name,
-                "id": job_id,
-                "start_time": rfc3339.utcnow(),
-                "status": status
-            })
-
-            # Persist updates to the database
-            job_db.persist(not_started)
-            stats["job_db persist"] += 1
-
-    def _handle_completed_jobs(self, stats):
-        """Processes completed, canceled, and errored jobs."""
-        #TODO downloading will be a blocker, run in seperate threads
-        for job, row in self.jobs_done:
-            self.on_job_done(job, row)
-        
-        for job, row in self.jobs_error:
-            self.on_job_error(job, row)
-
-        for job, row in self.jobs_cancel:
-            self.on_job_cancel(job, row)
-        
-        for job, row in self.jobs_prolonged:
-            self._cancel_prolonged_job(job, row)
-
-
+        return results
+    
     def _start_job_on_backend(self, start_job,row, backend_name):
-        """Worker function: Launch a job and return its status, without updating stats."""
+        """Worker function: Launch a job and return its status,"""
         try:
             _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
             connection = self._get_connection(backend_name, resilient=True)
@@ -629,29 +633,39 @@ class MultiBackendJobManager:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             return row.name, None, backend_name, "start_failed"
 
-    def _assign_jobs_to_backends(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Dict[int, str]:
+
+    def _handle_launched_jobs(self, job_db: JobDatabaseInterface, not_started: pd.DataFrame, results: List[tuple], stats: dict):
         """
-        Assigns jobs to backends based on available capacity.
+        Processes the results from launched jobs: updates the DataFrame rows and stats.
+        """
+        for i, job_id, backend_name, status in results:
+            stats["start_job call"] += 1
+            if status != "queued":
+                stats[f"job_{status}"] += 1
+            update_job_row(not_started, i, {
+                "backend_name": backend_name,
+                "id": job_id,
+                "start_time": rfc3339.utcnow(),
+                "status": status
+            })
+
+        job_db.persist(not_started)
+        stats["job_db persist"] += 1
+
+    def _handle_completed_jobs(self, stats):
+        """Processes completed, canceled, and errored jobs."""
+        #TODO downloading might be a blocker, run in seperate threads
+        for job, row in self.jobs_done:
+            self.on_job_done(job, row)
         
-        :param not_started: DataFrame with jobs to start
-        :param per_backend: Dictionary with running job counts per backend
-        :return: Dictionary {job_index: backend_name}
-        """
-        job_assignments = {}
-        total_added = 0
+        for job, row in self.jobs_error:
+            self.on_job_error(job, row)
 
-        for backend_name, backend in self.backends.items():
-            running_count = per_backend.get(backend_name, 0)
-            available_slots = backend.parallel_jobs - running_count
-
-            if available_slots > 0:
-                indices_to_add = not_started.index[total_added : total_added + available_slots]
-                for i in indices_to_add:
-                    job_assignments[i] = backend_name
-
-                total_added += len(indices_to_add)
-
-        return job_assignments
+        for job, row in self.jobs_cancel:
+            self.on_job_cancel(job, row)
+        
+        for job, row in self.jobs_prolonged:
+            self._cancel_prolonged_job(job, row)
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -742,11 +756,6 @@ class MultiBackendJobManager:
         job_dir = self.get_job_dir(job_id)
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
-    
-    def update_job_row(self, df, index, updates):
-        """Helper function to update a job row in the DataFrame."""
-        for key, value in updates.items():
-            df.loc[index, key] = value
 
     def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None) -> Tuple[List, List, List]:
         """
@@ -822,6 +831,12 @@ def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)
     unit = deep_get(job_metadata, "usage", field, "unit", default="")
     return f"{value} {unit}".strip()
+
+@staticmethod
+def update_job_row(df: pd.DataFrame, index, updates: dict):
+    """Helper to update a job row in the DataFrame."""
+    for key, value in updates.items():
+        df.loc[index, key] = value
 
 
 @contextlib.contextmanager
