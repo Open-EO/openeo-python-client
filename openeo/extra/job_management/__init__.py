@@ -11,8 +11,6 @@ import warnings
 from pathlib import Path
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from queue import Queue
-
 
 from typing import (
     Any,
@@ -832,7 +830,6 @@ def _format_usage_stat(job_metadata: dict, field: str) -> str:
     unit = deep_get(job_metadata, "usage", field, "unit", default="")
     return f"{value} {unit}".strip()
 
-@staticmethod
 def update_job_row(df: pd.DataFrame, index, updates: dict):
     """Helper to update a job row in the DataFrame."""
     for key, value in updates.items():
