@@ -1089,11 +1089,15 @@ class TestExecuteBatch:
         execute_format,
         expected,
     ):
-        cube = s2cube
         if save_result_format:
-            cube = cube.save_result(format=save_result_format)
+            res = s2cube.save_result(format=save_result_format)
+        else:
+            res = s2cube
+        if execute_format:
+            res.create_job(out_format=execute_format)
+        else:
+            res.create_job()
 
-        cube.create_job(out_format=execute_format)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
         assert pg["saveresult1"] == {
@@ -1105,25 +1109,6 @@ class TestExecuteBatch:
             },
             "result": True,
         }
-
-    @pytest.mark.parametrize(
-        ["save_result_format", "execute_format"],
-        [
-            ("NetCDF", "NetCDF"),
-            ("GTiff", "NetCDF"),
-        ],
-    )
-    def test_save_result_and_create_job_both_with_format(self, s2cube, save_result_format, execute_format):
-        cube = s2cube.save_result(format=save_result_format)
-        with pytest.raises(
-            OpenEoClientException,
-            match=re.escape(
-                "DataCube.create_job() with explicit output format 'NetCDF',"
-                " but the process graph already has `save_result` node(s)"
-                " which is ambiguous and should not be combined."
-            ),
-        ):
-            cube.create_job(out_format=execute_format)
 
     @pytest.mark.parametrize(
         ["auto_add_save_result", "process_ids"],
@@ -1225,10 +1210,15 @@ class TestExecuteBatch:
         execute_format,
         expected,
     ):
-        cube = s2cube
         if save_result_format:
-            cube = cube.save_result(format=save_result_format)
-        cube.execute_batch(out_format=execute_format)
+            res = s2cube.save_result(format=save_result_format)
+        else:
+            res = s2cube
+        if execute_format:
+            res.execute_batch(out_format=execute_format)
+        else:
+            res.execute_batch()
+
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
         assert pg["saveresult1"] == {
@@ -1240,27 +1230,6 @@ class TestExecuteBatch:
             },
             "result": True,
         }
-
-    @pytest.mark.parametrize(
-        ["save_result_format", "execute_format"],
-        [
-            ("NetCDF", "NetCDF"),
-            ("GTiff", "NetCDF"),
-        ],
-    )
-    def test_execute_batch_existing_save_result_incompatible(
-        self, s2cube, save_result_format, execute_format
-    ):
-        cube = s2cube.save_result(format=save_result_format)
-        with pytest.raises(
-            OpenEoClientException,
-            match=re.escape(
-                "DataCube.execute_batch() with explicit output format 'NetCDF',"
-                " but the process graph already has `save_result` node(s)"
-                " which is ambiguous and should not be combined."
-            ),
-        ):
-            cube.execute_batch(out_format=execute_format)
 
     @pytest.mark.parametrize(
         ["save_result_format", "execute_output_file", "expected"],

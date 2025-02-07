@@ -3527,47 +3527,7 @@ def test_apply_append_math_keep_context(con100):
         ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
         ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
         ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
-        (
-            {"format": "GTiff"},
-            "result.tiff",
-            {"format": "GTiff"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
-        (
-            {"format": "netCDF"},
-            "result.tiff",
-            {"format": "NETCDF"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
-        (
-            {"format": "netCDF"},
-            "result.json",
-            {"format": "JSON"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
-        (
-            {"options": {"quality": "low"}},
-            "result.tiff",
-            {"options": {"quality": "low"}},
-            OpenEoClientException(
-                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
-        (
-            {"options": {"colormap": "jet"}},
-            "result.tiff",
-            {"options": {"quality": "low"}},
-            OpenEoClientException(
-                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
     ],
 )
 def test_save_result_and_download(
@@ -3590,17 +3550,15 @@ def test_save_result_and_download(
 
     cube = con100.load_collection("S2")
     if save_result_kwargs:
-        cube = cube.save_result(**save_result_kwargs)
+        res = cube.save_result(**save_result_kwargs)
+    else:
+        res = cube
 
     path = tmp_path / download_filename
-    if isinstance(expected, Exception):
-        with pytest.raises(type(expected), match=re.escape(str(expected))):
-            cube.download(str(path), **download_kwargs)
-        assert post_result_mock.call_count == 0
-    else:
-        cube.download(str(path), **download_kwargs)
-        assert path.read_bytes() == expected
-        assert post_result_mock.call_count == 1
+    res.download(str(path), **download_kwargs)
+
+    assert path.read_bytes() == expected
+    assert post_result_mock.call_count == 1
 
 
 @pytest.mark.parametrize(

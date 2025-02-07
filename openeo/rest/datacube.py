@@ -63,7 +63,9 @@ from openeo.rest._datacube import (
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
+from openeo.rest.stac_resource import StacResource
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
@@ -2332,21 +2334,23 @@ class DataCube(_ProcessGraphAbstraction):
         self,
         format: str = _DEFAULT_RASTER_FORMAT,
         options: Optional[dict] = None,
-    ) -> DataCube:
+    ) -> SaveResult:
         if self._connection:
             formats = set(self._connection.list_output_formats().keys())
             # TODO: map format to correct casing too?
             if format.lower() not in {f.lower() for f in formats}:
                 raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
-        return self.process(
+
+        pg = self._build_pgnode(
             process_id="save_result",
             arguments={
-                "data": THIS,
+                "data": self,
                 "format": format,
                 # TODO: leave out options if unset?
-                "options": options or {}
-            }
+                "options": options or {},
+            },
         )
+        return SaveResult(pg, connection=self._connection)
 
     def download(
         self,
@@ -2384,18 +2388,19 @@ class DataCube(_ProcessGraphAbstraction):
             Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
+            res = _ensure_save_result(
+                cube=self,
                 format=format,
                 options=options,
                 weak_format=guess_format(outputfile) if outputfile else None,
                 default_format=self._DEFAULT_RASTER_FORMAT,
                 method="DataCube.download()",
             )
+        else:
+            res = self
         return self._connection.download(
-            cube.flat_graph(), outputfile, validate=validate, additional=additional, job_options=job_options
+            res.flat_graph(), outputfile=outputfile, validate=validate, additional=additional, job_options=job_options
         )
 
     def validate(self) -> List[dict]:
@@ -2546,18 +2551,21 @@ class DataCube(_ProcessGraphAbstraction):
             out_format = format_options["format"]  # align with 'download' call arg name
 
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
+            res = _ensure_save_result(
+                cube=self,
                 format=out_format,
                 options=format_options,
                 weak_format=guess_format(outputfile) if outputfile else None,
                 default_format=self._DEFAULT_RASTER_FORMAT,
                 method="DataCube.execute_batch()",
             )
+            create_kwargs = {}
+        else:
+            res = self
+            create_kwargs = {"auto_add_save_result": False}
 
-        job = cube.create_job(
+        job = res.create_job(
             title=title,
             description=description,
             plan=plan,
@@ -2565,8 +2573,8 @@ class DataCube(_ProcessGraphAbstraction):
             additional=additional,
             job_options=job_options,
             validate=validate,
-            auto_add_save_result=False,
             log_level=log_level,
+            **create_kwargs,
         )
         return job.run_synchronous(
             outputfile=outputfile,
@@ -2629,17 +2637,19 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
+            res = _ensure_save_result(
+                cube=self,
                 format=out_format,
                 options=format_options or None,
                 default_format=self._DEFAULT_RASTER_FORMAT,
                 method="DataCube.create_job()",
             )
+        else:
+            res = self
+
         return self._connection.create_job(
-            process_graph=cube.flat_graph(),
+            process_graph=res.flat_graph(),
             title=title,
             description=description,
             plan=plan,

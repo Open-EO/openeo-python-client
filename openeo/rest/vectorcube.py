@@ -26,6 +26,8 @@ from openeo.rest._datacube import (
 )
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.result import SaveResult
+from openeo.rest.stac_resource import StacResource
 from openeo.util import InvalidBBoxException, dict_no_none, guess_format, to_bbox_dict
 
 if typing.TYPE_CHECKING:
@@ -191,16 +193,18 @@ class VectorCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None):
+    def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None) -> SaveResult:
         # TODO #401: guard against duplicate save_result nodes?
-        return self.process(
+        pg = self._build_pgnode(
             process_id="save_result",
             arguments={
                 "data": self,
                 "format": format or "GeoJSON",
+                # TODO: leave out options if unset?
                 "options": options or {},
             },
         )
+        return SaveResult(pg, connection=self._connection)
 
     def execute(self, *, validate: Optional[bool] = None) -> dict:
         """Executes the process graph."""
@@ -235,17 +239,18 @@ class VectorCube(_ProcessGraphAbstraction):
             Added ``auto_add_save_result`` option
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
+            res = _ensure_save_result(
+                cube=self,
                 format=format,
                 options=options,
                 weak_format=guess_format(outputfile) if outputfile else None,
                 default_format=self._DEFAULT_VECTOR_FORMAT,
                 method="VectorCube.download()",
             )
-        return self._connection.download(cube.flat_graph(), outputfile=outputfile, validate=validate)
+        else:
+            res = self
+        return self._connection.download(res.flat_graph(), outputfile=outputfile, validate=validate)
 
     def execute_batch(
         self,
@@ -304,17 +309,21 @@ class VectorCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.37.0
             Added argument ``log_level``.
         """
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
+            res = _ensure_save_result(
+                cube=self,
                 format=out_format,
                 options=format_options,
                 weak_format=guess_format(outputfile) if outputfile else None,
                 default_format=self._DEFAULT_VECTOR_FORMAT,
                 method="VectorCube.execute_batch()",
             )
-        job = cube.create_job(
+            create_kwargs = {}
+        else:
+            res = self
+            create_kwargs = {"auto_add_save_result": False}
+
+        job = res.create_job(
             title=title,
             description=description,
             plan=plan,
@@ -322,8 +331,8 @@ class VectorCube(_ProcessGraphAbstraction):
             additional=additional,
             job_options=job_options,
             validate=validate,
-            auto_add_save_result=False,
             log_level=log_level,
+            **create_kwargs,
         )
         return job.run_synchronous(
             # TODO #135 support multi file result sets too

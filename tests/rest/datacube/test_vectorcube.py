@@ -230,48 +230,31 @@ def test_save_result_and_download_filename(
         (None, None, "result.geojson", "GeoJSON"),
         ("GeoJSON", None, None, "GeoJSON"),
         (None, "GeoJSON", None, "GeoJSON"),
-        (
-            "GeoJSON",
-            "GeoJSON",
-            None,
-            OpenEoClientException(
-                "VectorCube.download() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
         (None, "netCDF", None, "netCDF"),
-        (
-            "GeoJson",
-            "netCDF",
-            None,
-            OpenEoClientException(
-                "VectorCube.download() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
     ],
 )
 def test_save_result_and_download_with_format(
     vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
 ):
     if save_result_format:
-        vector_cube = vector_cube.save_result(format=save_result_format)
-    output_path = tmp_path / (output_file or "data")
-
-    def do_it():
-        vector_cube.download(output_path, format=execute_format)
-
-    if isinstance(expected, Exception):
-        with pytest.raises(type(expected), match=re.escape(str(expected))):
-            do_it()
+        res = vector_cube.save_result(format=save_result_format)
     else:
-        do_it()
-        assert dummy_backend.get_pg()["saveresult1"] == {
-            "process_id": "save_result",
-            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
-            "result": True,
-        }
-        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+        res = vector_cube
+
+    output_path = tmp_path / (output_file or "data")
+    if execute_format:
+        res.download(output_path, format=execute_format)
+    else:
+        res.download(output_path)
+
+    assert dummy_backend.get_pg()["saveresult1"] == {
+        "process_id": "save_result",
+        "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+        "result": True,
+    }
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(
@@ -281,48 +264,31 @@ def test_save_result_and_download_with_format(
         (None, None, "result.geojson", "GeoJSON"),
         ("GeoJSON", None, None, "GeoJSON"),
         (None, "GeoJSON", None, "GeoJSON"),
-        (
-            "GeoJSON",
-            "GeoJSON",
-            None,
-            OpenEoClientException(
-                "VectorCube.execute_batch() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
         (None, "netCDF", None, "netCDF"),
-        (
-            "GeoJson",
-            "netCDF",
-            None,
-            OpenEoClientException(
-                "VectorCube.execute_batch() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
-        ),
     ],
 )
 def test_save_result_and_execute_batch_with_format(
     vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
 ):
     if save_result_format:
-        vector_cube = vector_cube.save_result(format=save_result_format)
-    output_path = tmp_path / (output_file or "data")
-
-    def do_it():
-        vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
-
-    if isinstance(expected, Exception):
-        with pytest.raises(type(expected), match=re.escape(str(expected))):
-            do_it()
+        res = vector_cube.save_result(format=save_result_format)
     else:
-        do_it()
-        assert dummy_backend.get_pg()["saveresult1"] == {
-            "process_id": "save_result",
-            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
-            "result": True,
-        }
-        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+        res = vector_cube
+
+    output_path = tmp_path / (output_file or "data")
+    if execute_format:
+        res.execute_batch(outputfile=output_path, out_format=execute_format)
+    else:
+        res.execute_batch(outputfile=output_path)
+
+    assert dummy_backend.get_pg()["saveresult1"] == {
+        "process_id": "save_result",
+        "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+        "result": True,
+    }
+    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(
