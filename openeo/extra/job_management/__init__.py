@@ -536,9 +536,11 @@ class MultiBackendJobManager:
 
 
     def _launch_job_threads(self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None):
-        """Launch jobs dynamically while running threads, ensuring correct backend assignment."""
+        """This function selects which jobs to start, assigns them to available backends,
+         and then uses a thread pool to launch them concurrently."""
+
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
-        results = []
+        stats = stats or collections.defaultdict(int)
         job_assignments = {}
 
         if not not_started.empty:
@@ -552,9 +554,11 @@ class MultiBackendJobManager:
             # Assign jobs to backends before launching threads
             job_assignments = self._assign_jobs_to_backends(not_started, per_backend)
 
+        results = []
+
         with ThreadPoolExecutor(max_workers=self._max_concurrent_job_launch) as executor:
             futures = {
-                executor.submit(self._launch_job, start_job, not_started.loc[i], backend_name, stats): i
+                executor.submit(self._start_job_on_backend, start_job, not_started.loc[i], backend_name): i
                 for i, backend_name in job_assignments.items()
             }
 
@@ -562,12 +566,17 @@ class MultiBackendJobManager:
                 i, job_id, backend_name, status = future.result()
                 results.append((i, job_id, backend_name, status))
 
-            # Update DataFrame safely
-            for i, job_id, backend_name, status in results:
-                not_started.loc[i, "backend_name"] = backend_name
-                not_started.loc[i, "id"] = job_id
-                not_started.loc[i, "start_time"] = rfc3339.utcnow()
-                not_started.loc[i, "status"] = status
+
+        # Update DataFrame safely
+        for i, job_id, backend_name, status in results:
+            stats["start_job call"] += 1
+            stats[f"job_{status}"] += 1
+            self.update_job_row(not_started, i, {
+                "backend_name": backend_name,
+                "id": job_id,
+                "start_time": rfc3339.utcnow(),
+                "status": status
+            })
 
             # Persist updates to the database
             job_db.persist(not_started)
@@ -589,9 +598,8 @@ class MultiBackendJobManager:
             self._cancel_prolonged_job(job, row)
 
 
-    def _launch_job(self, start_job,row, backend_name, stats=None):
-        """Launch a job on a backend. Runs in a worker thread."""
-        stats["start_job call"] += 1
+    def _start_job_on_backend(self, start_job,row, backend_name):
+        """Worker function: Launch a job and return its status, without updating stats."""
         try:
             _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
             connection = self._get_connection(backend_name, resilient=True)
@@ -603,21 +611,20 @@ class MultiBackendJobManager:
                 provider=backend_name,
             )
 
-            if job:
-                with ignore_connection_errors(context="get status"):
-                    status = job.status()
-                    if status == "created":
-                        try:
-                            job.start()
-                            status = job.status()
-                        except OpenEoApiError as e:
-                            _log.error(e)
-                            status = "start_failed"
-
-                return row.name, job.job_id, backend_name, status  # Return job details
-            else:
+            if not job:
                 return row.name, None, backend_name, "skipped"
 
+            with ignore_connection_errors(context="get status"):
+                status = job.status()
+                if status == "created":
+                    try:
+                        job.start()
+                        status = job.status()
+                    except OpenEoApiError as e:
+                        _log.error(f"Job {row.name} failed to start: {e}")
+                        status = "start_failed"
+
+            return row.name, job.job_id, backend_name, status
         except requests.exceptions.ConnectionError:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
             return row.name, None, backend_name, "start_failed"
@@ -735,6 +742,11 @@ class MultiBackendJobManager:
         job_dir = self.get_job_dir(job_id)
         if not job_dir.exists():
             job_dir.mkdir(parents=True)
+    
+    def update_job_row(self, df, index, updates):
+        """Helper function to update a job row in the DataFrame."""
+        for key, value in updates.items():
+            df.loc[index, key] = value
 
     def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None) -> Tuple[List, List, List]:
         """
