@@ -9,7 +9,7 @@ import re
 import time
 import warnings
 from pathlib import Path
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from queue import Queue, Empty
 from typing import (
     Any,
@@ -229,6 +229,7 @@ class MultiBackendJobManager:
         # Queue for passing job outcomes from worker tasks to the output thread.
         self.job_to_run_queue = Queue()
         self.job_output_queue = Queue()
+        self.df_lock = Lock()
         # Event used to signal shutdown of the output thread.
         self.stop_event = Event()
 
@@ -502,8 +503,7 @@ class MultiBackendJobManager:
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
-
-        # Start the output thread.
+        # Start the output thread that will update the dataframe with status updates.
         output_thread = Thread(
             target=lambda: self._output_queue_worker(df, job_db),
             name="output-worker",
@@ -529,6 +529,43 @@ class MultiBackendJobManager:
             output_thread.join()
 
             return stats
+
+
+    def _output_queue_worker(self, df, job_db):
+        try:
+            print("Output worker started processing job updates.", flush=True)
+
+            # Load dataframe from job_db if not provided
+            if df is None:
+                try:
+                    df = job_db.read()
+                    print(f"Loaded dataframe from job_db with {len(df)} rows.", flush=True)
+                except Exception as e:
+                    print(f"Failed to load dataframe from job_db: {e}", flush=True)
+                    return
+
+            while True:
+                item = self.job_output_queue.get(timeout=1)
+                if item is None:
+                    print("Output worker received shutdown signal.", flush=True)
+                    self.job_output_queue.task_done()
+                    break
+                
+                i, status = item
+                print(f"Output worker processing row {i}: '{status}'", flush=True)
+
+                with self.df_lock:
+                    # Update the dataframe
+                    df.loc[i, "status"] = status
+                    print(f"Updated dataframe row {i}: {df.loc[i].to_dict()}", flush=True)
+                    # Persist the updated row to the job database
+                    job_db.persist(df.loc[[i]])
+                
+                print(f"Persisted row {i} to job database.", flush=True)
+                self.job_output_queue.task_done()
+
+        except Exception as e:
+            print(f"Output worker crashed: {e}", flush=True)
 
     def _job_update_loop(
         self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
@@ -563,11 +600,12 @@ class MultiBackendJobManager:
                 #TODO move to threads for full parallelism
                 i, connection, job_id = self.job_to_run_queue.get()
                 try:
-                    self._launch_job(not_started, i, connection, job_id, stats)
+                    self._launch_job(i, connection, job_id, stats)
                     stats["job launch"] += 1
 
-                    # out of thread
-                    job_db.persist(not_started.loc[i : i + 1])
+                    # TODO move to output thread?
+                    with self.df_lock:
+                        job_db.persist(not_started.loc[i : i + 1])
                     stats["job_db persist"] += 1
                     total_added += 1
 
@@ -644,54 +682,35 @@ class MultiBackendJobManager:
             total_added += len(indices_to_add)
 
 
-    def _launch_job(self, df, i, connection, job_id, stats):
-        """Helper method for launching jobs
-
-        :param start_job:
-            A callback which will be invoked with the row of the dataframe for which a job should be started.
-            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.
-
-            See also:
-            `MultiBackendJobManager.run_jobs` for the parameters and return type of this callable
-
-            Even though it is called here in `_launch_job` and that is where the constraints
-            really come from, the public method `run_jobs` needs to document `start_job` anyway,
-            so let's avoid duplication in the docstrings.
-
-        :param df:
-            DataFrame that specifies the jobs, and tracks the jobs' statuses.
-
-        :param i:
-            index of the job's row in dataframe df
-
-        :param backend_name:
-            name of the backend that will execute the job.
+    def _launch_job(self, i, connection, job_id, stats):
+        """
+        Helper method for launching jobs.
+        
+        Instead of updating the dataframe directly, this method obtains the job status
+        and then puts (i, status) into the job_output_queue.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
-        #TODO move towards bearer token authentication --> see latest push Stefaan
-        #connection = Connection(url=root_url).authenticate_oidc_access_token(access_token=access_token, provider_id=provider_id)
-        
-        #TODO remove from launch_job
         job = connection.job(job_id)
+        
         with ignore_connection_errors(context="get status"):
             status = job.status()
             stats["job get status"] += 1
-            df.loc[i, "status"] = status
+
             if status == "created":
-                # start job if not yet done by callback
                 try:
-                    connection.post(f"/jobs/{job_id}/results", expected_status=202)
-
+                    job.start()
                     stats["job start"] += 1
-
-                    #TODO remove from launch_job
+                    # After starting, get the updated status.
                     job = connection.job(job_id)
-                    df.loc[i, "status"] = job.status()
+                    status = job.status()
                     stats["job get status"] += 1
                 except OpenEoApiError as e:
                     _log.error(e)
-                    df.loc[i, "status"] = "start_failed"
+                    status = "start_failed"
                     stats["job start error"] += 1
+
+        # Instead of updating the dataframe, push the outcome to the output queue.
+        self.job_output_queue.put((i, status))
             
 
     def on_job_done(self, job: BatchJob, row):
@@ -766,44 +785,6 @@ class MultiBackendJobManager:
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
-    def _output_queue_worker(self,
-        df: Optional[pd.DataFrame] = None,
-        job_db: Union[str, Path, JobDatabaseInterface, None] = None,):
-        """
-        Dedicated thread that:
-         - Constantly checks the output queue for job outcomes.
-         - For each result, it updates the DataFrame (optionally calling job.status())
-           and persists the updated row via the job database.
-        """
-        while True:
-            try:
-                item = self.job_output_queue.get(timeout=self.poll_sleep)
-            except Empty:
-                if self.stop_event.is_set():
-                    break
-                continue
-
-            if item is None:  # Sentinel to signal shutdown.
-                break
-
-            index, outcome, job = item
-
-            # Update the DataFrame.
-            df.loc[index, "status"] = outcome
-            if outcome == "started":
-                try:
-                    status = job.status()
-                except Exception as e:
-                    _log.error(f"Error retrieving status for index {index}: {e}", exc_info=True)
-                    status = "status_error"
-                df.loc[index, "status"] = status
-
-            # Persist the updated row.
-            try:
-                job_db.persist(self.df.loc[index : index + 1])
-            except Exception as persist_err:
-                _log.error(f"Error persisting update for index {index}: {persist_err}")
-            self.job_output_queue.task_done()
 
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
@@ -828,72 +809,73 @@ class MultiBackendJobManager:
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
-        stats = stats if stats is not None else collections.defaultdict(int)
+        with self.df_lock:
+            stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+            active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
 
-        jobs_done = []
-        jobs_error = []
-        jobs_cancel = []
+            jobs_done = []
+            jobs_error = []
+            jobs_cancel = []
 
-        for i in active.index:
-            job_id = active.loc[i, "id"]
-            backend_name = active.loc[i, "backend_name"]
-            previous_status = active.loc[i, "status"]
+            for i in active.index:
+                job_id = active.loc[i, "id"]
+                backend_name = active.loc[i, "backend_name"]
+                previous_status = active.loc[i, "status"]
 
-            try:
-                con = self._get_connection(backend_name)
-                the_job = con.job(job_id)
-                job_metadata = the_job.describe()
-                stats["job describe"] += 1
-                new_status = job_metadata["status"]
+                try:
+                    con = self._get_connection(backend_name)
+                    the_job = con.job(job_id)
+                    job_metadata = the_job.describe()
+                    stats["job describe"] += 1
+                    new_status = job_metadata["status"]
 
-                _log.info(
-                    f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
-                )
+                    _log.info(
+                        f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
+                    )
 
-                if new_status == "finished":
-                    stats["job finished"] += 1
-                    jobs_done.append((the_job, active.loc[i]))
+                    if new_status == "finished":
+                        stats["job finished"] += 1
+                        jobs_done.append((the_job, active.loc[i]))
 
-                if previous_status != "error" and new_status == "error":
-                    stats["job failed"] += 1
-                    jobs_error.append((the_job, active.loc[i]))
+                    if previous_status != "error" and new_status == "error":
+                        stats["job failed"] += 1
+                        jobs_error.append((the_job, active.loc[i]))
 
-                if new_status == "canceled":
-                    stats["job canceled"] += 1
-                    jobs_cancel.append((the_job, active.loc[i]))
+                    if new_status == "canceled":
+                        stats["job canceled"] += 1
+                        jobs_cancel.append((the_job, active.loc[i]))
 
-                if previous_status in {"created", "queued"} and new_status == "running":
-                    stats["job started running"] += 1
-                    active.loc[i, "running_start_time"] = rfc3339.utcnow()
-
-                if self._cancel_running_job_after and new_status == "running":
-                    if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
-                        _log.warning(
-                            f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
-                            )
+                    if previous_status in {"created", "queued"} and new_status == "running":
                         stats["job started running"] += 1
                         active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    self._cancel_prolonged_job(the_job, active.loc[i])
+                    if self._cancel_running_job_after and new_status == "running":
+                        if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                            _log.warning(
+                                f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
+                                )
+                            stats["job started running"] += 1
+                            active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                active.loc[i, "status"] = new_status
+                        self._cancel_prolonged_job(the_job, active.loc[i])
 
-                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
-                for key in job_metadata.get("usage", {}).keys():
-                    if key in active.columns:
-                        active.loc[i, key] = _format_usage_stat(job_metadata, key)
-                if "costs" in job_metadata.keys():
-                    active.loc[i, "costs"] = job_metadata.get("costs")
+                    active.loc[i, "status"] = new_status
 
-            except OpenEoApiError as e:
-                # TODO: inspect status code and e.g. differentiate between 4xx/5xx
-                stats["job tracking error"] += 1
-                _log.warning(f"Error while tracking status of job {job_id!r} on backend {backend_name}: {e!r}")
+                    # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
+                    for key in job_metadata.get("usage", {}).keys():
+                        if key in active.columns:
+                            active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    if "costs" in job_metadata.keys():
+                        active.loc[i, "costs"] = job_metadata.get("costs")
 
-        stats["job_db persist"] += 1
-        job_db.persist(active)
+                except OpenEoApiError as e:
+                    # TODO: inspect status code and e.g. differentiate between 4xx/5xx
+                    stats["job tracking error"] += 1
+                    _log.warning(f"Error while tracking status of job {job_id!r} on backend {backend_name}: {e!r}")
+
+            stats["job_db persist"] += 1
+            job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
 
