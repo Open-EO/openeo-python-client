@@ -601,6 +601,10 @@ class MultiBackendJobManager:
 
                 _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
                 connection = self._get_connection(backend_name, resilient=True)
+                root_url = connection.root_url
+                _, provider_id, access_token = connection.auth.bearer.split('/',3)
+
+
                 stats["start_job call"] += 1
 
                 try:
@@ -611,6 +615,8 @@ class MultiBackendJobManager:
                         connection=connection,
                         provider=backend_name,
                     )
+                    job_id = job.job_id
+
 
                 except requests.exceptions.ConnectionError as e:
                     _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
@@ -622,7 +628,7 @@ class MultiBackendJobManager:
                     if job:
                         not_started.loc[i, "start_time"] = rfc3339.utcnow()
                         not_started.loc[i, "id"] = job.job_id
-                        job_queue.put((i, job))
+                        job_queue.put((i, root_url,provider_id, access_token, job_id))
 
                     else:
                         # TODO: what is this "skipping" about actually?
@@ -634,7 +640,7 @@ class MultiBackendJobManager:
         return job_queue
 
 
-    def _launch_job(self, df, i, job, stats):
+    def _launch_job(self, df, i, root_url, provider_id, access_token, job_id, stats):
         """Helper method for launching jobs
 
         :param start_job:
@@ -658,7 +664,10 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
-                
+        connection = Connection(url=root_url).authenticate_oidc_access_token(access_token=access_token, provider_id=provider_id)
+        
+        #TODO remove from launch_job
+        job = connection.job(job_id)
         with ignore_connection_errors(context="get status"):
             status = job.status()
             stats["job get status"] += 1
@@ -666,8 +675,12 @@ class MultiBackendJobManager:
             if status == "created":
                 # start job if not yet done by callback
                 try:
-                    job.start()
+                    connection.post(f"/jobs/{job_id}/results", expected_status=202)
+
                     stats["job start"] += 1
+
+                    #TODO remove from launch_job
+                    job = connection.job(job_id)
                     df.loc[i, "status"] = job.status()
                     stats["job get status"] += 1
                 except OpenEoApiError as e:
