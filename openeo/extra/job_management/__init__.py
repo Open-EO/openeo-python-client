@@ -546,25 +546,30 @@ class MultiBackendJobManager:
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
 
+        #TODO: Move the not started logic into get_jobs to launch, once we no longer parse the whole dataframe
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
-            _log.info(f"Running per backend: {per_backend}")
-            total_added = 0
-            for backend_name in self.backends:
-                backend_load = per_backend.get(backend_name, 0)
-                if backend_load < self.backends[backend_name].parallel_jobs:
-                    to_add = self.backends[backend_name].parallel_jobs - backend_load
-                    for i in not_started.index[total_added : total_added + to_add]:
-                        self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
-                        stats["job launch"] += 1
 
-                        job_db.persist(not_started.loc[i : i + 1])
-                        stats["job_db persist"] += 1
-                        total_added += 1
+            job_queue = self._get_jobs_to_launch(not_started, per_backend)
+            while not job_queue.empty():
+
+                i, row = job_queue.get()
+                try:
+                    self._launch_job(start_job, not_started, i, row, stats)
+                    stats["job launch"] += 1
+
+                    job_db.persist(not_started.loc[i : i + 1])
+                    stats["job_db persist"] += 1
+                    total_added += 1
+
+                except Exception as e:
+                    _log.error(f"Job launch failed for index {i}: {e}")
+                finally:
+                    job_queue.task_done()
 
         # Act on jobs
         for job, row in jobs_done:
@@ -576,8 +581,29 @@ class MultiBackendJobManager:
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
 
+    def _get_jobs_to_launch(self, not_started: pd.DataFrame, per_backend: Dict[str, int]) -> Queue:
+        """Determines which jobs to launch based on backend availability and fills a queue."""
+        job_queue = Queue()
+        total_added = 0
 
-    def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
+        for backend_name in self.backends:
+            backend_load = per_backend.get(backend_name, 0)
+            available_slots = self.backends[backend_name].parallel_jobs - backend_load
+
+            indices_to_add = not_started.index[total_added : total_added + available_slots]
+
+            for i in indices_to_add:
+                not_started.loc[i, "backend_name"] = backend_name
+                row = not_started.loc[i]
+
+                job_queue.put((i, row))
+
+            total_added += len(indices_to_add)
+
+        return job_queue
+
+
+    def _launch_job(self, start_job, df, i, row, stats: Optional[dict] = None):
         """Helper method for launching jobs
 
         :param start_job:
@@ -601,14 +627,13 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
-
-        df.loc[i, "backend_name"] = backend_name
-        row = df.loc[i]
+        backend_name = row["backend_name"]
+        
         try:
             _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
             connection = self._get_connection(backend_name, resilient=True)
-
             stats["start_job call"] += 1
+
             job = start_job(
                 row=row,
                 connection_provider=self._get_connection,
