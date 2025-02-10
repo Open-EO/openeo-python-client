@@ -225,8 +225,9 @@ class MultiBackendJobManager:
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
         self._thread = None
-        self._max_workers = 4
+        self._max_workers = 1
         # Queue for passing job outcomes from worker tasks to the output thread.
+        self.job_to_run_queue = Queue()
         self.job_output_queue = Queue()
         # Event used to signal shutdown of the output thread.
         self.stop_event = Event()
@@ -510,7 +511,7 @@ class MultiBackendJobManager:
         )
         output_thread.start()
 
-        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor: # workers constantly look into queue, launch job or else sleep
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
@@ -521,7 +522,7 @@ class MultiBackendJobManager:
                 stats["sleep"] += 1
 
 
-            # Wait for any remaining tasks to complete.
+            # Wait for any remaining tasks to complete. TODO make sure that queue is empty as well
             executor.shutdown(wait=True)
              # Signal the output thread to stop.
             self.job_output_queue.put(None)
@@ -554,14 +555,18 @@ class MultiBackendJobManager:
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
 
-            job_queue = self._get_jobs_to_launch(start_job, not_started, per_backend, stats)
-            while not job_queue.empty():
+            self._get_jobs_to_launch(start_job, not_started, per_backend, stats)
+            
 
-                i, job = job_queue.get()
+            while not self.job_to_run_queue.empty():
+
+                #TODO move to threads for full parallelism
+                i, connection, job_id = self.job_to_run_queue.get()
                 try:
-                    self._launch_job(not_started, i, job, stats)
+                    self._launch_job(not_started, i, connection, job_id, stats)
                     stats["job launch"] += 1
 
+                    # out of thread
                     job_db.persist(not_started.loc[i : i + 1])
                     stats["job_db persist"] += 1
                     total_added += 1
@@ -569,7 +574,7 @@ class MultiBackendJobManager:
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
                 finally:
-                    job_queue.task_done()
+                    self.job_to_run_queue.task_done()
 
         # Act on jobs
         for job, row in jobs_done:
@@ -586,7 +591,7 @@ class MultiBackendJobManager:
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        job_queue = Queue()
+        #TODO not make within function call but attribute in init
         total_added = 0
 
         for backend_name in self.backends:
@@ -601,8 +606,9 @@ class MultiBackendJobManager:
 
                 _log.info(f"Starting job on backend {backend_name} for {row.to_dict()}")
                 connection = self._get_connection(backend_name, resilient=True)
-                root_url = connection.root_url
-                _, provider_id, access_token = connection.auth.bearer.split('/',3)
+                #TODO move towards bearer token authentication --> see latest push Stefaan
+                #root_url = connection.root_url
+                #_, provider_id, access_token = connection.auth.bearer.split('/',3)
 
 
                 stats["start_job call"] += 1
@@ -628,7 +634,7 @@ class MultiBackendJobManager:
                     if job:
                         not_started.loc[i, "start_time"] = rfc3339.utcnow()
                         not_started.loc[i, "id"] = job.job_id
-                        job_queue.put((i, root_url,provider_id, access_token, job_id))
+                        self.job_to_run_queue.put((i, connection, job_id))
 
                     else:
                         # TODO: what is this "skipping" about actually?
@@ -637,10 +643,8 @@ class MultiBackendJobManager:
 
             total_added += len(indices_to_add)
 
-        return job_queue
 
-
-    def _launch_job(self, df, i, root_url, provider_id, access_token, job_id, stats):
+    def _launch_job(self, df, i, connection, job_id, stats):
         """Helper method for launching jobs
 
         :param start_job:
@@ -664,7 +668,8 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
-        connection = Connection(url=root_url).authenticate_oidc_access_token(access_token=access_token, provider_id=provider_id)
+        #TODO move towards bearer token authentication --> see latest push Stefaan
+        #connection = Connection(url=root_url).authenticate_oidc_access_token(access_token=access_token, provider_id=provider_id)
         
         #TODO remove from launch_job
         job = connection.job(job_id)
