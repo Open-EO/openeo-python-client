@@ -230,31 +230,47 @@ def test_save_result_and_download_filename(
         (None, None, "result.geojson", "GeoJSON"),
         ("GeoJSON", None, None, "GeoJSON"),
         (None, "GeoJSON", None, "GeoJSON"),
+        (
+            "GeoJSON",
+            "GeoJSON",
+            None,
+            TypeError("got an unexpected keyword argument 'format'"),
+        ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
         (None, "netCDF", None, "netCDF"),
+        (
+            "GeoJson",
+            "netCDF",
+            None,
+            TypeError("got an unexpected keyword argument 'format'"),
+        ),
     ],
 )
 def test_save_result_and_download_with_format(
     vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
 ):
     if save_result_format:
-        res = vector_cube.save_result(format=save_result_format)
-    else:
-        res = vector_cube
-
+        vector_cube = vector_cube.save_result(format=save_result_format)
     output_path = tmp_path / (output_file or "data")
-    if execute_format:
-        res.download(output_path, format=execute_format)
-    else:
-        res.download(output_path)
 
-    assert dummy_backend.get_pg()["saveresult1"] == {
-        "process_id": "save_result",
-        "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
-        "result": True,
-    }
-    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+    def do_it():
+        if execute_format:
+            vector_cube.download(output_path, format=execute_format)
+        else:
+            vector_cube.download(output_path)
+
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
+            do_it()
+    else:
+        do_it()
+        assert dummy_backend.get_pg()["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+            "result": True,
+        }
+        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(
@@ -264,31 +280,47 @@ def test_save_result_and_download_with_format(
         (None, None, "result.geojson", "GeoJSON"),
         ("GeoJSON", None, None, "GeoJSON"),
         (None, "GeoJSON", None, "GeoJSON"),
+        (
+            "GeoJSON",
+            "GeoJSON",
+            None,
+            TypeError("got an unexpected keyword argument 'out_format'"),
+        ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
         (None, "netCDF", None, "netCDF"),
+        (
+            "GeoJson",
+            "netCDF",
+            None,
+            TypeError("got an unexpected keyword argument 'out_format'"),
+        ),
     ],
 )
 def test_save_result_and_execute_batch_with_format(
     vector_cube, dummy_backend, tmp_path, save_result_format, execute_format, output_file, expected
 ):
     if save_result_format:
-        res = vector_cube.save_result(format=save_result_format)
-    else:
-        res = vector_cube
-
+        vector_cube = vector_cube.save_result(format=save_result_format)
     output_path = tmp_path / (output_file or "data")
-    if execute_format:
-        res.execute_batch(outputfile=output_path, out_format=execute_format)
-    else:
-        res.execute_batch(outputfile=output_path)
 
-    assert dummy_backend.get_pg()["saveresult1"] == {
-        "process_id": "save_result",
-        "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
-        "result": True,
-    }
-    assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
+    def do_it():
+        if execute_format:
+            vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
+        else:
+            vector_cube.execute_batch(outputfile=output_path)
+
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
+            do_it()
+    else:
+        do_it()
+        assert dummy_backend.get_pg()["saveresult1"] == {
+            "process_id": "save_result",
+            "arguments": {"data": {"from_node": "loadgeojson1"}, "format": expected, "options": {}},
+            "result": True,
+        }
+        assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
 @pytest.mark.parametrize(

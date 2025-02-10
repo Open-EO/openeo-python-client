@@ -1111,6 +1111,18 @@ class TestExecuteBatch:
         }
 
     @pytest.mark.parametrize(
+        ["save_result_format", "execute_format"],
+        [
+            ("NetCDF", "NetCDF"),
+            ("GTiff", "NetCDF"),
+        ],
+    )
+    def test_save_result_and_create_job_both_with_format(self, s2cube, save_result_format, execute_format):
+        cube = s2cube.save_result(format=save_result_format)
+        with pytest.raises(TypeError, match="got an unexpected keyword argument 'out_format'"):
+            cube.create_job(out_format=execute_format)
+
+    @pytest.mark.parametrize(
         ["auto_add_save_result", "process_ids"],
         [
             (True, {"load_collection", "save_result"}),
@@ -1230,6 +1242,18 @@ class TestExecuteBatch:
             },
             "result": True,
         }
+
+    @pytest.mark.parametrize(
+        ["save_result_format", "execute_format"],
+        [
+            ("NetCDF", "NetCDF"),
+            ("GTiff", "NetCDF"),
+        ],
+    )
+    def test_execute_batch_existing_save_result_incompatible(self, s2cube, save_result_format, execute_format):
+        cube = s2cube.save_result(format=save_result_format)
+        with pytest.raises(TypeError, match="got an unexpected keyword argument 'out_format'"):
+            cube.execute_batch(out_format=execute_format)
 
     @pytest.mark.parametrize(
         ["save_result_format", "execute_output_file", "expected"],

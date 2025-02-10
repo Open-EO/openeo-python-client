@@ -3527,7 +3527,37 @@ def test_apply_append_math_keep_context(con100):
         ({}, "result.tiff", {"format": "GTiff"}, b"this is GTiff data"),
         ({}, "result.nc", {"format": "netCDF"}, b"this is netCDF data"),
         ({}, "result.meh", {"format": "netCDF"}, b"this is netCDF data"),
+        (
+            {"format": "GTiff"},
+            "result.tiff",
+            {"format": "GTiff"},
+            TypeError("got an unexpected keyword argument 'format'"),
+        ),
+        (
+            {"format": "netCDF"},
+            "result.tiff",
+            {"format": "NETCDF"},
+            TypeError("got an unexpected keyword argument 'format'"),
+        ),
+        (
+            {"format": "netCDF"},
+            "result.json",
+            {"format": "JSON"},
+            TypeError("got an unexpected keyword argument 'format'"),
+        ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
+        (
+            {"options": {"quality": "low"}},
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            TypeError("got an unexpected keyword argument 'options'"),
+        ),
+        (
+            {"options": {"colormap": "jet"}},
+            "result.tiff",
+            {"options": {"quality": "low"}},
+            TypeError("got an unexpected keyword argument 'options'"),
+        ),
     ],
 )
 def test_save_result_and_download(
@@ -3550,15 +3580,17 @@ def test_save_result_and_download(
 
     cube = con100.load_collection("S2")
     if save_result_kwargs:
-        res = cube.save_result(**save_result_kwargs)
-    else:
-        res = cube
+        cube = cube.save_result(**save_result_kwargs)
 
     path = tmp_path / download_filename
-    res.download(str(path), **download_kwargs)
-
-    assert path.read_bytes() == expected
-    assert post_result_mock.call_count == 1
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=re.escape(str(expected))):
+            cube.download(str(path), **download_kwargs)
+        assert post_result_mock.call_count == 0
+    else:
+        cube.download(str(path), **download_kwargs)
+        assert path.read_bytes() == expected
+        assert post_result_mock.call_count == 1
 
 
 @pytest.mark.parametrize(
