@@ -20,6 +20,9 @@ from openeo.internal.jupyter import (
 from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+    DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+    DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX,
     JobFailedException,
     OpenEoApiError,
     OpenEoApiPlainError,
@@ -223,8 +226,8 @@ class BatchJob:
         self,
         outputfile: Union[str, Path, None] = None,
         print=print,
-        max_poll_interval=60,
-        connection_retry_interval=30,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
         show_error_logs: bool = True,
     ) -> BatchJob:
         """
@@ -232,7 +235,7 @@ class BatchJob:
 
         :param outputfile: The path of a file to which a result can be written
         :param print: print/logging function to show progress/status
-        :param max_poll_interval: maximum number of seconds to sleep between status polls
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
@@ -253,16 +256,16 @@ class BatchJob:
     def start_and_wait(
         self,
         print=print,
-        max_poll_interval: int = 60,
-        connection_retry_interval: int = 30,
-        soft_error_max=10,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+        soft_error_max: int = DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX,
         show_error_logs: bool = True,
     ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
 
         :param print: print/logging function to show progress/status
-        :param max_poll_interval: maximum number of seconds to sleep between status polls
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.

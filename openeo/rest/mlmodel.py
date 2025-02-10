@@ -7,6 +7,10 @@ from typing import Optional, Union
 
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
+from openeo.rest import (
+    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+    DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+)
 from openeo.rest._datacube import _ProcessGraphAbstraction
 from openeo.rest.job import BatchJob
 
@@ -67,8 +71,8 @@ class MlModel(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         print=print,
-        max_poll_interval=60,
-        connection_retry_interval=30,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         show_error_logs: bool = True,
@@ -90,6 +94,8 @@ class MlModel(_ProcessGraphAbstraction):
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
 
         .. versionchanged:: 0.36.0
             Added argument ``additional``.

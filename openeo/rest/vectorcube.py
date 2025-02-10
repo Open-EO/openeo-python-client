@@ -13,6 +13,10 @@ from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
 from openeo.metadata import CollectionMetadata, CubeMetadata, Dimension
+from openeo.rest import (
+    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+    DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+)
 from openeo.rest._datacube import (
     THIS,
     UDF,
@@ -253,8 +257,8 @@ class VectorCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         print=print,
-        max_poll_interval: float = 60,
-        connection_retry_interval: float = 30,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
@@ -282,6 +286,8 @@ class VectorCube(_ProcessGraphAbstraction):
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.

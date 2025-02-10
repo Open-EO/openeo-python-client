@@ -46,7 +46,13 @@ from openeo.metadata import (
     metadata_from_stac,
 )
 from openeo.processes import ProcessBuilder
-from openeo.rest import BandMathException, OpenEoClientException, OperatorException
+from openeo.rest import (
+    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+    DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+    BandMathException,
+    OpenEoClientException,
+    OperatorException,
+)
 from openeo.rest._datacube import (
     THIS,
     UDF,
@@ -2492,8 +2498,8 @@ class DataCube(_ProcessGraphAbstraction):
         plan: Optional[str] = None,
         budget: Optional[float] = None,
         print: typing.Callable[[str], None] = print,
-        max_poll_interval: float = 60,
-        connection_retry_interval: float = 30,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
@@ -2520,6 +2526,8 @@ class DataCube(_ProcessGraphAbstraction):
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option

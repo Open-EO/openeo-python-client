@@ -6,6 +6,10 @@ from openeo import BaseOpenEoException
 DEFAULT_DOWNLOAD_CHUNK_SIZE = 10_000_000  # 10MB
 
 
+DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX = 60
+DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL = 30
+DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX = 10
+
 class OpenEoClientException(BaseOpenEoException):
     """Base class for OpenEO client exceptions"""
     pass
