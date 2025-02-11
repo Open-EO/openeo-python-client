@@ -37,32 +37,48 @@ def test_schema_accepts_geojson(schema, expected):
 
 
 @pytest.mark.parametrize(
-        "schema",
-        [
-            Schema([
-                {"x1": "y1"},
-                {"x2": "y2"},
-                {"x3": "y3"},
-                {"x5": "y3"},
-            ]),
-            Schema({"x1":"y1","x2":"y2","x3": "y3","x5": "y3"})
-        ],
-    )
-@pytest.mark.parametrize(("key", "expected"), [("x1", "y1"), ("x2", "y2"), ("x4", None)])
-def test_get_enum_options(schema, key, expected):
-    assert schema.get_enum_options(key) == expected
+    ("schema", "expected"),
+    [
+        (
+            Schema(
+                {
+                    "type": "string",
+                    "enum": [
+                        "average",
+                        "bilinear",
+                        "cubic",
+                        "cubicspline",
+                        "lanczos",
+                        "max",
+                        "med",
+                        "min",
+                        "mode",
+                        "near",
+                    ],
+                }
+            ),
+            ["average", "bilinear", "cubic", "cubicspline", "lanczos", "max", "med", "min", "mode", "near"],
+        ),
+        (
+            Schema([{"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]}, {"type": "number"}]),
+            ["replicate", "reflect", "reflect_pixel", "wrap"],
+        ),
+    ],
+)
+def test_get_enum_options(schema, expected):
+    schema.get_enum_options()
+    assert schema.get_enum_options() == expected
 
-@pytest.mark.parametrize("key",["x2","x3",])
-def test_get_enum_options_error(key):
-    schema = Schema([
-                {"x1": "y1"},
-                {"x2": "y2"},
-                {"x3": "y3"},
-                {"x3": "y4"},
-                {"x2": "y1"},
-            ])
+
+def test_get_enum_options_error():
+    schema = Schema(
+        [
+            {"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]},
+            {"type": "number", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]},
+        ]
+    )
     with pytest.raises(ValueError):
-        schema.get_enum_options(key)
+        schema.get_enum_options()
 
 
 def test_parameter():

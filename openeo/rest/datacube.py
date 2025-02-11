@@ -2725,15 +2725,15 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def sar_backscatter(
-            self,
-            coefficient: Union[str, None] = "gamma0-terrain",
-            elevation_model: Union[str, None] = None,
-            mask: bool = False,
-            contributing_area: bool = False,
-            local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False,
-            noise_removal: bool = True,
-            options: Optional[dict] = None
+        self,
+        coefficient: Union[str, None] = "default",
+        elevation_model: Union[str, None] = None,
+        mask: bool = False,
+        contributing_area: bool = False,
+        local_incidence_angle: bool = False,
+        ellipsoid_incidence_angle: bool = False,
+        noise_removal: bool = True,
+        options: Optional[dict] = None,
     ) -> DataCube:
         """
         Computes backscatter from SAR input.
@@ -2769,8 +2769,13 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
         try:
-            schema = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter("coefficient").schema
-            coefficient_options = schema.get_enum_options("enum") + [None]
+            parameter = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter(
+                "coefficient"
+            )
+            schema = parameter.schema
+            coefficient_options = schema.get_enum_options() + [None]
+            if coefficient == "default":
+                coefficient = parameter.default
         except Exception as e:
             log.warning(f"Failed to extract coefficient options for process `sar_backscatter`: {e}")
             coefficient_options = [
@@ -2781,6 +2786,8 @@ class DataCube(_ProcessGraphAbstraction):
                 "gamma0-terrain",
                 None,
             ]
+            if coefficient == "default":
+                coefficient = "gamma0-terrain"
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options

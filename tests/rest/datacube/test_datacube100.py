@@ -2837,7 +2837,7 @@ def test_sar_backscatter_check_coefficient_backend(con100, requests_mock):
             "summary": "Computes backscatter from SAR input",
             "parameters": [
                 {
-                    "default": "gamma0-terrain",
+                    "default": "gamma0-ellipsoid",
                     "description": "Select the radiometric correction coefficient.",
                     "name": "coefficient",
                     "schema": [
@@ -2863,7 +2863,7 @@ def test_sar_backscatter_check_coefficient_backend(con100, requests_mock):
         "process_id": "sar_backscatter",
         "arguments": {
             "data": {"from_node": "loadcollection1"},
-            "coefficient": "gamma0-terrain",
+            "coefficient": "gamma0-ellipsoid",
             "elevation_model": None,
             "mask": False,
             "contributing_area": False,

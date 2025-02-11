@@ -43,18 +43,18 @@ class Schema(typing.NamedTuple):
             return any(is_geojson_schema(s) for s in self.schema)
         return False
 
-    def get_enum_options(self,name):
+    def get_enum_options(self):
         result = None
         if isinstance(self.schema,list):
             for item in self.schema:
-                if name in item:
+                if "enum" in item:
                     if result is None:
-                        result = item[name]
+                        result = item["enum"]
                     else:
-                        raise ValueError("Multiple entries found with name {v}.".format(v=name))
+                        raise ValueError("Multiple entries found for enum options.")
         elif isinstance(self.schema,dict):
-            if name in self.schema:
-                result = self.schema[name]
+            if "enum" in self.schema:
+                result = self.schema["enum"]
         return result
 
 
