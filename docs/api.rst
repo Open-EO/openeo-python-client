@@ -47,8 +47,17 @@ openeo.rest.mlmodel
    :inherited-members:
 
 
-openeo.rest.multiresult
------------------------
+
+
+Results
+--------
+
+.. automodule:: openeo.rest.result
+   :members:
+
+.. automodule:: openeo.rest.stac_resource
+   :members:
+
 
 .. automodule:: openeo.rest.multiresult
    :members: MultiResult

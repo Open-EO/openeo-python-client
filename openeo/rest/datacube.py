@@ -2369,7 +2369,7 @@ class DataCube(_ProcessGraphAbstraction):
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
 
-        :param outputfile: Optional, an output file if the result needs to be stored on disk.
+        :param outputfile: Optional, output path to download to.
         :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
@@ -2515,13 +2515,29 @@ class DataCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
-        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+        Execute the underlying process graph at the backend in batch job mode:
 
-        For very long-running jobs, you probably do not want to keep the client running.
+        - create the job (like :py:meth:`create_job`)
+        - start the job (like :py:meth:`BatchJob.start() <openeo.rest.job.BatchJob.start>`)
+        - track the job's progress with an active polling loop
+          (like :py:meth:`BatchJob.run_synchronous() <openeo.rest.job.BatchJob.run_synchronous>`)
+        - optionally (if ``outputfile`` is specified) download the job's results
+          when the job finished successfully
 
-        :param outputfile: The path of a file to which a result can be written
+        .. note::
+            Because of the active polling loop,
+            which blocks any further progress of your script or application,
+            this :py:meth:`execute_batch` method is mainly recommended
+            for batch jobs that are expected to complete
+            in a time that is reasonable for your use case.
+
+        :param outputfile: Optional, output path to download to.
         :param out_format: (optional) File format to use for the job result.
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
         :param additional: additional (top-level) properties to set in the request body
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
@@ -2601,17 +2617,19 @@ class DataCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Sends the datacube's process graph as a batch job to the back-end
-        and return a :py:class:`~openeo.rest.job.BatchJob` instance.
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
 
-        Note that the batch job will just be created at the back-end,
-        it still needs to be started and tracked explicitly.
-        Use :py:meth:`execute_batch` instead to have the openEO Python client take care of that job management.
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
 
         :param out_format: output file format.
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with.
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
         :param additional: additional (top-level) properties to set in the request body

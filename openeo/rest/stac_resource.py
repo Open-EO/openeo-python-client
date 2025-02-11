@@ -20,14 +20,17 @@ if typing.TYPE_CHECKING:
 class StacResource(_ProcessGraphAbstraction):
     """
     Handle for a progress graph node that represents a STAC resource (object with subtype "stac"),
-    e.g. as returned by `save_result`,  or handled by `export_workspace`/`stac_modify`.
-
+    e.g. as returned by openEO process ``save_result``,
+    or handled by openEO processes ``export_workspace``/``stac_modify``.
 
     Refers to a STAC resource of any type (Catalog, Collection, or Item).
     It can refer to:
+
     - static STAC resources, e.g. hosted on cloud storage
     - dynamic STAC resources made available via a STAC API
     - a STAC JSON representation embedded as an argument into an openEO user-defined process
+
+    .. versionadded:: 0.39.0
     """
 
     def __init__(self, graph: PGNode, connection: Optional[Connection] = None):
@@ -59,7 +62,21 @@ class StacResource(_ProcessGraphAbstraction):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
     ):
-        """TODO"""
+        """
+        Execute synchronously and download the result (cube).
+
+        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
+        The bytes object can be passed on to a suitable decoder for decoding.
+
+        :param outputfile: Optional, output path to download to.
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
+
+        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        """
         return self._connection.download(
             graph=self.flat_graph(),
             outputfile=outputfile,
@@ -80,7 +97,31 @@ class StacResource(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         log_level: Optional[str] = None,
     ) -> BatchJob:
-        """TODO"""
+        """
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
+
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
+
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with.
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
+
+        :return: Handle for the job created at the backend.
+        """
         return self._connection.create_job(
             process_graph=self.flat_graph(),
             title=title,
@@ -107,11 +148,45 @@ class StacResource(_ProcessGraphAbstraction):
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
         validate: Optional[bool] = None,
-        auto_add_save_result: bool = True,
         show_error_logs: bool = True,
         log_level: Optional[str] = None,
     ) -> BatchJob:
-        """TODO"""
+        """
+        Execute the underlying process graph at the backend in batch job mode:
+
+        - create the job (like :py:meth:`create_job`)
+        - start the job (like :py:meth:`BatchJob.start() <openeo.rest.job.BatchJob.start>`)
+        - track the job's progress with an active polling loop
+          (like :py:meth:`BatchJob.run_synchronous() <openeo.rest.job.BatchJob.run_synchronous>`)
+        - optionally (if ``outputfile`` is specified) download the job's results
+          when the job finished successfully
+
+        .. note::
+            Because of the active polling loop,
+            which blocks any further progress of your script or application,
+            this :py:meth:`execute_batch` method is mainly recommended
+            for batch jobs that are expected to complete
+            in a time that is reasonable for your use case.
+
+        :param outputfile: Optional, output path to download to.
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
+        :param additional: additional (top-level) properties to set in the request body
+        :param job_options: dictionary of job options to pass to the backend
+            (under top-level property "job_options")
+        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+            (overruling the connection's ``auto_validate`` setting).
+        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+            One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
+        :param print: print/logging function to show progress/status
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
+
+        """
         job = self.create_job(
             title=title,
             description=description,
