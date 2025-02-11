@@ -79,23 +79,37 @@ class MlModel(_ProcessGraphAbstraction):
         log_level: Optional[str] = None,
     ) -> BatchJob:
         """
-        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
-        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+        Execute the underlying process graph at the backend in batch job mode:
 
-        For very long-running jobs, you probably do not want to keep the client running.
+        - create the job (like :py:meth:`create_job`)
+        - start the job (like :py:meth:`BatchJob.start() <openeo.rest.job.BatchJob.start>`)
+        - track the job's progress with an active polling loop
+          (like :py:meth:`BatchJob.run_synchronous() <openeo.rest.job.BatchJob.run_synchronous>`)
+        - optionally (if ``outputfile`` is specified) download the job's results
+          when the job finished successfully
 
-        :param job_options:
-        :param outputfile: The path of a file to which a result can be written
-        :param out_format: (optional) Format of the job result.
-        :param format_options: String Parameters for the job result format
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        .. note::
+            Because of the active polling loop,
+            which blocks any further progress of your script or application,
+            this :py:meth:`execute_batch` method is mainly recommended
+            for batch jobs that are expected to complete
+            in a time that is reasonable for your use case.
+
+        :param outputfile: (optional) output path to download to.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param print: print/logging function to show progress/status
 
         .. versionchanged:: 0.36.0
             Added argument ``additional``.
@@ -136,18 +150,25 @@ class MlModel(_ProcessGraphAbstraction):
         log_level: Optional[str] = None,
     ) -> BatchJob:
         """
-        Sends a job to the backend and returns a ClientJob instance.
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
 
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
-        :param budget: Maximum budget to be spent on executing the job.
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
+
+
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param format_options: String Parameters for the job result format
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :return: Created job.
 

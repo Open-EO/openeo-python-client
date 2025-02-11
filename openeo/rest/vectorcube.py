@@ -26,7 +26,6 @@ from openeo.rest._datacube import (
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.result import SaveResult
-from openeo.rest.stac_resource import StacResource
 from openeo.util import InvalidBBoxException, dict_no_none, guess_format, to_bbox_dict
 
 if typing.TYPE_CHECKING:
@@ -202,7 +201,7 @@ class VectorCube(_ProcessGraphAbstraction):
         Materialize the processed data to the given file format.
 
         :param format: an output format supported by the backend.
-        :param options: file format options
+        :param options: (optional) file format options
 
         .. versionchanged:: 0.39.0
             returns a :py:class:`~openeo.rest.result.SaveResult` instance instead
@@ -242,6 +241,8 @@ class VectorCube(_ProcessGraphAbstraction):
         *,
         validate: Optional[bool] = None,
         auto_add_save_result: bool = True,
+        additional: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
         Execute synchronously and download the vector cube.
@@ -249,25 +250,33 @@ class VectorCube(_ProcessGraphAbstraction):
         The result will be stored to the output path, when specified.
         If no output path (or ``None``) is given, the raw download content will be returned as ``bytes`` object.
 
-        :param outputfile: (optional) output file to store the result to
-        :param format: (optional) output format to use.
-        :param options: (optional) additional output format options.
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param outputfile: (optional) output path to download to.
+        :param format: (optional) an output format supported by the backend.
+        :param options: (optional) file format options
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
+        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
+            (under top-level property "job_options")
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option
+
+        .. versionchanged:: 0.39.0
+            Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
         if auto_add_save_result:
             res = self._auto_save_result(format=format, outputfile=outputfile, options=options)
         else:
             res = self
-        return self._connection.download(res.flat_graph(), outputfile=outputfile, validate=validate)
+        return self._connection.download(
+            res.flat_graph(), outputfile=outputfile, validate=validate, additional=additional, job_options=job_options
+        )
 
     def execute_batch(
         self,
@@ -291,25 +300,41 @@ class VectorCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
-        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+        Execute the underlying process graph at the backend in batch job mode:
 
-        For very long running jobs, you probably do not want to keep the client running.
+        - create the job (like :py:meth:`create_job`)
+        - start the job (like :py:meth:`BatchJob.start() <openeo.rest.job.BatchJob.start>`)
+        - track the job's progress with an active polling loop
+          (like :py:meth:`BatchJob.run_synchronous() <openeo.rest.job.BatchJob.run_synchronous>`)
+        - optionally (if ``outputfile`` is specified) download the job's results
+          when the job finished successfully
 
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        .. note::
+            Because of the active polling loop,
+            which blocks any further progress of your script or application,
+            this :py:meth:`execute_batch` method is mainly recommended
+            for batch jobs that are expected to complete
+            in a time that is reasonable for your use case.
+
+        :param outputfile: (optional) output path to download to.
+        :param out_format: (optional) file format to use for the job result.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param outputfile: The path of a file to which a result can be written
-        :param out_format: (optional) output format to use.
-        :param format_options: (optional) additional output format options
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
+        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param print: print/logging function to show progress/status
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -369,22 +394,28 @@ class VectorCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Sends a job to the backend and returns a ClientJob instance.
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
 
-        :param out_format: String Format of the job result.
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
-        :param budget: Maximum budget to be spent on executing the job.
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
+
+        :param out_format: (optional) file format to use for the job result.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param format_options: String Parameters for the job result format
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
         :return: Created job.

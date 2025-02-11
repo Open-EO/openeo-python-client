@@ -4,9 +4,10 @@ Utilities to build/automate/extend documentation
 
 import collections
 import inspect
+import re
 import textwrap
 from functools import partial
-from typing import Callable, Optional, Tuple, TypeVar
+from typing import Callable, Dict, Optional, Tuple, TypeVar, Union
 
 # TODO: give this a proper public API?
 _process_registry = collections.defaultdict(list)
@@ -58,3 +59,39 @@ def openeo_endpoint(endpoint: str) -> Callable[[Callable], Callable]:
         return f
 
     return decorate
+
+
+def _get_doc(obj: Union[str, Callable]) -> str:
+    """
+    Get docstring of a method or function.
+    """
+    if isinstance(obj, str):
+        doc = obj
+    else:
+        doc = obj.__doc__
+    return textwrap.dedent(doc)
+
+
+def extract_params(doc: Union[str, Callable]) -> Dict[str, str]:
+    """
+    Extract parameters (``:param name:`` format) from a docstring.
+    """
+    doc = _get_doc(doc)
+    params_regex = re.compile(r"^:param\s+(?P<param>\w+)\s*:(?P<doc>.*(\n +.*)*)", re.MULTILINE)
+    return {m.group("param"): m.group("doc").strip() for m in params_regex.finditer(doc)}
+
+
+def assert_same_param_docs(doc_a: Union[str, Callable], doc_b: Union[str, Callable], only_intersection: bool = False):
+    """
+    Compare parameters (``:param name:`` format) from two docstrings.
+    """
+    # TODO: option to also check order?
+    params_a = extract_params(doc_a)
+    params_b = extract_params(doc_b)
+
+    if only_intersection:
+        intersection = set(params_a.keys()).intersection(params_b.keys())
+        params_a = {k: v for k, v in params_a.items() if k in intersection}
+        params_b = {k: v for k, v in params_b.items() if k in intersection}
+
+    assert params_a == params_b
