@@ -592,10 +592,9 @@ class MultiBackendJobManager:
 
         with ignore_connection_errors(context="get statuses"):
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
+            not_started = job_db.get_by_status(statuses=["not_started"], max=200)
             stats["track_statuses"] += 1
-
-        #TODO: Move the not started logic into get_jobs to launch, once we no longer parse the whole dataframe
-        not_started = job_db.get_by_status(statuses=["not_started"], max=200)
+            
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
@@ -772,41 +771,43 @@ class MultiBackendJobManager:
                 _log.info(
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
                 )
+                if new_status != previous_status:
+                    if new_status == "finished":
+                        stats["job finished"] += 1
+                        jobs_done.append((the_job, active.loc[i]))
 
-                if new_status == "finished":
-                    stats["job finished"] += 1
-                    jobs_done.append((the_job, active.loc[i]))
+                    if previous_status != "error" and new_status == "error":
+                        stats["job failed"] += 1
+                        jobs_error.append((the_job, active.loc[i]))
 
-                if previous_status != "error" and new_status == "error":
-                    stats["job failed"] += 1
-                    jobs_error.append((the_job, active.loc[i]))
+                    if new_status == "canceled":
+                        stats["job canceled"] += 1
+                        jobs_cancel.append((the_job, active.loc[i]))
 
-                if new_status == "canceled":
-                    stats["job canceled"] += 1
-                    jobs_cancel.append((the_job, active.loc[i]))
-
-                if previous_status in {"created", "queued"} and new_status == "running":
-                    stats["job started running"] += 1
-                    active.loc[i, "running_start_time"] = rfc3339.utcnow()
-
-                if self._cancel_running_job_after and new_status == "running":
-                    if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
-                        _log.warning(
-                            f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
-                            )
-                        
+                    if previous_status in {"created", "queued"} and new_status == "running":
+                        stats["job started running"] += 1
                         active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    self._cancel_prolonged_job(the_job, active.loc[i])
+                    if self._cancel_running_job_after and new_status == "running":
+                        if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                            _log.warning(
+                                f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
+                                )
+                            
+                            active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                active.loc[i, "status"] = new_status
+                        self._cancel_prolonged_job(the_job, active.loc[i])
 
-                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
-                for key in job_metadata.get("usage", {}).keys():
-                    if key in active.columns:
-                        active.loc[i, key] = _format_usage_stat(job_metadata, key)
-                if "costs" in job_metadata.keys():
-                    active.loc[i, "costs"] = job_metadata.get("costs")
+                    active.loc[i, "status"] = new_status
+
+                    # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
+                    for key in job_metadata.get("usage", {}).keys():
+                        if key in active.columns:
+                            active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    if "costs" in job_metadata.keys():
+                        active.loc[i, "costs"] = job_metadata.get("costs")
+
+                    self.job_output_queue.put((i, active.loc[i].to_dict()))
 
             except OpenEoApiError as e:
                 # TODO: inspect status code and e.g. differentiate between 4xx/5xx
@@ -815,8 +816,6 @@ class MultiBackendJobManager:
 
         stats["job_db persist"] += 1
 
-        with self.df_lock:
-            job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
             
