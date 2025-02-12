@@ -144,6 +144,8 @@ method or function in the openEO Python Client Library.
         - :py:meth:`ProcessBuilder.__eq__() <openeo.processes.ProcessBuilder.__eq__>`, :py:meth:`ProcessBuilder.eq() <openeo.processes.ProcessBuilder.eq>`, :py:meth:`eq() <openeo.processes.eq>`, :py:meth:`DataCube.__eq__() <openeo.rest.datacube.DataCube.__eq__>`
     *   - `exp <https://processes.openeo.org/#exp>`_
         - :py:meth:`ProcessBuilder.exp() <openeo.processes.ProcessBuilder.exp>`, :py:meth:`exp() <openeo.processes.exp>`
+    *   - `export_workspace <https://processes.openeo.org/#export_workspace>`_
+        - :py:meth:`StacResource.export_workspace() <openeo.rest.stac_resource.StacResource.export_workspace>`
     *   - `extrema <https://processes.openeo.org/#extrema>`_
         - :py:meth:`ProcessBuilder.extrema() <openeo.processes.ProcessBuilder.extrema>`, :py:meth:`extrema() <openeo.processes.extrema>`
     *   - `filter_bands <https://processes.openeo.org/#filter_bands>`_

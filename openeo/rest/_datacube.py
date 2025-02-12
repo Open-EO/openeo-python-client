@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
+import openeo
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import (
@@ -23,6 +24,8 @@ from openeo.util import dict_no_none, str_truncate
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
+    from openeo.rest.result import SaveResult
+    from openeo.rest.stac_resource import StacResource
 
 log = logging.getLogger(__name__)
 
@@ -321,38 +324,3 @@ def build_child_callback(
         raise ValueError(process)
 
     return PGNode.to_process_graph_argument(pg)
-
-
-def _ensure_save_result(
-    cube: _ProcessGraphAbstraction,
-    *,
-    format: Optional[str] = None,
-    options: Optional[dict] = None,
-    weak_format: Optional[str] = None,
-    default_format: str,
-    method: str,
-) -> _ProcessGraphAbstraction:
-    """
-    Make sure there is a`save_result` node in the process graph.
-
-    :param format: (optional) desired `save_result` file format
-    :param options: (optional) desired `save_result` file format parameters
-    :param weak_format: (optional) weak format indicator guessed from file name
-    :param default_format: default format for data type to use when no format is specified by user
-    :return:
-    """
-    # TODO #278 instead of standalone helper function, move this to common base class for raster cubes, vector cubes, ...
-    save_result_nodes = [n for n in cube.result_node().walk_nodes() if n.process_id == "save_result"]
-
-    if not save_result_nodes:
-        # No `save_result` node yet: automatically add it.
-        # TODO: the `save_result` method is not defined on _ProcessGraphAbstraction, but it is on DataCube and VectorCube
-        cube = cube.save_result(format=format or weak_format or default_format, options=options)
-    elif format or options:
-        raise OpenEoClientException(
-            f"{method} with explicit output {'format' if format else 'options'} {format or options!r},"
-            f" but the process graph already has `save_result` node(s)"
-            f" which is ambiguous and should not be combined."
-        )
-
-    return cube

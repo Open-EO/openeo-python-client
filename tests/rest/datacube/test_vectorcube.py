@@ -234,9 +234,7 @@ def test_save_result_and_download_filename(
             "GeoJSON",
             "GeoJSON",
             None,
-            OpenEoClientException(
-                "VectorCube.download() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'format'"),
         ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
@@ -245,9 +243,7 @@ def test_save_result_and_download_filename(
             "GeoJson",
             "netCDF",
             None,
-            OpenEoClientException(
-                "VectorCube.download() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'format'"),
         ),
     ],
 )
@@ -259,7 +255,10 @@ def test_save_result_and_download_with_format(
     output_path = tmp_path / (output_file or "data")
 
     def do_it():
-        vector_cube.download(output_path, format=execute_format)
+        if execute_format:
+            vector_cube.download(output_path, format=execute_format)
+        else:
+            vector_cube.download(output_path)
 
     if isinstance(expected, Exception):
         with pytest.raises(type(expected), match=re.escape(str(expected))):
@@ -285,9 +284,7 @@ def test_save_result_and_download_with_format(
             "GeoJSON",
             "GeoJSON",
             None,
-            OpenEoClientException(
-                "VectorCube.execute_batch() with explicit output format 'GeoJSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'out_format'"),
         ),
         (None, None, "result.nc", "netCDF"),
         ("netCDF", None, None, "netCDF"),
@@ -296,9 +293,7 @@ def test_save_result_and_download_with_format(
             "GeoJson",
             "netCDF",
             None,
-            OpenEoClientException(
-                "VectorCube.execute_batch() with explicit output format 'netCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'out_format'"),
         ),
     ],
 )
@@ -310,7 +305,10 @@ def test_save_result_and_execute_batch_with_format(
     output_path = tmp_path / (output_file or "data")
 
     def do_it():
-        vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
+        if execute_format:
+            vector_cube.execute_batch(outputfile=output_path, out_format=execute_format)
+        else:
+            vector_cube.execute_batch(outputfile=output_path)
 
     if isinstance(expected, Exception):
         with pytest.raises(type(expected), match=re.escape(str(expected))):

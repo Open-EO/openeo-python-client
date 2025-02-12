@@ -56,13 +56,13 @@ from openeo.rest import (
 from openeo.rest._datacube import (
     THIS,
     UDF,
-    _ensure_save_result,
     _ProcessGraphAbstraction,
     build_child_callback,
 )
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
@@ -2330,22 +2330,46 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def save_result(
         self,
+        # TODO: does it make sense for the client to define a (hard coded) default format here?
         format: str = _DEFAULT_RASTER_FORMAT,
         options: Optional[dict] = None,
-    ) -> DataCube:
+    ) -> SaveResult:
+        """
+        Materialize the processed data to the given file format.
+
+        :param format: an output format supported by the backend.
+        :param options: file format options
+
+        .. versionchanged:: 0.39.0
+            returns a :py:class:`~openeo.rest.result.SaveResult` instance instead
+            of another :py:class:`~openeo.rest.datacube.DataCube` instance.
+        """
         if self._connection:
             formats = set(self._connection.list_output_formats().keys())
             # TODO: map format to correct casing too?
             if format.lower() not in {f.lower() for f in formats}:
                 raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
-        return self.process(
+
+        pg = self._build_pgnode(
             process_id="save_result",
             arguments={
-                "data": THIS,
+                "data": self,
                 "format": format,
                 # TODO: leave out options if unset?
-                "options": options or {}
-            }
+                "options": options or {},
+            },
+        )
+        return SaveResult(pg, connection=self._connection)
+
+    def _auto_save_result(
+        self,
+        format: Optional[str] = None,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        options: Optional[dict] = None,
+    ) -> SaveResult:
+        return self.save_result(
+            format=format or (guess_format(outputfile) if outputfile else None) or self._DEFAULT_RASTER_FORMAT,
+            options=options,
         )
 
     def download(
@@ -2365,12 +2389,12 @@ class DataCube(_ProcessGraphAbstraction):
         If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
         The bytes object can be passed on to a suitable decoder for decoding.
 
-        :param outputfile: Optional, an output file if the result needs to be stored on disk.
+        :param outputfile: Optional, output path to download to.
         :param format: Optional, an output format supported by the backend.
         :param options: Optional, file format options
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
         :param additional: additional (top-level) properties to set in the request body
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
@@ -2384,18 +2408,12 @@ class DataCube(_ProcessGraphAbstraction):
             Added arguments ``additional`` and ``job_options``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
-                format=format,
-                options=options,
-                weak_format=guess_format(outputfile) if outputfile else None,
-                default_format=self._DEFAULT_RASTER_FORMAT,
-                method="DataCube.download()",
-            )
+            res = self._auto_save_result(format=format, outputfile=outputfile, options=options)
+        else:
+            res = self
         return self._connection.download(
-            cube.flat_graph(), outputfile, validate=validate, additional=additional, job_options=job_options
+            res.flat_graph(), outputfile=outputfile, validate=validate, additional=additional, job_options=job_options
         )
 
     def validate(self) -> List[dict]:
@@ -2510,19 +2528,35 @@ class DataCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Evaluate the process graph by creating a batch job, and retrieving the results when it is finished.
-        This method is mostly recommended if the batch job is expected to run in a reasonable amount of time.
+        Execute the underlying process graph at the backend in batch job mode:
 
-        For very long-running jobs, you probably do not want to keep the client running.
+        - create the job (like :py:meth:`create_job`)
+        - start the job (like :py:meth:`BatchJob.start() <openeo.rest.job.BatchJob.start>`)
+        - track the job's progress with an active polling loop
+          (like :py:meth:`BatchJob.run_synchronous() <openeo.rest.job.BatchJob.run_synchronous>`)
+        - optionally (if ``outputfile`` is specified) download the job's results
+          when the job finished successfully
 
-        :param outputfile: The path of a file to which a result can be written
+        .. note::
+            Because of the active polling loop,
+            which blocks any further progress of your script or application,
+            this :py:meth:`execute_batch` method is mainly recommended
+            for batch jobs that are expected to complete
+            in a time that is reasonable for your use case.
+
+        :param outputfile: Optional, output path to download to.
         :param out_format: (optional) File format to use for the job result.
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with
+        :param budget: Maximum budget to be spent on executing the job.
+            Note that some backends do not honor this limit.
         :param additional: additional (top-level) properties to set in the request body
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
@@ -2546,18 +2580,14 @@ class DataCube(_ProcessGraphAbstraction):
             out_format = format_options["format"]  # align with 'download' call arg name
 
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
-                format=out_format,
-                options=format_options,
-                weak_format=guess_format(outputfile) if outputfile else None,
-                default_format=self._DEFAULT_RASTER_FORMAT,
-                method="DataCube.execute_batch()",
-            )
+            res = self._auto_save_result(format=out_format, outputfile=outputfile, options=format_options)
+            create_kwargs = {}
+        else:
+            res = self
+            create_kwargs = {"auto_add_save_result": False}
 
-        job = cube.create_job(
+        job = res.create_job(
             title=title,
             description=description,
             plan=plan,
@@ -2565,8 +2595,8 @@ class DataCube(_ProcessGraphAbstraction):
             additional=additional,
             job_options=job_options,
             validate=validate,
-            auto_add_save_result=False,
             log_level=log_level,
+            **create_kwargs,
         )
         return job.run_synchronous(
             outputfile=outputfile,
@@ -2593,17 +2623,19 @@ class DataCube(_ProcessGraphAbstraction):
         **format_options,
     ) -> BatchJob:
         """
-        Sends the datacube's process graph as a batch job to the back-end
-        and return a :py:class:`~openeo.rest.job.BatchJob` instance.
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
 
-        Note that the batch job will just be created at the back-end,
-        it still needs to be started and tracked explicitly.
-        Use :py:meth:`execute_batch` instead to have the openEO Python client take care of that job management.
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
 
         :param out_format: output file format.
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
+        :param title: job title.
+        :param description: job description.
+        :param plan: The billing plan to process and charge the job with.
         :param budget: Maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
         :param additional: additional (top-level) properties to set in the request body
@@ -2611,7 +2643,7 @@ class DataCube(_ProcessGraphAbstraction):
             (under top-level property "job_options")
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
@@ -2629,17 +2661,13 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: add option to also automatically start the job?
         # TODO: avoid using all kwargs as format_options
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
-                format=out_format,
-                options=format_options or None,
-                default_format=self._DEFAULT_RASTER_FORMAT,
-                method="DataCube.create_job()",
-            )
+            res = self._auto_save_result(format=out_format, options=format_options)
+        else:
+            res = self
+
         return self._connection.create_job(
-            process_graph=cube.flat_graph(),
+            process_graph=res.flat_graph(),
             title=title,
             description=description,
             plan=plan,

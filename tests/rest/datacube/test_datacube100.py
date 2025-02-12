@@ -3531,42 +3531,32 @@ def test_apply_append_math_keep_context(con100):
             {"format": "GTiff"},
             "result.tiff",
             {"format": "GTiff"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'GTiff', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'format'"),
         ),
         (
             {"format": "netCDF"},
             "result.tiff",
             {"format": "NETCDF"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'NETCDF', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'format'"),
         ),
         (
             {"format": "netCDF"},
             "result.json",
             {"format": "JSON"},
-            OpenEoClientException(
-                "DataCube.download() with explicit output format 'JSON', but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'format'"),
         ),
         ({"options": {}}, "result.tiff", {}, b"this is GTiff data"),
         (
             {"options": {"quality": "low"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            OpenEoClientException(
-                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'options'"),
         ),
         (
             {"options": {"colormap": "jet"}},
             "result.tiff",
             {"options": {"quality": "low"}},
-            OpenEoClientException(
-                "DataCube.download() with explicit output options {'quality': 'low'}, but the process graph already has `save_result` node(s) which is ambiguous and should not be combined."
-            ),
+            TypeError("got an unexpected keyword argument 'options'"),
         ),
     ],
 )
