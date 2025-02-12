@@ -746,7 +746,8 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active_indices = self._df.index[self._df["status"].isin(["created", "queued", "running"])].tolist()
+        with self.df_lock:
+            active_indices = self._df.index[self._df["status"].isin(["created", "queued", "running"])].tolist()
 
         jobs_done = []
         jobs_error = []
@@ -763,6 +764,7 @@ class MultiBackendJobManager:
                 job_metadata = the_job.describe()
                 stats["job describe"] += 1
                 new_status = job_metadata["status"]
+                self._df.loc[i, "status"] = new_status
 
                 _log.info(
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
@@ -797,7 +799,7 @@ class MultiBackendJobManager:
                         stats["job started running"] += 1
                         self._df.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    self._df.loc[i, "status"] = new_status
+                    
 
                     # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                     for key in job_metadata.get("usage", {}).keys():
