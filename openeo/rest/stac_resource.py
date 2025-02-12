@@ -45,6 +45,12 @@ class StacResource(_ProcessGraphAbstraction):
         (e.g., a STAC Collection) to the given user workspace.
         The STAC resource itself is exported with all STAC resources and assets underneath.
 
+        :param workspace: The identifier of the workspace to export to.
+        :param merge: (optional) Provides a cloud-specific path identifier
+            to a STAC resource to merge the given STAC resource into.
+            If not provided, the STAC resource is kept separate
+            from any other STAC resources in the workspace.
+
         :return: the potentially updated STAC resource.
         """
         return StacResource(

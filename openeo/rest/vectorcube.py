@@ -192,7 +192,22 @@ class VectorCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
-    def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None) -> SaveResult:
+    def save_result(
+        self,
+        # TODO: does it make sense for the client to define a (hard coded) default format here?
+        format: Union[str, None] = "GeoJSON",
+        options: dict = None,
+    ) -> SaveResult:
+        """
+        Materialize the processed data to the given file format.
+
+        :param format: an output format supported by the backend.
+        :param options: file format options
+
+        .. versionchanged:: 0.39.0
+            returns a :py:class:`~openeo.rest.result.SaveResult` instance instead
+            of another :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
+        """
         pg = self._build_pgnode(
             process_id="save_result",
             arguments={
