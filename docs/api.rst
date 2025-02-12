@@ -54,6 +54,7 @@ Results
 
 .. automodule:: openeo.rest.result
    :members:
+   :inherited-members:
 
 .. automodule:: openeo.rest.stac_resource
    :members:
