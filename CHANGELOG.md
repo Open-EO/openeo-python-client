@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.38.0] - 2025-02-12
+
+### Added
+
 - Add initial support for accessing [Federation Extension](https://github.com/Open-EO/openeo-api/tree/master/extensions/federation) related metadata ([#668](https://github.com/Open-EO/openeo-python-client/issues/668))
 
 ### Changed
