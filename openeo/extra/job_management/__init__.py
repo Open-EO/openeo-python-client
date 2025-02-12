@@ -227,6 +227,7 @@ class MultiBackendJobManager:
         self._thread = None
         self._max_workers = 1
         # Queue for passing job outcomes from worker tasks to the output thread.
+        self._df = None
         self.job_to_run_queue = Queue()
         self.job_output_queue = Queue()
         self.df_lock = Lock()
@@ -498,16 +499,18 @@ class MultiBackendJobManager:
         if job_db.exists():
             # Resume from existing db
             _log.info(f"Resuming `run_jobs` from existing {job_db}")
+            self._df = job_db.read()
         elif df is not None:
             # TODO: start showing deprecation warnings for this usage pattern?
             job_db.initialize_from_df(df)
+            self._df = df
 
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
         # Start the output thread that will update the dataframe with status updates.
         output_thread = Thread(
-            target=lambda: self._output_queue_worker(df, job_db),
+            target=lambda: self._output_queue_worker(job_db),
             name="output-worker",
             daemon=True,
         )
@@ -538,18 +541,12 @@ class MultiBackendJobManager:
             return stats
 
 
-    def _output_queue_worker(self, df, job_db):
+    def _output_queue_worker(self, job_db):
         try:
             print("Output worker started processing job updates.", flush=True)
 
             # Load dataframe from job_db if not provided
-            if df is None:
-                try:
-                    df = job_db.read()
-                    print(f"Loaded dataframe from job_db with {len(df)} rows.", flush=True)
-                except Exception as e:
-                    print(f"Failed to load dataframe from job_db: {e}", flush=True)
-                    return
+            df = self._df
 
             while True:
                 item = self.job_output_queue.get(timeout=1)
@@ -591,13 +588,13 @@ class MultiBackendJobManager:
         stats = stats if stats is not None else collections.defaultdict(int)
 
         with ignore_connection_errors(context="get statuses"):
-            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
-            not_started = job_db.get_by_status(statuses=["not_started"], max=200)
+            jobs_done, jobs_error, jobs_cancel = self._track_statuses(stats=stats)
+            not_started  = self._df[self._df["status"].isin(["not_started"])]
             stats["track_statuses"] += 1
             
         if len(not_started) > 0:
             # Check number of jobs running at each backend
-            running = job_db.get_by_status(statuses=["created", "queued", "running"])
+            running = self._df[self._df["status"].isin(["created", "queued", "running"])]
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
 
@@ -743,14 +740,15 @@ class MultiBackendJobManager:
         self.job_output_queue.put((i, updates))
 
 
-    def _track_statuses(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None) -> Tuple[List, List, List]:
+    def _track_statuses(self, stats: Optional[dict] = None) -> Tuple[List, List, List]:
         """
         Tracks status (and stats) of running jobs (in place).
         Optionally cancels jobs when running too long.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+        with self.df_lock:
+            active = self._df[self._df["status"].isin(["created", "queued", "running"])]
 
         jobs_done = []
         jobs_error = []
@@ -771,32 +769,37 @@ class MultiBackendJobManager:
                 _log.info(
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
                 )
+
+
+                if self._cancel_running_job_after and new_status == "running":
+                                        if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                                            _log.warning(
+                                                f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
+                                                )
+                                            
+                                            active.loc[i, "running_start_time"] = rfc3339.utcnow()
+
+                                        self._cancel_prolonged_job(the_job, self._df.loc[i].copy())
+
+
                 if new_status != previous_status:
                     if new_status == "finished":
                         stats["job finished"] += 1
-                        jobs_done.append((the_job, active.loc[i]))
+                        jobs_done.append((the_job, self._df.loc[i].copy()))
 
                     if previous_status != "error" and new_status == "error":
                         stats["job failed"] += 1
-                        jobs_error.append((the_job, active.loc[i]))
+                        jobs_error.append((the_job, self._df.loc[i].copy()))
 
                     if new_status == "canceled":
                         stats["job canceled"] += 1
-                        jobs_cancel.append((the_job, active.loc[i]))
+                        jobs_cancel.append((the_job, self._df.loc[i].copy()))
 
                     if previous_status in {"created", "queued"} and new_status == "running":
                         stats["job started running"] += 1
                         active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    if self._cancel_running_job_after and new_status == "running":
-                        if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
-                            _log.warning(
-                                f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
-                                )
-                            
-                            active.loc[i, "running_start_time"] = rfc3339.utcnow()
-
-                        self._cancel_prolonged_job(the_job, active.loc[i])
+                    
 
                     active.loc[i, "status"] = new_status
 
