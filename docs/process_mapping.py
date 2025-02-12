@@ -13,7 +13,7 @@ from textwrap import dedent
 
 from openeo.internal.documentation import _process_registry
 
-# TODO: automate running of this tool. E.g. use https://nedbatchelder.com/code/cog
+# TODO #726 automate running of this tool. E.g. use https://nedbatchelder.com/code/cog
 # TODO: support operators properly (use `+` in docs instead of `__add__`)
 
 

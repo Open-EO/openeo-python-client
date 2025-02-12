@@ -45,11 +45,13 @@ method or function in the openEO Python Client Library.
     *   - `apply <https://processes.openeo.org/#apply>`_
         - :py:meth:`ProcessBuilder.apply() <openeo.processes.ProcessBuilder.apply>`, :py:meth:`apply() <openeo.processes.apply>`, :py:meth:`DataCube.apply() <openeo.rest.datacube.DataCube.apply>`
     *   - `apply_dimension <https://processes.openeo.org/#apply_dimension>`_
-        - :py:meth:`ProcessBuilder.apply_dimension() <openeo.processes.ProcessBuilder.apply_dimension>`, :py:meth:`apply_dimension() <openeo.processes.apply_dimension>`, :py:meth:`DataCube.apply_dimension() <openeo.rest.datacube.DataCube.apply_dimension>`
+        - :py:meth:`ProcessBuilder.apply_dimension() <openeo.processes.ProcessBuilder.apply_dimension>`, :py:meth:`apply_dimension() <openeo.processes.apply_dimension>`, :py:meth:`VectorCube.apply_dimension() <openeo.rest.vectorcube.VectorCube.apply_dimension>`, :py:meth:`DataCube.apply_dimension() <openeo.rest.datacube.DataCube.apply_dimension>`
     *   - `apply_kernel <https://processes.openeo.org/#apply_kernel>`_
         - :py:meth:`ProcessBuilder.apply_kernel() <openeo.processes.ProcessBuilder.apply_kernel>`, :py:meth:`apply_kernel() <openeo.processes.apply_kernel>`, :py:meth:`DataCube.apply_kernel() <openeo.rest.datacube.DataCube.apply_kernel>`
     *   - `apply_neighborhood <https://processes.openeo.org/#apply_neighborhood>`_
         - :py:meth:`ProcessBuilder.apply_neighborhood() <openeo.processes.ProcessBuilder.apply_neighborhood>`, :py:meth:`apply_neighborhood() <openeo.processes.apply_neighborhood>`, :py:meth:`DataCube.apply_neighborhood() <openeo.rest.datacube.DataCube.apply_neighborhood>`
+    *   - `apply_polygon <https://processes.openeo.org/#apply_polygon>`_
+        - :py:meth:`ProcessBuilder.apply_polygon() <openeo.processes.ProcessBuilder.apply_polygon>`, :py:meth:`apply_polygon() <openeo.processes.apply_polygon>`, :py:meth:`DataCube.apply_polygon() <openeo.rest.datacube.DataCube.apply_polygon>`
     *   - `arccos <https://processes.openeo.org/#arccos>`_
         - :py:meth:`ProcessBuilder.arccos() <openeo.processes.ProcessBuilder.arccos>`, :py:meth:`arccos() <openeo.processes.arccos>`
     *   - `arcosh <https://processes.openeo.org/#arcosh>`_
@@ -114,8 +116,8 @@ method or function in the openEO Python Client Library.
         - :py:meth:`ProcessBuilder.cosh() <openeo.processes.ProcessBuilder.cosh>`, :py:meth:`cosh() <openeo.processes.cosh>`
     *   - `count <https://processes.openeo.org/#count>`_
         - :py:meth:`ProcessBuilder.count() <openeo.processes.ProcessBuilder.count>`, :py:meth:`count() <openeo.processes.count>`, :py:meth:`DataCube.count_time() <openeo.rest.datacube.DataCube.count_time>`
-    *   - `create_raster_cube <https://processes.openeo.org/#create_raster_cube>`_
-        - :py:meth:`ProcessBuilder.create_raster_cube() <openeo.processes.ProcessBuilder.create_raster_cube>`, :py:meth:`create_raster_cube() <openeo.processes.create_raster_cube>`
+    *   - `create_data_cube <https://processes.openeo.org/#create_data_cube>`_
+        - :py:meth:`ProcessBuilder.create_data_cube() <openeo.processes.ProcessBuilder.create_data_cube>`, :py:meth:`create_data_cube() <openeo.processes.create_data_cube>`
     *   - `cummax <https://processes.openeo.org/#cummax>`_
         - :py:meth:`ProcessBuilder.cummax() <openeo.processes.ProcessBuilder.cummax>`, :py:meth:`cummax() <openeo.processes.cummax>`
     *   - `cummin <https://processes.openeo.org/#cummin>`_
@@ -124,6 +126,10 @@ method or function in the openEO Python Client Library.
         - :py:meth:`ProcessBuilder.cumproduct() <openeo.processes.ProcessBuilder.cumproduct>`, :py:meth:`cumproduct() <openeo.processes.cumproduct>`
     *   - `cumsum <https://processes.openeo.org/#cumsum>`_
         - :py:meth:`ProcessBuilder.cumsum() <openeo.processes.ProcessBuilder.cumsum>`, :py:meth:`cumsum() <openeo.processes.cumsum>`
+    *   - `date_between <https://processes.openeo.org/#date_between>`_
+        - :py:meth:`ProcessBuilder.date_between() <openeo.processes.ProcessBuilder.date_between>`, :py:meth:`date_between() <openeo.processes.date_between>`
+    *   - `date_difference <https://processes.openeo.org/#date_difference>`_
+        - :py:meth:`ProcessBuilder.date_difference() <openeo.processes.ProcessBuilder.date_difference>`, :py:meth:`date_difference() <openeo.processes.date_difference>`
     *   - `date_shift <https://processes.openeo.org/#date_shift>`_
         - :py:meth:`ProcessBuilder.date_shift() <openeo.processes.ProcessBuilder.date_shift>`, :py:meth:`date_shift() <openeo.processes.date_shift>`
     *   - `dimension_labels <https://processes.openeo.org/#dimension_labels>`_
@@ -141,23 +147,25 @@ method or function in the openEO Python Client Library.
     *   - `extrema <https://processes.openeo.org/#extrema>`_
         - :py:meth:`ProcessBuilder.extrema() <openeo.processes.ProcessBuilder.extrema>`, :py:meth:`extrema() <openeo.processes.extrema>`
     *   - `filter_bands <https://processes.openeo.org/#filter_bands>`_
-        - :py:meth:`ProcessBuilder.filter_bands() <openeo.processes.ProcessBuilder.filter_bands>`, :py:meth:`filter_bands() <openeo.processes.filter_bands>`, :py:meth:`DataCube.filter_bands() <openeo.rest.datacube.DataCube.filter_bands>`
+        - :py:meth:`ProcessBuilder.filter_bands() <openeo.processes.ProcessBuilder.filter_bands>`, :py:meth:`filter_bands() <openeo.processes.filter_bands>`, :py:meth:`VectorCube.filter_bands() <openeo.rest.vectorcube.VectorCube.filter_bands>`, :py:meth:`DataCube.filter_bands() <openeo.rest.datacube.DataCube.filter_bands>`
     *   - `filter_bbox <https://processes.openeo.org/#filter_bbox>`_
-        - :py:meth:`ProcessBuilder.filter_bbox() <openeo.processes.ProcessBuilder.filter_bbox>`, :py:meth:`filter_bbox() <openeo.processes.filter_bbox>`, :py:meth:`DataCube.filter_bbox() <openeo.rest.datacube.DataCube.filter_bbox>`
+        - :py:meth:`ProcessBuilder.filter_bbox() <openeo.processes.ProcessBuilder.filter_bbox>`, :py:meth:`filter_bbox() <openeo.processes.filter_bbox>`, :py:meth:`VectorCube.filter_bbox() <openeo.rest.vectorcube.VectorCube.filter_bbox>`, :py:meth:`DataCube.filter_bbox() <openeo.rest.datacube.DataCube.filter_bbox>`
     *   - `filter_labels <https://processes.openeo.org/#filter_labels>`_
-        - :py:meth:`ProcessBuilder.filter_labels() <openeo.processes.ProcessBuilder.filter_labels>`, :py:meth:`filter_labels() <openeo.processes.filter_labels>`
+        - :py:meth:`ProcessBuilder.filter_labels() <openeo.processes.ProcessBuilder.filter_labels>`, :py:meth:`filter_labels() <openeo.processes.filter_labels>`, :py:meth:`VectorCube.filter_labels() <openeo.rest.vectorcube.VectorCube.filter_labels>`, :py:meth:`DataCube.filter_labels() <openeo.rest.datacube.DataCube.filter_labels>`
     *   - `filter_spatial <https://processes.openeo.org/#filter_spatial>`_
         - :py:meth:`ProcessBuilder.filter_spatial() <openeo.processes.ProcessBuilder.filter_spatial>`, :py:meth:`filter_spatial() <openeo.processes.filter_spatial>`, :py:meth:`DataCube.filter_spatial() <openeo.rest.datacube.DataCube.filter_spatial>`
     *   - `filter_temporal <https://processes.openeo.org/#filter_temporal>`_
         - :py:meth:`ProcessBuilder.filter_temporal() <openeo.processes.ProcessBuilder.filter_temporal>`, :py:meth:`filter_temporal() <openeo.processes.filter_temporal>`, :py:meth:`DataCube.filter_temporal() <openeo.rest.datacube.DataCube.filter_temporal>`
+    *   - `filter_vector <https://processes.openeo.org/#filter_vector>`_
+        - :py:meth:`ProcessBuilder.filter_vector() <openeo.processes.ProcessBuilder.filter_vector>`, :py:meth:`filter_vector() <openeo.processes.filter_vector>`, :py:meth:`VectorCube.filter_vector() <openeo.rest.vectorcube.VectorCube.filter_vector>`
     *   - `first <https://processes.openeo.org/#first>`_
         - :py:meth:`ProcessBuilder.first() <openeo.processes.ProcessBuilder.first>`, :py:meth:`first() <openeo.processes.first>`
     *   - `fit_class_random_forest <https://processes.openeo.org/#fit_class_random_forest>`_
-        - :py:meth:`ProcessBuilder.fit_class_random_forest() <openeo.processes.ProcessBuilder.fit_class_random_forest>`, :py:meth:`fit_class_random_forest() <openeo.processes.fit_class_random_forest>`, :py:meth:`VectorCube.fit_class_random_forest() <openeo.rest.vectorcube.VectorCube.fit_class_random_forest>`
+        - :py:meth:`VectorCube.fit_class_random_forest() <openeo.rest.vectorcube.VectorCube.fit_class_random_forest>`
     *   - `fit_curve <https://processes.openeo.org/#fit_curve>`_
         - :py:meth:`ProcessBuilder.fit_curve() <openeo.processes.ProcessBuilder.fit_curve>`, :py:meth:`fit_curve() <openeo.processes.fit_curve>`, :py:meth:`DataCube.fit_curve() <openeo.rest.datacube.DataCube.fit_curve>`
     *   - `fit_regr_random_forest <https://processes.openeo.org/#fit_regr_random_forest>`_
-        - :py:meth:`ProcessBuilder.fit_regr_random_forest() <openeo.processes.ProcessBuilder.fit_regr_random_forest>`, :py:meth:`fit_regr_random_forest() <openeo.processes.fit_regr_random_forest>`, :py:meth:`VectorCube.fit_regr_random_forest() <openeo.rest.vectorcube.VectorCube.fit_regr_random_forest>`
+        - :py:meth:`VectorCube.fit_regr_random_forest() <openeo.rest.vectorcube.VectorCube.fit_regr_random_forest>`
     *   - `flatten_dimensions <https://processes.openeo.org/#flatten_dimensions>`_
         - :py:meth:`ProcessBuilder.flatten_dimensions() <openeo.processes.ProcessBuilder.flatten_dimensions>`, :py:meth:`flatten_dimensions() <openeo.processes.flatten_dimensions>`, :py:meth:`DataCube.flatten_dimensions() <openeo.rest.datacube.DataCube.flatten_dimensions>`
     *   - `floor <https://processes.openeo.org/#floor>`_
@@ -193,15 +201,17 @@ method or function in the openEO Python Client Library.
     *   - `load_collection <https://processes.openeo.org/#load_collection>`_
         - :py:meth:`ProcessBuilder.load_collection() <openeo.processes.ProcessBuilder.load_collection>`, :py:meth:`load_collection() <openeo.processes.load_collection>`, :py:meth:`DataCube.load_collection() <openeo.rest.datacube.DataCube.load_collection>`, :py:meth:`Connection.load_collection() <openeo.rest.connection.Connection.load_collection>`
     *   - `load_geojson <https://processes.openeo.org/#load_geojson>`_
-        - :py:meth:`VectorCube.load_geojson() <openeo.rest.vectorcube.VectorCube.load_geojson>`, :py:meth:`Connection.load_geojson() <openeo.rest.connection.Connection.load_geojson>`
+        - :py:meth:`ProcessBuilder.load_geojson() <openeo.processes.ProcessBuilder.load_geojson>`, :py:meth:`load_geojson() <openeo.processes.load_geojson>`, :py:meth:`VectorCube.load_geojson() <openeo.rest.vectorcube.VectorCube.load_geojson>`, :py:meth:`Connection.load_geojson() <openeo.rest.connection.Connection.load_geojson>`
     *   - `load_ml_model <https://processes.openeo.org/#load_ml_model>`_
         - :py:meth:`ProcessBuilder.load_ml_model() <openeo.processes.ProcessBuilder.load_ml_model>`, :py:meth:`load_ml_model() <openeo.processes.load_ml_model>`, :py:meth:`MlModel.load_ml_model() <openeo.rest.mlmodel.MlModel.load_ml_model>`
     *   - `load_result <https://processes.openeo.org/#load_result>`_
         - :py:meth:`ProcessBuilder.load_result() <openeo.processes.ProcessBuilder.load_result>`, :py:meth:`load_result() <openeo.processes.load_result>`, :py:meth:`Connection.load_result() <openeo.rest.connection.Connection.load_result>`
     *   - `load_stac <https://processes.openeo.org/#load_stac>`_
-        - :py:meth:`Connection.load_stac() <openeo.rest.connection.Connection.load_stac>`
+        - :py:meth:`ProcessBuilder.load_stac() <openeo.processes.ProcessBuilder.load_stac>`, :py:meth:`load_stac() <openeo.processes.load_stac>`, :py:meth:`Connection.load_stac() <openeo.rest.connection.Connection.load_stac>`
     *   - `load_uploaded_files <https://processes.openeo.org/#load_uploaded_files>`_
         - :py:meth:`ProcessBuilder.load_uploaded_files() <openeo.processes.ProcessBuilder.load_uploaded_files>`, :py:meth:`load_uploaded_files() <openeo.processes.load_uploaded_files>`
+    *   - `load_url <https://processes.openeo.org/#load_url>`_
+        - :py:meth:`ProcessBuilder.load_url() <openeo.processes.ProcessBuilder.load_url>`, :py:meth:`load_url() <openeo.processes.load_url>`, :py:meth:`VectorCube.load_url() <openeo.rest.vectorcube.VectorCube.load_url>`, :py:meth:`Connection.load_url() <openeo.rest.connection.Connection.load_url>`
     *   - `log <https://processes.openeo.org/#log>`_
         - :py:meth:`ProcessBuilder.log() <openeo.processes.ProcessBuilder.log>`, :py:meth:`log() <openeo.processes.log>`, :py:meth:`DataCube.logarithm() <openeo.rest.datacube.DataCube.logarithm>`, :py:meth:`DataCube.log2() <openeo.rest.datacube.DataCube.log2>`, :py:meth:`DataCube.log10() <openeo.rest.datacube.DataCube.log10>`
     *   - `lt <https://processes.openeo.org/#lt>`_
@@ -261,7 +271,7 @@ method or function in the openEO Python Client Library.
     *   - `reduce_dimension <https://processes.openeo.org/#reduce_dimension>`_
         - :py:meth:`ProcessBuilder.reduce_dimension() <openeo.processes.ProcessBuilder.reduce_dimension>`, :py:meth:`reduce_dimension() <openeo.processes.reduce_dimension>`, :py:meth:`DataCube.reduce_dimension() <openeo.rest.datacube.DataCube.reduce_dimension>`
     *   - `reduce_spatial <https://processes.openeo.org/#reduce_spatial>`_
-        - :py:meth:`ProcessBuilder.reduce_spatial() <openeo.processes.ProcessBuilder.reduce_spatial>`, :py:meth:`reduce_spatial() <openeo.processes.reduce_spatial>`
+        - :py:meth:`ProcessBuilder.reduce_spatial() <openeo.processes.ProcessBuilder.reduce_spatial>`, :py:meth:`reduce_spatial() <openeo.processes.reduce_spatial>`, :py:meth:`DataCube.reduce_spatial() <openeo.rest.datacube.DataCube.reduce_spatial>`
     *   - `rename_dimension <https://processes.openeo.org/#rename_dimension>`_
         - :py:meth:`ProcessBuilder.rename_dimension() <openeo.processes.ProcessBuilder.rename_dimension>`, :py:meth:`rename_dimension() <openeo.processes.rename_dimension>`, :py:meth:`DataCube.rename_dimension() <openeo.rest.datacube.DataCube.rename_dimension>`
     *   - `rename_labels <https://processes.openeo.org/#rename_labels>`_
@@ -282,8 +292,6 @@ method or function in the openEO Python Client Library.
         - :py:meth:`ProcessBuilder.run_udf_externally() <openeo.processes.ProcessBuilder.run_udf_externally>`, :py:meth:`run_udf_externally() <openeo.processes.run_udf_externally>`
     *   - `sar_backscatter <https://processes.openeo.org/#sar_backscatter>`_
         - :py:meth:`ProcessBuilder.sar_backscatter() <openeo.processes.ProcessBuilder.sar_backscatter>`, :py:meth:`sar_backscatter() <openeo.processes.sar_backscatter>`, :py:meth:`DataCube.sar_backscatter() <openeo.rest.datacube.DataCube.sar_backscatter>`
-    *   - `save_ml_model <https://processes.openeo.org/#save_ml_model>`_
-        - :py:meth:`ProcessBuilder.save_ml_model() <openeo.processes.ProcessBuilder.save_ml_model>`, :py:meth:`save_ml_model() <openeo.processes.save_ml_model>`
     *   - `save_result <https://processes.openeo.org/#save_result>`_
         - :py:meth:`ProcessBuilder.save_result() <openeo.processes.ProcessBuilder.save_result>`, :py:meth:`save_result() <openeo.processes.save_result>`, :py:meth:`VectorCube.save_result() <openeo.rest.vectorcube.VectorCube.save_result>`, :py:meth:`DataCube.save_result() <openeo.rest.datacube.DataCube.save_result>`
     *   - `sd <https://processes.openeo.org/#sd>`_
@@ -322,6 +330,8 @@ method or function in the openEO Python Client Library.
         - :py:meth:`ProcessBuilder.variance() <openeo.processes.ProcessBuilder.variance>`, :py:meth:`variance() <openeo.processes.variance>`
     *   - `vector_buffer <https://processes.openeo.org/#vector_buffer>`_
         - :py:meth:`ProcessBuilder.vector_buffer() <openeo.processes.ProcessBuilder.vector_buffer>`, :py:meth:`vector_buffer() <openeo.processes.vector_buffer>`
+    *   - `vector_reproject <https://processes.openeo.org/#vector_reproject>`_
+        - :py:meth:`ProcessBuilder.vector_reproject() <openeo.processes.ProcessBuilder.vector_reproject>`, :py:meth:`vector_reproject() <openeo.processes.vector_reproject>`
     *   - `vector_to_random_points <https://processes.openeo.org/#vector_to_random_points>`_
         - :py:meth:`ProcessBuilder.vector_to_random_points() <openeo.processes.ProcessBuilder.vector_to_random_points>`, :py:meth:`vector_to_random_points() <openeo.processes.vector_to_random_points>`
     *   - `vector_to_regular_points <https://processes.openeo.org/#vector_to_regular_points>`_
@@ -329,4 +339,4 @@ method or function in the openEO Python Client Library.
     *   - `xor <https://processes.openeo.org/#xor>`_
         - :py:meth:`ProcessBuilder.xor() <openeo.processes.ProcessBuilder.xor>`, :py:meth:`xor() <openeo.processes.xor>`
 
-:subscript:`(Table autogenerated on 2023-08-07)`
+:subscript:`(Table autogenerated on 2025-02-12)`
