@@ -20,7 +20,6 @@ from openeo.rest import (
 from openeo.rest._datacube import (
     THIS,
     UDF,
-    _ensure_save_result,
     _ProcessGraphAbstraction,
     build_child_callback,
 )
@@ -194,7 +193,6 @@ class VectorCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def save_result(self, format: Union[str, None] = "GeoJSON", options: dict = None) -> SaveResult:
-        # TODO #401: guard against duplicate save_result nodes?
         pg = self._build_pgnode(
             process_id="save_result",
             arguments={
@@ -205,6 +203,17 @@ class VectorCube(_ProcessGraphAbstraction):
             },
         )
         return SaveResult(pg, connection=self._connection)
+
+    def _auto_save_result(
+        self,
+        format: Optional[str] = None,
+        outputfile: Optional[Union[str, pathlib.Path]] = None,
+        options: Optional[dict] = None,
+    ) -> SaveResult:
+        return self.save_result(
+            format=format or (guess_format(outputfile) if outputfile else None) or self._DEFAULT_VECTOR_FORMAT,
+            options=options,
+        )
 
     def execute(self, *, validate: Optional[bool] = None) -> dict:
         """Executes the process graph."""
@@ -230,7 +239,7 @@ class VectorCube(_ProcessGraphAbstraction):
         :param options: (optional) additional output format options.
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -240,14 +249,7 @@ class VectorCube(_ProcessGraphAbstraction):
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
         if auto_add_save_result:
-            res = _ensure_save_result(
-                cube=self,
-                format=format,
-                options=options,
-                weak_format=guess_format(outputfile) if outputfile else None,
-                default_format=self._DEFAULT_VECTOR_FORMAT,
-                method="VectorCube.download()",
-            )
+            res = self._auto_save_result(format=format, outputfile=outputfile, options=options)
         else:
             res = self
         return self._connection.download(res.flat_graph(), outputfile=outputfile, validate=validate)
@@ -287,7 +289,7 @@ class VectorCube(_ProcessGraphAbstraction):
         :param format_options: (optional) additional output format options
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
@@ -310,14 +312,7 @@ class VectorCube(_ProcessGraphAbstraction):
             Added argument ``log_level``.
         """
         if auto_add_save_result:
-            res = _ensure_save_result(
-                cube=self,
-                format=out_format,
-                options=format_options,
-                weak_format=guess_format(outputfile) if outputfile else None,
-                default_format=self._DEFAULT_VECTOR_FORMAT,
-                method="VectorCube.execute_batch()",
-            )
+            res = self._auto_save_result(format=out_format, outputfile=outputfile, options=format_options)
             create_kwargs = {}
         else:
             res = self
@@ -373,7 +368,7 @@ class VectorCube(_ProcessGraphAbstraction):
         :param format_options: String Parameters for the job result format
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph if there is none yet.
+        :param auto_add_save_result: Automatically add a ``save_result`` node to the process graph.
         :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
@@ -387,17 +382,12 @@ class VectorCube(_ProcessGraphAbstraction):
         """
         # TODO: avoid using all kwargs as format_options
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
-        cube = self
         if auto_add_save_result:
-            cube = _ensure_save_result(
-                cube=cube,
-                format=out_format,
-                options=format_options or None,
-                default_format=self._DEFAULT_VECTOR_FORMAT,
-                method="VectorCube.create_job()",
-            )
+            res = self._auto_save_result(format=out_format, options=format_options or None)
+        else:
+            res = self
         return self._connection.create_job(
-            process_graph=cube.flat_graph(),
+            process_graph=res.flat_graph(),
             title=title,
             description=description,
             plan=plan,
