@@ -381,7 +381,7 @@ class MultiBackendJobManager:
                 sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
                 and not self._stop_thread
             ):
-                self._job_update_loop(job_db=job_db, start_job=start_job)
+                self._job_update_loop(start_job=start_job, stats= stats)
                 stats["run_jobs loop"] += 1
 
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
@@ -518,7 +518,7 @@ class MultiBackendJobManager:
 
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor: # workers constantly look into queue, launch job or else sleep
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-                self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
+                self._job_update_loop(start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
 
                 # Show current stats and sleep
@@ -546,10 +546,9 @@ class MultiBackendJobManager:
             print("Output worker started processing job updates.", flush=True)
 
             # Load dataframe from job_db if not provided
-            df = self._df
 
             while True:
-                item = self.job_output_queue.get(timeout=1)
+                item = self.job_output_queue.get()
                 if item is None:
                     print("Output worker received shutdown signal.", flush=True)
                     self.job_output_queue.task_done()
@@ -562,10 +561,10 @@ class MultiBackendJobManager:
                 with self.df_lock:
                     # Apply each update from the message
                     for key, value in updates.items():
-                        df.loc[i, key] = value
-                    print(f"Updated dataframe row {i}: {df.loc[i].to_dict()}", flush=True)
+                        self._df.loc[i, key] = value
+                    print(f"Updated dataframe row {i}: {self._df.loc[i].to_dict()}", flush=True)
                     # Persist the updated row to the job database
-                    job_db.persist(df.loc[[i]])
+                    job_db.persist(self._df.loc[[i]])
                 
                 print(f"Persisted row {i} to job database.", flush=True)
                 self.job_output_queue.task_done()
@@ -575,7 +574,7 @@ class MultiBackendJobManager:
 
 
     def _job_update_loop(
-        self, job_db: JobDatabaseInterface, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
+        self, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
     ):
         """
         Inner loop logic of job management:
@@ -747,17 +746,16 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        with self.df_lock:
-            active = self._df[self._df["status"].isin(["created", "queued", "running"])]
+        active_indices = self._df.index[self._df["status"].isin(["created", "queued", "running"])].tolist()
 
         jobs_done = []
         jobs_error = []
         jobs_cancel = []
 
-        for i in active.index:
-            job_id = active.loc[i, "id"]
-            backend_name = active.loc[i, "backend_name"]
-            previous_status = active.loc[i, "status"]
+        for i in active_indices:
+            job_id = self._df.loc[i, "id"] 
+            backend_name = self._df.loc[i, "backend_name"] 
+            previous_status = self._df.loc[i, "status"]
 
             try:
                 con = self._get_connection(backend_name)
@@ -772,12 +770,12 @@ class MultiBackendJobManager:
 
 
                 if self._cancel_running_job_after and new_status == "running":
-                                        if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                                        if  (not self._df.loc[i, "running_start_time"] or pd.isna(self._df.loc[i, "running_start_time"])):
                                             _log.warning(
                                                 f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
                                                 )
                                             
-                                            active.loc[i, "running_start_time"] = rfc3339.utcnow()
+                                            self._df.loc[i, "running_start_time"] = rfc3339.utcnow()
 
                                         self._cancel_prolonged_job(the_job, self._df.loc[i].copy())
 
@@ -797,20 +795,18 @@ class MultiBackendJobManager:
 
                     if previous_status in {"created", "queued"} and new_status == "running":
                         stats["job started running"] += 1
-                        active.loc[i, "running_start_time"] = rfc3339.utcnow()
+                        self._df.loc[i, "running_start_time"] = rfc3339.utcnow()
 
-                    
-
-                    active.loc[i, "status"] = new_status
+                    self._df.loc[i, "status"] = new_status
 
                     # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                     for key in job_metadata.get("usage", {}).keys():
-                        if key in active.columns:
-                            active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                        if key in self._df.columns:
+                            self._df.loc[i, key] = _format_usage_stat(job_metadata, key)
                     if "costs" in job_metadata.keys():
-                        active.loc[i, "costs"] = job_metadata.get("costs")
+                        self._df.loc[i, "costs"] = job_metadata.get("costs")
 
-                    self.job_output_queue.put((i, active.loc[i].to_dict()))
+                    self.job_output_queue.put((i, self._df.loc[i].to_dict()))
 
             except OpenEoApiError as e:
                 # TODO: inspect status code and e.g. differentiate between 4xx/5xx
