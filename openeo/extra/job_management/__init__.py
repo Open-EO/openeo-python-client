@@ -373,7 +373,7 @@ class MultiBackendJobManager:
 
         # Resume from existing db
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
-
+        self._df = job_db.read()
         self._stop_thread = False
 
         def run_loop():
@@ -829,12 +829,16 @@ class MultiBackendJobManager:
         job_metadata = job.describe()
         job_dir = self.get_job_dir(job.job_id)
         metadata_path = self.get_job_metadata_path(job.job_id)
-
         self.ensure_job_dir_exists(job.job_id)
-        job.get_results().download_files(target=job_dir)
 
-        with metadata_path.open("w", encoding="utf-8") as f:
-            json.dump(job_metadata, f, ensure_ascii=False)
+        try:
+            # Attempt to download results.
+            job.get_results().download_files(target=job_dir)
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
+
+        except Exception as e:
+            _log.warning("Skipping download_files due to error: %s", e)
 
     def on_job_error(self, job: BatchJob, row):
         """
