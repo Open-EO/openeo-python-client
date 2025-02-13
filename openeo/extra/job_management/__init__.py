@@ -677,9 +677,6 @@ class MultiBackendJobManager:
                 if job_id:
                     self.job_to_run_queue.put((i, connection, job_id))
 
-                    self.db_persist_queue.put((i, updates)) 
-                    stats["job_db persist"] += 1
-
 
             total_added += len(indices_to_add)
 
