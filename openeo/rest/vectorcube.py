@@ -260,6 +260,9 @@ class VectorCube(_ProcessGraphAbstraction):
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
 
+        :return: ``None`` if ``outputfile`` was specified to store to disk.
+            Otherwise, a :py:class:`bytes` object containing the raw data.
+
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
 
@@ -335,6 +338,8 @@ class VectorCube(_ProcessGraphAbstraction):
         :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param print: print/logging function to show progress/status
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
@@ -418,7 +423,7 @@ class VectorCube(_ProcessGraphAbstraction):
         :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
-        :return: Created job.
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.32.0
             Added ``auto_add_save_result`` option

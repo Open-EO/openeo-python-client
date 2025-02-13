@@ -81,7 +81,8 @@ class StacResource(_ProcessGraphAbstraction):
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
 
-        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        :return: ``None`` if ``outputfile`` was specified to store to disk.
+            Otherwise, a :py:class:`bytes` object containing the raw data.
         """
         return self._connection.download(
             graph=self.flat_graph(),
@@ -126,7 +127,7 @@ class StacResource(_ProcessGraphAbstraction):
         :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
-        :return: Handle for the job created at the backend.
+        :return: Handle to the job created at the backend.
         """
         return self._connection.create_job(
             process_graph=self.flat_graph(),
@@ -192,6 +193,7 @@ class StacResource(_ProcessGraphAbstraction):
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
+        :return: Handle to the job created at the backend.
         """
         job = self.create_job(
             title=title,

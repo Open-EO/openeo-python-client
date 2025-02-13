@@ -1565,14 +1565,17 @@ class Connection(RestApiConnection):
 
         :param graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :param outputfile: output file
+        :param outputfile: (optional) output path to download to.
         :param timeout: timeout to wait for response
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param chunk_size: chunk size for streaming response.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+
+        :return: ``None`` if ``outputfile`` was specified to store to disk.
+            Otherwise, a :py:class:`bytes` object containing the raw data.
 
         .. versionadded:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
@@ -1595,6 +1598,7 @@ class Connection(RestApiConnection):
             with target.open(mode="wb") as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
+            # TODO: return target path instead of None? Or return a generic result wrapper?
         else:
             return response.content
 
@@ -1667,19 +1671,20 @@ class Connection(RestApiConnection):
             a string with a JSON representation,
             a local file path or URL to a JSON representation,
             a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
-        :param budget: Maximum budget to be spent on executing the job.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
-        :return: Created job
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.

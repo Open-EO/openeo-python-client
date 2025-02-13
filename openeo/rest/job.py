@@ -233,11 +233,13 @@ class BatchJob:
         """
         Start the job, wait for it to finish and download result
 
-        :param outputfile: The path of a file to which a result can be written
+        :param outputfile: (optional) output path to download to.
         :param print: print/logging function to show progress/status
         :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.

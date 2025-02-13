@@ -81,6 +81,16 @@ def extract_params(doc: Union[str, Callable]) -> Dict[str, str]:
     return {m.group("param"): m.group("doc").strip() for m in params_regex.finditer(doc)}
 
 
+def extract_return(doc: Union[str, Callable]) -> Union[str, None]:
+    """
+    Extract return value description (``:return:`` format) from a docstring.
+    """
+    doc = _get_doc(doc)
+    return_regex = re.compile(r"^:return\s*:(?P<doc>.*(\n +.*)*)", re.MULTILINE)
+    matches = [m.group("doc").strip() for m in return_regex.finditer(doc)]
+    assert 0 <= len(matches) <= 1
+    return matches[0] if matches else None
+
 def assert_same_param_docs(doc_a: Union[str, Callable], doc_b: Union[str, Callable], only_intersection: bool = False):
     """
     Compare parameters (``:param name:`` format) from two docstrings.
@@ -95,3 +105,10 @@ def assert_same_param_docs(doc_a: Union[str, Callable], doc_b: Union[str, Callab
         params_b = {k: v for k, v in params_b.items() if k in intersection}
 
     assert params_a == params_b
+
+
+def assert_same_return_docs(doc_a: Union[str, Callable], doc_b: Union[str, Callable]):
+    """
+    Compare return value descriptions from two docstrings.
+    """
+    assert extract_return(doc_a) == extract_return(doc_b)

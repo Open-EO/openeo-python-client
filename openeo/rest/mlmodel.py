@@ -111,6 +111,8 @@ class MlModel(_ProcessGraphAbstraction):
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param print: print/logging function to show progress/status
 
+        :return: Handle to the job created at the backend.
+
         .. versionchanged:: 0.36.0
             Added argument ``additional``.
 
@@ -170,7 +172,8 @@ class MlModel(_ProcessGraphAbstraction):
             (under top-level property "job_options")
         :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
-        :return: Created job.
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.36.0
             Added argument ``additional``.
