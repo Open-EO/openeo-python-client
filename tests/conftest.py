@@ -4,6 +4,11 @@ from unittest import mock
 
 import pytest
 
+pytest.register_assert_rewrite(
+    "openeo.internal.documentation",
+)
+
+
 from openeo.testing import TestDataLoader
 from openeo.util import ensure_dir
 

@@ -10,7 +10,7 @@ class SaveResult(StacResource):
     and :py:meth:`VectorCube.save_result() <openeo.rest.vectorcube.VectorCube.save_result>`.
 
     .. note ::
-        This class is practically a just direct alias for
+        This class is practically just a direct alias for
         :py:class:`~openeo.rest.stac_resource.StacResource`,
         but with a more self-explanatory name.
 

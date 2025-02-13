@@ -69,19 +69,22 @@ class StacResource(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
     ):
         """
-        Execute synchronously and download the result (cube).
+        Send the underlying process graph to the backend
+        for synchronous processing and directly download the result.
 
-        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
-        The bytes object can be passed on to a suitable decoder for decoding.
+        If ``outputfile`` is provided, the result is downloaded to that path.
+        Otherwise a :py:class:`bytes` object is returned with the raw data.
 
-        :param outputfile: Optional, output path to download to.
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param outputfile: (optional) output path to download to.
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
 
-        :return: None if the result is stored to disk, or a bytes object returned by the backend.
+        :return: if ``outputfile`` was not specified:
+            a :py:class:`bytes` object containing the raw data.
+            Otherwise, ``None`` is returned.
         """
         return self._connection.download(
             graph=self.flat_graph(),
@@ -113,20 +116,20 @@ class StacResource(_ProcessGraphAbstraction):
         Use :py:meth:`execute_batch` instead to let the openEO Python client
         take care of the full job life cycle: create, start and track its progress until completion.
 
-        :param title: job title.
-        :param description: job description.
-        :param plan: The billing plan to process and charge the job with.
-        :param budget: Maximum budget to be spent on executing the job.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
 
-        :return: Handle for the job created at the backend.
+        :return: Handle to the job created at the backend.
         """
         return self._connection.create_job(
             process_graph=self.flat_graph(),
@@ -174,24 +177,25 @@ class StacResource(_ProcessGraphAbstraction):
             for batch jobs that are expected to complete
             in a time that is reasonable for your use case.
 
-        :param outputfile: Optional, output path to download to.
-        :param title: job title.
-        :param description: job description.
-        :param plan: The billing plan to process and charge the job with
-        :param budget: Maximum budget to be spent on executing the job.
+        :param outputfile: (optional) output path to download to.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
         :param print: print/logging function to show progress/status
         :param max_poll_interval: maximum number of seconds to sleep between job status polls
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
+        :return: Handle to the job created at the backend.
         """
         job = self.create_job(
             title=title,

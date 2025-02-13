@@ -1559,20 +1559,26 @@ class Connection(RestApiConnection):
         job_options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
-        Downloads the result of a process graph synchronously,
-        and save the result to the given file or return bytes object if no outputfile is specified.
-        This method is useful to export binary content such as images. For json content, the execute method is recommended.
+        Send the underlying process graph to the backend
+        for synchronous processing and directly download the result.
+
+        If ``outputfile`` is provided, the result is downloaded to that path.
+        Otherwise a :py:class:`bytes` object is returned with the raw data.
 
         :param graph: (flat) dict representing a process graph, or process graph as raw JSON string,
             or as local file path or URL
-        :param outputfile: output file
+        :param outputfile: (optional) output path to download to.
         :param timeout: timeout to wait for response
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param chunk_size: chunk size for streaming response.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+
+        :return: if ``outputfile`` was not specified:
+            a :py:class:`bytes` object containing the raw data.
+            Otherwise, ``None`` is returned.
 
         .. versionadded:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
@@ -1595,6 +1601,7 @@ class Connection(RestApiConnection):
             with target.open(mode="wb") as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
+            # TODO: return target path instead of None? Or return a generic result wrapper?
         else:
             return response.content
 
@@ -1659,7 +1666,14 @@ class Connection(RestApiConnection):
         log_level: Optional[str] = None,
     ) -> BatchJob:
         """
-        Create a new job from given process graph on the back-end.
+        Send the underlying process graph to the backend
+        to create an openEO batch job
+        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.
+
+        Note that this method only *creates* the openEO batch job at the backend,
+        but it does not *start* it.
+        Use :py:meth:`execute_batch` instead to let the openEO Python client
+        take care of the full job life cycle: create, start and track its progress until completion.
 
         :param process_graph: openEO-style (flat) process graph representation,
             or an object that can be converted to such a representation:
@@ -1667,19 +1681,20 @@ class Connection(RestApiConnection):
             a string with a JSON representation,
             a local file path or URL to a JSON representation,
             a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
-        :param title: job title
-        :param description: job description
-        :param plan: The billing plan to process and charge the job with
-        :param budget: Maximum budget to be spent on executing the job.
+        :param title: (optional) job title.
+        :param description: (optional) job description.
+        :param plan: (optional) the billing plan to process and charge the job with.
+        :param budget: (optional) maximum budget to be spent on executing the job.
             Note that some backends do not honor this limit.
-        :param additional: additional (top-level) properties to set in the request body
-        :param job_options: dictionary of job options to pass to the backend
+        :param additional: (optional) additional (top-level) properties to set in the request body
+        :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
+        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
-        :param log_level: Optional minimum severity level for log entries that the back-end should keep track of.
+        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.
             One of "error" (highest severity), "warning", "info", and "debug" (lowest severity).
-        :return: Created job
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.35.0
             Add :ref:`multi-result support <multi-result-process-graphs>`.
