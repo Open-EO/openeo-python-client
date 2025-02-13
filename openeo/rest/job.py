@@ -222,6 +222,7 @@ class BatchJob:
         response_data = self.connection.get(url, params=params, expected_status=200).json()
         return LogsResponse(response_data=response_data, log_level=level)
 
+    @deprecated("Use start_and_wait instead", version="0.39.0")
     def run_synchronous(
         self,
         outputfile: Union[str, Path, None] = None,

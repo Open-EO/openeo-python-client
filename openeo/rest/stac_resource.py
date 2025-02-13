@@ -207,10 +207,12 @@ class StacResource(_ProcessGraphAbstraction):
             validate=validate,
             log_level=log_level,
         )
-        return job.run_synchronous(
-            outputfile=outputfile,
+        job.start_and_wait(
             print=print,
             max_poll_interval=max_poll_interval,
             connection_retry_interval=connection_retry_interval,
             show_error_logs=show_error_logs,
         )
+        if outputfile is not None:
+            job.download_result(target=outputfile)
+        return job

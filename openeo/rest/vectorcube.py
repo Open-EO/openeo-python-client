@@ -376,14 +376,15 @@ class VectorCube(_ProcessGraphAbstraction):
             log_level=log_level,
             **create_kwargs,
         )
-        return job.run_synchronous(
-            # TODO #135 support multi file result sets too
-            outputfile=outputfile,
+        job.start_and_wait(
             print=print,
             max_poll_interval=max_poll_interval,
             connection_retry_interval=connection_retry_interval,
             show_error_logs=show_error_logs,
         )
+        if outputfile is not None:
+            job.download_result(target=outputfile)
+        return job
 
     def create_job(
         self,
