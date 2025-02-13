@@ -69,10 +69,11 @@ class StacResource(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
     ):
         """
-        Execute synchronously and download the result (cube).
+        Send the underlying process graph to the backend
+        for synchronous processing and directly download the result.
 
-        If outputfile is provided, the result is stored on disk locally, otherwise, a bytes object is returned.
-        The bytes object can be passed on to a suitable decoder for decoding.
+        If ``outputfile`` is provided, the result is downloaded to that path.
+        Otherwise a :py:class:`bytes` object is returned with the raw data.
 
         :param outputfile: (optional) output path to download to.
         :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution
@@ -81,8 +82,9 @@ class StacResource(_ProcessGraphAbstraction):
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
 
-        :return: ``None`` if ``outputfile`` was specified to store to disk.
-            Otherwise, a :py:class:`bytes` object containing the raw data.
+        :return: if ``outputfile`` was not specified:
+            a :py:class:`bytes` object containing the raw data.
+            Otherwise, ``None`` is returned.
         """
         return self._connection.download(
             graph=self.flat_graph(),

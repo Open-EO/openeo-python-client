@@ -245,10 +245,11 @@ class VectorCube(_ProcessGraphAbstraction):
         job_options: Optional[dict] = None,
     ) -> Union[None, bytes]:
         """
-        Execute synchronously and download the vector cube.
+        Send the underlying process graph to the backend
+        for synchronous processing and directly download the result.
 
-        The result will be stored to the output path, when specified.
-        If no output path (or ``None``) is given, the raw download content will be returned as ``bytes`` object.
+        If ``outputfile`` is provided, the result is downloaded to that path.
+        Otherwise a :py:class:`bytes` object is returned with the raw data.
 
         :param outputfile: (optional) output path to download to.
         :param format: (optional) an output format supported by the backend.
@@ -260,8 +261,9 @@ class VectorCube(_ProcessGraphAbstraction):
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
 
-        :return: ``None`` if ``outputfile`` was specified to store to disk.
-            Otherwise, a :py:class:`bytes` object containing the raw data.
+        :return: if ``outputfile`` was not specified:
+            a :py:class:`bytes` object containing the raw data.
+            Otherwise, ``None`` is returned.
 
         .. versionchanged:: 0.21.0
             When not specified explicitly, output format is guessed from output file extension.
