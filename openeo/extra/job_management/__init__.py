@@ -538,7 +538,7 @@ class MultiBackendJobManager:
 
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor: # workers constantly look into queue, launch job or else sleep
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
-                self._job_update_loop(start_job=start_job, stats=stats)
+                self._job_update_loop(start_job=start_job, stats=stats, executor = executor)
                 stats["run_jobs loop"] += 1
 
                 # Show current stats and sleep
@@ -547,7 +547,7 @@ class MultiBackendJobManager:
                 stats["sleep"] += 1
 
 
-            executor.shutdown(wait=True)
+            
 
             # Drain the queue before shutting down the worker
             while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
@@ -556,6 +556,7 @@ class MultiBackendJobManager:
             # Signal the output thread to stop
             self.db_persist_queue.put(None)
             db_update_thread.join()
+            executor.shutdown(wait=True)
 
             return stats
 
@@ -593,7 +594,7 @@ class MultiBackendJobManager:
 
 
     def _job_update_loop(
-        self, start_job: Callable[[], BatchJob], stats: Optional[dict] = None
+        self, start_job: Callable[[], BatchJob], stats: Optional[dict] = None, executor=None
     ):
         """
         Inner loop logic of job management:
@@ -618,14 +619,19 @@ class MultiBackendJobManager:
             
             self._queue_jobs_to_launch(start_job, not_started, per_backend, stats)
             
-
+            futures = []
             while not self.job_to_run_queue.empty():
 
-                #TODO move to threads for full parallelism
+                #TODO move out of job_update_loop
                 i, connection, job_id = self.job_to_run_queue.get()
                 try:
-                    self._launch_job(i, connection, job_id, stats)
+                    future = executor.submit(self._launch_job, i, connection, job_id, stats)
+                    futures.append(future)
                     stats["job launch"] += 1
+
+                    for future in futures:
+                        future.result()  # Ensure all jobs complete
+                    
 
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
