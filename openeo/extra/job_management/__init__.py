@@ -381,6 +381,14 @@ class MultiBackendJobManager:
             # TODO: support user-provided `stats`
             stats = collections.defaultdict(int)
 
+            # Start the output thread that will update the dataframe with status updates.
+            db_update_thread = Thread(
+                target=lambda: self._db_updater(job_db),
+                name="output-worker",
+                daemon=True,
+            )
+            db_update_thread.start()
+
             while (
                 sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
                 and not self._stop_thread
@@ -394,6 +402,14 @@ class MultiBackendJobManager:
                     time.sleep(1)
                     if self._stop_thread:
                         break
+
+            # After the main loop, wait for the queues to empty
+            while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
+                _log.info("Waiting for queues to drain...")
+                time.sleep(1)
+
+            self.db_persist_queue.put(None)
+            db_update_thread.join()
 
         self._thread = Thread(target=run_loop)
         self._thread.start()
@@ -534,7 +550,7 @@ class MultiBackendJobManager:
             executor.shutdown(wait=True)
 
             # Drain the queue before shutting down the worker
-            while not self.db_persist_queue.empty():
+            while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
                 time.sleep(1)
 
             # Signal the output thread to stop
