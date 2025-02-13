@@ -52,7 +52,7 @@ class _Backend(NamedTuple):
     parallel_jobs: int
 
 
-MAX_RETRIES = 5
+MAX_RETRIES = 50
 
 # Sentinel value to indicate that a parameter was not set
 _UNSET = object()
