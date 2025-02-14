@@ -26,9 +26,12 @@ def build_process_dict(
     categories: Optional[List[str]] = None,
     examples: Optional[List[dict]] = None,
     links: Optional[List[dict]] = None,
+    default_synchronous_options: Optional[dict] = None,
+    default_job_options: Optional[dict] = None,
+    default_service_options: Optional[dict] = None,
 ) -> dict:
     """
-    Build a dictionary describing a process with metadaa (`process_graph`, `parameters`, `description`, ...)
+    Build a dictionary describing a process with metadata (`process_graph`, `parameters`, `description`, ...)
 
     :param process_graph: dict or builder representing a process graph
     :param process_id: identifier of the process
@@ -39,7 +42,19 @@ def build_process_dict(
     :param categories: list of categories
     :param examples: list of examples, may be used for unit tests
     :param links: list of links related to the process
+    :param default_synchronous_options: default processing options for synchronous processing
+        (per `Processing Parameters Extension <https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters>`_)
+    :param default_job_options: default options for batch job execution
+        (per `Processing Parameters Extension <https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters>`_)
+    :param default_service_options: default options for secondary service related processing
+        (per `Processing Parameters Extension <https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters>`_)
+
     :return: dictionary in openEO "process graph with metadata" format
+
+    .. versionchanged:: 0.39.0
+        Added ``default_synchronous_options``, ``default_job_options`` and ``default_service_options`` arguments
+        (per `Processing Parameters Extension <https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters>`_)
+
     """
     process = dict_no_none(
         process_graph=as_flat_graph(process_graph),
@@ -49,7 +64,10 @@ def build_process_dict(
         returns=returns,
         categories=categories,
         examples=examples,
-        links=links
+        links=links,
+        default_synchronous_options=default_synchronous_options,
+        default_job_options=default_job_options,
+        default_service_options=default_service_options,
     )
     if parameters is not None:
         process["parameters"] = [
