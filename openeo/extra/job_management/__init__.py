@@ -225,10 +225,11 @@ class MultiBackendJobManager:
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
         self._thread = None
-        self._max_workers = 1
+        self._max_workers = 4
 
         self._df = None
         self.df_lock = Lock()
+        self.stats_lock = Lock()
 
         # Queue for passing job outcomes from worker tasks to the output thread.
         self.job_to_run_queue = Queue()
@@ -383,33 +384,36 @@ class MultiBackendJobManager:
 
             # Start the output thread that will update the dataframe with status updates.
             db_update_thread = Thread(
-                target=lambda: self._db_updater(job_db),
+                target=lambda: self._db_updater(job_db, stats),
                 name="output-worker",
                 daemon=True,
             )
             db_update_thread.start()
 
-            while (
-                sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
-                and not self._stop_thread
-            ):
-                self._job_update_loop(start_job=start_job, stats= stats)
-                stats["run_jobs loop"] += 1
+            with ThreadPoolExecutor(max_workers=self._max_workers) as executor: # workers constantly look into queue, launch job or else sleep
 
-                _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                # Do sequence of micro-sleeps to allow for quick thread exit
-                for _ in range(int(max(1, self.poll_sleep))):
+                while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+                    self._job_update_loop(start_job=start_job, stats=stats, executor = executor)
+                    time.sleep(self.poll_sleep)
+                    with self.stats_lock:
+                        stats["run_jobs loop"] += 1
+
+                    # Show current stats and sleep
+                    _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
+                    time.sleep(self.poll_sleep)
+                    with self.stats_lock:
+                        stats["sleep"] += 1
+
+                # Drain the queue before shutting down the worker
+                while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
                     time.sleep(1)
-                    if self._stop_thread:
-                        break
 
-            # After the main loop, wait for the queues to empty
-            while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
-                _log.info("Waiting for queues to drain...")
-                time.sleep(1)
+                # Signal the output thread to stop
+                self.db_persist_queue.put(None)
+                db_update_thread.join()
+                executor.shutdown(wait=True)
 
-            self.db_persist_queue.put(None)
-            db_update_thread.join()
+            return stats
 
         self._thread = Thread(target=run_loop)
         self._thread.start()
@@ -530,24 +534,25 @@ class MultiBackendJobManager:
 
         # Start the output thread that will update the dataframe with status updates.
         db_update_thread = Thread(
-            target=lambda: self._db_updater(job_db),
+            target=lambda: self._db_updater(job_db, stats),
             name="output-worker",
             daemon=True,
         )
         db_update_thread.start()
 
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor: # workers constantly look into queue, launch job or else sleep
+
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
                 self._job_update_loop(start_job=start_job, stats=stats, executor = executor)
-                stats["run_jobs loop"] += 1
+                time.sleep(self.poll_sleep)
+                with self.stats_lock:
+                    stats["run_jobs loop"] += 1
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
                 time.sleep(self.poll_sleep)
-                stats["sleep"] += 1
-
-
-            
+                with self.stats_lock:
+                    stats["sleep"] += 1
 
             # Drain the queue before shutting down the worker
             while not self.job_to_run_queue.empty() or not self.db_persist_queue.empty():
@@ -561,12 +566,9 @@ class MultiBackendJobManager:
             return stats
 
 
-    def _db_updater(self, job_db):
+    def _db_updater(self, job_db, stats):
         try:
             _log.info("Started processing job updates.")
-
-            # Load dataframe from job_db if not provided
-
             while True:
                 item = self.db_persist_queue.get()
                 if item is None:
@@ -574,21 +576,29 @@ class MultiBackendJobManager:
                     self.db_persist_queue.task_done()
                     break
                 
-                # Expect item to be a tuple: (row_index, updates_dict)
+                # Process updates
                 i, updates = item
-                _log.info(f"Output worker processing row {i}: updates {updates}")
+                _log.info(f"Processing row {i}: updates {updates}")
 
+                # Apply updates to self._df and stats
                 with self.df_lock:
-                    # Apply each update from the message
+                    # Update DataFrame
                     for key, value in updates.items():
                         self._df.loc[i, key] = value
-                    _log.info(f"Updated dataframe row {i}: {self._df.loc[i].to_dict()}")
-                    # Persist the updated row to the job database
+                    
+                    # Update stats based on status
+                    if updates.get("status") == "start_failed":
+                        with self.stats_lock:
+                            stats["job start error"] += 1
+                    elif updates.get("status") == "created":
+                        with self.stats_lock:
+                            stats["job start success"] += 1
+                    
+                    # Persist to job_db
                     job_db.persist(self._df.loc[[i]])
                 
                 _log.info(f"Persisted row {i} to job database.")
                 self.db_persist_queue.task_done()
-
         except Exception as e:
             _log.error(f"Output worker crashed: {e}")
 
@@ -609,29 +619,24 @@ class MultiBackendJobManager:
         with ignore_connection_errors(context="get statuses"):
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(stats=stats)
             not_started = self._df[self._df["status"].isin(["not_started"])]
-            stats["track_statuses"] += 1
+            with self.stats_lock:
+                stats["track_statuses"] += 1
             
         if not not_started.empty:
             # Check number of jobs running at each backend
             running = self._df[self._df["status"].isin(["created", "queued", "running"])]
             per_backend = running.groupby("backend_name").size().to_dict()
-            stats["job_db get_by_status"] += 1
+            with self.stats_lock:
+                stats["job_db get_by_status"] += 1
             
             self._queue_jobs_to_launch(start_job, not_started, per_backend, stats)
             
-            futures = []
             while not self.job_to_run_queue.empty():
-
-                #TODO move out of job_update_loop
                 i, connection, job_id = self.job_to_run_queue.get()
-                try:
-                    future = executor.submit(self._launch_job, i, connection, job_id, stats)
-                    futures.append(future)
-                    stats["job launch"] += 1
 
-                    for future in futures:
-                        future.result()  # Ensure all jobs complete
-                    
+                try:
+                    # Submit job to executor
+                    executor.submit(self._launch_job, i, connection, job_id)                   
 
                 except Exception as e:
                     _log.error(f"Job launch failed for index {i}: {e}")
@@ -675,16 +680,20 @@ class MultiBackendJobManager:
                 #TODO move towards bearer token authentication --> see latest push Stefaan
                 #root_url = connection.root_url
                 #_, provider_id, access_token = connection.auth.bearer.split('/',3)
-                stats["start_job call"] += 1
+                with self.stats_lock:
+                    stats["start_job call"] += 1
 
                 job_id, updates = self._attempt_create_job(start_job, row, backend_name, connection, stats)
                 self.db_persist_queue.put((i, updates)) 
-                stats["job_db persist"] += 1
+                with self.stats_lock:
+                    stats["job_db persist"] += 1
                 if job_id:
                     self.job_to_run_queue.put((i, connection, job_id))
 
 
             total_added += len(indices_to_add)
+
+
 
     def _attempt_create_job(self, start_job, row, backend_name, connection, stats):
         """Attempts to start a job and returns the job ID along with update details."""
@@ -695,53 +704,41 @@ class MultiBackendJobManager:
                 return job.job_id, updates
         except requests.exceptions.ConnectionError:
             _log.warning(f"Failed to start job for {row.to_dict()}", exc_info=True)
-            stats["start_job error"] += 1
+            with self.stats_lock:
+                stats["start_job error"] += 1
             return None, {"status": "start_failed", "backend_name": backend_name}
         
         _log.info(f"Skipping job for {row.to_dict()}")
-        stats["start_job skipped"] += 1
+        with self.stats_lock:
+            stats["start_job skipped"] += 1
         return None, {"status": "skipped", "backend_name": backend_name}
 
 
-    def _launch_job(self, i, connection, job_id, stats):
-        """
-        Helper method for launching jobs.
-        
-        This method obtains the job status, starts the job if necessary, and
-        then pushes a complete update message (including status, backend name,
-        job id, and start time) to the output queue.
-        """
-        stats = stats if stats is not None else collections.defaultdict(int)
-        job = connection.job(job_id)
-        updates = {}
 
+    def _launch_job(self, i, connection, job_id):
+        """Starts a job and queues the result for centralized processing."""
+        try:
+            job = connection.job(job_id)
+            if job.status() == "created":
+                job.start()  # Focus only on starting the job
+            # Push success status to the queue
+            self.db_persist_queue.put((i, {"status": "created"}))
+        except Exception as e:
+            # Push failure status to the queue
+            self.db_persist_queue.put((i, {"status": "start_failed", "error": str(e)}))
 
-        with ignore_connection_errors(context="get status"):
-            status = job.status()
-            stats["job get status"] += 1
-
-            if status == "created":
-                try:
-                    job.start()
-                    stats["job start"] += 1
-                    # After starting, get the updated status.
-                    job = connection.job(job_id)
-                    status = job.status()
-                    stats["job get status"] += 1
-                except OpenEoApiError as e:
-                    _log.error(e)
-                    status = "start_failed"
-                    stats["job start error"] += 1
-
-        updates["status"] = status
-
-        # If the job started successfully, record the start time.
-        if status != "start_failed":
-            updates["start_time"] = rfc3339.utcnow()
-
-        # Enqueue the complete update message.
-        self.db_persist_queue.put((i, updates))
-        stats["job_db persist"] += 1
+    def _queue_job_result(self, future):
+        """Queue job results for centralized processing."""
+        try:
+            i, job_id, status, error = future.result()
+            updates = {"status": status}
+            if error:
+                updates["error"] = error
+            
+            # Send updates to the db_persist_queue
+            self.db_persist_queue.put((i, updates))
+        except Exception as e:
+            _log.error(f"Failed to process job result: {e}")
 
 
     def _track_statuses(self, stats: Optional[dict] = None) -> Tuple[List, List, List]:
@@ -765,7 +762,8 @@ class MultiBackendJobManager:
                 connection = self._get_connection(backend_name)
                 the_job = connection.job(job_id)
                 the_job_metadata = the_job.describe()
-                stats["job describe"] += 1
+                with self.stats_lock:
+                    stats["job describe"] += 1
 
                 new_status = the_job_metadata["status"]
                 with self.df_lock:
@@ -775,20 +773,20 @@ class MultiBackendJobManager:
                 if self._should_cancel_prolonged_job(new_status, i):
                     self._cancel_prolonged_job(the_job, self._df.loc[i].copy())
 
-                if new_status == previous_status:
-                    continue
-
                 with self.status_lock:  # Ensure thread safety
                     if i in self.status_indices[new_status]:  
                         continue  # Already processed
                     
                     self.status_indices[new_status].add(i)  # Mark job as processed
 
+                
+
                 self._handle_job_state_transition(i, new_status, previous_status, stats, jobs_done, jobs_error, jobs_cancel, the_job_metadata)
                     
             except OpenEoApiError as e:
                 # TODO: inspect status code and e.g. differentiate between 4xx/5xx
-                stats["job tracking error"] += 1
+                with self.stats_lock:
+                    stats["job tracking error"] += 1
                 _log.warning(f"Error while tracking status of job {job_id!r} on backend {backend_name}: {e!r}")
 
         return jobs_done, jobs_error, jobs_cancel
@@ -807,19 +805,27 @@ class MultiBackendJobManager:
     def _handle_job_state_transition(self, index: int, new_status: str, previous_status: str, stats: dict, jobs_done: List, jobs_error: List, jobs_cancel: List, job_metadata: dict):
         """Handles job state transitions and updates relevant lists."""
         if new_status == "finished":
-            stats["job finished"] += 1
+            _log.info(f"job {index} to finished.")
+            with self.stats_lock:
+                stats["job finished"] += 1
             jobs_done.append((self._get_connection(self._df.loc[index, "backend_name"]).job(self._df.loc[index, "id"]), self._df.loc[index].copy()))
 
         if previous_status != "error" and new_status == "error":
-            stats["job failed"] += 1
+            _log.info(f"job {index} to error.")
+            with self.stats_lock:
+                stats["job failed"] += 1
             jobs_error.append((self._get_connection(self._df.loc[index, "backend_name"]).job(self._df.loc[index, "id"]), self._df.loc[index].copy()))
 
         if new_status == "canceled":
-            stats["job canceled"] += 1
+            _log.info(f"job {index} to canceled.")
+            with self.stats_lock:
+                stats["job canceled"] += 1
             jobs_cancel.append((self._get_connection(self._df.loc[index, "backend_name"]).job(self._df.loc[index, "id"]), self._df.loc[index].copy()))
 
         if previous_status in {"created", "queued"} and new_status == "running":
-            stats["job started running"] += 1
+            _log.info(f"job {index} to created.")
+            with self.stats_lock:
+                stats["job started running"] += 1
             with self.df_lock:
                 self._df.loc[index, "running_start_time"] = rfc3339.utcnow()
 
@@ -829,9 +835,11 @@ class MultiBackendJobManager:
                     self._df.loc[index, key] = _format_usage_stat(job_metadata, key)
             if "costs" in job_metadata.keys():
                 self._df.loc[index, "costs"] = job_metadata.get("costs")
-
+    
+        _log.info(f"job {index} update persisted.")
         self.db_persist_queue.put((index, self._df.loc[index].to_dict()))
-        stats["job_db persist"] += 1
+        with self.stats_lock:
+            stats["job_db persist"] += 1
             
 
     def on_job_done(self, job: BatchJob, row):
