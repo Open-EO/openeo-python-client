@@ -569,8 +569,9 @@ class MultiBackendJobManager:
 
         # Check worker thread results
         while not self._result_queue.empty():
-            # TODO
-            ...
+            work_result = self._result_queue.get(timeout=1)
+            # TODO: properly register the work that has been done
+            raise Exception(f"Got {work_result=}")
 
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
@@ -818,7 +819,7 @@ class _JobManagerWorkerThread(threading.Thread):
     WORK_TYPE_START_JOB = "start_job"
 
     def __init__(self, work_queue: queue.Queue, result_queue: queue.Queue):
-        super().__init__()
+        super().__init__(daemon=True)
         self.work_queue = work_queue
         self.result_queue = result_queue
         self.stop_event = threading.Event()
@@ -845,9 +846,9 @@ class _JobManagerWorkerThread(threading.Thread):
             job.start()
             status = job.status()
         except Exception as e:
-            self.result_queue.put((self.WORK_TYPE_START_JOB, (job_id, "failed", repr(e))))
+            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, "failed", repr(e))))
         else:
-            self.result_queue.put((self.WORK_TYPE_START_JOB, (job_id, "started", status)))
+            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, "started", status)))
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
