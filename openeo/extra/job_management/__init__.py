@@ -5,7 +5,9 @@ import dataclasses
 import datetime
 import json
 import logging
+import queue
 import re
+import threading
 import time
 import warnings
 from pathlib import Path
@@ -32,6 +34,7 @@ import shapely.wkt
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+import openeo
 from openeo import BatchJob, Connection
 from openeo.internal.processes.parse import (
     Parameter,
@@ -39,6 +42,7 @@ from openeo.internal.processes.parse import (
     parse_remote_process_definition,
 )
 from openeo.rest import OpenEoApiError
+from openeo.rest.auth.auth import BearerAuth
 from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
 
 _log = logging.getLogger(__name__)
@@ -223,6 +227,9 @@ class MultiBackendJobManager:
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
         self._thread = None
+
+        self._work_queue = queue.Queue()
+        self._result_queue = queue.Queue()
 
     def add_backend(
         self,
@@ -494,6 +501,10 @@ class MultiBackendJobManager:
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
+        # TODO: multiple workers instead of a single one? Work with thread pool?
+        worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
+        worker_thread.start()
+
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
@@ -502,6 +513,9 @@ class MultiBackendJobManager:
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
+
+        worker_thread.stop_event.set()
+        worker_thread.join()
 
         return stats
 
@@ -543,6 +557,7 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Act on jobs
+        # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
             self.on_job_done(job, row)
 
@@ -551,6 +566,11 @@ class MultiBackendJobManager:
 
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
+
+        # Check worker thread results
+        while not self._result_queue.empty():
+            # TODO
+            ...
 
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
@@ -585,7 +605,7 @@ class MultiBackendJobManager:
             connection = self._get_connection(backend_name, resilient=True)
 
             stats["start_job call"] += 1
-            job = start_job(
+            job: BatchJob = start_job(
                 row=row,
                 connection_provider=self._get_connection,
                 connection=connection,
@@ -606,14 +626,24 @@ class MultiBackendJobManager:
                     if status == "created":
                         # start job if not yet done by callback
                         try:
-                            job.start()
-                            stats["job start"] += 1
-                            df.loc[i, "status"] = job.status()
-                            stats["job get status"] += 1
+                            job_con = job.connection
+                            self._work_queue.put(
+                                (
+                                    _JobManagerWorkerThread.WORK_TYPE_START_JOB,
+                                    (
+                                        job_con.root_url,
+                                        job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
+                                        job.job_id,
+                                    ),
+                                )
+                            )
+                            job_status = "queued_for_start"
+                            stats[f"job {job_status}"] += 1
+                            df.loc[i, "status"] = job_status
                         except OpenEoApiError as e:
                             _log.error(e)
-                            df.loc[i, "status"] = "start_failed"
-                            stats["job start error"] += 1
+                            df.loc[i, "status"] = "queued_for_start_failed"
+                            stats["job queued_for_start error"] += 1
             else:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
@@ -674,7 +704,7 @@ class MultiBackendJobManager:
         try:
             # Ensure running start time is valid
             job_running_start_time = rfc3339.parse_datetime(row.get("running_start_time"), with_timezone=True)
-            
+
             # Parse the current time into a datetime object with timezone info
             current_time = rfc3339.parse_datetime(rfc3339.now_utc(), with_timezone=True)
 
@@ -682,12 +712,12 @@ class MultiBackendJobManager:
             elapsed = current_time - job_running_start_time
 
             if elapsed > self._cancel_running_job_after:
-    
+
                 _log.info(
                     f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
                 )
                 job.stop()
-                
+
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
@@ -782,6 +812,42 @@ class MultiBackendJobManager:
         job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
+
+
+class _JobManagerWorkerThread(threading.Thread):
+    WORK_TYPE_START_JOB = "start_job"
+
+    def __init__(self, work_queue: queue.Queue, result_queue: queue.Queue):
+        super().__init__()
+        self.work_queue = work_queue
+        self.result_queue = result_queue
+        self.stop_event = threading.Event()
+        # TODO: add customization options for timeout/sleep?
+
+    def run(self):
+        while not self.stop_event.is_set():
+            try:
+                work_type, work_args = self.work_queue.get(timeout=5)
+                if work_type == self.WORK_TYPE_START_JOB:
+                    self._start_job(work_args)
+                else:
+                    raise ValueError(f"Unknown work item: {work_type!r}")
+            except queue.Empty:
+                time.sleep(10)
+
+    def _start_job(self, work_args: tuple):
+        root_url, bearer, job_id = work_args
+        try:
+            connection = openeo.connect(url=root_url)
+            if bearer:
+                connection.authenticate_bearer_token(bearer_token=bearer)
+            job = connection.job(job_id)
+            job.start()
+            status = job.status()
+        except Exception as e:
+            self.result_queue.put((self.WORK_TYPE_START_JOB, (job_id, "failed", repr(e))))
+        else:
+            self.result_queue.put((self.WORK_TYPE_START_JOB, (job_id, "started", status)))
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
