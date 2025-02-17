@@ -3028,6 +3028,50 @@ class TestDataCubeFromFlatGraph:
         assert isinstance(cube, DataCube)
         assert cube.flat_graph() == flat_graph
 
+    @pytest.mark.parametrize(
+        ["flat_graph", "expected"],
+        [
+            (
+                {
+                    "lc": {"process_id": "load_collection", "arguments": {"id": "S2"}, "result": True},
+                },
+                {
+                    "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+                    "saveresult1": {
+                        "process_id": "save_result",
+                        "arguments": {"data": {"from_node": "loadcollection1"}, "format": "GTiff", "options": {}},
+                        "result": True,
+                    },
+                },
+            ),
+            (
+                {
+                    "lc": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+                    "sr": {
+                        "process_id": "save_result",
+                        "arguments": {"data": {"from_node": "lc"}, "format": "netCDF"},
+                        "result": True,
+                    },
+                },
+                {
+                    "loadcollection1": {"process_id": "load_collection", "arguments": {"id": "S2"}},
+                    "saveresult1": {
+                        "process_id": "save_result",
+                        "arguments": {"data": {"from_node": "loadcollection1"}, "format": "netCDF"},
+                        "result": True,
+                    },
+                },
+            ),
+        ],
+    )
+    def test_datacube_from_flat_graph_save_result_handling(self, con100, dummy_backend, flat_graph, expected):
+        """
+        https://github.com/Open-EO/openeo-python-client/issues/732
+        """
+        cube = dummy_backend.connection.datacube_from_flat_graph(flat_graph)
+        cube.create_job()
+        assert dummy_backend.get_batch_pg() == expected
+
 
 def test_send_nan_json(con100, requests_mock):
     """https://github.com/Open-EO/openeo-python-client/issues/185"""
