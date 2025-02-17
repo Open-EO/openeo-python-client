@@ -2367,6 +2367,9 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         options: Optional[dict] = None,
     ) -> SaveResult:
+        if any(n.process_id == "save_result" for n in self.result_node().walk_nodes()):
+            log.warning(f"This {type(self).__name__} already contains 1 or more `save_result` nodes.")
+
         return self.save_result(
             format=format or (guess_format(outputfile) if outputfile else None) or self._DEFAULT_RASTER_FORMAT,
             options=options,
