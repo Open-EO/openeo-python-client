@@ -1,7 +1,7 @@
 import concurrent.futures
 import datetime
 import logging
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -105,7 +105,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         item_dict = item.to_dict()
         item_id = item_dict["id"]
-        dt = item_dict["properties"]["datetime"]
 
         return pd.Series(item_dict["properties"], name=item_id)
 
@@ -151,13 +150,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
-        items = self.get_by_status(statuses, max=200)
+        items = self.get_by_status(statuses)
         if items is None:
             return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
 
-    def get_by_status(self, statuses: Iterable[str], max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
@@ -172,7 +171,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         series = [self.series_from(item) for item in search_results.items()]
 
-        df = pd.DataFrame(series)
+        df = pd.DataFrame(series).sort_index()
         if len(series) == 0:
             # TODO: What if default columns are overwritten by the user?
             df = MultiBackendJobManager._normalize_df(
