@@ -8,6 +8,8 @@ from pathlib import Path
 from time import sleep
 from typing import Callable, Union
 from unittest import mock
+import queue
+
 
 import dirty_equals
 import geopandas
@@ -35,6 +37,7 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
     ProcessBasedJobCreator,
+    _JobManagerWorkerThread,
     create_job_db,
     get_job_db,
 )
@@ -1763,3 +1766,88 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
+
+class TestJobManagerWorkerThread:
+
+    @pytest.fixture
+    def worker(self):
+        work_queue = queue.Queue()
+        result_queue = queue.Queue()
+        return _JobManagerWorkerThread(work_queue, result_queue)
+
+    def test_successful_job_start(self, worker):
+        # Setup
+        mock_conn = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.start.return_value = None
+        mock_job.status.return_value = "running"
+        mock_conn.job.return_value = mock_job
+        
+        with mock.patch("openeo.connect", return_value=mock_conn) as mock_connect:
+            # Add work to queue
+            worker.work_queue.put((
+                worker.WORK_TYPE_START_JOB,
+                ("https://backend.test", "bearer_token", "job123")
+            ))
+            
+            # Execute
+            worker.start()
+            sleep(1)
+            worker.stop_event.set()
+            worker.join()
+            
+            # Verify
+            mock_connect.assert_called_with(url="https://backend.test")
+            mock_conn.authenticate_bearer_token.assert_called_with(bearer_token="bearer_token")
+            assert worker.result_queue.qsize() == 1
+            result = worker.result_queue.get()
+            assert result == (
+                worker.WORK_TYPE_START_JOB,
+                ("job123", True, "running")
+            )
+
+    def test_failed_job_start(self, worker):
+        # Setup
+        with mock.patch("openeo.connect") as mock_connect:
+            mock_connect.side_effect = Exception("Connection failed")
+            
+            worker.work_queue.put((
+                worker.WORK_TYPE_START_JOB,
+                ("https://backend.test", None, "job123")
+            ))
+            
+            # Execute
+            worker.start()
+            sleep(1)
+            worker.stop_event.set()
+            worker.join()
+            
+            # Verify
+            assert worker.result_queue.qsize() == 1
+            result = worker.result_queue.get()
+            assert result[0] == worker.WORK_TYPE_START_JOB
+            assert result[1][0] == "job123"
+            assert result[1][1] is False
+            assert "Connection failed" in result[1][2]
+
+    def test_unknown_work_type(self, worker):
+        # Setup
+        worker.work_queue.put(("unknown_type", "bad_args"))
+        
+        # Execute
+        with pytest.raises(ValueError) as exc_info:
+            worker.run()
+            
+        # Verify
+        assert "Unknown work item: 'unknown_type'" in str(exc_info.value)
+
+    def test_thread_stop(self, worker):
+        # Setup
+        worker.stop_event.set()
+        
+        # Execute
+        worker.start()
+        worker.join(1)
+        
+        # Verify
+        assert not worker.is_alive()
