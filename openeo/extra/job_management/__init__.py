@@ -556,11 +556,9 @@ class MultiBackendJobManager:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
-                        stats["job launch"] += 1
-
-                        #TODO; as the status update comes from the queue, does the persist make sense here?
-
                         job_db.persist(not_started.loc[i : i + 1])
+                        
+                        stats["job launch"] += 1
                         stats["job_db persist"] += 1
                         total_added += 1
 
@@ -568,7 +566,8 @@ class MultiBackendJobManager:
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
 
         while not self._result_queue.empty():
-            self._process_result_queue(job_db, not_started, stats)
+            full_frame = job_db.get_by_status(statuses=["not_started", "created", "queued", "running"]).copy()
+            self._process_result_queue(job_db, full_frame, stats)
 
         with ignore_connection_errors(context="get statuses"):
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
@@ -602,23 +601,24 @@ class MultiBackendJobManager:
                 job_id, success, data = work_result[1]
 
                 # Find the row in the job_db that matches the job_id
-                job_row = dataframe[dataframe["id"] == job_id]
+                idx = dataframe.index[dataframe["id"] == job_id]
 
-                if job_row.empty:
+                if idx.empty:
                     _log.error(f"Job ID {job_id} not found in the job dataframe.")
                     continue
 
-                # Update the status and other fields
+                # Update using .loc to avoid SettingWithCopyWarning
                 if success:
-                    job_row["status"] = data  # New status (e.g., "running")
+                    dataframe.loc[idx, "status"] = data  # New status (e.g., "running")
                     stats["job_start_success"] += 1
                 else:
-                    job_row["status"] = "start_failed"
+                    dataframe.loc[idx, "status"] = "start_failed"
                     stats["job_start_failed"] += 1
 
-                # Persist the updated row to the job database
-                job_db.persist(job_row)
-                _log.info(f"Updated job {job_id} to status {job_row.iloc[0]['status']}")
+                # Persist the updated rows
+                job_db.persist(dataframe.loc[idx])
+                _log.info(f"Updated job {job_id} to status {dataframe.loc[idx].iloc[0]['status']}")
+
             else:
                 _log.error(f"Unexpected work result: {work_result}")
  
