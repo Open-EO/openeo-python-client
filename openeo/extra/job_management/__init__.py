@@ -551,12 +551,18 @@ class MultiBackendJobManager:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
 
+                        #TODO; as the status update comes from the queue, does the persist make sense here?
+
                         job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
                         total_added += 1
 
         # Act on jobs
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
+
+        while not self._result_queue.empty():
+            self._process_result_queue(job_db, not_started, stats)
+            
         for job, row in jobs_done:
             self.on_job_done(job, row)
 
@@ -566,12 +572,47 @@ class MultiBackendJobManager:
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
 
-        # Check worker thread results
-        while not self._result_queue.empty():
-            work_result = self._result_queue.get(timeout=1)
-            # TODO: properly register the work that has been done
-            raise Exception(f"Got {work_result=}")
+        
 
+
+    def _process_result_queue(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame, stats: Optional[dict] = None):
+        """
+        Process results from the result queue, update job statuses, and persist changes.
+
+        :param job_db: The job database interface to persist changes.
+        :param not_started: DataFrame containing jobs that are not yet started.
+        :param stats: Dictionary to track statistics.
+        """
+        while not self._result_queue.empty():
+            try:
+                work_result = self._result_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            if isinstance(work_result, tuple) and len(work_result) == 4:
+                _, job_id, success, data = work_result
+
+                # Find the row in the job_db that matches the job_id
+                job_row = dataframe[dataframe["id"] == job_id]
+
+                if job_row.empty:
+                    _log.error(f"Job ID {job_id} not found in the job dataframe.")
+                    continue
+
+                # Update the status and other fields
+                if success:
+                    job_row["status"] = data  # New status (e.g., "running")
+                    stats["job_start_success"] += 1
+                else:
+                    job_row["status"] = "start_failed"
+                    stats["job_start_failed"] += 1
+
+                # Persist the updated row to the job database
+                job_db.persist(job_row)
+                _log.info(f"Updated job {job_id} to status {job_row.iloc[0]['status']}")
+            else:
+                _log.error(f"Unexpected work result: {work_result}")
+ 
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -637,13 +678,12 @@ class MultiBackendJobManager:
                                     ),
                                 )
                             )
-                            job_status = "queued_for_start"
-                            stats[f"job {job_status}"] += 1
-                            df.loc[i, "status"] = job_status
+                            stats[f"job {"queued_for_thread_start"}"] += 1
+                            df.loc[i, "status"] = job.status()
                         except OpenEoApiError as e:
                             _log.error(e)
-                            df.loc[i, "status"] = "queued_for_start_failed"
-                            stats["job queued_for_start error"] += 1
+                            df.loc[i, "status"] = "queued_for_thread_start_failed"
+                            stats["job queued_for_thread_start error"] += 1
             else:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
@@ -845,9 +885,9 @@ class _JobManagerWorkerThread(threading.Thread):
             job.start()
             status = job.status()
         except Exception as e:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, "failed", repr(e))))
+            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, False, repr(e))))
         else:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, "started", status)))
+            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, True, status))) # TODO: shouln't the status be created here
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
