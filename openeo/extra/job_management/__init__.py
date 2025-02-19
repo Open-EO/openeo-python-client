@@ -686,12 +686,12 @@ class MultiBackendJobManager:
                                     ),
                                 )
                             )
-                            stats[f"job {"queued_for_thread_start"}"] += 1
+                            stats["job queued for start"] += 1
                             df.loc[i, "status"] = job.status()
                         except OpenEoApiError as e:
                             _log.error(e)
-                            df.loc[i, "status"] = "queued_for_thread_start_failed"
-                            stats["job queued_for_thread_start error"] += 1
+                            df.loc[i, "status"] = "queued_start_failed"
+                            stats["job queued for start error"] += 1
             else:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
