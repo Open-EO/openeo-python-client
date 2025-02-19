@@ -531,9 +531,6 @@ class MultiBackendJobManager:
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        with ignore_connection_errors(context="get statuses"):
-            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
-            stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
@@ -562,7 +559,11 @@ class MultiBackendJobManager:
 
         while not self._result_queue.empty():
             self._process_result_queue(job_db, not_started, stats)
-            
+
+        with ignore_connection_errors(context="get statuses"):
+            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
+            stats["track_statuses"] += 1
+
         for job, row in jobs_done:
             self.on_job_done(job, row)
 
@@ -573,8 +574,6 @@ class MultiBackendJobManager:
             self.on_job_cancel(job, row)
 
         
-
-
     def _process_result_queue(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame, stats: Optional[dict] = None):
         """
         Process results from the result queue, update job statuses, and persist changes.
@@ -589,8 +588,8 @@ class MultiBackendJobManager:
             except queue.Empty:
                 break
 
-            if isinstance(work_result, tuple) and len(work_result) == 4:
-                _, job_id, success, data = work_result
+            if isinstance(work_result, tuple) and len(work_result) == 2:
+                job_id, success, data = work_result[1]
 
                 # Find the row in the job_db that matches the job_id
                 job_row = dataframe[dataframe["id"] == job_id]
