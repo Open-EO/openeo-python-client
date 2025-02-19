@@ -557,7 +557,7 @@ class MultiBackendJobManager:
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         job_db.persist(not_started.loc[i : i + 1])
-                        
+
                         stats["job launch"] += 1
                         stats["job_db persist"] += 1
                         total_added += 1
@@ -566,7 +566,7 @@ class MultiBackendJobManager:
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
 
         while not self._result_queue.empty():
-            full_frame = job_db.get_by_status(statuses=["not_started", "created", "queued", "running"]).copy()
+            full_frame = job_db.get_by_status(statuses=["not_started", "created", "queued"]).copy()
             self._process_result_queue(job_db, full_frame, stats)
 
         with ignore_connection_errors(context="get statuses"):
@@ -607,13 +607,12 @@ class MultiBackendJobManager:
                     _log.error(f"Job ID {job_id} not found in the job dataframe.")
                     continue
 
-                # Update using .loc to avoid SettingWithCopyWarning
                 if success:
-                    dataframe.loc[idx, "status"] = data  # New status (e.g., "running")
-                    stats["job_start_success"] += 1
+                    dataframe.loc[idx, "status"] = data 
+                    stats["job start"] += 1
                 else:
                     dataframe.loc[idx, "status"] = "start_failed"
-                    stats["job_start_failed"] += 1
+                    stats["job start failed"] += 1
 
                 # Persist the updated rows
                 job_db.persist(dataframe.loc[idx])
@@ -882,7 +881,7 @@ class _JobManagerWorkerThread(threading.Thread):
                 else:
                     raise ValueError(f"Unknown work item: {work_type!r}")
             except queue.Empty:
-                time.sleep(10)
+                time.sleep(5)
 
     def _start_job(self, work_args: tuple):
         root_url, bearer, job_id = work_args
