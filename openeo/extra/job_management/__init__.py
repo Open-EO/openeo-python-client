@@ -371,19 +371,30 @@ class MultiBackendJobManager:
             # TODO: support user-provided `stats`
             stats = collections.defaultdict(int)
 
-            while (
-                sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0
-                and not self._stop_thread
-            ):
-                self._job_update_loop(job_db=job_db, start_job=start_job)
+            # TODO: multiple workers instead of a single one? Work with thread pool?
+            worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
+            worker_thread.start()
+
+            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+                self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
 
+                # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                # Do sequence of micro-sleeps to allow for quick thread exit
-                for _ in range(int(max(1, self.poll_sleep))):
-                    time.sleep(1)
-                    if self._stop_thread:
-                        break
+                time.sleep(self.poll_sleep)
+                stats["sleep"] += 1
+
+            worker_thread.stop_event.set()
+            worker_thread.join()
+
+            _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
+            # Do sequence of micro-sleeps to allow for quick thread exit
+            for _ in range(int(max(1, self.poll_sleep))):
+                time.sleep(1)
+                if self._stop_thread:
+                    break
+
+
 
         self._thread = Thread(target=run_loop)
         self._thread.start()
@@ -531,8 +542,7 @@ class MultiBackendJobManager:
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
-
-        not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
+        not_started = job_db.get_by_status(statuses=["not_started"], max=50).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
