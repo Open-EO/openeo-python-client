@@ -870,18 +870,19 @@ class _JobManagerWorkerThread(threading.Thread):
         self.work_queue = work_queue
         self.result_queue = result_queue
         self.stop_event = threading.Event()
+        self.polling_time = 5
         # TODO: add customization options for timeout/sleep?
 
     def run(self):
         while not self.stop_event.is_set():
             try:
-                work_type, work_args = self.work_queue.get(timeout=5)
+                work_type, work_args = self.work_queue.get(timeout=self.polling_time)
                 if work_type == self.WORK_TYPE_START_JOB:
                     self._start_job(work_args)
                 else:
                     raise ValueError(f"Unknown work item: {work_type!r}")
             except queue.Empty:
-                time.sleep(5)
+                time.sleep(self.polling_time)
 
     def _start_job(self, work_args: tuple):
         root_url, bearer, job_id = work_args
@@ -895,7 +896,7 @@ class _JobManagerWorkerThread(threading.Thread):
         except Exception as e:
             self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, False, repr(e))))
         else:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, True, status))) # TODO: shouln't the status be created here
+            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, True, status))) 
 
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
