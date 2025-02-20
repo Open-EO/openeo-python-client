@@ -222,6 +222,7 @@ class BatchJob:
         response_data = self.connection.get(url, params=params, expected_status=200).json()
         return LogsResponse(response_data=response_data, log_level=level)
 
+    @deprecated("Use start_and_wait instead", version="0.39.0")
     def run_synchronous(
         self,
         outputfile: Union[str, Path, None] = None,
@@ -271,6 +272,8 @@ class BatchJob:
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+
+        :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
