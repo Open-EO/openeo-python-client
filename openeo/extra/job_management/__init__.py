@@ -570,8 +570,7 @@ class MultiBackendJobManager:
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
 
         while not self._result_queue.empty():
-            queued_frame = job_db.get_by_status(statuses=["queued_for_start"]).copy()
-            self._process_result_queue(job_db, queued_frame, stats)
+            self._process_result_queue(job_db, stats)
 
         for job, row in jobs_done:
             self.on_job_done(job, row)
@@ -583,7 +582,7 @@ class MultiBackendJobManager:
             self.on_job_cancel(job, row)
 
 
-    def _process_result_queue(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame, stats: Optional[dict] = None):
+    def _process_result_queue(self, job_db: JobDatabaseInterface, stats: Optional[dict] = None):
         """
         Process results from the result queue, update job statuses, and persist changes.
 
@@ -604,6 +603,7 @@ class MultiBackendJobManager:
                 job_id, success, data = work_result[1]
 
                 # Find the row in the job_db that matches the job_id
+                dataframe = job_db.get_by_status(statuses=["queued_for_start"]).copy()
                 idx = dataframe.index[dataframe["id"] == job_id]
 
                 if idx.empty:
