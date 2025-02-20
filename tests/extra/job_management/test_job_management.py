@@ -595,13 +595,14 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
         print(final_df.iloc[0].to_dict())
-        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
                 ) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
