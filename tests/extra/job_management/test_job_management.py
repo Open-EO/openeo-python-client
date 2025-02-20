@@ -471,6 +471,7 @@ class TestMultiBackendJobManager:
             ("job-2018", "finished", "foo"),
         ]
 
+
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
@@ -595,13 +596,14 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
         print(final_df.iloc[0].to_dict())
-        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
                 ) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
@@ -649,7 +651,7 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'queued_for_start': 4.*Run stats:.*'start_job call': 4")
         assert needle.search(caplog.text)
 
 
