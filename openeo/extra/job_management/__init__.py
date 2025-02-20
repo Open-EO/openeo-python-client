@@ -515,7 +515,7 @@ class MultiBackendJobManager:
         worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
         worker_thread.start()
 
-        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+        while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
 
@@ -549,7 +549,7 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
-            running = job_db.get_by_status(statuses=["created", "queued", "running"])
+            running = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"])
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
             _log.info(f"Running per backend: {per_backend}")
@@ -572,8 +572,6 @@ class MultiBackendJobManager:
         while not self._result_queue.empty():
             queued_frame = job_db.get_by_status(statuses=["queued_for_start"]).copy()
             self._process_result_queue(job_db, queued_frame, stats)
-
-        
 
         for job, row in jobs_done:
             self.on_job_done(job, row)
