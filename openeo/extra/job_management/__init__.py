@@ -381,7 +381,7 @@ class MultiBackendJobManager:
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                time.sleep(self.poll_sleep)
+                time.sleep(1)
                 stats["sleep"] += 1
 
             worker_thread.stop_event.set()
@@ -521,7 +521,7 @@ class MultiBackendJobManager:
 
             # Show current stats and sleep
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-            time.sleep(self.poll_sleep)
+            time.sleep(1)
             stats["sleep"] += 1
 
         worker_thread.stop_event.set()
@@ -542,7 +542,11 @@ class MultiBackendJobManager:
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        not_started = job_db.get_by_status(statuses=["not_started"], max=50).copy()
+        with ignore_connection_errors(context="get statuses"):
+            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
+            stats["track_statuses"] += 1
+
+        not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
             running = job_db.get_by_status(statuses=["created", "queued", "running"])
@@ -566,12 +570,10 @@ class MultiBackendJobManager:
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
 
         while not self._result_queue.empty():
-            full_frame = job_db.get_by_status(statuses=["not_started", "created", "queued"]).copy()
-            self._process_result_queue(job_db, full_frame, stats)
+            queued_frame = job_db.get_by_status(statuses=["queued_for_start"]).copy()
+            self._process_result_queue(job_db, queued_frame, stats)
 
-        with ignore_connection_errors(context="get statuses"):
-            jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
-            stats["track_statuses"] += 1
+        
 
         for job, row in jobs_done:
             self.on_job_done(job, row)
@@ -582,7 +584,7 @@ class MultiBackendJobManager:
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
 
-        
+
     def _process_result_queue(self, job_db: JobDatabaseInterface, dataframe: pd.DataFrame, stats: Optional[dict] = None):
         """
         Process results from the result queue, update job statuses, and persist changes.
@@ -592,9 +594,12 @@ class MultiBackendJobManager:
         :param stats: Dictionary to track statistics.
         """
         while not self._result_queue.empty():
+            _log.info('Result queue waiting for tasks')
             try:
                 work_result = self._result_queue.get_nowait()
+                _log.info('f"Received result: {work_result}')
             except queue.Empty:
+                _log.info('No results in queue, break')
                 break
 
             if isinstance(work_result, tuple) and len(work_result) == 2:
@@ -687,10 +692,10 @@ class MultiBackendJobManager:
                                 )
                             )
                             stats["job queued for start"] += 1
-                            df.loc[i, "status"] = job.status()
+                            df.loc[i, "status"] = "queued_for_start"
                         except OpenEoApiError as e:
                             _log.error(e)
-                            df.loc[i, "status"] = "queued_start_failed"
+                            df.loc[i, "status"] = "queued_for_start_failed"
                             stats["job queued for start error"] += 1
             else:
                 # TODO: what is this "skipping" about actually?
@@ -794,7 +799,7 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "running"]).copy()
+        active = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"]).copy()
 
         jobs_done = []
         jobs_error = []
@@ -828,7 +833,7 @@ class MultiBackendJobManager:
                     stats["job canceled"] += 1
                     jobs_cancel.append((the_job, active.loc[i]))
 
-                if previous_status in {"created", "queued"} and new_status == "running":
+                if previous_status in {"created", "queued", "queued_for_start"} and new_status == "running":
                     stats["job started running"] += 1
                     active.loc[i, "running_start_time"] = rfc3339.utcnow()
 
@@ -884,7 +889,7 @@ class _JobManagerWorkerThread(threading.Thread):
                 else:
                     raise ValueError(f"Unknown work item: {work_type!r}")
             except queue.Empty:
-                _log.debug('No tasks for worker thread, sleep')
+                _log.info('No tasks for worker thread, sleep')
                 time.sleep(self.polling_time)
 
     def _start_job(self, work_args: tuple):
