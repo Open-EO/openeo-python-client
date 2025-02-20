@@ -273,6 +273,8 @@ class BatchJob:
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
+        :return: Handle to the job created at the backend.
+
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
         """

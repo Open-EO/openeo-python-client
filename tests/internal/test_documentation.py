@@ -55,7 +55,7 @@ def test_extract_main_description():
         (DataCube.download, DataCube.execute_batch),
         (DataCube.create_job, DataCube.execute_batch),
         # DataCube vs BatchJob
-        # (BatchJob.run_synchronous, DataCube.execute_batch),
+        (BatchJob.start_and_wait, DataCube.execute_batch),
         # DataCube vs VectorCube
         (DataCube.download, VectorCube.download),
         (DataCube.create_job, VectorCube.create_job),
