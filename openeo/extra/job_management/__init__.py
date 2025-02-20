@@ -375,7 +375,7 @@ class MultiBackendJobManager:
             worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
             worker_thread.start()
 
-            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "running"]).values()) > 0:
+            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
 
