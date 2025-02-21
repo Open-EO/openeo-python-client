@@ -84,6 +84,8 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             elif on_exists == "append":
                 existing_df = self.get_by_status([])
                 df = MultiBackendJobManager._normalize_df(df)
+                if "item_id" not in df.columns:
+                    df = df.reset_index(names=["item_id"])
                 df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
                 self.persist(df)
                 return self
@@ -92,6 +94,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
 
         df = MultiBackendJobManager._normalize_df(df)
+        # If the user doesn't specify the item_id column, we will use the index.
+        if "item_id" not in df.columns:
+            df = df.reset_index(names=["item_id"])
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -117,6 +122,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :return: pystac.Item
         """
         series_dict = series.to_dict()
+        item_id = series_dict.pop("item_id")
         item_dict = {}
         item_dict.setdefault("stac_version", pystac.get_stac_version())
         item_dict.setdefault("type", "Feature")
@@ -138,7 +144,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             item_dict["geometry"] = None
 
         # from_dict handles associating any Links and Assets with the Item
-        item_dict["id"] = series.name
+        item_dict["id"] = item_id
         item = pystac.Item.from_dict(item_dict)
         if self.has_geometry:
             item.bbox = shape(series[self.geometry_column]).bounds
@@ -171,7 +177,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         series = [self.series_from(item) for item in search_results.items()]
 
-        df = pd.DataFrame(series).sort_index()
+        df = pd.DataFrame(series).reset_index(names=["item_id"])
         if len(series) == 0:
             # TODO: What if default columns are overwritten by the user?
             df = MultiBackendJobManager._normalize_df(
