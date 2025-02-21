@@ -53,6 +53,17 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def exists(self) -> bool:
         return any(c.id == self.collection_id for c in self.client.get_collections())
+    
+    def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
+        by adding the default columns and setting the index.
+        """
+        df = MultiBackendJobManager._normalize_df(df)
+        # If the user doesn't specify the item_id column, we will use the index.
+        if "item_id" not in df.columns:
+            df = df.reset_index(names=["item_id"])
+        return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
         """
@@ -83,9 +94,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
                 raise FileExistsError(f"Job database {self!r} already exists.")
             elif on_exists == "append":
                 existing_df = self.get_by_status([])
-                df = MultiBackendJobManager._normalize_df(df)
-                if "item_id" not in df.columns:
-                    df = df.reset_index(names=["item_id"])
+                df = self._normalize_df(df)
                 df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
                 self.persist(df)
                 return self
@@ -93,10 +102,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             else:
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
 
-        df = MultiBackendJobManager._normalize_df(df)
-        # If the user doesn't specify the item_id column, we will use the index.
-        if "item_id" not in df.columns:
-            df = df.reset_index(names=["item_id"])
+        df = self._normalize_df(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -180,7 +186,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         df = pd.DataFrame(series).reset_index(names=["item_id"])
         if len(series) == 0:
             # TODO: What if default columns are overwritten by the user?
-            df = MultiBackendJobManager._normalize_df(
+            df = self._normalize_df(
                 df
             )  # Even for an empty dataframe the default columns are required
         return df
