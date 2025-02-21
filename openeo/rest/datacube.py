@@ -2726,7 +2726,7 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def sar_backscatter(
         self,
-        coefficient: Union[str, None] = "default",
+        coefficient: Union[str, None] = _UNSET,
         elevation_model: Union[str, None] = None,
         mask: bool = False,
         contributing_area: bool = False,
@@ -2774,7 +2774,7 @@ class DataCube(_ProcessGraphAbstraction):
             )
             schema = parameter.schema
             coefficient_options = schema.get_enum_options() + [None]
-            if coefficient == "default":
+            if coefficient == _UNSET:
                 coefficient = parameter.default
         except Exception as e:
             log.warning(f"Failed to extract coefficient options for process `sar_backscatter`: {e}")
@@ -2786,7 +2786,7 @@ class DataCube(_ProcessGraphAbstraction):
                 "gamma0-terrain",
                 None,
             ]
-            if coefficient == "default":
+            if coefficient == _UNSET:
                 coefficient = "gamma0-terrain"
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(

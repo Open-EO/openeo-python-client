@@ -5,6 +5,7 @@ For example: parse a bunch of JSON descriptions and generate Python (stub) funct
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import typing
@@ -49,9 +50,9 @@ class Schema(typing.NamedTuple):
             for item in self.schema:
                 if "enum" in item:
                     if result is None:
-                        result = item["enum"]
+                        result = copy.deepcopy(item["enum"])
                     else:
-                        raise ValueError("Multiple entries found for enum options.")
+                        result += item["enum"]
         elif isinstance(self.schema,dict):
             if "enum" in self.schema:
                 result = self.schema["enum"]

@@ -63,22 +63,19 @@ def test_schema_accepts_geojson(schema, expected):
             Schema([{"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]}, {"type": "number"}]),
             ["replicate", "reflect", "reflect_pixel", "wrap"],
         ),
+        (
+            Schema(
+                [
+                    {"type": "string", "enum": ["replicate", "reflect"]},
+                    {"type": "number", "enum": ["reflect_pixel", "wrap"]},
+                ]
+            ),
+            ["replicate", "reflect", "reflect_pixel", "wrap"],
+        ),
     ],
 )
 def test_get_enum_options(schema, expected):
-    schema.get_enum_options()
     assert schema.get_enum_options() == expected
-
-
-def test_get_enum_options_error():
-    schema = Schema(
-        [
-            {"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]},
-            {"type": "number", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]},
-        ]
-    )
-    with pytest.raises(ValueError):
-        schema.get_enum_options()
 
 
 def test_parameter():
