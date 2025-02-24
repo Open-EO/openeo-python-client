@@ -844,6 +844,7 @@ def test_cubemetadata_subclass():
 )
 def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
     path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
     path.write_text(json.dumps(test_stac))
     metadata = metadata_from_stac(str(path))
     assert metadata.band_names == expected
@@ -925,6 +926,7 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
 )
 def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
     path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
     path.write_text(json.dumps(stac_dict))
     metadata = metadata_from_stac(str(path))
     if expected:
