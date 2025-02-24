@@ -6,6 +6,7 @@ General cube method tests against both
 """
 
 import contextlib
+import json
 import pathlib
 import re
 from datetime import date, datetime
@@ -25,6 +26,7 @@ from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
+from openeo.testing.stac import StacDummyBuilder
 from openeo.util import dict_no_none
 
 from .. import get_download_graph
@@ -311,6 +313,41 @@ class TestDataCube:
             "url": "https://stac.test/data",
             "spatial_extent": {"from_parameter": "zpatial_extent"},
         }
+
+    @pytest.mark.parametrize(
+        "stac_metadata",
+        [
+            StacDummyBuilder.item(),
+            StacDummyBuilder.collection(),
+            StacDummyBuilder.catalog(),
+        ],
+    )
+    def test_load_stac_resample_spatial(self, dummy_backend, tmp_path, stac_metadata):
+        """https://github.com/Open-EO/openeo-python-client/issues/737"""
+        stac_path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        stac_path.write_text(json.dumps(stac_metadata))
+        cube = dummy_backend.connection.load_stac(str(stac_path))
+        cube = cube.resample_spatial(resolution=10, projection=4326)
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {"url": dirty_equals.IsStr(regex=".*/stac.json")},
+            },
+            "resamplespatial1": {
+                "process_id": "resample_spatial",
+                "arguments": {
+                    "data": {"from_node": "loadstac1"},
+                    "projection": 4326,
+                    "resolution": 10,
+                    "method": "near",
+                    "align": "upper-left",
+                },
+                "result": True,
+            },
+        }
+
 
 def test_filter_temporal_basic_positional_args(s2cube):
     im = s2cube.filter_temporal("2016-01-01", "2016-03-10")

@@ -655,9 +655,16 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     else:
         raise ValueError(stac_object)
 
+    # At least assume there are spatial dimensions
+    # TODO: are there conditions in which we even should not assume the presence of spatial dimensions?
+    dimensions = [
+        SpatialDimension(name="x", extent=[None, None]),
+        SpatialDimension(name="y", extent=[None, None]),
+    ]
+
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
-    dimensions = [band_dimension]
+    dimensions.append(band_dimension)
 
     # TODO: is it possible to derive the actual name of temporal dimension that the backend will use?
     temporal_dimension = _StacMetadataParser().get_temporal_dimension(stac_object)
