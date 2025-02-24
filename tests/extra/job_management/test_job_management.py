@@ -471,6 +471,7 @@ class TestMultiBackendJobManager:
             ("job-2018", "finished", "foo"),
         ]
 
+
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
