@@ -333,7 +333,7 @@ class TestDataCube:
         assert dummy_backend.get_sync_pg() == {
             "loadstac1": {
                 "process_id": "load_stac",
-                "arguments": {"url": dirty_equals.IsStr(regex=".*/stac.json")},
+                "arguments": {"url": dirty_equals.IsStr(regex=r".*[\/]stac.json")},
             },
             "resamplespatial1": {
                 "process_id": "resample_spatial",
