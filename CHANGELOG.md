@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for `export_workspace` process ([#720](https://github.com/Open-EO/openeo-python-client/issues/720))
+- Add support for [processing parameter extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters) (e.g. default job options) in `build_process_dict` ([#731](https://github.com/Open-EO/openeo-python-client/issues/731))
 
 ### Changed
 
@@ -19,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- Fix incompatibility problem when combining `load_stac` and `resample_spatial` ([#737](https://github.com/Open-EO/openeo-python-client/issues/737))
 
 
 ## [0.38.0] - 2025-02-12
