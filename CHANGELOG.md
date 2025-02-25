@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.39.0] - 2025-02-25
+
+### Added
+
 - Add support for `export_workspace` process ([#720](https://github.com/Open-EO/openeo-python-client/issues/720))
 - Add support for [processing parameter extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters) (e.g. default job options) in `build_process_dict` ([#731](https://github.com/Open-EO/openeo-python-client/issues/731))
 
@@ -16,8 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DataCube.save_result()` (and related methods) now return a `SaveResult`/`StacResource` object instead of another `DataCube` object to be more in line with the official `save_result` specification ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#720](https://github.com/Open-EO/openeo-python-client/issues/720))
 - Deprecate `BatchJob.run_synchronous` in favor of `BatchJob.start_and_wait` ([#570](https://github.com/Open-EO/openeo-python-client/issues/570)).
-
-### Removed
 
 ### Fixed
 
