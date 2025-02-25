@@ -58,7 +58,7 @@ def test_execute_batch(con100, requests_mock, tmpdir):
         [
             {"json": {"status": "submitted"}},
             {"json": {"status": "queued"}},
-            {"json": {"status": "running", "progress": 15}},
+            {"json": {"status": "running", "progress": 15.51}},
             {"json": {"status": "running", "progress": 80}},
             {"json": {"status": "finished", "progress": 100}},
         ],
@@ -90,7 +90,7 @@ def test_execute_batch(con100, requests_mock, tmpdir):
     assert re.match(r"0:00:01 Job 'f00ba5': send 'start'", log[0])
     assert re.match(r"0:00:02 Job 'f00ba5': submitted \(progress N/A\)", log[1])
     assert re.match(r"0:00:04 Job 'f00ba5': queued \(progress N/A\)", log[2])
-    assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15%\)", log[3])
+    assert re.match(r"0:00:07 Job 'f00ba5': running \(progress 15.5%\)", log[3])
     assert re.match(r"0:00:12 Job 'f00ba5': running \(progress 80%\)", log[4])
     assert re.match(r"0:00:20 Job 'f00ba5': finished \(progress 100%\)", log[5])
 

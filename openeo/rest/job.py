@@ -323,8 +323,15 @@ class BatchJob:
                     raise
 
             status = job_info.get("status", "N/A")
-            progress = '{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
-            print_status("{s} (progress {p})".format(s=status, p=progress))
+
+            progress = job_info.get("progress")
+            if isinstance(progress, int):
+                progress = f"{progress:d}%"
+            elif isinstance(progress, float):
+                progress = f"{progress:.1f}%"
+            else:
+                progress = "N/A"
+            print_status(f"{status} (progress {progress})")
             if status not in ('submitted', 'created', 'queued', 'running'):
                 break
 
