@@ -43,6 +43,8 @@ from openeo.internal.processes.parse import (
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
 from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
+from openeo.extra.job_management.thread_worker import _JobManagerWorkerThread
+
 
 _log = logging.getLogger(__name__)
 
@@ -849,58 +851,6 @@ class MultiBackendJobManager:
         job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
-
-
-class _JobManagerWorkerThread(threading.Thread):
-    WORK_TYPE_START_JOB = "start_job"
-
-    def __init__(self, work_queue: queue.Queue, result_queue: queue.Queue):
-        super().__init__(daemon=True)
-        self.work_queue = work_queue
-        self.result_queue = result_queue
-        self.stop_event = threading.Event()
-        self.polling_time = 5
-        # TODO: add customization options for timeout/sleep?
-
-    def run(self):
-        _log.info("Worker thread started, waiting for tasks")
-        while not self.stop_event.is_set():
-            try:
-                work_type, work_args = self.work_queue.get(timeout=self.polling_time)
-                _log.info(f"Received task: {work_type} with args: {work_args}")
-                if work_type == self.WORK_TYPE_START_JOB:
-                    self._start_job(work_args)
-                else:
-                    raise ValueError(f"Unknown work item: {work_type!r}")
-            except queue.Empty:
-                _log.info("No tasks for worker thread, sleep")
-                time.sleep(self.polling_time)
-                
-            except Exception as e:
-                # Push a failure result into the result_queue.
-                # Here we use None for job_id since the work item is invalid.
-                self.result_queue.put((None, (None, False, repr(e))))
-                _log.error(f"Error in worker thread: {e}")
-
-    def _start_job(self, work_args: tuple):
-        root_url, bearer, job_id = work_args
-        _log.info(f"Starting job {job_id} on backend: {root_url}")
-        try:
-            connection = openeo.connect(url=root_url)
-            if bearer:
-                _log.info(f"Authenticating with bearer token for job {job_id}")
-                connection.authenticate_bearer_token(bearer_token=bearer)
-
-            job = connection.job(job_id)
-            job.start()
-            status = job.status()
-            _log.info(f"Job {job_id} started successfully. Status: {status}")
-        except Exception as e:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, False, repr(e))))
-            _log.error(f"Error while starting job {job_id}: {e}")
-        else:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, True, status))) 
-
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)
