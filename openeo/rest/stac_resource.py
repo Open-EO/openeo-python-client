@@ -49,6 +49,8 @@ class StacResource(_ProcessGraphAbstraction):
         :param process_id: process id of the process.
         :param arguments: argument dictionary for the process.
         :param namespace: optional: process namespace
+
+        .. versionadded:: 0.39.1
         """
         pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
         # TODO: warn that actual return type can not or is not properly detected
