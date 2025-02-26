@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix legacy usage pattern to append `export_workspace` to `save_result` with generic `process()` helper method ([#742](https://github.com/Open-EO/openeo-python-client/issues/742))
+
 
 ## [0.39.0] - 2025-02-25
 

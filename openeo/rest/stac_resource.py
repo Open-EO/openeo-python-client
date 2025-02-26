@@ -36,6 +36,24 @@ class StacResource(_ProcessGraphAbstraction):
     def __init__(self, graph: PGNode, connection: Optional[Connection] = None):
         super().__init__(pgnode=graph, connection=connection)
 
+    def process(
+        self,
+        process_id: str,
+        arguments: Optional[dict] = None,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> StacResource:
+        """
+        Generic helper to create a new StacResource by applying a process.
+
+        :param process_id: process id of the process.
+        :param arguments: argument dictionary for the process.
+        :param namespace: optional: process namespace
+        """
+        pg = self._build_pgnode(process_id=process_id, arguments=arguments, namespace=namespace, **kwargs)
+        # TODO: warn that actual return type can not or is not properly detected
+        return StacResource(graph=pg, connection=self._connection)
+
     @openeo_process
     def export_workspace(self, workspace: str, merge: Union[str, None] = None) -> StacResource:
         """
