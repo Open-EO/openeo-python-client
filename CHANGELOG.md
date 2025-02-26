@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `DataCube.save_result()` (and related methods) now return a `SaveResult`/`StacResource` object instead of another `DataCube` object to be more in line with the official `save_result` specification ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#720](https://github.com/Open-EO/openeo-python-client/issues/720))
+- `datacube_from_flat_graph` now returns a `SaveResult` instead of a `DataCube` when appropriate ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#732](https://github.com/Open-EO/openeo-python-client/issues/732), [#733](https://github.com/Open-EO/openeo-python-client/issues/733))
 - Deprecate `BatchJob.run_synchronous` in favor of `BatchJob.start_and_wait` ([#570](https://github.com/Open-EO/openeo-python-client/issues/570)).
 
 ### Fixed
