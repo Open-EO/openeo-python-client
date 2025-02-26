@@ -34,7 +34,6 @@ import shapely.wkt
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-import openeo
 from openeo import BatchJob, Connection
 from openeo.internal.processes.parse import (
     Parameter,
@@ -44,6 +43,8 @@ from openeo.internal.processes.parse import (
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
 from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
+from openeo.extra.job_management.thread_worker import _JobManagerWorkerThread
+
 
 _log = logging.getLogger(__name__)
 
@@ -382,7 +383,7 @@ class MultiBackendJobManager:
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                time.sleep(1)
+                time.sleep(self.poll_sleep)
                 stats["sleep"] += 1
 
             worker_thread.stop_event.set()
@@ -391,7 +392,7 @@ class MultiBackendJobManager:
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             # Do sequence of micro-sleeps to allow for quick thread exit
             for _ in range(int(max(1, self.poll_sleep))):
-                time.sleep(1)
+                time.sleep(self.poll_sleep)
                 if self._stop_thread:
                     break
 
@@ -522,7 +523,7 @@ class MultiBackendJobManager:
 
             # Show current stats and sleep
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-            time.sleep(1)
+            time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
         worker_thread.stop_event.set()
@@ -561,18 +562,19 @@ class MultiBackendJobManager:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
-                        job_db.persist(not_started.loc[i : i + 1])
-
                         stats["job launch"] += 1
+
+                        job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
                         total_added += 1
 
+
+
+        # Process the result queue
+        self._process_result_queue(stats)
+
         # Act on jobs
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
-
-        while not self._result_queue.empty():
-            self._process_result_queue(stats)
-
         for job, row in jobs_done:
             self.on_job_done(job, row)
 
@@ -591,8 +593,9 @@ class MultiBackendJobManager:
         :param not_started: DataFrame containing jobs that are not yet started.
         :param stats: Dictionary to track statistics.
         """
+        _log.info('Start processing the result queue')
         while not self._result_queue.empty():
-            _log.info('Result queue waiting for tasks')
+            
             try:
                 work_result = self._result_queue.get_nowait()
                 _log.info(f"Received result: {work_result}")
@@ -850,58 +853,6 @@ class MultiBackendJobManager:
         job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
-
-
-class _JobManagerWorkerThread(threading.Thread):
-    WORK_TYPE_START_JOB = "start_job"
-
-    def __init__(self, work_queue: queue.Queue, result_queue: queue.Queue):
-        super().__init__(daemon=True)
-        self.work_queue = work_queue
-        self.result_queue = result_queue
-        self.stop_event = threading.Event()
-        self.polling_time = 5
-        # TODO: add customization options for timeout/sleep?
-
-    def run(self):
-        _log.info("Worker thread started, waiting for tasks")
-        while not self.stop_event.is_set():
-            try:
-                work_type, work_args = self.work_queue.get(timeout=self.polling_time)
-                _log.info(f"Received task: {work_type} with args: {work_args}")
-                if work_type == self.WORK_TYPE_START_JOB:
-                    self._start_job(work_args)
-                else:
-                    raise ValueError(f"Unknown work item: {work_type!r}")
-            except queue.Empty:
-                _log.info("No tasks for worker thread, sleep")
-                time.sleep(self.polling_time)
-                
-            except Exception as e:
-                # Push a failure result into the result_queue.
-                # Here we use None for job_id since the work item is invalid.
-                self.result_queue.put((None, (None, False, repr(e))))
-                _log.error(f"Error in worker thread: {e}")
-
-    def _start_job(self, work_args: tuple):
-        root_url, bearer, job_id = work_args
-        _log.info(f"Starting job {job_id} on backend: {root_url}")
-        try:
-            connection = openeo.connect(url=root_url)
-            if bearer:
-                _log.info(f"Authenticating with bearer token for job {job_id}")
-                connection.authenticate_bearer_token(bearer_token=bearer)
-
-            job = connection.job(job_id)
-            job.start()
-            status = job.status()
-            _log.info(f"Job {job_id} started successfully. Status: {status}")
-        except Exception as e:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, False, repr(e))))
-            _log.error(f"Error while starting job {job_id}: {e}")
-        else:
-            self.result_queue.put(item=(self.WORK_TYPE_START_JOB, (job_id, True, status))) 
-
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)

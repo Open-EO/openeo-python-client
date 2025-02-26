@@ -8,8 +8,6 @@ from pathlib import Path
 from time import sleep, time
 from typing import Callable, Union
 from unittest import mock
-import queue
-
 import dirty_equals
 import geopandas
 
@@ -36,7 +34,6 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
     ProcessBasedJobCreator,
-    _JobManagerWorkerThread,
     create_job_db,
     get_job_db,
 )
@@ -1767,94 +1764,3 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
-
-class TestJobManagerWorkerThread:
-
-    @pytest.fixture
-    def job_manager_root_dir(self, tmp_path):
-        return tmp_path / "job_mgr_root"
-
-    @pytest.fixture
-    def job_manager(self, job_manager_root_dir, dummy_backend_foo, dummy_backend_bar):
-        manager = MultiBackendJobManager(root_dir=job_manager_root_dir)
-        manager.add_backend("foo", connection=dummy_backend_foo.connection)
-        manager.add_backend("bar", connection=dummy_backend_bar.connection)
-        return manager
-
-    @staticmethod
-    def _create_year_job(row, connection, **kwargs):
-        """Job creation callable to use with MultiBackendJobManager run_jobs"""
-        year = int(row["year"])
-        pg = {"yearify": {"process_id": "yearify", "arguments": {"year": year}, "result": True}}
-        return connection.create_job(pg)
-
-    @pytest.fixture
-    def worker(self):
-        work_queue = queue.Queue()
-        result_queue = queue.Queue()
-        return _JobManagerWorkerThread(work_queue, result_queue)
-
-    def test_run_jobs_collects_worker_results(self, tmp_path, job_manager, sleep_mock):
-        # Set up a job database – similar to your "basic" tests.
-        df = pd.DataFrame({
-            "year": [2018],
-            "geometry": ["POINT (1 2)"],
-        })
-        job_db_path = tmp_path / "jobs.csv"
-        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
-        # overwrite the _process_result_queue method so it stores the result before processing.
-        captured_results = []
-        original_process_result_queue = job_manager._process_result_queue
-
-        def spy_process_result_queue(stats=None):
-            # Try to grab one result from the result queue and store it.
-            try:
-                work_result = job_manager._result_queue.get_nowait()
-                captured_results.append(work_result)
-            except queue.Empty:
-                pass
-            # Call the original logic (which may update stats etc.)
-            original_process_result_queue(stats)
-
-        job_manager._process_result_queue = spy_process_result_queue
-
-        # Run the full job loop.
-        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
-
-        expected = (  # expecting: (work_type, (job_id, success, final_status))
-            _JobManagerWorkerThread.WORK_TYPE_START_JOB,
-            ("job-2018", True, "queued")
-        )
-        assert any(result == expected for result in captured_results), (
-            f"Expected to see {expected!r} among worker results {captured_results!r}"
-        )
-
-    def test_run_jobs_failed_job_start(
-        self, tmp_path, job_manager, dummy_backend_foo, sleep_mock
-    ):
-        """Test error handling when job start fails"""
-        # Configure dummy backend to fail job starts
-        dummy_backend_foo.setup_simple_job_status_flow(
-            queued=0,  # No queued state
-            running=0,  # No running state
-            final="error",  # Immediate failure
-            final_per_job={"job-2018": "queued_for_start_failed"}
-        )
-
-        # Initialize job database with proper state
-        job_db_path = tmp_path / "jobs.csv"
-        df = pd.DataFrame({
-            "year": [2018],
-            "geometry": ["POINT (1 2)"],
-            "status": ["not_started"],
-            "backend_name": ["foo"]
-        })
-        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
-        # Run job processing
-        job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
-
-        # Verify final status
-        result_df = job_db.read()
-        assert result_df["status"].iloc[0] == "queued_for_start_failed"
