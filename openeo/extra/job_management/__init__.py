@@ -594,7 +594,7 @@ class MultiBackendJobManager:
             _log.info('Result queue waiting for tasks')
             try:
                 work_result = self._result_queue.get_nowait()
-                _log.info('f"Received result: {work_result}')
+                _log.info(f"Received result: {work_result}")
             except queue.Empty:
                 _log.info('No results in queue, break')
                 break
@@ -863,18 +863,24 @@ class _JobManagerWorkerThread(threading.Thread):
         # TODO: add customization options for timeout/sleep?
 
     def run(self):
-        _log.info('Worker thread started, waiting for tasks')
+        _log.info("Worker thread started, waiting for tasks")
         while not self.stop_event.is_set():
             try:
                 work_type, work_args = self.work_queue.get(timeout=self.polling_time)
-                _log.info('f"Received task: {work_type} with args: {work_args}"s')
+                _log.info(f"Received task: {work_type} with args: {work_args}")
                 if work_type == self.WORK_TYPE_START_JOB:
                     self._start_job(work_args)
                 else:
                     raise ValueError(f"Unknown work item: {work_type!r}")
             except queue.Empty:
-                _log.info('No tasks for worker thread, sleep')
+                _log.info("No tasks for worker thread, sleep")
                 time.sleep(self.polling_time)
+                
+            except Exception as e:
+                # Push a failure result into the result_queue.
+                # Here we use None for job_id since the work item is invalid.
+                self.result_queue.put((None, (None, False, repr(e))))
+                _log.error(f"Error in worker thread: {e}")
 
     def _start_job(self, work_args: tuple):
         root_url, bearer, job_id = work_args
