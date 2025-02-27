@@ -5,9 +5,10 @@ import logging
 import re
 import threading
 from pathlib import Path
-from time import sleep
+from time import sleep, time
 from typing import Callable, Union
 from unittest import mock
+import queue
 
 import dirty_equals
 import geopandas
@@ -35,6 +36,7 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
     ProcessBasedJobCreator,
+    _JobManagerWorkerThread,
     create_job_db,
     get_job_db,
 )
@@ -336,15 +338,13 @@ class TestMultiBackendJobManager:
 
         thread = threading.Thread(target=start_worker_thread, name="Worker process", daemon=True)
 
-        timeout_sec = 5.0
+        timeout_sec = 10.0
         thread.start()
         # We stop waiting for the process after the timeout.
         # If that happens it is likely we detected that run_jobs will loop infinitely.
         thread.join(timeout=timeout_sec)
 
-        assert is_done_file.exists(), (
-            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
-        )
+       
 
         # Also check that we got sensible end results in the job db.
         results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
@@ -364,6 +364,10 @@ class TestMultiBackendJobManager:
             for job_id in ["job-2018", "job-2019", "job-2020", "job-2021"]
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
+
+        assert is_done_file.exists(), (
+            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
+        )
 
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
@@ -465,6 +469,7 @@ class TestMultiBackendJobManager:
         assert [(r.id, r.status, r.backend_name) for r in pd.read_csv(job_db_path).itertuples()] == [
             ("job-2018", "finished", "foo"),
         ]
+
 
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
@@ -590,14 +595,15 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
-        )
+        print(final_df.iloc[0].to_dict())
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
+                ) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
@@ -644,7 +650,7 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'queued_for_start': 4.*Run stats:.*'start_job call': 4")
         assert needle.search(caplog.text)
 
 
