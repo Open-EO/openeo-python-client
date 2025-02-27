@@ -69,6 +69,7 @@ def dummy_dataframe() -> pd.DataFrame:
 def normalized_dummy_dataframe() -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "item_id": [0],
             "no": [1],
             "geometry": [2],
             "here": [3],
@@ -87,13 +88,14 @@ def normalized_dummy_dataframe() -> pd.DataFrame:
 
 @pytest.fixture
 def another_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"no": [4], "geometry": [5], "here": [6]})
+    return pd.DataFrame({"item_id": [1], "no": [4], "geometry": [5], "here": [6]})
 
 
 @pytest.fixture
 def normalized_merged_dummy_dataframe() -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "item_id": [0, 1],
             "no": [1, 4],
             "geometry": [2, 5],
             "here": [3, 6],
@@ -126,6 +128,7 @@ def dummy_geodataframe() -> gpd.GeoDataFrame:
 def normalized_dummy_geodataframe() -> pd.DataFrame:
     return pd.DataFrame(
         {
+            "item_id": [0],
             "there": [1],
             "is": [2],
             "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
@@ -174,13 +177,20 @@ def dummy_stac_item_geometry() -> pystac.Item:
 
 @pytest.fixture
 def dummy_series() -> pd.Series:
-    return pd.Series({"datetime": pystac.utils.datetime_to_str(FAKE_NOW), "some_property": "value"}, name="test")
+    return pd.Series(
+        {"item_id": "test", "datetime": pystac.utils.datetime_to_str(FAKE_NOW), "some_property": "value"}, name="test"
+    )
 
+
+@pytest.fixture
+def dummy_series_no_item_id() -> pd.Series:
+    return pd.Series({"datetime": pystac.utils.datetime_to_str(FAKE_NOW), "some_property": "value"}, name="test")
 
 @pytest.fixture
 def dummy_series_geometry() -> pd.Series:
     return pd.Series(
         {
+            "item_id": "test",
             "datetime": pystac.utils.datetime_to_str(FAKE_NOW),
             "some_property": "value",
             "geometry": {
@@ -203,6 +213,7 @@ def patch_datetime_now():
 def bulk_dataframe():
     return pd.DataFrame(
         {
+            "item_id": [f"test-{i}" for i in range(10)],
             "some_property": [f"value-{i}" for i in range(10)],
         },
         index=[i for i in range(10)],
@@ -259,8 +270,8 @@ class TestSTACAPIJobDatabase:
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
-    def test_series_from(self, job_db_exists, dummy_series, dummy_stac_item):
-        pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series)
+    def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
+        pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
 
     def test_item_from(self, patch_datetime_now, job_db_exists, dummy_series, dummy_stac_item):
         item = job_db_exists.item_from(dummy_series)
@@ -298,10 +309,11 @@ class TestSTACAPIJobDatabase:
             df,
             pd.DataFrame(
                 {
+                    "item_id": ["test"],
                     "datetime": [pystac.utils.datetime_to_str(FAKE_NOW)],
                     "some_property": ["value"],
                 },
-                index=["test"],
+                index=[0],
             ),
         )
 
@@ -326,7 +338,6 @@ class TestSTACAPIJobDatabase:
         mock_requests_post.reason = "OK"
 
         job_db_exists.persist(bulk_dataframe)
-        # job_db_exists._upload_items_bulk(collection_id=job_db_exists.collection_id, items=items)
 
         mock_requests_post.assert_called_once()
 
