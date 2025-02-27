@@ -55,22 +55,23 @@ def test_schema_accepts_geojson(schema, expected):
                         "mode",
                         "near",
                     ],
-                }
+                },
             ),
             ["average", "bilinear", "cubic", "cubicspline", "lanczos", "max", "med", "min", "mode", "near"],
         ),
         (
-            Schema([{"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]}, {"type": "number"}]),
-            ["replicate", "reflect", "reflect_pixel", "wrap"],
+            Schema([{"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]}, {"type": "null"}]),
+            ["replicate", "reflect", "reflect_pixel", "wrap", None],
         ),
         (
             Schema(
                 [
                     {"type": "string", "enum": ["replicate", "reflect"]},
+                    {"type": "null"},
                     {"type": "number", "enum": ["reflect_pixel", "wrap"]},
                 ]
             ),
-            ["replicate", "reflect", "reflect_pixel", "wrap"],
+            ["replicate", "reflect", None, "reflect_pixel", "wrap"],
         ),
     ],
 )

@@ -53,6 +53,9 @@ class Schema(typing.NamedTuple):
                         result = copy.deepcopy(item["enum"])
                     else:
                         result += item["enum"]
+                elif "type" in item:
+                    if item["type"] == "null":
+                        result += [None]
         elif isinstance(self.schema,dict):
             if "enum" in self.schema:
                 result = self.schema["enum"]

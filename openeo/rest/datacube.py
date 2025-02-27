@@ -2773,7 +2773,7 @@ class DataCube(_ProcessGraphAbstraction):
                 "coefficient"
             )
             schema = parameter.schema
-            coefficient_options = schema.get_enum_options() + [None]
+            coefficient_options = schema.get_enum_options()
             if coefficient == _UNSET:
                 coefficient = parameter.default
         except Exception as e:
