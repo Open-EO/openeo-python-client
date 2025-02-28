@@ -5,8 +5,8 @@ import logging
 import re
 import threading
 from pathlib import Path
-from time import sleep, time
-from typing import Callable, Union
+from time import sleep
+from typing import  Union
 from unittest import mock
 import dirty_equals
 import geopandas
@@ -335,13 +335,15 @@ class TestMultiBackendJobManager:
 
         thread = threading.Thread(target=start_worker_thread, name="Worker process", daemon=True)
 
-        timeout_sec = 10.0
+        timeout_sec = 5.0
         thread.start()
         # We stop waiting for the process after the timeout.
         # If that happens it is likely we detected that run_jobs will loop infinitely.
         thread.join(timeout=timeout_sec)
 
-       
+        assert is_done_file.exists(), (
+            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
+        )
 
         # Also check that we got sensible end results in the job db.
         results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
@@ -362,9 +364,7 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
-        assert is_done_file.exists(), (
-            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
-        )
+        
 
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
@@ -598,7 +598,6 @@ class TestMultiBackendJobManager:
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        print(final_df.iloc[0].to_dict())
         assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
                 ) == final_df.iloc[0].to_dict()
 
