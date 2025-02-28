@@ -42,7 +42,7 @@ from openeo.internal.processes.parse import (
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
 from openeo.util import LazyLoadCache, deep_get, repr_truncate, rfc3339
-from openeo.extra.job_management.thread_worker import _JobManagerWorkerThread
+from openeo.extra.job_management.thread_worker import _JobManagerWorkerThreadPool
 
 
 _log = logging.getLogger(__name__)
@@ -228,6 +228,7 @@ class MultiBackendJobManager:
         )
         self._thread = None
 
+        #TODO consider maxsize for queue?
         self._work_queue = queue.Queue()
         self._result_queue = queue.Queue()
 
@@ -372,8 +373,8 @@ class MultiBackendJobManager:
             # TODO: support user-provided `stats`
             stats = collections.defaultdict(int)
 
-            # TODO: multiple workers instead of a single one? Work with thread pool?
-            worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
+            # TODO: couple maximal workers to amount of parallel jobs?
+            worker_thread = _JobManagerWorkerThreadPool(work_queue=self._work_queue, result_queue=self._result_queue, max_worker = 4)
             worker_thread.start()
 
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
@@ -382,21 +383,12 @@ class MultiBackendJobManager:
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                time.sleep(self.poll_sleep)
-                stats["sleep"] += 1
+                for _ in range(int(max(1, self.poll_sleep))):
+                    time.sleep(1)
+                    if self._stop_thread:
+                        break
 
-            worker_thread.stop_event.set()
-            worker_thread.join()
-
-            _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-            # Do sequence of micro-sleeps to allow for quick thread exit
-            for _ in range(int(max(1, self.poll_sleep))):
-                time.sleep(self.poll_sleep)
-                if self._stop_thread:
-                    break
-
-
-
+            worker_thread.shutdown()
         self._thread = Thread(target=run_loop)
         self._thread.start()
 
@@ -513,7 +505,7 @@ class MultiBackendJobManager:
         stats = collections.defaultdict(int)
 
         # TODO: multiple workers instead of a single one? Work with thread pool?
-        worker_thread = _JobManagerWorkerThread(work_queue=self._work_queue, result_queue=self._result_queue)
+        worker_thread = _JobManagerWorkerThreadPool(work_queue=self._work_queue, result_queue=self._result_queue)
         worker_thread.start()
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
@@ -525,8 +517,7 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-        worker_thread.stop_event.set()
-        worker_thread.join()
+        worker_thread.shutdown()
 
         return stats
 
@@ -670,7 +661,7 @@ class MultiBackendJobManager:
                             job_con = job.connection
                             self._work_queue.put(
                                 (
-                                    _JobManagerWorkerThread.WORK_TYPE_START_JOB,
+                                    _JobManagerWorkerThreadPool.WORK_TYPE_START_JOB,
                                     (
                                         job_con.root_url,
                                         job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
