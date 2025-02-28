@@ -335,13 +335,15 @@ class TestMultiBackendJobManager:
 
         thread = threading.Thread(target=start_worker_thread, name="Worker process", daemon=True)
 
-        timeout_sec = 10.0
+        timeout_sec = 5.0
         thread.start()
         # We stop waiting for the process after the timeout.
         # If that happens it is likely we detected that run_jobs will loop infinitely.
         thread.join(timeout=timeout_sec)
 
-       
+        assert is_done_file.exists(), (
+            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
+        )
 
         # Also check that we got sensible end results in the job db.
         results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
@@ -362,9 +364,7 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
-        assert is_done_file.exists(), (
-            "MultiBackendJobManager did not finish on its own and was killed. " + "Infinite loop is probable."
-        )
+        
 
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"

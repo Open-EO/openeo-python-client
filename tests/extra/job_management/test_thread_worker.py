@@ -15,7 +15,6 @@ from openeo.extra.job_management import (
 
 )
 from openeo.extra.job_management.thread_worker import _JobManagerWorkerThreadPool
-
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 
 @pytest.fixture
@@ -81,7 +80,7 @@ class TestJobManagerWorkerThreadPool:
         result_queue = queue.Queue()
         worker = _JobManagerWorkerThreadPool(work_queue, result_queue)
         yield worker
-        
+
         if worker.is_alive():
             worker.shutdown()
 
@@ -150,19 +149,19 @@ class TestJobManagerWorkerThreadPool:
         self.enqueue_and_wait(fresh_worker, (fresh_worker.WORK_TYPE_START_JOB, (backend_url, "bearer_token_123", job_id)))
         
         assert fresh_worker.result_queue.qsize() == 1
-        work_type, (jid, success, status) = fresh_worker.result_queue.get()
+        work_type, (jobid, success, status) = fresh_worker.result_queue.get()
         assert success is True
         assert status == "finished"
 
-    def test_start_job_failure(self, fresh_worker, monkeypatch):
-        def mock_connect(*args, **kwargs):
-            raise ConnectionError("Backend unreachable")
-        monkeypatch.setattr(openeo, "connect", mock_connect)
+    def test_start_job_failure(self, fresh_worker, requests_mock):
+        backend_url = "https://down.test"
+        # Simulate a connection error when trying to GET the backend capabilities
+        requests_mock.get(backend_url, exc=ConnectionError("Backend unreachable"))
         
-        self.enqueue_and_wait(fresh_worker, (fresh_worker.WORK_TYPE_START_JOB, ("https://down.test", None, "job-456")))
+        self.enqueue_and_wait(fresh_worker, (fresh_worker.WORK_TYPE_START_JOB, (backend_url, None, "job-456")))
         
         assert fresh_worker.result_queue.qsize() == 1
-        work_type, (jid, success, error) = fresh_worker.result_queue.get()
+        work_type, (jobid, success, error) = fresh_worker.result_queue.get()
         assert success is False
         assert "Backend unreachable" in error
 
