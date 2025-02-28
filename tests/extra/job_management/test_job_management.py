@@ -8,8 +8,6 @@ from pathlib import Path
 from time import sleep, time
 from typing import Callable, Union
 from unittest import mock
-import queue
-
 import dirty_equals
 import geopandas
 
@@ -36,7 +34,6 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
     ParquetJobDatabase,
     ProcessBasedJobCreator,
-    _JobManagerWorkerThread,
     create_job_db,
     get_job_db,
 )
