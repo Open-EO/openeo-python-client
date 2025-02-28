@@ -14,7 +14,7 @@ from openeo.extra.job_management import (
     MultiBackendJobManager,
 
 )
-from openeo.extra.job_management.thread_worker import _JobManagerWorkerThread
+from openeo.extra.job_management.thread_worker import _JobManagerWorkerThreadPool
 
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 
@@ -56,7 +56,7 @@ def sleep_mock():
         yield sleep
 
 
-class TestJobManagerWorkerThread:
+class TestJobManagerWorkerThreadPool:
 
     @pytest.fixture
     def job_manager_root_dir(self, tmp_path):
@@ -79,18 +79,17 @@ class TestJobManagerWorkerThread:
     def fresh_worker(self):
         work_queue = queue.Queue()
         result_queue = queue.Queue()
-        worker = _JobManagerWorkerThread(work_queue, result_queue)
+        worker = _JobManagerWorkerThreadPool(work_queue, result_queue)
         yield worker
+        
         if worker.is_alive():
-            worker.stop_event.set()
-            worker.join(timeout=1)
+            worker.shutdown()
 
     def enqueue_and_wait(self, worker, work_item, timeout=0.2):
         worker.work_queue.put(work_item)
         worker.start()
         sleep(timeout)
-        worker.stop_event.set()
-        worker.join(timeout=1)
+        worker.shutdown()
 
     def test_run_jobs_collects_worker_results(self, tmp_path, job_manager, sleep_mock):
         df = pd.DataFrame({"year": [2018], "geometry": ["POINT (1 2)"]})
@@ -113,7 +112,7 @@ class TestJobManagerWorkerThread:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
 
         expected = (
-            _JobManagerWorkerThread.WORK_TYPE_START_JOB,
+            _JobManagerWorkerThreadPool.WORK_TYPE_START_JOB,
             ("job-2018", True, "queued")
         )
         assert any(result == expected for result in captured_results), (
@@ -124,8 +123,7 @@ class TestJobManagerWorkerThread:
         fresh_worker.polling_time = 0.1  
         fresh_worker.start()
         assert fresh_worker.is_alive()
-        fresh_worker.stop_event.set()
-        fresh_worker.join(timeout=1)
+        fresh_worker.shutdown()
         assert not fresh_worker.is_alive()
 
     def test_start_job_success(self, fresh_worker, requests_mock):
@@ -199,6 +197,5 @@ class TestJobManagerWorkerThread:
         
         fresh_worker.start()
         sleep(0.5)
-        fresh_worker.stop_event.set()
-        fresh_worker.join()
+        fresh_worker.shutdown()
         assert fresh_worker.result_queue.qsize() == 3
