@@ -33,7 +33,6 @@ import shapely.geometry.base
 import shapely.wkt
 from requests.adapters import HTTPAdapter, Retry
 
-import openeo
 from openeo import BatchJob, Connection
 from openeo.internal.processes.parse import (
     Parameter,
@@ -383,7 +382,7 @@ class MultiBackendJobManager:
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-                time.sleep(1)
+                time.sleep(self.poll_sleep)
                 stats["sleep"] += 1
 
             worker_thread.stop_event.set()
@@ -392,7 +391,7 @@ class MultiBackendJobManager:
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             # Do sequence of micro-sleeps to allow for quick thread exit
             for _ in range(int(max(1, self.poll_sleep))):
-                time.sleep(1)
+                time.sleep(self.poll_sleep)
                 if self._stop_thread:
                     break
 
@@ -523,7 +522,7 @@ class MultiBackendJobManager:
 
             # Show current stats and sleep
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
-            time.sleep(1)
+            time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
         worker_thread.stop_event.set()
@@ -562,18 +561,19 @@ class MultiBackendJobManager:
                     to_add = self.backends[backend_name].parallel_jobs - backend_load
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
-                        job_db.persist(not_started.loc[i : i + 1])
-
                         stats["job launch"] += 1
+
+                        job_db.persist(not_started.loc[i : i + 1])
                         stats["job_db persist"] += 1
                         total_added += 1
 
+
+
+        # Process the result queue
+        self._process_result_queue(stats)
+
         # Act on jobs
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
-
-        while not self._result_queue.empty():
-            self._process_result_queue(stats)
-
         for job, row in jobs_done:
             self.on_job_done(job, row)
 
@@ -592,8 +592,9 @@ class MultiBackendJobManager:
         :param not_started: DataFrame containing jobs that are not yet started.
         :param stats: Dictionary to track statistics.
         """
+        _log.info('Start processing the result queue')
         while not self._result_queue.empty():
-            _log.info('Result queue waiting for tasks')
+            
             try:
                 work_result = self._result_queue.get_nowait()
                 _log.info(f"Received result: {work_result}")
