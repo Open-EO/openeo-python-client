@@ -5,6 +5,7 @@ For example: parse a bunch of JSON descriptions and generate Python (stub) funct
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import typing
@@ -42,6 +43,23 @@ class Schema(typing.NamedTuple):
         elif isinstance(self.schema, list):
             return any(is_geojson_schema(s) for s in self.schema)
         return False
+
+    def get_enum_options(self):
+        result = None
+        if isinstance(self.schema,list):
+            for item in self.schema:
+                if "enum" in item:
+                    if result is None:
+                        result = copy.deepcopy(item["enum"])
+                    else:
+                        result += item["enum"]
+                elif "type" in item:
+                    if item["type"] == "null":
+                        result += [None]
+        elif isinstance(self.schema,dict):
+            if "enum" in self.schema:
+                result = self.schema["enum"]
+        return result
 
 
 _NO_DEFAULT = object()
@@ -126,6 +144,12 @@ class Process(typing.NamedTuple):
         """Parse openEO process JSON description file."""
         with Path(path).open("r") as f:
             return cls.from_json(f.read())
+
+    def get_parameter(self, name: str) -> Parameter:
+        for parameter in self.parameters:
+            if parameter.name == name:
+                return parameter
+        raise LookupError(f"Parameter {name!r} not found.")
 
 
 def parse_all_from_dir(path: Union[str, Path], pattern="*.json") -> Iterator[Process]:
