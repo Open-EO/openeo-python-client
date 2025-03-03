@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add initial support for accessing [Federation Extension](https://github.com/Open-EO/openeo-api/tree/master/extensions/federation) related metadata ([#668](https://github.com/Open-EO/openeo-python-client/issues/668))
+- `sar_backscatter`: try to retrieve coefficient options from backend ([#693](https://github.com/Open-EO/openeo-python-client/issues/693))
 
 ### Changed
 
