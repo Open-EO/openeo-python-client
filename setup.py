@@ -56,6 +56,12 @@ jupyter_require = [
     "ipython",
 ]
 
+artifacts_require = [
+    "boto3",
+    "botocore",
+    "packaging"
+]
+
 
 name = "openeo"
 setup(
@@ -86,7 +92,7 @@ setup(
         "importlib_resources; python_version<'3.9'",
     ],
     extras_require={
-        "tests": tests_require,
+        "tests": tests_require + artifacts_require,
         "dev": tests_require + docs_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
@@ -94,6 +100,7 @@ setup(
         ],
         "localprocessing": localprocessing_require,
         "jupyter": jupyter_require,
+        "artifacts": artifacts_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
