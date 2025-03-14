@@ -598,7 +598,6 @@ class TestMultiBackendJobManager:
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        print(final_df.iloc[0].to_dict())
         assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
                 ) == final_df.iloc[0].to_dict()
 
