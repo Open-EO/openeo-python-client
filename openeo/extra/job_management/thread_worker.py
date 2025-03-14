@@ -36,6 +36,7 @@ class _JobManagerWorkerThreadPool:
 
     def _process_work_item(self, work_type: str, work_args: Tuple[Any, ...]) -> Tuple[str, bool, str]:
         """Process a work item and return (job_id, success, data)."""
+        job_id = work_args[2] if len(work_args) > 2 else "unknown"
         try:
             if work_type == self.WORK_TYPE_START_JOB:
                 root_url, bearer, job_id = work_args
@@ -77,4 +78,5 @@ class _JobManagerWorkerThreadPool:
 
     def shutdown(self):
         """Clean shutdown of the executor."""
+        _log.info("Shutting down worker thread pool")
         self.executor.shutdown(wait=True)
