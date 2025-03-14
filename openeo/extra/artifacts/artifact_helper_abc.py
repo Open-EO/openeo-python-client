@@ -31,7 +31,7 @@ class ArtifactHelperABC(ArtifactHelperBuilderABC, ABC):
         return cls._from_openeo_connection(conn, config)
 
     @abstractmethod
-    def upload_file(self, object_name: str, src_file_path: str | Path) -> StorageURI:
+    def upload_file(self, path: str | Path, object_name: str = "") -> StorageURI:
         """
         A method to store an artifact remotely and get a URI understandable by the OpenEO processor
         """

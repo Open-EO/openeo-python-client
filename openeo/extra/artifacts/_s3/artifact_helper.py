@@ -37,14 +37,28 @@ class S3ArtifactHelper(ArtifactHelperABC):
     
     def _get_upload_key(self, object_name: str) -> str:
         return f"{self._get_upload_prefix()}{object_name}"
-    
-    def upload_file(self, object_name: str, src_file_path: str | Path) -> S3URI:
+
+    @staticmethod
+    def get_object_name_from_path(path: str | Path) -> str:
+        if isinstance(path, str):
+            path = Path(path)
+        return path.name
+
+    def upload_file(self, path: str | Path, object_name: str = "") -> S3URI:
+        """
+        Upload a file to a backend understanding the S3 API
+
+        :param path A file path to the file that must be uploaded
+        :param object_name: Optional the final part of the name to be uploaded. If omitted the filename is used.
+
+        :return: `S3URI` A S3URI that points to the uploaded file in the S3 compatible backend
+        """
         mb = 1024 ** 2
         config = TransferConfig(multipart_threshold=self.MULTIPART_THRESHOLD_IN_MB * mb)
         bucket = self.BUCKET_NAME
-        key = self._get_upload_key(object_name)
+        key = self._get_upload_key(object_name or self.get_object_name_from_path(path))
         self.s3.upload_file(
-            str(src_file_path),
+            str(path),
             bucket,
             key,
             Config=config
@@ -52,6 +66,14 @@ class S3ArtifactHelper(ArtifactHelperABC):
         return S3URI(bucket, key)
     
     def get_presigned_url(self, storage_uri: S3URI, expires_in_seconds: int = 7 * 3600 * 24) -> str:
+        """
+        Get a presigned URL to allow retrieval of an object.
+
+        :param storage_uri `S3URI` A S3URI that points to the uploaded file in the S3 compatible backend
+        :param expires_in_seconds: Optional the number of seconds the link is valid for (defaults to 7 days)
+
+        :return: `str` A HTTP url that can be used to download a file. It also supports Range header in its requests.
+        """
         url = self.s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': storage_uri.bucket, 'Key': storage_uri.key},
