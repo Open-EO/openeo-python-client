@@ -25,7 +25,7 @@ class StorageConfig(ABC):
         """
         if not self.is_openeo_connection_metadata_loaded():
             self._load_openeo_connection_metadata(conn)
-            setattr(self, _METADATA_LOADED, True)
+            object.__setattr__(self, _METADATA_LOADED, True)
 
     def is_openeo_connection_metadata_loaded(self) -> bool:
         """

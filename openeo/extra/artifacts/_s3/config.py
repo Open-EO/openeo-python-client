@@ -23,7 +23,7 @@ else:
 DISABLE_TRACING_TRACE_ID = "00000000-0000-0000-0000-000000000000"
 
 
-@dataclass
+@dataclass(frozen=True)
 class S3Config(StorageConfig):
     """The s3 endpoint url protocol:://fqdn[:portnumber]"""
     s3_endpoint_url: Optional[str] = None
@@ -41,13 +41,13 @@ class S3Config(StorageConfig):
         Hard coding since connection does not allow automatic determining config yet.
         """
         if self.s3_endpoint_url is None:
-            self.s3_endpoint_url = "https://s3.waw3-1.openeo.v1.dataspace.copernicus.eu"
+            object.__setattr__(self, "s3_endpoint_url", "https://s3.waw3-1.openeo.v1.dataspace.copernicus.eu")
 
         if self.sts_endpoint_url is None:
-            self.sts_endpoint_url = "https://sts.waw3-1.openeo.v1.dataspace.copernicus.eu"
+            object.__setattr__(self, "sts_endpoint_url", "https://sts.waw3-1.openeo.v1.dataspace.copernicus.eu")
 
         if self.sts_role_arn is None:
-            self.sts_role_arn = "arn:aws:iam::000000000000:role/S3Access"
+            object.__setattr__(self, "sts_role_arn", "arn:aws:iam::000000000000:role/S3Access")
 
     def should_trace(self) -> bool:
         return self.trace_id != DISABLE_TRACING_TRACE_ID
