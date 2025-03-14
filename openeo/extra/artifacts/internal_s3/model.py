@@ -6,26 +6,26 @@ from openeo.extra.artifacts.uri import StorageURI
 
 @dataclass(frozen=True)
 class AWSSTSCredentials:
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
-    AWS_SESSION_TOKEN: str
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_session_token: str
     subject_from_web_identity_token: str
 
     @classmethod
     def from_assume_role_response(cls, resp: dict) -> AWSSTSCredentials:
         d = resp["Credentials"]
         return AWSSTSCredentials(
-            AWS_ACCESS_KEY_ID=d["AccessKeyId"],
-            AWS_SECRET_ACCESS_KEY=d["SecretAccessKey"],
-            AWS_SESSION_TOKEN=d["SessionToken"],
+            aws_access_key_id=d["AccessKeyId"],
+            aws_secret_access_key=d["SecretAccessKey"],
+            aws_session_token=d["SessionToken"],
             subject_from_web_identity_token=resp["SubjectFromWebIdentityToken"]
         )
 
     def as_kwargs(self) -> dict:
         return {
-            "aws_access_key_id": self.AWS_ACCESS_KEY_ID,
-            "aws_secret_access_key": self.AWS_SECRET_ACCESS_KEY,
-            "aws_session_token": self.AWS_SESSION_TOKEN
+            "aws_access_key_id": self.aws_access_key_id,
+            "aws_secret_access_key": self.aws_secret_access_key,
+            "aws_session_token": self.aws_session_token
         }
 
     def get_user_hash(self) -> str:
