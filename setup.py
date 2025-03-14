@@ -58,8 +58,7 @@ jupyter_require = [
 
 artifacts_require = [
     "boto3",
-    "botocore",
-    "packaging"
+    "botocore"
 ]
 
 

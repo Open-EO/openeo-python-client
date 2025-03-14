@@ -3,14 +3,14 @@ import boto3
 import botocore
 
 from openeo import Connection
+from openeo.utils.version import ComparableVersion
 from openeo.extra.artifacts.internal_s3.tracer import add_trace_id, add_trace_id_as_query_parameter
 from openeo.extra.artifacts.config import StorageConfig
 from botocore.config import Config
 from typing import Optional
-from packaging.version import Version
 
 
-if Version(botocore.__version__) < Version("1.36.0"):
+if ComparableVersion(botocore.__version__).below("1.36.0"):
     # Before 1.36 checksuming was not done by default anyway and therefore
     # there was no opt-out.
     no_default_checksum_cfg = Config()
