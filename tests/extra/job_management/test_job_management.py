@@ -5,8 +5,8 @@ import logging
 import re
 import threading
 from pathlib import Path
-from time import sleep, time
-from typing import Callable, Union
+from time import sleep
+from typing import  Union
 from unittest import mock
 import dirty_equals
 import geopandas

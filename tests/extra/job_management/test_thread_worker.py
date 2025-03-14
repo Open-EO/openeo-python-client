@@ -2,7 +2,6 @@
 from collections import defaultdict
 import logging
 from openeo.extra.job_management.thread_worker import _JobManagerWorkerThreadPool
-from openeo.rest._testing import OPENEO_BACKEND, build_capabilities
 
 
 class TestJobManagerWorkerThreadPool:

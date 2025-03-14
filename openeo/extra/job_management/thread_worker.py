@@ -1,5 +1,5 @@
 
-from  typing import Tuple, Any, List, Dict
+from  typing import Tuple, Any, Dict
 import logging
 import openeo
 import concurrent.futures
