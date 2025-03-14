@@ -5,14 +5,14 @@ from boto3.s3.transfer import TransferConfig
 from pathlib import Path
 
 from openeo.rest.connection import Connection
-from openeo.extra.artifacts.artifact_helper import ArtifactHelper
+from openeo.extra.artifacts.artifact_helper_abc import ArtifactHelperABC
 from openeo.extra.artifacts.internal_s3.sts import OpenEOSTSClient
 from openeo.extra.artifacts.internal_s3.config import S3Config
 from openeo.extra.artifacts.internal_s3.model import S3URI
 from openeo.extra.artifacts.internal_s3.model import AWSSTSCredentials
 
 
-class S3ArtifactHelper(ArtifactHelper):
+class S3ArtifactHelper(ArtifactHelperABC):
     BUCKET_NAME = "openeo-artifacts"
     # From what size will we switch to multi-part-upload
     MULTIPART_THRESHOLD_IN_MB = 50

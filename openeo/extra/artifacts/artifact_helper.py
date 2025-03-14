@@ -1,54 +1,30 @@
-from __future__ import annotations
-from abc import ABC, abstractmethod
 from typing import Optional
 
+from openeo import Connection
+from openeo.extra.artifacts.artifact_helper_abc import ArtifactHelperBuilderABC, ArtifactHelperABC
+from openeo.extra.artifacts.internal_s3.artifact_helper import S3ArtifactHelper
 from openeo.extra.artifacts.config import StorageConfig
-from openeo.extra.artifacts.uri import StorageURI
-from openeo.rest.connection import Connection
-from pathlib import Path
 
 
-class ArtifactHelper(ABC):
+class ArtifactHelper(ArtifactHelperBuilderABC):
     @classmethod
-    def from_openeo_connection(cls, conn: Connection, config: Optional[StorageConfig] = None) -> ArtifactHelper:
+    def from_openeo_connection(cls, conn: Connection, config: Optional[StorageConfig] = None) -> ArtifactHelperABC:
         """
-        Create a new Artifact helper from the OpenEO connection. This is the starting point to upload artifacts
-        """
-        if config is None:
-            config = cls._get_default_storage_config()
-        config.load_openeo_connection_metadata(conn)
-        return cls._from_openeo_connection(conn, config)
+        Create an artifactHelper for an openEO backend.
 
-    @abstractmethod
-    def upload_file(self, object_name: str, src_file_path: str | Path) -> StorageURI:
-        """
-        A method to store an artifact remotely and get a URI understandable by the OpenEO processor
-        """
+        :param conn ``openeo.Connection``  connection to an openEOBackend
+        :param config: Optional object to specify configuration for Artifact storage
 
-    @abstractmethod
-    def get_presigned_url(self, storage_uri: StorageURI, expires_in_seconds: int) -> str:
-        """
-        A method to convert a StorageURI to a signed https URL which can be accessed via normal http libraries.
+        :return: An Artifact helper based on info provided by the backend .
 
-        These URIs should be kept secret as they provide access to the data.
-        """
+        Example usage:
+        ```
+        from openeo.extra.artifacts import ArtifactHelper
 
-    def __init__(self, config: StorageConfig):
-        if not config.is_openeo_connection_metadata_loaded():
-            raise RuntimeError("config should have openeo connection metadata loaded prior to initialization.")
-        self._config = config
-
-    @classmethod
-    @abstractmethod
-    def _get_default_storage_config(cls) -> StorageConfig:
+        artifact_helper = ArtifactHelper.from_openeo_connection(connection)
+        storage_uri = artifact_helper.upload_file(object_name, src_file_path)
+        presigned_uri = artifact_helper.get_presigned_url(storage_uri)
+        ```
         """
-        A method that provides a default storage config for the Artifact Helper
-        """
-
-    @classmethod
-    @abstractmethod
-    def _from_openeo_connection(cls, conn: Connection, config: StorageConfig) -> ArtifactHelper:
-        """
-        The implementation that creates an artifact helper. This method takes a config which has already been
-        initialized from the metadata of the OpenEO connection.
-        """
+        # At time of writing there is only one type of artifact store supported so no resolving done yet.
+        return S3ArtifactHelper.from_openeo_connection(conn, config)
