@@ -5,6 +5,7 @@ import dataclasses
 import datetime
 import json
 import logging
+import queue
 import re
 import time
 import warnings
@@ -588,7 +589,6 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
-        print(f"Launching job for row {i} on backend {backend_name}", flush=True)
 
         df.loc[i, "backend_name"] = backend_name
         row = df.loc[i]
@@ -611,7 +611,7 @@ class MultiBackendJobManager:
             df.loc[i, "start_time"] = rfc3339.utcnow()
             if job:
                 df.loc[i, "id"] = job.job_id
-                print(f"Job created: {job.job_id}", flush=True)
+                _log.info(f"Job created: {job.job_id}")
                 with ignore_connection_errors(context="get status"):
                     status = job.status()
                     stats["job get status"] += 1
@@ -619,10 +619,8 @@ class MultiBackendJobManager:
                     if status == "created":
                         # start job if not yet done by callback
                         try:
-                            print(f"Job created: {job.job_id}", flush=True)
+                            _log.info(f"Job : {job.job_id} created, submitting to thread pool")
                             job_con = job.connection
-                            print(f"Submitting {job.job_id} to thread pool", flush=True)
-
                             self.worker_thread.submit_work(
                                 
                                     _JobManagerWorkerThreadPool.WORK_TYPE_START_JOB,
