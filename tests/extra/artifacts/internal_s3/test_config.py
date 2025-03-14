@@ -1,4 +1,4 @@
-from openeo.extra.artifacts.internal_s3.config import S3Config
+from openeo.extra.artifacts._s3.config import S3Config
 import pytest
 
 

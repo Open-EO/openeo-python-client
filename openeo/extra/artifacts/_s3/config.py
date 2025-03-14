@@ -4,7 +4,7 @@ import botocore
 
 from openeo import Connection
 from openeo.utils.version import ComparableVersion
-from openeo.extra.artifacts.internal_s3.tracer import add_trace_id, add_trace_id_as_query_parameter
+from openeo.extra.artifacts._s3.tracer import add_trace_id, add_trace_id_as_query_parameter
 from openeo.extra.artifacts.config import StorageConfig
 from botocore.config import Config
 from typing import Optional

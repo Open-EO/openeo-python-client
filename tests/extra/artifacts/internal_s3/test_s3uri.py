@@ -1,4 +1,4 @@
-from openeo.extra.artifacts.internal_s3.model import S3URI
+from openeo.extra.artifacts._s3.model import S3URI
 
 
 def test_s3uri_serialization_is_idempotent():

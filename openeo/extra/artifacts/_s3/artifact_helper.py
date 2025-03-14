@@ -6,10 +6,10 @@ from pathlib import Path
 
 from openeo.rest.connection import Connection
 from openeo.extra.artifacts.artifact_helper_abc import ArtifactHelperABC
-from openeo.extra.artifacts.internal_s3.sts import OpenEOSTSClient
-from openeo.extra.artifacts.internal_s3.config import S3Config
-from openeo.extra.artifacts.internal_s3.model import S3URI
-from openeo.extra.artifacts.internal_s3.model import AWSSTSCredentials
+from openeo.extra.artifacts._s3.sts import OpenEOSTSClient
+from openeo.extra.artifacts._s3.config import S3Config
+from openeo.extra.artifacts._s3.model import S3URI
+from openeo.extra.artifacts._s3.model import AWSSTSCredentials
 
 
 class S3ArtifactHelper(ArtifactHelperABC):

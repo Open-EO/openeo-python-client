@@ -2,7 +2,7 @@ from typing import Optional
 
 from openeo import Connection
 from openeo.extra.artifacts.artifact_helper_abc import ArtifactHelperBuilderABC, ArtifactHelperABC
-from openeo.extra.artifacts.internal_s3.artifact_helper import S3ArtifactHelper
+from openeo.extra.artifacts._s3.artifact_helper import S3ArtifactHelper
 from openeo.extra.artifacts.config import StorageConfig
 
 

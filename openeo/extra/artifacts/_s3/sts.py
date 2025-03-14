@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from openeo.extra.artifacts.internal_s3.model import AWSSTSCredentials
-from openeo.extra.artifacts.internal_s3.config import S3Config
+from openeo.extra.artifacts._s3.model import AWSSTSCredentials
+from openeo.extra.artifacts._s3.config import S3Config
 from openeo.rest.auth.auth import BearerAuth
 from openeo.rest.connection import Connection
 
