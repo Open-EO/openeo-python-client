@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import boto3
 import botocore
 
@@ -20,6 +20,9 @@ else:
     )
 
 
+DISABLE_TRACING_TRACE_ID = "00000000-0000-0000-0000-000000000000"
+
+
 @dataclass
 class S3Config(StorageConfig):
     """The s3 endpoint url protocol:://fqdn[:portnumber]"""
@@ -27,9 +30,9 @@ class S3Config(StorageConfig):
     """The sts endpoint url protocol:://fqdn[:portnumber]"""
     sts_endpoint_url: Optional[str] = None
     """The trace_id is if you want to send a uuid4 identifier to the backend"""
-    trace_id: str = ""
+    trace_id: str = DISABLE_TRACING_TRACE_ID
     """You can change the botocore_config used but this is an expert option"""
-    botocore_config: Optional[Config] = None
+    botocore_config: Config = field(default_factory=lambda: no_default_checksum_cfg)
     """The role ARN to be assumed"""
     sts_role_arn: Optional[str] = None
 
@@ -46,8 +49,8 @@ class S3Config(StorageConfig):
         if self.sts_role_arn is None:
             self.sts_role_arn = "arn:aws:iam::000000000000:role/S3Access"
 
-    def __post_init__(self):
-        self.botocore_config = self.botocore_config or no_default_checksum_cfg
+    def should_trace(self) -> bool:
+        return self.trace_id != DISABLE_TRACING_TRACE_ID
 
     def build_client(self, service_name: str, session_kwargs: Optional[dict] = None):
         """
@@ -63,7 +66,7 @@ class S3Config(StorageConfig):
             endpoint_url=self._get_endpoint_url(service_name),
             config=self.botocore_config,   
         )
-        if self.trace_id != "":
+        if self.should_trace():
             add_trace_id(client, self.trace_id)
         return client
 
@@ -104,7 +107,7 @@ class S3Config(StorageConfig):
         raise ValueError(f"Unsupported service {service_name}")
 
     def add_trace_id_qp_if_needed(self, url: str) -> str:
-        if self.trace_id == "":
+        if not self.should_trace():
             return url
         return add_trace_id_as_query_parameter(url, self.trace_id)
 
