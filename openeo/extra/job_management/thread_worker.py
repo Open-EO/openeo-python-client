@@ -26,13 +26,14 @@ class _JobManagerWorkerThreadPool:
 
     def __init__(self, max_workers: int = 2):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        self.futures: List[concurrent.futures.Future] = []
+        self.futures: Dict[concurrent.futures.Future, str] = {}
 
     def submit_work(self, work_type: str, work_args: Tuple[Any, ...]) -> None:
         """Submit work to the executor and track its Future."""
-        _log.info(f"Submitting {work_type} for job {work_args[2]}")
+        job_id = work_args[2] if len(work_args) > 2 else "unknown"
+        _log.info(f"Submitting {work_type} for job {job_id}")
         future = self.executor.submit(self._process_work_item, work_type, work_args)
-        self.futures.append(future)
+        self.futures[future] = job_id
 
     def _process_work_item(self, work_type: str, work_args: Tuple[Any, ...]) -> Tuple[str, bool, str]:
         """Process a work item and return (job_id, success, data)."""
@@ -46,35 +47,36 @@ class _JobManagerWorkerThreadPool:
                 job = conn.job(job_id)
                 job.start()
                 status = job.status()
-                _log.info(f"Job {job_id} started. Status: {status}")
+                _log.info(f"Job {job_id} started successfully. Status: {status}")
                 return (job_id, True, status)
             else:
                 raise ValueError(f"Unknown work type: {work_type}")
         except Exception as e:
-            error_msg = f"Job {job_id} failed: {str(e)}"
-            _log.error(error_msg)
-            return (job_id, False, error_msg)
+            _log.exception(f"Job {job_id} failed: {e}")
+            return (job_id, False, str(e))
 
     def process_futures(self, stats: Dict[str, int]) -> None:
         """Process completed futures and update stats."""
         completed = []
         _log.info(f"Processing {len(self.futures)} futures")
         for future in concurrent.futures.as_completed(self.futures):
+            job_id = self.futures[future]
             try:
                 job_id, success, data = future.result()
                 if success:
                     stats["job start"] += 1
                 else:
                     stats["job start failed"] += 1
-                    _log.info(f"Job {job_id} failed: {data}")
+                    _log.error(f"Job {job_id} failed: {data}")
             except Exception as e:
-                _log.error(f"Error processing future: {e}")
+                _log.exception(f"Unexpected error processing job {job_id}: {e}")
             completed.append(future)
         
         # Remove processed futures
-        _log.info(f"Processed {len(completed)} futures")
         for future in completed:
-            self.futures.remove(future)
+            del self.futures[future]
+        
+        _log.info(f"Processed {len(completed)} jobs")
 
     def shutdown(self):
         """Clean shutdown of the executor."""

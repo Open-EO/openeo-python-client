@@ -49,7 +49,7 @@ class TestJobManagerWorkerThreadPool:
         assert stats["job start"] == 3
         assert len(worker.futures) == 0 
 
-    def test_start_job_failure(self, requests_mock):
+    def test_start_job_failure(self, requests_mock, caplog):
         worker = _JobManagerWorkerThreadPool()
         stats = defaultdict(int)
 
@@ -57,11 +57,14 @@ class TestJobManagerWorkerThreadPool:
         job_id = "job-123"
 
         requests_mock.get(backend_url, exc=ConnectionError("Backend unreachable"))
-        
+
         worker.submit_work(worker.WORK_TYPE_START_JOB, (backend_url, "token", job_id))
         worker.process_futures(stats)
         worker.shutdown()
+
         assert stats["job start failed"] == 1
+        assert f"Job {job_id} failed: Backend unreachable" in caplog.text
+        
 
 
     def test_invalid_work_type(self, requests_mock, caplog):
