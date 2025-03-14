@@ -7,7 +7,6 @@ import json
 import logging
 import queue
 import re
-import threading
 import time
 import warnings
 from pathlib import Path
@@ -228,10 +227,6 @@ class MultiBackendJobManager:
         )
         self._thread = None
 
-        #TODO consider maxsize for queue?
-        self._work_queue = queue.Queue()
-        self._result_queue = queue.Queue()
-
     def add_backend(
         self,
         name: str,
@@ -374,12 +369,13 @@ class MultiBackendJobManager:
             stats = collections.defaultdict(int)
 
             # TODO: couple maximal workers to amount of parallel jobs?
-            worker_thread = _JobManagerWorkerThreadPool(work_queue=self._work_queue, result_queue=self._result_queue, max_worker = 4)
-            worker_thread.start()
+            self.worker_thread = _JobManagerWorkerThreadPool(max_worker = 2)
 
             while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
+
+                self.worker_thread.process_futures(stats)
 
                 # Show current stats and sleep
                 _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
@@ -388,7 +384,7 @@ class MultiBackendJobManager:
                     if self._stop_thread:
                         break
 
-            worker_thread.shutdown()
+            self.worker_thread.shutdown()
         self._thread = Thread(target=run_loop)
         self._thread.start()
 
@@ -505,19 +501,20 @@ class MultiBackendJobManager:
         stats = collections.defaultdict(int)
 
         # TODO: multiple workers instead of a single one? Work with thread pool?
-        worker_thread = _JobManagerWorkerThreadPool(work_queue=self._work_queue, result_queue=self._result_queue)
-        worker_thread.start()
+        self.worker_thread = _JobManagerWorkerThreadPool(max_workers=2)
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
+            # Process completed futures to update job statuses
+            self.worker_thread.process_futures(stats)
 
             # Show current stats and sleep
             _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-        worker_thread.shutdown()
+        self.worker_thread.shutdown()
 
         return stats
 
@@ -558,11 +555,6 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-
-
-        # Process the result queue
-        self._process_result_queue(stats)
-
         # Act on jobs
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -573,36 +565,6 @@ class MultiBackendJobManager:
 
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
-
-
-    def _process_result_queue(self, stats: Optional[dict] = None):
-        """
-        Process results from the result queue, update job statuses, and persist changes.
-
-        :param job_db: The job database interface to persist changes.
-        :param not_started: DataFrame containing jobs that are not yet started.
-        :param stats: Dictionary to track statistics.
-        """
-        _log.info('Start processing the result queue')
-        while not self._result_queue.empty():
-            
-            try:
-                work_result = self._result_queue.get_nowait()
-                _log.info(f"Received result: {work_result}")
-            except queue.Empty:
-                _log.info('No results in queue, break')
-                break
-
-            if isinstance(work_result, tuple) and len(work_result) == 2:
-                job_id, success, data = work_result[1]
-
-                if success:
-                    stats["job start"] += 1
-                else:
-                    stats["job start failed"] += 1
-
-            else:
-                _log.error(f"Unexpected work result: {work_result}")
  
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
@@ -629,6 +591,7 @@ class MultiBackendJobManager:
             name of the backend that will execute the job.
         """
         stats = stats if stats is not None else collections.defaultdict(int)
+        print(f"Launching job for row {i} on backend {backend_name}", flush=True)
 
         df.loc[i, "backend_name"] = backend_name
         row = df.loc[i]
@@ -651,6 +614,7 @@ class MultiBackendJobManager:
             df.loc[i, "start_time"] = rfc3339.utcnow()
             if job:
                 df.loc[i, "id"] = job.job_id
+                print(f"Job created: {job.job_id}", flush=True)
                 with ignore_connection_errors(context="get status"):
                     status = job.status()
                     stats["job get status"] += 1
@@ -658,16 +622,19 @@ class MultiBackendJobManager:
                     if status == "created":
                         # start job if not yet done by callback
                         try:
+                            print(f"Job created: {job.job_id}", flush=True)
                             job_con = job.connection
-                            self._work_queue.put(
-                                (
+                            print(f"Submitting {job.job_id} to thread pool", flush=True)
+
+                            self.worker_thread.submit_work(
+                                
                                     _JobManagerWorkerThreadPool.WORK_TYPE_START_JOB,
                                     (
                                         job_con.root_url,
                                         job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                                         job.job_id,
                                     ),
-                                )
+                                
                             )
                             stats["job queued for start"] += 1
                             df.loc[i, "status"] = "queued_for_start"
