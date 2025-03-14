@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 from openeo.extra.artifacts._s3.model import AWSSTSCredentials
 from openeo.extra.artifacts._s3.config import S3Config
@@ -18,14 +19,14 @@ class OpenEOSTSClient:
         auth = conn.auth
         assert auth is not None
         if not isinstance(auth, BearerAuth):
-            raise ValueError("Only connections that use federation are allowed.")
+            raise ValueError("Only connections that have BearerAuth can be used.")
         auth_token = auth.bearer.split('/')
         sts = self.config.build_client("sts")
 
         return AWSSTSCredentials.from_assume_role_response(
             sts.assume_role_with_web_identity(
                 RoleArn=self._get_aws_access_role(),
-                RoleSessionName=auth_token[1],
+                RoleSessionName=f"artifact-helper-{datetime.datetime.now(datetime.UTC).strftime('%Y%m%d%H%M%S')}",
                 WebIdentityToken=auth_token[2],
                 DurationSeconds=43200,
             )
