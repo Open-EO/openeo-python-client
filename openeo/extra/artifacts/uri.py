@@ -10,6 +10,9 @@ class StorageURI(ABC):
     def from_str(cls, uri: str) -> StorageURI:
         """factory method to create a typed object from its string representation"""
 
-    @abstractmethod
     def __str__(self):
-        """The __str__ method is expected to be implemented"""
+        return self.to_string()
+
+    @abstractmethod
+    def to_string(self) -> str:
+        raise NotImplementedError("Implementation must implement explicit handling.")

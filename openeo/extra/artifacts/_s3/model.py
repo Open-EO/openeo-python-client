@@ -52,5 +52,5 @@ class S3URI(StorageURI):
 
         return S3URI(bucket, key)
 
-    def __str__(self):
+    def to_string(self) -> str:
         return f"s3://{self.bucket}/{self.key}"
