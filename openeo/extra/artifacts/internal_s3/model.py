@@ -2,6 +2,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from openeo.extra.artifacts.uri import StorageURI
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -40,17 +41,16 @@ class S3URI(StorageURI):
 
     @classmethod
     def from_str(cls, uri: str) -> S3URI:
-        s3_prefix = "s3://"
-        if uri.startswith(s3_prefix):
-            without_prefix = uri[len(s3_prefix):]
-            without_prefix_parts = without_prefix.split("/")
-            bucket = without_prefix_parts[0]
-            if len(without_prefix_parts) == 1:
-                return S3URI(bucket, "")
-            else:
-                return S3URI(bucket, "/".join(without_prefix_parts[1:]))
-        else:
+        _parsed = urlparse(uri, allow_fragments=False)
+        if _parsed.scheme != "s3":
             raise ValueError(f"Input {uri} is not a valid S3 URI should be of form s3://<bucket>/<key>")
+        bucket = _parsed.netloc
+        if _parsed.query:
+            key = _parsed.path.lstrip('/') + '?' + _parsed.query
+        else:
+            key = _parsed.path.lstrip('/')
+
+        return S3URI(bucket, key)
 
     def __str__(self):
         return f"s3://{self.bucket}/{self.key}"
