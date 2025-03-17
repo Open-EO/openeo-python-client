@@ -6,8 +6,9 @@ import re
 import threading
 from pathlib import Path
 from time import sleep
-from typing import  Union
+from typing import Union
 from unittest import mock
+
 import dirty_equals
 import geopandas
 
@@ -364,8 +365,6 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
-        
-
     def test_on_error_log(self, tmp_path, requests_mock):
         backend = "http://foo.test"
         requests_mock.get(backend, json={"api_version": "1.1.0"})
@@ -598,8 +597,7 @@ class TestMultiBackendJobManager:
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status
-                ) == final_df.iloc[0].to_dict()
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
