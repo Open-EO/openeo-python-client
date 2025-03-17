@@ -1,10 +1,11 @@
-
-from  typing import Tuple, Any, List, Dict
-import logging
-import openeo
 import concurrent.futures
+import logging
+from typing import Any, Dict, List, Tuple
+
+import openeo
 
 _log = logging.getLogger(__name__)
+
 
 class _JobManagerWorkerThreadPool:
     """
@@ -53,7 +54,6 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(self._process_work_item, work_type, work_args)
         self._futures.append(future)
 
-
     def _process_work_item(self, work_type: str, work_args: Tuple[Any, ...]) -> Tuple[str, bool, str]:
         """
         Process a work item and return its result.
@@ -75,10 +75,9 @@ class _JobManagerWorkerThreadPool:
         """
 
         root_url, bearer, job_id = work_args
-        
+
         try:
             if work_type == self.WORK_TYPE_START_JOB:
-                
                 conn = openeo.connect(root_url)
                 if bearer:
                     conn.authenticate_bearer_token(bearer)
@@ -107,12 +106,13 @@ class _JobManagerWorkerThreadPool:
         """
 
         if not self._futures:
-            return # no futures to process
-        
+            return  # no futures to process
+
         done, _ = concurrent.futures.wait(
-                    self._futures,
-                    timeout=0,
-                    return_when=concurrent.futures.FIRST_COMPLETED)
+            self._futures,
+            timeout=0,
+            return_when=concurrent.futures.FIRST_COMPLETED,
+        )
 
         completed = []
 
@@ -128,7 +128,7 @@ class _JobManagerWorkerThreadPool:
             except Exception as e:
                 _log.exception(f"Unexpected error processing future: {e}")
             completed.append(future)
-        
+
         _log.info(f"Processed {len(completed)} jobs")
         # Remove processed futures
         for future in completed:
@@ -170,7 +170,7 @@ class _JobManagerWorkerThreadPool:
             error_msg = f"job_id must be a string, got {job_id}"
             _log.error(error_msg)
             raise TypeError(error_msg)
-        
+
     def shutdown(self):
         """
         Shut down the thread pool gracefully.

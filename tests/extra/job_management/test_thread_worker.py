@@ -1,8 +1,11 @@
-import pytest
+import logging
 import time
 from collections import defaultdict
-import logging
+
+import pytest
+
 from openeo.extra.job_management.thread_worker import _JobManagerWorkerThreadPool
+
 
 # Fixture for creating and cleaning up the worker thread pool
 @pytest.fixture
@@ -11,13 +14,14 @@ def worker_pool():
     yield worker_pool
     worker_pool.shutdown()
 
+
 # Fixture for the shared stats dictionary
 @pytest.fixture
 def stats():
     return defaultdict(int)
 
-class TestJobManagerWorkerThreadPool:
 
+class TestJobManagerWorkerThreadPool:
     def test_worker_thread_lifecycle(self, worker_pool, caplog):
         with caplog.at_level(logging.INFO):
             assert not worker_pool._executor._shutdown
@@ -44,17 +48,12 @@ class TestJobManagerWorkerThreadPool:
             f"{backend_url}/jobs",
             json={"job_id": job_id, "status": "created"},
             status_code=201,
-            headers={"openeo-identifier": job_id}
+            headers={"openeo-identifier": job_id},
         )
         requests_mock.post(
-            f"{backend_url}/jobs/{job_id}/results",
-            json={"job_id": job_id, "status": "finished"},
-            status_code=202
+            f"{backend_url}/jobs/{job_id}/results", json={"job_id": job_id, "status": "finished"}, status_code=202
         )
-        requests_mock.get(
-            f"{backend_url}/jobs/{job_id}",
-            json={"id": job_id, "status": "finished"}
-        )
+        requests_mock.get(f"{backend_url}/jobs/{job_id}", json={"id": job_id, "status": "finished"})
         # Submit several valid jobs
         for _ in range(3):
             worker_pool.submit_work(worker_pool.WORK_TYPE_START_JOB, (backend_url, "token", job_id))
@@ -82,11 +81,10 @@ class TestJobManagerWorkerThreadPool:
         requests_mock.post(
             f"{backend_url_success}/jobs/{job_id_success}/results",
             json={"job_id": job_id_success, "status": "finished"},
-            status_code=202
+            status_code=202,
         )
         requests_mock.get(
-            f"{backend_url_success}/jobs/{job_id_success}",
-            json={"id": job_id_success, "status": "finished"}
+            f"{backend_url_success}/jobs/{job_id_success}", json={"id": job_id_success, "status": "finished"}
         )
         # Failed job
         backend_url_failure = "https://failure.test"
@@ -105,29 +103,27 @@ class TestJobManagerWorkerThreadPool:
         backend_url = "https://foo.test"
         job_id = "job-123"
         requests_mock.get(backend_url, json={"api_version": "1.1.0"})
-        
+
         # Test that invalid work type raises ValueError
         with pytest.raises(ValueError) as exc_info:
             worker_pool.submit_work("invalid_work_type", (backend_url, "token", job_id))
-        
+
         assert "Unsupported work type: invalid_work_type" in str(exc_info.value)
         assert len(worker_pool._futures) == 0
 
-        
     @pytest.mark.parametrize(
-    "work_args,expected_log",
-    [
-        (("https://foo.test", "token"), "Expected 3 arguments for work type start_job, got 2"),
-        ((None, "token", "job-123"), "root_url must be a string"),
-    ]
+        "work_args,expected_log",
+        [
+            (("https://foo.test", "token"), "Expected 3 arguments for work type start_job, got 2"),
+            ((None, "token", "job-123"), "root_url must be a string"),
+        ],
     )
     def test_invalid_work_args(self, worker_pool, stats, caplog, work_args, expected_log):
-        with caplog.at_level(logging.ERROR):  
+        with caplog.at_level(logging.ERROR):
             with pytest.raises(Exception):  # Expect an exception to be raised
                 worker_pool.submit_work(worker_pool.WORK_TYPE_START_JOB, work_args)
-        
+
         # Verify the expected log message
         assert expected_log in caplog.text
         assert len(worker_pool._futures) == 0
         assert stats["job start"] == 0
-
