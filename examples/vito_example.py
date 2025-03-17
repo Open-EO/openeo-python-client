@@ -42,6 +42,8 @@ datacube.download("/tmp/testfile.tiff")
 job = datacube.create_job()
 if job:
     print(job.job_id)
-    print(job.run_synchronous("/tmp/testfile"))
+    job.start_and_wait()
+    job.download_result(target="/tmp/testfile")
+    print(job)
 else:
     print("Job ID is None")

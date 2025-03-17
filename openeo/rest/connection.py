@@ -72,6 +72,7 @@ from openeo.rest.models.general import (
     ProcessListingResponse,
     ValidationResponse,
 )
+from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
@@ -1037,9 +1038,12 @@ class Connection(RestApiConnection):
         graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
         return DataCube(graph=graph, connection=self)
 
-    def datacube_from_flat_graph(self, flat_graph: dict, parameters: Optional[dict] = None) -> DataCube:
+    def datacube_from_flat_graph(
+        self, flat_graph: dict, parameters: Optional[dict] = None
+    ) -> Union[DataCube, SaveResult]:
         """
-        Construct a :py:class:`DataCube` from a flat dictionary representation of a process graph.
+        Construct a :py:class:`~openeo.rest.datacube.DataCube`/:py:class:`~openeo.rest.result.SaveResult`
+        from the operations encoded in a flat dictionary representation of an openEO process graph.
 
         .. seealso:: :ref:`datacube_from_json`, :py:meth:`~openeo.rest.connection.Connection.datacube_from_json`
 
@@ -1048,7 +1052,6 @@ class Connection(RestApiConnection):
             (and optionally parameter metadata under a "parameters" field).
         :param parameters: Optional dictionary mapping parameter names to parameter values
             to use for parameters occurring in the process graph (e.g. as used in user-defined processes)
-        :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         parameters = parameters or {}
 
@@ -1062,18 +1065,26 @@ class Connection(RestApiConnection):
             flat_graph = flat_graph["process_graph"]
 
         pgnode = PGNode.from_flat_graph(flat_graph=flat_graph, parameters=parameters or {})
-        return DataCube(graph=pgnode, connection=self)
 
-    def datacube_from_json(self, src: Union[str, Path], parameters: Optional[dict] = None) -> DataCube:
+        # TODO #733: smarter or more dynamic detection of what kind of object to return?
+        # TODO #733: rename `datacube_from_flat_graph` to something more general as this is not only about DataCube's anymore?
+        if pgnode.process_id == "save_result":
+            return SaveResult(graph=pgnode, connection=self)
+        else:
+            return DataCube(graph=pgnode, connection=self)
+
+    def datacube_from_json(
+        self, src: Union[str, Path], parameters: Optional[dict] = None
+    ) -> Union[DataCube, SaveResult]:
         """
-        Construct a :py:class:`DataCube` from JSON resource containing (flat) process graph representation.
+        Construct a :py:class:`~openeo.rest.datacube.DataCube`/:py:class:`~openeo.rest.result.SaveResult`
+        from a JSON resource containing a (flat) openEO process graph representation.
 
         .. seealso:: :ref:`datacube_from_json`, :py:meth:`~openeo.rest.connection.Connection.datacube_from_flat_graph`
 
         :param src: raw JSON string, URL to JSON resource or path to local JSON file
         :param parameters: Optional dictionary mapping parameter names to parameter values
             to use for parameters occurring in the process graph (e.g. as used in user-defined processes)
-        :return: A :py:class:`DataCube` corresponding with the operations encoded in the process graph
         """
         return self.datacube_from_flat_graph(load_json_resource(src), parameters=parameters)
 

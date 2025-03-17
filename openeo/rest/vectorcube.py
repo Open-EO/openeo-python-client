@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import typing
 from typing import Callable, List, Optional, Tuple, Union
@@ -31,6 +32,9 @@ from openeo.util import InvalidBBoxException, dict_no_none, guess_format, to_bbo
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     from openeo import Connection
+
+
+_log = logging.getLogger(__name__)
 
 
 class VectorCube(_ProcessGraphAbstraction):
@@ -224,6 +228,9 @@ class VectorCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         options: Optional[dict] = None,
     ) -> SaveResult:
+        if any(n.process_id == "save_result" for n in self.result_node().walk_nodes()):
+            _log.warning(f"This {type(self).__name__} already contains 1 or more `save_result` nodes.")
+
         return self.save_result(
             format=format or (guess_format(outputfile) if outputfile else None) or self._DEFAULT_VECTOR_FORMAT,
             options=options,
@@ -376,14 +383,15 @@ class VectorCube(_ProcessGraphAbstraction):
             log_level=log_level,
             **create_kwargs,
         )
-        return job.run_synchronous(
-            # TODO #135 support multi file result sets too
-            outputfile=outputfile,
+        job.start_and_wait(
             print=print,
             max_poll_interval=max_poll_interval,
             connection_retry_interval=connection_retry_interval,
             show_error_logs=show_error_logs,
         )
+        if outputfile is not None:
+            job.download_result(target=outputfile)
+        return job
 
     def create_job(
         self,

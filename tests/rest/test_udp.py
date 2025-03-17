@@ -675,3 +675,23 @@ def test_build_process_dict_udf_context_param_direct(con100):
         "summary": "do_udf value",
     }
     assert actual == expected
+
+
+def test_build_process_dict_processing_parameters(con100):
+    actual = build_process_dict(
+        process_graph={
+            "add": {"process_id": "add", "arguments": {"x": {"from_parameter": "data"}, "y": 1}, "result": True}
+        },
+        process_id="increment",
+        default_job_options={"memory": "4GB", "disk": "1TB"},
+        default_synchronous_options={"timeout": 600},
+    )
+    expected = {
+        "id": "increment",
+        "process_graph": {
+            "add": {"arguments": {"x": {"from_parameter": "data"}, "y": 1}, "process_id": "add", "result": True}
+        },
+        "default_job_options": {"disk": "1TB", "memory": "4GB"},
+        "default_synchronous_options": {"timeout": 600},
+    }
+    assert actual == expected

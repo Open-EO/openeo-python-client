@@ -2891,12 +2891,11 @@ class TestLoadStac:
 
     @pytest.mark.parametrize("temporal_dim", ["t", "datezz"])
     def test_load_stac_reduce_temporal(self, con120, tmp_path, temporal_dim):
-        # TODO: reusable utility to create/generate a STAC resource for testing
-        #       (a file, but preferably a URL, but that requires urllib mocking)
         stac_path = tmp_path / "stac.json"
         stac_data = StacDummyBuilder.collection(
             cube_dimensions={temporal_dim: {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
         )
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
         stac_path.write_text(json.dumps(stac_data))
 
         cube = con120.load_stac(str(stac_path))
@@ -2952,6 +2951,7 @@ class TestLoadStac:
         # No cube:dimensions, but at least "temporal" extent is set as indicator for having a temporal dimension
         assert "cube:dimensions" not in stac_data
         assert deep_get(stac_data, "extent", "temporal")
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
         stac_path.write_text(json.dumps(stac_data))
 
         cube = con120.load_stac(str(stac_path))
@@ -2962,6 +2962,7 @@ class TestLoadStac:
         stac_data = StacDummyBuilder.collection(
             summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
         )
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
         stac_path.write_text(json.dumps(stac_data))
 
         cube = con120.load_stac(str(stac_path))

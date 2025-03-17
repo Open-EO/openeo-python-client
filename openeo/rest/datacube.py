@@ -35,6 +35,7 @@ from openeo.internal.processes.builder import (
     convert_callable_to_pgnode,
     get_parameter_names,
 )
+from openeo.internal.processes.parse import Process
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 from openeo.metadata import (
     Band,
@@ -2367,6 +2368,9 @@ class DataCube(_ProcessGraphAbstraction):
         outputfile: Optional[Union[str, pathlib.Path]] = None,
         options: Optional[dict] = None,
     ) -> SaveResult:
+        if any(n.process_id == "save_result" for n in self.result_node().walk_nodes()):
+            log.warning(f"This {type(self).__name__} already contains 1 or more `save_result` nodes.")
+
         return self.save_result(
             format=format or (guess_format(outputfile) if outputfile else None) or self._DEFAULT_RASTER_FORMAT,
             options=options,
@@ -2604,13 +2608,15 @@ class DataCube(_ProcessGraphAbstraction):
             log_level=log_level,
             **create_kwargs,
         )
-        return job.run_synchronous(
-            outputfile=outputfile,
+        job.start_and_wait(
             print=print,
             max_poll_interval=max_poll_interval,
             connection_retry_interval=connection_retry_interval,
             show_error_logs=show_error_logs,
         )
+        if outputfile is not None:
+            job.download_result(target=outputfile)
+        return job
 
     def create_job(
         self,
@@ -2766,15 +2772,15 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def sar_backscatter(
-            self,
-            coefficient: Union[str, None] = "gamma0-terrain",
-            elevation_model: Union[str, None] = None,
-            mask: bool = False,
-            contributing_area: bool = False,
-            local_incidence_angle: bool = False,
-            ellipsoid_incidence_angle: bool = False,
-            noise_removal: bool = True,
-            options: Optional[dict] = None
+        self,
+        coefficient: Union[str, None] = _UNSET,
+        elevation_model: Union[str, None] = None,
+        mask: bool = False,
+        contributing_area: bool = False,
+        local_incidence_angle: bool = False,
+        ellipsoid_incidence_angle: bool = False,
+        noise_removal: bool = True,
+        options: Optional[dict] = None,
     ) -> DataCube:
         """
         Computes backscatter from SAR input.
@@ -2809,9 +2815,26 @@ class DataCube(_ProcessGraphAbstraction):
         .. versionadded:: 0.4.9
         .. versionchanged:: 0.4.10 replace `orthorectify` and `rtc` arguments with `coefficient`.
         """
-        coefficient_options = [
-            "beta0", "sigma0-ellipsoid", "sigma0-terrain", "gamma0-ellipsoid", "gamma0-terrain", None
-        ]
+        try:
+            parameter = Process.from_dict(self.connection.describe_process("sar_backscatter")).get_parameter(
+                "coefficient"
+            )
+            schema = parameter.schema
+            coefficient_options = schema.get_enum_options()
+            if coefficient == _UNSET:
+                coefficient = parameter.default
+        except Exception as e:
+            log.warning(f"Failed to extract coefficient options for process `sar_backscatter`: {e}")
+            coefficient_options = [
+                "beta0",
+                "sigma0-ellipsoid",
+                "sigma0-terrain",
+                "gamma0-ellipsoid",
+                "gamma0-terrain",
+                None,
+            ]
+            if coefficient == _UNSET:
+                coefficient = "gamma0-terrain"
         if coefficient not in coefficient_options:
             raise OpenEoClientException("Invalid `sar_backscatter` coefficient {c!r}. Should be one of {o}".format(
                 c=coefficient, o=coefficient_options

@@ -112,4 +112,4 @@ class MultiResult(FlatGraphableMixin):
             validate=validate,
             log_level=log_level,
         )
-        return job.run_synchronous()
+        return job.start_and_wait()

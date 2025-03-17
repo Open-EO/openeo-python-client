@@ -9,15 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for `export_workspace` process ([#720](https://github.com/Open-EO/openeo-python-client/issues/720))
+- `sar_backscatter`: try to retrieve coefficient options from backend ([#693](https://github.com/Open-EO/openeo-python-client/issues/693))
 
 ### Changed
-
-- `DataCube.save_result()` (and related methods) now return a `SaveResult`/`StacResource` object instead of another `DataCube` object to be more in line with the official `save_result` specification ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#720](https://github.com/Open-EO/openeo-python-client/issues/720))
 
 ### Removed
 
 ### Fixed
+
+- `STACAPIJobDatabase.get_by_status()` now always returns a `pandas.DataFrame` with an index compatible with `MultiBackendJobManager`. ([#707](https://github.com/Open-EO/openeo-python-client/issues/707))
+
+
+## [0.39.1] - 2025-02-26
+
+### Fixed
+
+- Fix legacy usage pattern to append `export_workspace` to `save_result` with generic `process()` helper method ([#742](https://github.com/Open-EO/openeo-python-client/issues/742))
+
+
+## [0.39.0] - 2025-02-25
+
+### Added
+
+- Add support for `export_workspace` process ([#720](https://github.com/Open-EO/openeo-python-client/issues/720))
+- Add support for [processing parameter extension](https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters) (e.g. default job options) in `build_process_dict` ([#731](https://github.com/Open-EO/openeo-python-client/issues/731))
+
+### Changed
+
+- `DataCube.save_result()` (and related methods) now return a `SaveResult`/`StacResource` object instead of another `DataCube` object to be more in line with the official `save_result` specification ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#720](https://github.com/Open-EO/openeo-python-client/issues/720))
+- `datacube_from_flat_graph` now returns a `SaveResult` instead of a `DataCube` when appropriate ([#402](https://github.com/Open-EO/openeo-python-client/issues/402), [#732](https://github.com/Open-EO/openeo-python-client/issues/732), [#733](https://github.com/Open-EO/openeo-python-client/issues/733))
+- Deprecate `BatchJob.run_synchronous` in favor of `BatchJob.start_and_wait` ([#570](https://github.com/Open-EO/openeo-python-client/issues/570)).
+
+### Fixed
+
+- Fix incompatibility problem when combining `load_stac` and `resample_spatial` ([#737](https://github.com/Open-EO/openeo-python-client/issues/737))
 
 
 ## [0.38.0] - 2025-02-12

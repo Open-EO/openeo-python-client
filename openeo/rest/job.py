@@ -222,6 +222,7 @@ class BatchJob:
         response_data = self.connection.get(url, params=params, expected_status=200).json()
         return LogsResponse(response_data=response_data, log_level=level)
 
+    @deprecated("Use start_and_wait instead", version="0.39.0")
     def run_synchronous(
         self,
         outputfile: Union[str, Path, None] = None,
@@ -272,6 +273,8 @@ class BatchJob:
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
 
+        :return: Handle to the job created at the backend.
+
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
         """
@@ -320,8 +323,15 @@ class BatchJob:
                     raise
 
             status = job_info.get("status", "N/A")
-            progress = '{p}%'.format(p=job_info["progress"]) if "progress" in job_info else "N/A"
-            print_status("{s} (progress {p})".format(s=status, p=progress))
+
+            progress = job_info.get("progress")
+            if isinstance(progress, int):
+                progress = f"{progress:d}%"
+            elif isinstance(progress, float):
+                progress = f"{progress:.1f}%"
+            else:
+                progress = "N/A"
+            print_status(f"{status} (progress {progress})")
             if status not in ('submitted', 'created', 'queued', 'running'):
                 break
 

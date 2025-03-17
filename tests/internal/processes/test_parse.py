@@ -36,6 +36,49 @@ def test_schema_accepts_geojson(schema, expected):
     assert Schema([{"type": "number"}, schema]).accepts_geojson() == expected
 
 
+@pytest.mark.parametrize(
+    ("schema", "expected"),
+    [
+        (
+            Schema(
+                {
+                    "type": "string",
+                    "enum": [
+                        "average",
+                        "bilinear",
+                        "cubic",
+                        "cubicspline",
+                        "lanczos",
+                        "max",
+                        "med",
+                        "min",
+                        "mode",
+                        "near",
+                    ],
+                },
+            ),
+            ["average", "bilinear", "cubic", "cubicspline", "lanczos", "max", "med", "min", "mode", "near"],
+        ),
+        (
+            Schema([{"type": "string", "enum": ["replicate", "reflect", "reflect_pixel", "wrap"]}, {"type": "null"}]),
+            ["replicate", "reflect", "reflect_pixel", "wrap", None],
+        ),
+        (
+            Schema(
+                [
+                    {"type": "string", "enum": ["replicate", "reflect"]},
+                    {"type": "null"},
+                    {"type": "number", "enum": ["reflect_pixel", "wrap"]},
+                ]
+            ),
+            ["replicate", "reflect", None, "reflect_pixel", "wrap"],
+        ),
+    ],
+)
+def test_get_enum_options(schema, expected):
+    assert schema.get_enum_options() == expected
+
+
 def test_parameter():
     p = Parameter.from_dict({
         "name": "foo",
@@ -136,6 +179,51 @@ def test_process_from_json():
     assert p.parameters[0].schema.schema == {"type": ["number", "null"]}
     assert p.returns.description == "The computed absolute value."
     assert p.returns.schema.schema == {"type": ["number", "null"], "minimum": 0}
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"), [
+        ("x", Parameter.from_dict({"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}})),
+        ("y", Parameter.from_dict({"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}})),
+    ]
+)
+def test_get_parameter(key, expected):
+    p = Process.from_dict({
+        "id": "absolute",
+        "summary": "Absolute value",
+        "description": "Computes the absolute value of a real number.",
+        "categories": ["math"],
+        "parameters": [
+            {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
+            {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
+        ],
+        "returns": {
+            "description": "The computed absolute value.",
+            "schema": {"type": ["number", "null"], "minimum": 0}
+        },
+        "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
+    })
+    assert p.get_parameter(key) == expected
+
+
+def test_get_parameter_error():
+    p = Process.from_dict({
+        "id": "absolute",
+        "summary": "Absolute value",
+        "description": "Computes the absolute value of a real number.",
+        "categories": ["math"],
+        "parameters": [
+            {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
+            {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
+        ],
+        "returns": {
+            "description": "The computed absolute value.",
+            "schema": {"type": ["number", "null"], "minimum": 0}
+        },
+        "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
+    })
+    with pytest.raises(LookupError):
+        p.get_parameter("z")
 
 
 def test_parse_remote_process_definition_minimal(requests_mock):
