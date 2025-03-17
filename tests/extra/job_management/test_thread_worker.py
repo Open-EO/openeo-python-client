@@ -16,13 +16,6 @@ def worker():
 def stats():
     return defaultdict(int)
 
-# Helper to poll until futures are processed or a timeout is reached.
-def wait_for_futures(worker, timeout=2.0, poll_interval=0.1):
-    start = time.time()
-    while worker._futures and (time.time() - start < timeout):
-        worker.process_futures(defaultdict(int))  # Using a dummy stats dict
-        time.sleep(poll_interval)
-
 class TestJobManagerWorkerThreadPool:
 
     def test_worker_thread_lifecycle(self, worker, caplog):
@@ -67,7 +60,6 @@ class TestJobManagerWorkerThreadPool:
             worker.submit_work(worker.WORK_TYPE_START_JOB, (backend_url, "token", job_id))
         time.sleep(1)
         worker.process_futures(stats)
-        wait_for_futures(worker)
         assert stats["job start"] == 3
         assert len(worker._futures) == 0
 
@@ -77,8 +69,8 @@ class TestJobManagerWorkerThreadPool:
         # Simulate a connection error for the backend
         requests_mock.get(backend_url, exc=ConnectionError("Backend unreachable"))
         worker.submit_work(worker.WORK_TYPE_START_JOB, (backend_url, "token", job_id))
+        time.sleep(1)
         worker.process_futures(stats)
-        wait_for_futures(worker)
         assert stats["job start failed"] == 1
         assert f"Job {job_id} failed: Backend unreachable" in caplog.text
 
@@ -103,12 +95,11 @@ class TestJobManagerWorkerThreadPool:
         # Submit both jobs
         worker.submit_work(worker.WORK_TYPE_START_JOB, (backend_url_success, "token", job_id_success))
         worker.submit_work(worker.WORK_TYPE_START_JOB, (backend_url_failure, "token", job_id_failure))
+        time.sleep(1)
         with caplog.at_level(logging.INFO):
             worker.process_futures(stats)
-        wait_for_futures(worker)
         assert stats["job start"] == 1  # One successful job
         assert stats["job start failed"] == 1  # One failed job
-
 
     def test_invalid_work_type(self, worker, stats, requests_mock, caplog):
         backend_url = "https://foo.test"
