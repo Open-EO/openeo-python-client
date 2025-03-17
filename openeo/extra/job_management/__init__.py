@@ -5,7 +5,6 @@ import dataclasses
 import datetime
 import json
 import logging
-import queue
 import re
 import time
 import warnings
@@ -363,14 +362,14 @@ class MultiBackendJobManager:
         _log.info(f"Resuming `run_jobs` from existing {job_db}")
 
         self._stop_thread = False
-        self.worker_thread = _JobManagerWorkerThreadPool()
+        self._worker_pool = _JobManagerWorkerThreadPool()
 
         def run_loop():
 
             # TODO: support user-provided `stats`
             stats = collections.defaultdict(int)
 
-            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
+            while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0  and not self._stop_thread:
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
                 stats["run_jobs loop"] += 1
 
@@ -396,12 +395,14 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
+        self._worker_pool.shutdown()
+
         if self._thread is not None:
             self._stop_thread = True
             if timeout_seconds is _UNSET:
                 timeout_seconds = 2 * self.poll_sleep
             self._thread.join(timeout_seconds)
-            self.worker_thread.shutdown()
+            
             if self._thread.is_alive():
                 _log.warning("Job thread did not stop after timeout")
         else:
@@ -499,8 +500,7 @@ class MultiBackendJobManager:
         # TODO: support user-provided `stats`
         stats = collections.defaultdict(int)
 
-        # TODO: multiple workers instead of a single one? Work with thread pool?
-        self.worker_thread = _JobManagerWorkerThreadPool()
+        self._worker_pool = _JobManagerWorkerThreadPool()
 
         while sum(job_db.count_by_status(statuses=["not_started", "created", "queued", "queued_for_start", "running"]).values()) > 0:
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -511,7 +511,7 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-        self.worker_thread.shutdown()
+        self._worker_pool.shutdown()
 
         return stats
 
@@ -553,7 +553,7 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Process completed futures to update job statuses
-        self.worker_thread.process_futures(stats)
+        self._worker_pool.process_futures(stats)
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -598,7 +598,7 @@ class MultiBackendJobManager:
             connection = self._get_connection(backend_name, resilient=True)
 
             stats["start_job call"] += 1
-            job: BatchJob = start_job(
+            job = start_job(
                 row=row,
                 connection_provider=self._get_connection,
                 connection=connection,
@@ -622,7 +622,7 @@ class MultiBackendJobManager:
                         try:
                             _log.info(f"Job : {job.job_id} created, submitting to thread pool")
                             job_con = job.connection
-                            self.worker_thread.submit_work(
+                            self._worker_pool.submit_work(
                                 
                                     _JobManagerWorkerThreadPool.WORK_TYPE_START_JOB,
                                     (
