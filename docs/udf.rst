@@ -300,7 +300,7 @@ To provide evaluation logic with this information, the user should implement the
 :py:meth:`~openeo.udf.udf_signatures.apply_metadata()` function as part of the UDF.
 Please refer to the documentation of that function for more information.
 
-.. literalinclude:: ../examples/udf/udf_modify_spatial.py
+.. literalinclude:: examples/udf/udf_modify_spatial.py
     :language: python
     :caption: Example of a UDF that adjusts spatial metadata ``udf_modify_spatial.py``
     :name: spatial_udf
@@ -380,7 +380,7 @@ that is available in the SciPy Python library.
 To ensure that openEO understand your function, it needs to follow some rules, the UDF specification.
 This is an example that follows those rules:
 
-.. literalinclude:: ../examples/udf/smooth_savitzky_golay.py
+.. literalinclude:: examples/udf/smooth_savitzky_golay.py
     :language: python
     :caption: Example UDF code ``smooth_savitzky_golay.py``
     :name: savgol_udf
@@ -607,7 +607,7 @@ Example
 -------
 
 
-An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/profiling_example.py>`_ .
+An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/archive/profiling_example.py>`_ .
 
 
 
