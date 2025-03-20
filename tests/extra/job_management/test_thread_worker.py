@@ -204,16 +204,13 @@ class TestJobStartTask:
         backend_url = "https://test.openeo.org"
         job_id = "job-789"
         requests_mock.get(backend_url, json={"api_version": "1.1.0"})
+        
         requests_mock.post(
             f"{backend_url}/jobs/{job_id}/results",
             json={"message": "Invalid credentials"},
             status_code=401
         )
-        requests_mock.get(
-            f"{backend_url}/jobs/{job_id}",
-            json={"message": "Invalid credentials"},
-            status_code=401
-        )
+
         task = _JobStartTask(
             root_url=backend_url,
             bearer_token="invalid-token",
