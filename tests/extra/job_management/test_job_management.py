@@ -25,6 +25,7 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
+import collections
 
 import openeo
 import openeo.extra.job_management
@@ -38,6 +39,8 @@ from openeo.extra.job_management import (
     create_job_db,
     get_job_db,
 )
+
+from openeo.extra.job_management._thread_worker import _JobStartTask
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
@@ -644,8 +647,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
@@ -720,6 +724,57 @@ class TestMultiBackendJobManager:
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
+    def test_postprocess_futures(job_manager):
+        """
+        Test that the _postprocess_futures() method on the job manager correctly updates the job database.
+        This test mimics a situation where some tasks complete successfully while others fail.
+        """
+        # Prepare a simple DataFrame similar to a job database:
+        # Two rows have the status 'queued_for_start' (eligible for update) and one row remains unchanged.
+        df = pd.DataFrame({
+            "id": ["job-success", "job-failure", "job-other"],
+            "status": ["queued_for_start", "queued_for_start", "created"]
+        })
+        
+        # Prepare a stats dictionary to track the updates.
+        stats = collections.defaultdict(int)
+        
+        # Create two fake tasks representing job start attempts.
+        task_success = _JobStartTask(
+            root_url="https://foo.test",
+            bearer_token="token",
+            job_id="job-success"
+        )
+        task_failure = _JobStartTask(
+            root_url="https://foo.test",
+            bearer_token="token",
+            job_id="job-failure"
+        )
+        
+        # Simulate worker pool results:
+        # - The first task succeeded and should update the job status to "queued"
+        # - The second task failed and should update the job status to "start_failed"
+        worker_pool_results = [
+            (task_success, ("job-success", True, "queued")),
+            (task_failure, ("job-failure", False, "failed to start")),
+        ]
+        job_manager = MultiBackendJobManager()
+        
+        # Call the postprocess method on the actual job manager.
+        job_manager._postprocess_futures(worker_pool_results, df, stats)
+        
+        # Verify that the row for "job-success" is updated to "queued"
+        assert df.loc[df["id"] == "job-success", "status"].iloc[0] == "queued"
+        
+        # Verify that the row for "job-failure" is updated to "start_failed"
+        assert df.loc[df["id"] == "job-failure", "status"].iloc[0] == "start_failed"
+        
+        # Verify that the row not eligible for update remains unchanged.
+        assert df.loc[df["id"] == "job-other", "status"].iloc[0] == "created"
+        
+        # Verify that the stats dictionary is updated appropriately.
+        assert stats["job start"] == 1
+        assert stats["job start failed"] == 1
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -1761,3 +1816,6 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
+
+
+    
