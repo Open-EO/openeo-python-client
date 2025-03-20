@@ -648,6 +648,7 @@ class TestMultiBackendJobManager:
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
         needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        print(caplog.text)
         assert needle.search(caplog.text)
 
 
@@ -774,7 +775,6 @@ class TestMultiBackendJobManager:
         # Verify that the stats dictionary is updated appropriately.
         assert stats["job start"] == 1
         assert stats["job start failed"] == 1
-
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
