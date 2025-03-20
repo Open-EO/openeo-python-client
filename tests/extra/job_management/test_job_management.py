@@ -732,8 +732,7 @@ class TestMultiBackendJobManager:
         # Two rows have the status 'queued_for_start' (eligible for update) and one row remains unchanged.
         df = pd.DataFrame({
             "id": ["job-success", "job-failure", "job-other"],
-            "status": ["queued_for_start", "queued_for_start", "created"],
-            "backend_name": ["", "", ""],
+            "status": ["queued_for_start", "queued_for_start", "created"]
         })
         
         # Prepare a stats dictionary to track the updates.
