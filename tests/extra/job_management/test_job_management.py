@@ -647,9 +647,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
-        print(caplog.text)
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
