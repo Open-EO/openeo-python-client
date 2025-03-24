@@ -6,6 +6,7 @@ Various utilities and helpers.
 
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import functools
 import json
@@ -626,7 +627,7 @@ class SimpleProgressBar:
         return f"{self.left}{bar:{self.fill}<{width}s}{self.right}"
 
 
-def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]:
+def normalize_crs(crs: Any, *, use_pyproj: bool = True, warn_on_change: bool = False) -> Union[None, int, str]:
     """
     Normalize the given value (describing a CRS or Coordinate Reference System)
     to an openEO compatible EPSG code (int) or WKT2 CRS string.
@@ -654,16 +655,18 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
     :param use_pyproj: whether ``pyproj`` should be leveraged at all
         (mainly useful for testing the "no pyproj available" code path)
 
+    :param warn_on_change: whether to emit a warning when the normalization involves a change in value.
+
     :return: EPSG code as int, or WKT2 string. Or None if input was empty.
 
     :raises ValueError:
         When the given CRS data can not be parsed/converted/normalized.
 
     """
+    orig_crs = copy.deepcopy(crs)
     if crs in (None, "", {}):
-        return None
-
-    if pyproj and use_pyproj:
+        crs = None
+    elif pyproj and use_pyproj:
         try:
             # (if available:) let pyproj do the validation/parsing
             crs_obj = pyproj.CRS.from_user_input(crs)
@@ -688,5 +691,8 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
                 raise ValueError(f"Can not normalize CRS string {repr_truncate(crs)}")
         else:
             raise ValueError(f"Can not normalize CRS data {type(crs)}")
+
+    if warn_on_change and orig_crs != crs:
+        logger.warning(f"Normalized CRS {orig_crs!r} to {crs!r}")
 
     return crs

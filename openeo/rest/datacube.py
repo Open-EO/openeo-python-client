@@ -3043,6 +3043,8 @@ def _get_geometry_argument(
         and isinstance(argument, dict)
         and all(k in argument for k in ["west", "south", "east", "north"])
     ):
+        if "crs" in argument:
+            argument = dict(argument, crs=normalize_crs(argument["crs"], warn_on_change=True))
         return argument
 
     # Support URL based geometry references (with `load_url` and best-effort format guess)
