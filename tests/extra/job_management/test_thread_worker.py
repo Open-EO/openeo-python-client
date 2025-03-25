@@ -1,8 +1,15 @@
 import logging
 import time
 import pytest
-from openeo.extra.job_management._thread_worker import _JobManagerWorkerThreadPool, _JobStartTask
+import pandas as pd
 
+
+from openeo.extra.job_management._thread_worker import (
+    _JobManagerWorkerThreadPool,
+    _JobStartTask,
+    _TaskResult,
+    _postprocess_futures
+)
 # --- Fixtures and Helpers ---
 
 @pytest.fixture
@@ -43,6 +50,22 @@ def valid_task():
         job_id="test-job-123"
     )
 
+
+@pytest.fixture
+def sample_dataframe():
+    """Creates a pandas DataFrame for job tracking."""
+    df = pd.DataFrame([
+        {"id": "job-123", "status": "queued_for_start"},
+        {"id": "job-456", "status": "queued_for_start"},
+        {"id": "job-789", "status": "other"}
+    ])
+    return df
+
+@pytest.fixture
+def initial_stats():
+    """Returns a dictionary with initial stats counters."""
+    return {"job start": 0, "job start failed": 0}
+
 # --- Test Classes ---
 
 class TestJobManagerWorkerThreadPool:
@@ -54,19 +77,23 @@ class TestJobManagerWorkerThreadPool:
             assert worker_pool._executor._shutdown
         assert "Shutting down worker thread pool" in caplog.text
 
+
     def test_submit_and_process_task(self, worker_pool, valid_task, successful_backend_mock, requests_mock):
         """Test successful task submission and processing in the thread pool."""
         successful_backend_mock(valid_task.root_url, valid_task.job_id)
         worker_pool.submit_task(valid_task)
+        
         results = []
         while not results:
             results = worker_pool.process_futures()
             time.sleep(0.1)
-        # Unpack result from the single completed task
-        task, (job_id, success, data) = results[0]
+        
+        # Unpack result
+        task, result = results[0]
+        
         assert task is valid_task
-        assert job_id == valid_task.job_id
-        assert success is True
+        assert result.success is True
+        assert result.value == "queued"  # Ensure the correct status is returned
 
     def test_network_failure(self, worker_pool, valid_task, requests_mock):
         """Test handling of a network failure during task execution."""
@@ -74,10 +101,12 @@ class TestJobManagerWorkerThreadPool:
         worker_pool.submit_task(valid_task)
         time.sleep(0.1)
         results = worker_pool.process_futures()
-        assert len(results) == 1
-        _, (job_id, success, error) = results[0]
-        assert success is False
-        assert "Backend down" in error
+
+        task, result = results[0]
+        assert task is valid_task
+        assert result.success is False
+        assert "Backend down" in result.value
+
 
     def test_mixed_success_and_failure(self, worker_pool, requests_mock, successful_backend_mock):
         """
@@ -107,11 +136,11 @@ class TestJobManagerWorkerThreadPool:
             results.extend(worker_pool.process_futures())
             time.sleep(0.1)
         # Verify each task's outcome
-        for task, (job_id, success, data_or_error) in results:
+        for task, result in results:
             if task.job_id == "job-ok":
-                assert success is True
+                assert result.success is True
             elif task.job_id == "job-fail":
-                assert success is False
+                assert result.success is False
 
     def test_submit_and_process_multiple_tasks(self, worker_pool, requests_mock, successful_backend_mock):
         """Test submission and processing of multiple tasks concurrently."""
@@ -131,9 +160,8 @@ class TestJobManagerWorkerThreadPool:
             results.extend(worker_pool.process_futures())
             time.sleep(0.1)
         assert len(results) == num_tasks
-        for task, (job_id, success, data) in results:
-            assert success is True
-            assert job_id == task.job_id
+        for task, result in results:
+            assert result.success is True
 
 class TestJobStartTask:
     """Tests for the _JobStartTask class."""
@@ -182,7 +210,10 @@ class TestJobStartTask:
             job_id=job_id
         )
         result = task.execute()
-        assert result == (job_id, True, "queued")
+
+        # Updated assertions based on new return structure
+        assert result.success is True
+        assert result.value == "queued"
 
     def test_execute_failure(self, requests_mock):
         """Test execution failure due to network error."""
@@ -195,9 +226,10 @@ class TestJobStartTask:
             job_id=job_id
         )
         result = task.execute()
-        assert result[0] == job_id
-        assert result[1] is False
-        assert "Network failure" in result[2]
+
+        # Updated failure assertions
+        assert result.success is False
+        assert "Network failure" in result.value  # Error message should be stored in `result.value`
 
     def test_execute_authentication_failure(self, requests_mock):
         """Test execution failure due to authentication issues."""
@@ -217,6 +249,77 @@ class TestJobStartTask:
             job_id=job_id
         )
         result = task.execute()
-        assert result[0] == job_id
-        assert result[1] is False
-        assert "Invalid credentials" in result[2]
+
+        # Updated authentication failure assertions
+        assert result.success is False
+        assert "Invalid credentials" in result.value
+
+    
+class TestPostProcess:
+    """Tests for the _JobStartTask class.""" 
+
+    def test_postprocess_job_start_success(self, sample_dataframe, initial_stats):
+        """Ensure _JobStartTask success updates the DataFrame and stats."""
+        task = _JobStartTask(root_url="https://foo.test", bearer_token="token", job_id="job-123")
+        # Simulate a successful result
+        result = _TaskResult(success=True, value="queued")
+        
+        _postprocess_futures([(task, result)], sample_dataframe, initial_stats)
+        
+        # The row for job-123 should have its status updated to "queued"
+        updated_status = sample_dataframe.loc[sample_dataframe["id"] == "job-123", "status"].iloc[0]
+        assert updated_status == "queued"
+        # Stats should record one successful job start
+        assert initial_stats["job start"] == 1
+
+    def test_postprocess_job_start_failure(self, sample_dataframe, initial_stats):
+        """Ensure _JobStartTask failure updates the DataFrame and stats."""
+        task = _JobStartTask(root_url="https://foo.test", bearer_token="token", job_id="job-456")
+        # Simulate a failing result
+        result = _TaskResult(success=False, value="Network error")
+        
+        _postprocess_futures([(task, result)], sample_dataframe, initial_stats)
+        
+        # The row for job-456 should have its status updated to "start_failed"
+        updated_status = sample_dataframe.loc[sample_dataframe["id"] == "job-456", "status"].iloc[0]
+        assert updated_status == "start_failed"
+        # Stats should record one failed job start
+        assert initial_stats["job start failed"] == 1
+
+    def test_postprocess_no_matching_row(self, sample_dataframe, initial_stats):
+        """
+        If no row with status 'queued_for_start' exists for the job,
+        then _postprocess_futures should not update any status.
+        """
+        # Create a task for which the DataFrame row has a different status
+        task = _JobStartTask(root_url="https://foo.test", bearer_token="token", job_id="job-789")
+        result = _TaskResult(success=True, value="queued")
+        
+        # Before processing, verify job-789 status is "other"
+        orig_status = sample_dataframe.loc[sample_dataframe["id"] == "job-789", "status"].iloc[0]
+        assert orig_status == "other"
+        
+        _postprocess_futures([(task, result)], sample_dataframe, initial_stats)
+        
+        # The status should remain unchanged because it wasn’t "queued_for_start"
+        updated_status = sample_dataframe.loc[sample_dataframe["id"] == "job-789", "status"].iloc[0]
+        assert updated_status == "other"
+        # Stats should  be updated since postprocessing since we did pass a succes.
+        assert initial_stats["job start"] == 1
+
+
+    def test_worker_pool_bookkeeping(self, worker_pool, valid_task, successful_backend_mock, requests_mock):
+        """
+        Ensure that after processing, the future is removed from the pool's internal maps.
+        """
+        successful_backend_mock(valid_task.root_url, valid_task.job_id)
+        worker_pool.submit_task(valid_task)
+        
+        # Wait until at least one future is processed.
+        results = []
+        while not results:
+            results = worker_pool.process_futures()
+        
+        # The internal future list and task map should be empty now.
+        assert len(worker_pool._futures) == 0
+        assert len(worker_pool._task_map) == 0

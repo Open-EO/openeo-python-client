@@ -724,58 +724,6 @@ class TestMultiBackendJobManager:
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
-    def test_postprocess_futures(job_manager):
-        """
-        Test that the _postprocess_futures() method on the job manager correctly updates the job database.
-        This test mimics a situation where some tasks complete successfully while others fail.
-        """
-        # Prepare a simple DataFrame similar to a job database:
-        # Two rows have the status 'queued_for_start' (eligible for update) and one row remains unchanged.
-        df = pd.DataFrame({
-            "id": ["job-success", "job-failure", "job-other"],
-            "status": ["queued_for_start", "queued_for_start", "created"]
-        })
-        
-        # Prepare a stats dictionary to track the updates.
-        stats = collections.defaultdict(int)
-        
-        # Create two fake tasks representing job start attempts.
-        task_success = _JobStartTask(
-            root_url="https://foo.test",
-            bearer_token="token",
-            job_id="job-success"
-        )
-        task_failure = _JobStartTask(
-            root_url="https://foo.test",
-            bearer_token="token",
-            job_id="job-failure"
-        )
-        
-        # Simulate worker pool results:
-        # - The first task succeeded and should update the job status to "queued"
-        # - The second task failed and should update the job status to "start_failed"
-        worker_pool_results = [
-            (task_success, ("job-success", True, "queued")),
-            (task_failure, ("job-failure", False, "failed to start")),
-        ]
-        job_manager = MultiBackendJobManager()
-        
-        # Call the postprocess method on the actual job manager.
-        job_manager._postprocess_futures(worker_pool_results, df, stats)
-        
-        # Verify that the row for "job-success" is updated to "queued"
-        assert df.loc[df["id"] == "job-success", "status"].iloc[0] == "queued"
-        
-        # Verify that the row for "job-failure" is updated to "start_failed"
-        assert df.loc[df["id"] == "job-failure", "status"].iloc[0] == "start_failed"
-        
-        # Verify that the row not eligible for update remains unchanged.
-        assert df.loc[df["id"] == "job-other", "status"].iloc[0] == "created"
-        
-        # Verify that the stats dictionary is updated appropriately.
-        assert stats["job start"] == 1
-        assert stats["job start failed"] == 1
-
 
 JOB_DB_DF_BASICS = pd.DataFrame(
     {
