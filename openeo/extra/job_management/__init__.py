@@ -33,7 +33,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from openeo import BatchJob, Connection
-from openeo.extra.job_management._thread_worker import _JobManagerWorkerThreadPool, _JobStartTask
+from openeo.extra.job_management._thread_worker import ( _JobManagerWorkerThreadPool,
+                                                         _JobStartTask,
+                                                        _postprocess_futures)
+
 from openeo.internal.processes.parse import (
     Parameter,
     Process,
@@ -511,7 +514,7 @@ class MultiBackendJobManager:
         while (
             sum(
                 job_db.count_by_status(
-                    statuses=["not_started", "created", "queued", "queued_for_start", "running"]
+                    statuses=["not_started", "created", "queued_for_start", "queued", "running"]
                 ).values()
             )
             > 0
@@ -568,8 +571,8 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Process launched jobs
-        worker_pool_output = self._worker_pool.process_futures()
-        self._postprocess_futures(worker_pool_output, not_started, stats)
+        worker_pool_results = self._worker_pool.process_futures()
+        _postprocess_futures(worker_pool_results, not_started, stats)
         job_db.persist(not_started)
         stats["job_db persist"] += 1
        
@@ -708,54 +711,6 @@ class MultiBackendJobManager:
         :param row: DataFrame row containing the job's metadata.
         """
         pass
-
-    def _postprocess_futures(self, worker_pool_results, df, stats):
-        """
-        Processes completed tasks from the worker thread pool and updates job statuses in the job dataframe.
-
-        This method iterates over the results of completed tasks from the worker pool (e.g., job start attempts).
-        For each task, it updates the job's status in the DataFrame based on whether the start was succesful
-        and the job moved to the queued status or wheter the job start failed.
-
-        :param pool_output:
-            A list of tuples, where each tuple contains:
-                - task: An instance of `_JobStartTask` representing the job start task.
-                - result: A tuple containing:
-                    - job_id (str): The ID of the job associated with the task.
-                    - success (bool): Whether the task succeeded.
-                    - data (str): the resulting status or an error message.
-
-        :param df:
-            The dataFrame that specifies the jobs and tracks their statuses. The status of jobs in the DataFrame is updated based on the task results.
-
-        :param stats:
-            The dictionary for tracking statistics related to job processing. The statistics are updated based on the task results.
-
-        """
-
-        for task, result in worker_pool_results:
-            job_id, success, data = result
-
-            # Find rows with matching job id and a status of 'queued_for_start'
-            idx = df.index[(df["id"] == job_id) & (df["status"] == "queued_for_start")]
-            
-            if not idx.empty:
-                # Set new status based on task success
-                new_status = "queued" if success else "start_failed"
-                df.loc[idx, "status"] = new_status
-                _log.info(f"Updated job {job_id} status to {new_status} in dataframe.")
-            else:
-                _log.warning(f"No entry for job {job_id} with status 'queued_for_start' found in dataframe, passing on.")
-            
-            # Log details and update statistics
-            if isinstance(task, _JobStartTask) and success:
-                _log.info(f"Job {job_id} started sucessfully with status: {data}")
-                #TODO would it be better to add stats[ job queued] += 1 here?
-                stats["job start"] += 1
-            elif isinstance(task, _JobStartTask) and not success:
-                _log.info(f"Job {job_id} start failed with exeption: {data}")
-                #TODO would it be better to add stats[ job queued failed] += 1 here?
-                stats["job start failed"] += 1
 
     def _cancel_prolonged_job(self, job: BatchJob, row):
         """Cancel the job if it has been running for too long."""
