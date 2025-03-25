@@ -67,7 +67,14 @@ from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
+from openeo.util import (
+    BBoxDict,
+    dict_no_none,
+    guess_format,
+    load_json,
+    normalize_crs,
+    rfc3339,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -627,7 +634,7 @@ class DataCube(_ProcessGraphAbstraction):
                     west, south, east, north = bbox.bounds
                 elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
                     west, south, east, north = bbox[:4]
-                elif isinstance(bbox, dict):
+                elif BBoxDict.is_compatible_dict(bbox):
                     west, south, east, north = (bbox[k] for k in ["west", "south", "east", "north"])
                     if "crs" in bbox:
                         crs = bbox["crs"]
@@ -3038,14 +3045,8 @@ def _get_geometry_argument(
         return argument.from_node()
     elif allow_none and argument is None:
         return argument
-    elif (
-        allow_bounding_box
-        and isinstance(argument, dict)
-        and all(k in argument for k in ["west", "south", "east", "north"])
-    ):
-        if "crs" in argument:
-            argument = dict(argument, crs=normalize_crs(argument["crs"], warn_on_change=True))
-        return argument
+    elif allow_bounding_box and BBoxDict.is_compatible_dict(argument):
+        return BBoxDict.from_dict(argument, warn_on_crs_change=True)
 
     # Support URL based geometry references (with `load_url` and best-effort format guess)
     if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):

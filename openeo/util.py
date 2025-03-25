@@ -17,7 +17,7 @@ import time
 from collections import OrderedDict
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -524,10 +524,19 @@ class BBoxDict(dict):
     .. versionadded:: 0.10.1
     """
 
-    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[Union[str, int]] = None):
+    def __init__(
+        self,
+        *,
+        west: float,
+        south: float,
+        east: float,
+        north: float,
+        crs: Optional[Union[str, int]] = None,
+        warn_on_crs_change: bool = False,
+    ):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
-            self.update(crs=normalize_crs(crs))
+            self.update(crs=normalize_crs(crs, warn_on_change=warn_on_crs_change))
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
@@ -546,7 +555,12 @@ class BBoxDict(dict):
             raise InvalidBBoxException(f"Can not construct BBoxDict from {x!r}")
 
     @classmethod
-    def from_dict(cls, data: dict) -> BBoxDict:
+    def is_compatible_dict(cls, data) -> bool:
+        """Check if given value is a valid bounding box dictionary."""
+        return isinstance(data, dict) and all(k in data for k in ("west", "south", "east", "north"))
+
+    @classmethod
+    def from_dict(cls, data: dict, *, warn_on_crs_change: bool = False) -> BBoxDict:
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
         expected_fields = {"west", "south", "east", "north"}
         # TODO: also support upper case fields?
@@ -554,10 +568,18 @@ class BBoxDict(dict):
         missing = expected_fields.difference(data.keys())
         if missing:
             raise InvalidBBoxException(f"Missing bbox fields {sorted(missing)}")
+        # TODO: also support parameters?
         invalid = {k: data[k] for k in expected_fields if not isinstance(data[k], (int, float))}
         if invalid:
             raise InvalidBBoxException(f"Non-numerical bbox fields {invalid}.")
-        return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
+        return cls(
+            west=data["west"],
+            south=data["south"],
+            east=data["east"],
+            north=data["north"],
+            crs=data.get("crs"),
+            warn_on_crs_change=warn_on_crs_change,
+        )
 
     @classmethod
     def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> BBoxDict:
@@ -693,6 +715,7 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True, warn_on_change: bool = F
             raise ValueError(f"Can not normalize CRS data {type(crs)}")
 
     if warn_on_change and orig_crs != crs:
+        # TODO: is this warning actually useful?
         logger.warning(f"Normalized CRS {orig_crs!r} to {crs!r}")
 
     return crs

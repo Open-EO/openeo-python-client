@@ -693,6 +693,26 @@ class TestBBoxDict:
         d = BBoxDict(west=1, south=2, east=3, north=4)
         assert json.dumps(d) == '{"west": 1, "south": 2, "east": 3, "north": 4}'
 
+    @pytest.mark.parametrize("crs", ["EPSG:4326", "epsg:4326", 4326, "4326"])
+    def test_from_dict_normalize_crs(self, crs):
+        d = {"west": 1, "south": 2, "east": 3, "north": 4, "crs": crs}
+        assert BBoxDict.from_dict(d) == {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}
+
+    @pytest.mark.parametrize("crs", ["EPSG:4326", "epsg:4326", 4326, "4326"])
+    def test_from_dict_normalize_crs_warn_on_change(self, crs, caplog):
+        d = {"west": 1, "south": 2, "east": 3, "north": 4, "crs": crs}
+        assert BBoxDict.from_dict(d, warn_on_crs_change=True) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+            "crs": 4326,
+        }
+        if crs != 4326:
+            assert f"Normalized CRS {crs!r} to 4326" in caplog.text
+        else:
+            assert "Normalized CRS" not in caplog.text
+
     def test_to_bbox_dict_from_sequence(self):
         assert to_bbox_dict([1, 2, 3, 4]) == {"west": 1, "south": 2, "east": 3, "north": 4}
         assert to_bbox_dict((1, 2, 3, 4)) == {"west": 1, "south": 2, "east": 3, "north": 4}
