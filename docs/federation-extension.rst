@@ -37,6 +37,7 @@ using :py:meth:`OpenEoCapabilities.ext_federation_backend_details() <openeo.rest
 .. code-block:: python
 
     import openeo
+
     connection = openeo.connect(url=...)
     capabilities = connection.capabilities()
     print("Federated backends:", capabilities.ext_federation_backend_details())
@@ -57,6 +58,7 @@ and can be inspected as follows:
 .. code-block:: python
 
     import openeo
+
     connection = openeo.connect(url=...)
     collections = connection.list_collections()
     print("Number of collections:", len(collections))

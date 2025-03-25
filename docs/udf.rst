@@ -28,13 +28,15 @@ using the openEO Python Client library:
     import openeo
 
     # Build a UDF object from an inline string with Python source code.
-    udf = openeo.UDF("""
-    import xarray
+    udf = openeo.UDF(
+        """
+        import xarray
 
-    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-        cube.values = 0.0001 * cube.values
-        return cube
-    """)
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            cube.values = 0.0001 * cube.values
+            return cube
+        """
+    )
 
     # Or load the UDF code from a separate file.
     # udf = openeo.UDF.from_file("udf-code.py")
@@ -173,7 +175,7 @@ In most of the examples here, we will start from an initial Sentinel2 data cube 
         "SENTINEL2_L2A",
         spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
         temporal_extent=["2022-03-01", "2022-03-31"],
-        bands=["B02", "B03", "B04"]
+        bands=["B02", "B03", "B04"],
     )
 
 
@@ -202,6 +204,7 @@ The UDF code is this short script (the part that does the actual value rescaling
     :emphasize-lines: 5
 
     import xarray
+
 
     def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
         cube.values = 0.0001 * cube.values
@@ -244,17 +247,19 @@ The UDF-specific part is highlighted.
         "SENTINEL2_L2A",
         spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
         temporal_extent=["2022-03-01", "2022-03-31"],
-        bands=["B02", "B03", "B04"]
+        bands=["B02", "B03", "B04"],
     )
 
     # Create a UDF object from inline source code.
-    udf = openeo.UDF("""
-    import xarray
+    udf = openeo.UDF(
+        """
+        import xarray
 
-    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-        cube.values = 0.0001 * cube.values
-        return cube
-    """)
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            cube.values = 0.0001 * cube.values
+            return cube
+        """
+    )
 
     # Pass UDF object as child process to `apply`.
     rescaled = s2_cube.apply(process=udf)
@@ -309,13 +314,15 @@ To invoke a UDF like this, the apply_neighborhood method is most suitable:
 
 .. code-block:: python
 
-    udf_code = Path('udf_modify_spatial.py').read_text()
+    udf_code = Path("udf_modify_spatial.py").read_text()
     cube_updated = cube.apply_neighborhood(
-        lambda data: data.run_udf(udf=udf_code, runtime='Python-Jep', context=dict()),
+        lambda data: data.run_udf(udf=udf_code, runtime="Python-Jep", context=dict()),
         size=[
-            {'dimension': 'x', 'value': 128, 'unit': 'px'},
-            {'dimension': 'y', 'value': 128, 'unit': 'px'}
-        ], overlap=[])
+            {"dimension": "x", "value": 128, "unit": "px"},
+            {"dimension": "y", "value": 128, "unit": "px"},
+        ],
+        overlap=[],
+    )
 
 
 
@@ -350,13 +357,17 @@ the datacube.
 
 .. code-block:: python
 
-    output_cube = inputs_cube.apply_neighborhood(my_udf, size=[
-            {'dimension': 'x', 'value': 112, 'unit': 'px'},
-            {'dimension': 'y', 'value': 112, 'unit': 'px'}
-        ], overlap=[
-            {'dimension': 'x', 'value': 8, 'unit': 'px'},
-            {'dimension': 'y', 'value': 8, 'unit': 'px'}
-        ])
+    output_cube = inputs_cube.apply_neighborhood(
+        my_udf,
+        size=[
+            {"dimension": "x", "value": 112, "unit": "px"},
+            {"dimension": "y", "value": 112, "unit": "px"},
+        ],
+        overlap=[
+            {"dimension": "x", "value": 8, "unit": "px"},
+            {"dimension": "y", "value": 8, "unit": "px"},
+        ],
+    )
 
 
 
@@ -396,7 +407,7 @@ and apply it along a dimension:
 
 .. code-block:: python
 
-    smoothing_udf = openeo.UDF.from_file('smooth_savitzky_golay.py')
+    smoothing_udf = openeo.UDF.from_file("smooth_savitzky_golay.py")
     smoothed_evi = evi_cube_masked.apply_dimension(smoothing_udf, dimension="t")
 
 
@@ -629,6 +640,7 @@ For example: to discover the shape of the data cube chunk that you receive in yo
 
     from openeo.udf import inspect
     import xarray
+
 
     def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
         inspect(data=[cube.shape], message="UDF logging shape of my cube")
