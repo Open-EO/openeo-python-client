@@ -34,8 +34,7 @@ from urllib3.util import Retry
 
 from openeo import BatchJob, Connection
 from openeo.extra.job_management._thread_worker import ( _JobManagerWorkerThreadPool,
-                                                         _JobStartTask,
-                                                        _postprocess_futures)
+                                                         _JobStartTask)
 
 from openeo.internal.processes.parse import (
     Parameter,
@@ -570,10 +569,11 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-        # Process launched jobs
-        worker_pool_results = self._worker_pool.process_futures()
-        _postprocess_futures(worker_pool_results, not_started, stats)
+        # Process launched jobs (#TODO can we collapse these two with redesign)
+        context = {"df": not_started, "stats": stats}
+        _ = self._worker_pool.process_futures(context)
         job_db.persist(not_started)
+
         stats["job_db persist"] += 1
        
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
