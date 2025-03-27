@@ -10,6 +10,7 @@ import zlib
 from contextlib import nullcontext
 from pathlib import Path
 
+import dirty_equals
 import pytest
 import requests
 import requests_mock
@@ -2703,6 +2704,31 @@ class TestLoadCollection:
             },
         }
 
+    @pytest.mark.parametrize("crs", ["EPSG:4326", "epsg:4326", 4326, "4326"])
+    def test_load_collection_normalize_epsg_crs(self, dummy_backend, crs, caplog):
+        caplog.set_level(level=logging.WARNING)
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4, "crs": crs}
+        temporal_extent = ["2019-01-01", "2019-01-22"]
+        cube = dummy_backend.connection.load_collection(
+            "S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent, bands=["B2", "B3"]
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "S2",
+                    "spatial_extent": {"east": 3, "north": 4, "south": 2, "west": 1, "crs": 4326},
+                    "temporal_extent": ["2019-01-01", "2019-01-22"],
+                    "bands": ["B2", "B3"],
+                },
+                "result": True,
+            }
+        }
+        if crs != 4326:
+            assert f"Normalized CRS {crs!r} to 4326" in caplog.text
+        else:
+            assert "Normalized CRS" not in caplog.text
 
 def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -3025,6 +3051,23 @@ class TestLoadStac:
             "url": "https://stac.test/data",
             "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
         }
+
+    @pytest.mark.parametrize("crs", ["EPSG:32632", "epsg:32632", 32632, "32632"])
+    def test_load_stac_spatial_extent_bbox_normalize_epsg_crs(self, dummy_backend, crs, caplog):
+        caplog.set_level(level=logging.WARNING)
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4, "crs": crs}
+        # TODO #694 how to avoid request to dummy STAC URL (without mocking, which is overkill for this test)
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadstac1"]["arguments"] == {
+            "url": "https://stac.test/data",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4, "crs": 32632},
+        }
+
+        if crs != 32632:
+            assert f"Normalized CRS {crs!r} to 32632" in caplog.text
+        else:
+            assert "Normalized CRS" not in caplog.text
 
     @pytest.mark.parametrize(
         "spatial_extent",
