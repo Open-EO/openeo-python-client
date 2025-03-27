@@ -4,7 +4,7 @@ import json
 import logging
 import pathlib
 import typing
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import shapely.geometry.base
 
@@ -250,6 +250,7 @@ class VectorCube(_ProcessGraphAbstraction):
         auto_add_save_result: bool = True,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        on_response_headers: Optional[Callable[[Mapping], None]] = None,
     ) -> Union[None, bytes]:
         """
         Send the underlying process graph to the backend
@@ -267,6 +268,7 @@ class VectorCube(_ProcessGraphAbstraction):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param on_response_headers: (optional) callback to handle/show the response headers
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
@@ -280,6 +282,9 @@ class VectorCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.39.0
             Added arguments ``additional`` and ``job_options``.
+
+        .. versionchanged:: 0.40
+            Added argument ``on_response_headers``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
         if auto_add_save_result:
