@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `load_stac` will now take over the requested band names if there is a mismatch/problem with the extracted collection metadata ([#752](https://github.com/Open-EO/openeo-python-client/issues/752))
+
 ### Removed
 
 ### Fixed
