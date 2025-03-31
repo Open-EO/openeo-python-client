@@ -218,6 +218,16 @@ class BandDimension(Dimension):
     def rename(self, name) -> Dimension:
         return BandDimension(name=name, bands=self.bands)
 
+    def contains_band(self, band: Union[int, str]) -> bool:
+        """
+        Check if the given band name or index is present in the dimension.
+        """
+        try:
+            self.band_index(band)
+            return True
+        except ValueError:
+            return False
+
 
 class GeometryDimension(Dimension):
     # TODO: how to model/store labels of geometry dimension?

@@ -441,10 +441,23 @@ class DataCube(_ProcessGraphAbstraction):
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
+            # TODO: also apply spatial/temporal filters to metadata?
+
             if isinstance(bands, list):
-                # TODO: also apply spatial/temporal filters to metadata?
-                metadata = metadata.filter_bands(band_names=bands)
-        except Exception:
+                if not metadata.has_band_dimension():
+                    metadata = metadata.add_dimension(
+                        name="bands",
+                        type="bands",
+                        label=None,
+                    )
+                if all(metadata.band_dimension.contains_band(b) for b in bands):
+                    metadata = metadata.filter_bands(band_names=bands)
+                else:
+                    logging.warning(
+                        "Some bands are not available in the collection metadata. Using requested bands as is."
+                    )
+                    metadata = metadata.rename_labels(dimension="bands", target=bands)
+        except Exception as e:
             log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
             metadata = None
         return cls(graph=graph, connection=connection, metadata=metadata)
