@@ -3612,6 +3612,16 @@ def test_download_with_additional_and_job_options(dummy_backend, tmp_path):
     }
 
 
+def test_download_on_response_headers(dummy_backend, tmp_path):
+    results = []
+    dummy_backend.connection.download(
+        {"foo1": {"process_id": "foo"}},
+        tmp_path / "result.data",
+        on_response_headers=results.append,
+    )
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
 @pytest.mark.parametrize(
     "pg",
     [

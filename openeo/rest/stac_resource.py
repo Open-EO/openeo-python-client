@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Mapping, Optional, Union
 
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
@@ -87,6 +87,7 @@ class StacResource(_ProcessGraphAbstraction):
         validate: Optional[bool] = None,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        on_response_headers: Optional[Callable[[Mapping], None]] = None,
     ):
         """
         Send the underlying process graph to the backend
@@ -101,10 +102,14 @@ class StacResource(_ProcessGraphAbstraction):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param on_response_headers: (optional) callback to handle/show the response headers
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
             Otherwise, ``None`` is returned.
+
+        .. versionchanged:: 0.40
+            Added argument ``on_response_headers``.
         """
         return self._connection.download(
             graph=self.flat_graph(),
@@ -112,6 +117,7 @@ class StacResource(_ProcessGraphAbstraction):
             validate=validate,
             additional=additional,
             job_options=job_options,
+            on_response_headers=on_response_headers,
         )
 
     def create_job(

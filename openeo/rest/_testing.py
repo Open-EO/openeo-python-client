@@ -179,6 +179,7 @@ class DummyBackend:
         elif isinstance(result, str):
             result = result.encode("utf-8")
         assert isinstance(result, bytes)
+        context.headers["OpenEO-Identifier"] = f"r-{len(self.sync_requests):03d}"
         return result
 
     def _handle_post_jobs(self, request, context):
