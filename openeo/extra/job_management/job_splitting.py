@@ -1,6 +1,6 @@
 import abc
 import math
-from typing import NamedTuple, Optional, Union
+from typing import List, NamedTuple, Optional, Union
 
 import pyproj
 import shapely
