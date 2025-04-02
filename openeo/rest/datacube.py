@@ -450,11 +450,12 @@ class DataCube(_ProcessGraphAbstraction):
                         type="bands",
                         label=None,
                     )
-                if all(metadata.band_dimension.contains_band(b) for b in bands):
+                missing_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
+                if len(missing_bands) == 0:
                     metadata = metadata.filter_bands(band_names=bands)
                 else:
                     logging.warning(
-                        "Some bands are not available in the collection metadata. Using requested bands as is."
+                        f"Bands {missing_bands} are not available in the collection metadata. Using requested bands as is."
                     )
                     metadata = metadata.rename_labels(dimension="bands", target=bands)
         except Exception as e:
