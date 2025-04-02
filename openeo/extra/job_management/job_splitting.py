@@ -123,7 +123,7 @@ class SizeBasedTileGrid(TileGridInterface):
 
 
 def split_area(
-    aoi: Union[Dict, shapely.geometry.Polygon], projection="EPSG:326", tile_size: float = 20.0
+    aoi: Union[Dict, shapely.geometry.Polygon], projection="EPSG:3857", tile_size: float = 20.0
 ) -> List[Union[Dict, shapely.geometry.Polygon]]:
     """
     Split area of interest into tiles of given size and projection.
