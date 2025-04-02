@@ -2975,12 +2975,16 @@ class TestLoadStac:
         # Test with non-existing bands in the collection metadata
         cube = con120.load_stac(str(stac_path), bands=["B04"])
         assert cube.metadata.band_names == ["B04"]
-        assert "Some bands are not available in the collection metadata. Using requested bands as is." in caplog.text
+        expected_warning = "Bands ['B04'] are not available in the collection metadata. Using requested bands as is."
+        assert expected_warning in caplog.text
         caplog.clear()
 
-        cube = con120.load_stac(str(stac_path), bands=["B03", "B04"])
-        assert cube.metadata.band_names == ["B03", "B04"]
-        assert "Some bands are not available in the collection metadata. Using requested bands as is." in caplog.text
+        cube = con120.load_stac(str(stac_path), bands=["B03", "B04", "B05"])
+        assert cube.metadata.band_names == ["B03", "B04", "B05"]
+        expected_warning = (
+            "Bands ['B04', 'B05'] are not available in the collection metadata. Using requested bands as is."
+        )
+        assert expected_warning in caplog.text
         caplog.clear()
 
     @pytest.mark.parametrize(
