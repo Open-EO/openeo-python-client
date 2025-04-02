@@ -76,7 +76,7 @@ setup(
         "requests>=2.26.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
-        "xarray>=0.12.3,!=2025.01.2,!=2025.03.0",  # TODO #721 xarray non-nanosecond support
+        "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
         # TODO #715 compatibility with pystac 1.12
