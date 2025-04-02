@@ -1,6 +1,6 @@
 import abc
 import math
-from typing import List, NamedTuple, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Union
 
 import pyproj
 import shapely
@@ -13,7 +13,7 @@ class JobSplittingFailure(Exception):
 
 
 # TODO: This function is also defined in openeo-python-driver. But maybe we want to avoid a dependency on openeo-python-driver?
-def reproject_bounding_box(bbox: dict, from_crs: Optional[str], to_crs: str) -> dict:
+def reproject_bounding_box(bbox: Dict, from_crs: Optional[str], to_crs: str) -> Dict:
     """
     Reproject given bounding box dictionary
 
@@ -41,7 +41,7 @@ class BoundingBox(NamedTuple):
     crs: str = "EPSG:4326"
 
     @classmethod
-    def from_dict(cls, d: dict) -> "BoundingBox":
+    def from_dict(cls, d: Dict) -> "BoundingBox":
         return cls(**{k: d[k] for k in cls._fields if k not in cls._field_defaults or k in d})
 
     @classmethod
@@ -49,7 +49,7 @@ class BoundingBox(NamedTuple):
         """Create a bounding box from a shapely Polygon"""
         return cls(*polygon.bounds, projection if projection is not None else cls.crs)
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> Dict:
         return self._asdict()
 
     def as_polygon(self) -> shapely.geometry.Polygon:
@@ -61,7 +61,7 @@ class TileGridInterface(metaclass=abc.ABCMeta):
     """Interface for tile grid classes"""
 
     @abc.abstractmethod
-    def get_tiles(self, geometry: Union[dict, shapely.geometry.Polygon]) -> list[Union[dict, shapely.geometry.Polygon]]:
+    def get_tiles(self, geometry: Union[Dict, shapely.geometry.Polygon]) -> List[Union[Dict, shapely.geometry.Polygon]]:
         """Calculate tiles to cover given bounding box"""
         ...
 
@@ -80,7 +80,7 @@ class SizeBasedTileGrid(TileGridInterface):
         """Create a tile grid from size and projection"""
         return cls(projection.lower(), size)
 
-    def get_tiles(self, geometry: Union[dict, shapely.geometry.Polygon]) -> list[Union[dict, shapely.geometry.Polygon]]:
+    def get_tiles(self, geometry: Union[Dict, shapely.geometry.Polygon]) -> List[Union[Dict, shapely.geometry.Polygon]]:
         if isinstance(geometry, dict):
             bbox = BoundingBox.from_dict(geometry)
             bbox_crs = bbox.crs
@@ -123,8 +123,8 @@ class SizeBasedTileGrid(TileGridInterface):
 
 
 def split_area(
-    aoi: Union[dict, shapely.geometry.Polygon], projection="EPSG:326", tile_size: float = 20.0
-) -> list[Union[dict, shapely.geometry.Polygon]]:
+    aoi: Union[Dict, shapely.geometry.Polygon], projection="EPSG:326", tile_size: float = 20.0
+) -> List[Union[Dict, shapely.geometry.Polygon]]:
     """
     Split area of interest into tiles of given size and projection.
     :param aoi: area of interest (bounding box or shapely polygon)
