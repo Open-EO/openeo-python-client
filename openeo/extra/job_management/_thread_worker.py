@@ -10,22 +10,14 @@ from typing import Any, Optional, Dict
 
 _log = logging.getLogger(__name__)
 
-
 @dataclass
 class _TaskResult:
-    """Holds the raw result of a task execution."""
-    success: bool
-    value: Any
-
-
-@dataclass
-class _JobUpdate:
-    """Container for updates to apply in the main thread"""
+    """Container for all main thread updates"""
     job_id: str
-    updates: Dict[str, Any]  # Field updates for the job record
-    stats_increment: Dict[str, int]  # Stats counters to increment
-
-
+    # Only allow updates to official columns
+    updates: Dict[str, Any]  
+    # For statistics tracking
+    stats_increment: Dict[str, int]
 
 class Task(ABC):
     """Abstract base class for asynchronous tasks with safe update generation"""
@@ -35,12 +27,6 @@ class Task(ABC):
         """Execute the task and return a raw result"""
         pass
     
-    @abstractmethod
-    def postprocess(self, result: _TaskResult) -> Optional[_JobUpdate]:
-        """Convert execution result to update data"""
-        pass
-
-
 @dataclasses.dataclass
 class _JobStartTask(Task):
     """
@@ -72,30 +58,19 @@ class _JobStartTask(Task):
                 conn.authenticate_bearer_token(self.bearer_token)
             job = conn.job(self.job_id)
             job.start()
-            return _TaskResult(success=True, value=job.status())
-        except Exception as e:
-            return _TaskResult(success=False, value=str(e))
-        
-
-    def postprocess(self, result: _TaskResult) -> Optional[_JobUpdate]:
-        """Updates the DataFrame and statistics based on the job start result."""
-        if result.success:
-            return _JobUpdate(
+            _log.info(f"Job {self.job_id} started successfully")
+            return _TaskResult(
                 job_id=self.job_id,
                 updates={"status": "queued"},
-                stats_increment={"jobs_started": 1}
+                stats_increment={"jobs_started": 1},
             )
-        else:
-            return _JobUpdate(
+        except Exception as e:
+            _log.error(f"Failed to start job {self.job_id}: {e}")
+            return _TaskResult(
                 job_id=self.job_id,
-                updates={
-                    "status": "start_failed",
-                    "error": str(result.value)
-                },
-                stats_increment={"start_failures": 1}
-            )
-
-
+                updates={"status": "start_failed"},  # Only official column
+                stats_increment={"start_failures": 1})
+        
 class _JobManagerWorkerThreadPool:
     """
     Manages a thread pool for executing tasks asynchronously and handles postprocessing.
@@ -109,7 +84,7 @@ class _JobManagerWorkerThreadPool:
         self._future_task_pairs.append((future, task))  # Track pairs
 
 
-    def process_futures(self) -> List[_JobUpdate]:
+    def process_futures(self) -> List[_TaskResult]:
 
         updates = []
         done, _ = concurrent.futures.wait(
@@ -121,10 +96,8 @@ class _JobManagerWorkerThreadPool:
         for future, task in self._future_task_pairs[:]:
             if future in done:
                 try:
-                    result = future.result()
-                    update = task.postprocess(result, context)
-                    if update:
-                        updates.append(update)
+                    updates.append(future.result())
+                    
                 except Exception as e:
                     _log.exception(f"Error processing task: {e}")
                 finally:
