@@ -575,20 +575,20 @@ class MultiBackendJobManager:
 
         # Process launched jobs (#TODO can we collapse these two with redesign)
         # Collect async updates
-        updates = self._worker_pool.process_futures()
+        results = self._worker_pool.process_futures()
         
         # Apply updates in main thread
-        for update in updates:
+        for result in results:
             try:
                 # Update database using job_id
-                job_db.update_job(update.job_id, update.updates)
+                job_db.update_job(result.job_id, result.updates)
                 
                 # Update statistics
-                for key, inc in update.stats_increment.items():
-                    stats[key] = stats.get(key, 0) + inc
+                for key, count in result.stats_increment.items():
+                    stats[key] += count
                     
             except KeyError:
-                _log.warning(f"Job {update.job_id} not found during update")
+                _log.warning(f"Job {result.job_id} not found in job_db, skipping update")
         
        
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
