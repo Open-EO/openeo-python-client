@@ -581,12 +581,12 @@ class MultiBackendJobManager:
         for result in results:
             try:
                 # Update database using job_id
-                if result.updates:
-                    job_db.update_job(result.job_id, result.updates)
+                if result.db_update:
+                    job_db.update_job(result.job_id, result.db_update)
                 
                 # Update statistics
-                if result.stats_increment:
-                    for key, count in result.stats_increment.items():
+                if result.stats_update:
+                    for key, count in result.stats_update.items():
                         stats[key] += count
                     
             except KeyError:
