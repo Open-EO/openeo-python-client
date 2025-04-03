@@ -14,8 +14,8 @@ _log = logging.getLogger(__name__)
 class _TaskResult:
     """Container for task results with optional components"""
     job_id: str  # Mandatory
-    updates: Dict[str, Any] = field(default_factory=dict)  # Optional
-    stats_increment: Dict[str, int] = field(default_factory=dict)  # Optional
+    db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
+    stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
 class Task(ABC):
     """Abstract base class for asynchronous tasks with safe update generation"""
@@ -59,15 +59,15 @@ class _JobStartTask(Task):
             _log.info(f"Job {self.job_id} started successfully")
             return _TaskResult(
                 job_id=self.job_id,
-                updates={"status": "queued"},
-                stats_increment={"jobs_started": 1},
+                db_update={"status": "queued"},
+                stats_update={"jobs_started": 1},
             )
         except Exception as e:
             _log.error(f"Failed to start job {self.job_id}: {e}")
             return _TaskResult(
                 job_id=self.job_id,
-                updates={"status": "start_failed"},  # Only official column
-                stats_increment={"start_failures": 1})
+                db_update={"status": "start_failed"},  
+                stats_update={"start_failures": 1})
         
 class _JobManagerWorkerThreadPool:
     """

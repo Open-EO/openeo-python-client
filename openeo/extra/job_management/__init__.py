@@ -111,7 +111,7 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def update_job(self, job_id: str, updates: dict):
+    def _update_row(self, job_id: str, updates: dict):
         """Atomically update specific fields of a job record"""
         ...
 
@@ -580,20 +580,26 @@ class MultiBackendJobManager:
         
         # Apply updates in main thread
         for result in results:
-            try:
                 # Update database using job_id
-                if result.updates:
-                    job_db.update_job(result.job_id, result.updates)
+            if result.db_update:
+                try: 
+                    job_db._update_row(result.job_id, result.db_update)
+
+                except KeyError:
+                    _log.warning(f"Job {result.job_id} not found in job_db, skipping update")
                 
-                # Update statistics
-                if result.stats_increment:
-                    for key, count in result.stats_increment.items():
-                        stats[key] += count
+            # Update statistics
+            if result.stats_update:
+                try:
+                    # Update stats with the new values
+                    for key, count in result.stats_update.items():
+                        stats[str(key)] += int(count)
+
+                except Exception as e:
+                    _log.error(f"Error while updating stats for job {result.job_id}: {e}")
                     
-            except KeyError:
-                _log.warning(f"Job {result.job_id} not found in job_db, skipping update")
+
         
-       
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
             self.on_job_done(job, row)
@@ -937,61 +943,44 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         else:
             self._df = df
 
-    def update_job(self, job_id: str, updates: dict):
-        """
-        Atomically update job record by job ID with validation.
-        
-        
-        :param job_id: The unique job identifier
-        :param updates: Dictionary of {column_name: new_value} pairs
-        """
+    def _update_row(self, job_id: str, updates: dict):
         if self._df is None:
             raise ValueError("Job database not initialized")
 
-        # Find job by ID
         mask = self._df["id"] == job_id
-    
-        if not mask.any():
-            raise KeyError(f"Job {job_id!r} not found in database")
+        if mask.sum() != 1:
+            _log.error(f"Job {job_id!r} not found or duplicated in database")
+            return
+
+        valid_columns = set(MultiBackendJobManager._COLUMN_REQUIREMENTS.keys())
+        filtered_updates = {k: v for k, v in updates.items() if k in valid_columns}
         
-        # Validate columns against requirements
-        invalid_columns = [col for col in updates if col not in MultiBackendJobManager._COLUMN_REQUIREMENTS]
-        if invalid_columns:
-            valid_columns = list(MultiBackendJobManager._COLUMN_REQUIREMENTS.keys())
-            raise ValueError(f"Invalid columns {invalid_columns!r}. Valid columns: {valid_columns}")
+        for col, value in filtered_updates.items():
+            self._validate_update(mask, col, value)
+        
+        if filtered_updates:
+            self.persist(self._df)
 
-        # Process each update with type checks/conversions
-        for col, value in updates.items():
-            props = MultiBackendJobManager._COLUMN_REQUIREMENTS[col]
-            
-            # Handle null values based on column properties
-            if value is None or pd.isna(value):
-                if props.default is not None:
-                    value = props.default
+    def _validate_update(self, mask, col, value):
+        props = MultiBackendJobManager._COLUMN_REQUIREMENTS[col]
+        try:
+            if pd.isna(value):
+                if props.default is None:
+                    self._df.loc[mask, col] = None
                 else:
-                    raise ValueError(f"Null value not allowed for column {col!r}")
-
-            # Type conversion and validation
-            try:
-                if props.dtype == "str":
-                    value = str(value)
-                elif props.dtype == "float64":
-                    value = float(value)
-                elif props.dtype == "int64":
-                    value = int(value)
-
-            except (ValueError, TypeError) as e:
-                raise ValueError(
-                    f"Invalid value {value!r} for column {col!r} (expected {props.dtype}): {e}"
-                ) from e
-
-            # Update DataFrame
-            try:
-                self._df.loc[mask, col] = value
-            except Exception as e:
-                raise ValueError(f"Failed to update {col!r} at index {mask}: {e}") from e
-
-        self.persist(self._df)  
+                    _log.warning(f"Null not allowed for {col!r} - skipping update")
+                return
+            
+            if props.dtype == "str":
+                value = str(value).strip()
+            elif props.dtype == "float64":
+                value = float(value)
+            elif props.dtype == "int64":
+                value = int(value)
+            self._df.loc[mask, col] = value
+            
+        except Exception as e:
+            _log.error(f"Unexpected error updating {col!r}: {e}")
 
 class CsvJobDatabase(FullDataFrameJobDatabase):
     """
