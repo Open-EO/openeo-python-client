@@ -1,7 +1,7 @@
 import concurrent.futures
 import logging
 import dataclasses
-from typing import Optional, Any, List, Dict
+from typing import Optional, Any, List, Dict, Tuple
 import openeo
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -12,23 +12,32 @@ _log = logging.getLogger(__name__)
 
 
 @dataclass
-class _TaskResult():
-    """Holds the result of a job start task execution."""
+class _TaskResult:
+    """Holds the raw result of a task execution."""
     success: bool
     value: Any
 
 
-class Task(ABC):
-    """Abstract base class for tasks that can be executed asynchronously."""
+@dataclass
+class _JobUpdate:
+    """Container for updates to apply in the main thread"""
+    job_id: str
+    updates: Dict[str, Any]  # Field updates for the job record
+    stats_increment: Dict[str, int]  # Stats counters to increment
 
+
+
+class Task(ABC):
+    """Abstract base class for asynchronous tasks with safe update generation"""
+    
     @abstractmethod
     def execute(self) -> _TaskResult:
-        """Executes the task and returns a result object."""
+        """Execute the task and return a raw result"""
         pass
-
+    
     @abstractmethod
-    def postprocess(self, result: _TaskResult, context: Dict[str, Any]) -> None:
-        """Postprocesses the result using the provided context."""
+    def postprocess(self, result: _TaskResult) -> Optional[_JobUpdate]:
+        """Convert execution result to update data"""
         pass
 
 
@@ -68,31 +77,23 @@ class _JobStartTask(Task):
             return _TaskResult(success=False, value=str(e))
         
 
-    #TODO can we avoid parsing this entire dataframe....
-    def postprocess(self, result: _TaskResult, context: Dict[str, Any]) -> None:
+    def postprocess(self, result: _TaskResult) -> Optional[_JobUpdate]:
         """Updates the DataFrame and statistics based on the job start result."""
-        df = context.get("df")
-        stats = context.get("stats")
-        if df is None or stats is None:
-            _log.error("Context must include 'df' and 'stats'")
-            return
-
-        # Use self.job_id to find the relevant row
-        idx = df.index[(df["id"] == self.job_id) & (df["status"] == "queued_for_start")]
-        if not idx.empty:
-            new_status = "queued" if result.success else "start_failed"
-            df.loc[idx, "status"] = new_status
-            _log.info(f"Updated job {self.job_id} status to {new_status} in dataframe.")
-        else:
-            _log.warning(f"No entry for job {self.job_id} with status 'queued_for_start' found, passing.")
-
-        # Update statistics based on result
         if result.success:
-            _log.info(f"Job {self.job_id} started successfully. Status: {result.value}")
-            stats["job start"] += 1
+            return _JobUpdate(
+                job_id=self.job_id,
+                updates={"status": "queued"},
+                stats_increment={"jobs_started": 1}
+            )
         else:
-            _log.warning(f"Job {self.job_id} start failed. Error: {result.value}")
-            stats["job start failed"] += 1
+            return _JobUpdate(
+                job_id=self.job_id,
+                updates={
+                    "status": "start_failed",
+                    "error": str(result.value)
+                },
+                stats_increment={"start_failures": 1}
+            )
 
 
 class _JobManagerWorkerThreadPool:
@@ -107,7 +108,10 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-    def process_futures(self, context: Dict[str, Any]) -> None:
+
+    def process_futures(self) -> List[_JobUpdate]:
+
+        updates = []
         done, _ = concurrent.futures.wait(
             [f for f, _ in self._future_task_pairs], timeout=0,
             return_when=concurrent.futures.FIRST_COMPLETED
@@ -118,11 +122,14 @@ class _JobManagerWorkerThreadPool:
             if future in done:
                 try:
                     result = future.result()
-                    task.postprocess(result, context)
+                    update = task.postprocess(result, context)
+                    if update:
+                        updates.append(update)
                 except Exception as e:
                     _log.exception(f"Error processing task: {e}")
                 finally:
                     self._future_task_pairs.remove((future, task))  # Cleanup
+        return updates
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""

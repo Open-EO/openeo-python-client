@@ -109,6 +109,11 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
+    @abc.abstractmethod
+    def update_job(self, job_id: str, updates: dict):
+        """Atomically update specific fields of a job record"""
+        ...
+
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
 
@@ -569,11 +574,22 @@ class MultiBackendJobManager:
                         total_added += 1
 
         # Process launched jobs (#TODO can we collapse these two with redesign)
-        context = {"df": not_started, "stats": stats}
-        _ = self._worker_pool.process_futures(context)
-        job_db.persist(not_started)
-
-        stats["job_db persist"] += 1
+        # Collect async updates
+        updates = self._worker_pool.process_futures()
+        
+        # Apply updates in main thread
+        for update in updates:
+            try:
+                # Update database using job_id
+                job_db.update_job(update.job_id, update.updates)
+                
+                # Update statistics
+                for key, inc in update.stats_increment.items():
+                    stats[key] = stats.get(key, 0) + inc
+                    
+            except KeyError:
+                _log.warning(f"Job {update.job_id} not found during update")
+        
        
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -643,7 +659,7 @@ class MultiBackendJobManager:
                             task = _JobStartTask(
                                 root_url=job_con.root_url,
                                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
-                                job_id=job.job_id
+                                job_id=job.job_id,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
                             self._worker_pool.submit_task(task)
@@ -918,6 +934,61 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         else:
             self._df = df
 
+    def update_job(self, job_id: str, updates: dict):
+        """
+        Atomically update job record by job ID with validation.
+        
+        
+        :param job_id: The unique job identifier
+        :param updates: Dictionary of {column_name: new_value} pairs
+        """
+        if self._df is None:
+            raise ValueError("Job database not initialized")
+
+        # Find job by ID
+        mask = self._df["id"] == job_id
+    
+        if not mask.any():
+            raise KeyError(f"Job {job_id!r} not found in database")
+        
+        # Validate columns against requirements
+        invalid_columns = [col for col in updates if col not in MultiBackendJobManager._COLUMN_REQUIREMENTS]
+        if invalid_columns:
+            valid_columns = list(MultiBackendJobManager._COLUMN_REQUIREMENTS.keys())
+            raise ValueError(f"Invalid columns {invalid_columns!r}. Valid columns: {valid_columns}")
+
+        # Process each update with type checks/conversions
+        for col, value in updates.items():
+            props = MultiBackendJobManager._COLUMN_REQUIREMENTS[col]
+            
+            # Handle null values based on column properties
+            if value is None or pd.isna(value):
+                if props.default is not None:
+                    value = props.default
+                else:
+                    raise ValueError(f"Null value not allowed for column {col!r}")
+
+            # Type conversion and validation
+            try:
+                if props.dtype == "str":
+                    value = str(value)
+                elif props.dtype == "float64":
+                    value = float(value)
+                elif props.dtype == "int64":
+                    value = int(value)
+
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid value {value!r} for column {col!r} (expected {props.dtype}): {e}"
+                ) from e
+
+            # Update DataFrame
+            try:
+                self._df.loc[mask, col] = value
+            except Exception as e:
+                raise ValueError(f"Failed to update {col!r} at index {mask}: {e}") from e
+
+        self.persist(self._df)  
 
 class CsvJobDatabase(FullDataFrameJobDatabase):
     """
@@ -972,6 +1043,8 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.df.to_csv(self.path, index=False)
+
+    
 
 
 class ParquetJobDatabase(FullDataFrameJobDatabase):
