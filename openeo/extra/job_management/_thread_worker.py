@@ -1,6 +1,6 @@
 import concurrent.futures
 import logging
-import dataclasses
+from dataclasses import dataclass, field
 from typing import Optional, Any, List, Dict, Tuple
 import openeo
 from abc import ABC, abstractmethod
@@ -12,12 +12,10 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class _TaskResult:
-    """Container for all main thread updates"""
-    job_id: str
-    # Only allow updates to official columns
-    updates: Dict[str, Any]  
-    # For statistics tracking
-    stats_increment: Dict[str, int]
+    """Container for task results with optional components"""
+    job_id: str  # Mandatory
+    updates: Dict[str, Any] = field(default_factory=dict)  # Optional
+    stats_increment: Dict[str, int] = field(default_factory=dict)  # Optional
 
 class Task(ABC):
     """Abstract base class for asynchronous tasks with safe update generation"""
@@ -27,7 +25,7 @@ class Task(ABC):
         """Execute the task and return a raw result"""
         pass
     
-@dataclasses.dataclass
+@dataclass
 class _JobStartTask(Task):
     """
     A task for starting jobs asynchronously.

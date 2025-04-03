@@ -582,11 +582,13 @@ class MultiBackendJobManager:
         for result in results:
             try:
                 # Update database using job_id
-                job_db.update_job(result.job_id, result.updates)
+                if result.updates:
+                    job_db.update_job(result.job_id, result.updates)
                 
                 # Update statistics
-                for key, count in result.stats_increment.items():
-                    stats[key] += count
+                if result.stats_increment:
+                    for key, count in result.stats_increment.items():
+                        stats[key] += count
                     
             except KeyError:
                 _log.warning(f"Job {result.job_id} not found in job_db, skipping update")
