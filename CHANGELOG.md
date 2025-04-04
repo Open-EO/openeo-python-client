@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `load_stac` will now take over the requested band names if there is a mismatch/problem with the extracted collection metadata ([#752](https://github.com/Open-EO/openeo-python-client/issues/752))
+- When the bands provided to `Connection.load_stac(..., bands=[...])` do not fully match the bands the client extracted from the STAC metadata, a warning will be triggered, but the provided band names will still be used during the client-side preparation of the process graph. This is a pragmatic approach to bridge the gap between differing interpretations of band detection in STAC. Note that this might produce process graphs that are technically invalid and might not work on other backends or future versions of the backend you currently use. It is recommended to consult with the provider of the STAC metadata and openEO backend on the correct and future-proof band names. ([#752](https://github.com/Open-EO/openeo-python-client/issues/752))
 
 ### Removed
 

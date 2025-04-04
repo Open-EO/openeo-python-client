@@ -450,12 +450,12 @@ class DataCube(_ProcessGraphAbstraction):
                         type="bands",
                         label=None,
                     )
-                missing_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
-                if len(missing_bands) == 0:
+                unknown_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
+                if len(unknown_bands) == 0:
                     metadata = metadata.filter_bands(band_names=bands)
                 else:
                     logging.warning(
-                        f"Bands {missing_bands} are not available in the collection metadata. Using requested bands as is."
+                        f"The specified bands {bands} are not a subset of the bands {metadata.band_dimension.band_names} found in the STAC metadata (unknown bands: {unknown_bands}). Using specified bands as is."
                     )
                     metadata = metadata.rename_labels(dimension="bands", target=bands)
         except Exception as e:
