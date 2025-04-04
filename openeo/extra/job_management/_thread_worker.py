@@ -66,7 +66,7 @@ class _JobStartTask(Task):
             _log.error(f"Failed to start job {self.job_id}: {e}")
             return _TaskResult(
                 job_id=self.job_id,
-                db_update={"status": "start_failed"},  # Only official column
+                db_update={"status": "start_failed"},  
                 stats_update={"start_failures": 1})
         
 class _JobManagerWorkerThreadPool:
