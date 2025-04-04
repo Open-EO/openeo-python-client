@@ -2957,7 +2957,40 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
 
-    def test_load_stac_band_filtering(self, con120, tmp_path, caplog):
+    @pytest.mark.parametrize(
+        "bands, expected_warning",
+        [
+            (
+                ["B04"],
+                "The specified bands ['B04'] are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04']). Using specified bands as is.",
+            ),
+            (
+                ["B03", "B04", "B05"],
+                "The specified bands ['B03', 'B04', 'B05'] are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04', 'B05']). Using specified bands as is.",
+            ),
+            (["B03", "B02"], None),
+            (["B01", "B02", "B03"], None),
+        ],
+    )
+    def test_load_stac_band_filtering(self, con120, tmp_path, caplog, bands, expected_warning):
+        stac_path = tmp_path / "stac.json"
+        stac_data = StacDummyBuilder.collection(
+            summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+        )
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        stac_path.write_text(json.dumps(stac_data))
+
+        caplog.set_level(logging.WARNING)
+        # Test with non-existing bands in the collection metadata
+        cube = con120.load_stac(str(stac_path), bands=bands)
+        assert cube.metadata.band_names == bands
+        if expected_warning is None:
+            assert caplog.text == ""
+        else:
+            assert expected_warning in caplog.text
+        caplog.clear()
+
+    def test_load_stac_band_filtering_no_requested_bands(self, con120, tmp_path):
         stac_path = tmp_path / "stac.json"
         stac_data = StacDummyBuilder.collection(
             summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
@@ -2968,24 +3001,24 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.band_names == ["B01", "B02", "B03"]
 
-        cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
-        assert cube.metadata.band_names == ["B03", "B02"]
+    def test_load_stac_band_filtering_no_metadata(self, con120, tmp_path, caplog):
+        stac_path = tmp_path / "stac.json"
+        stac_data = StacDummyBuilder.collection()
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        stac_path.write_text(json.dumps(stac_data))
+
+        cube = con120.load_stac(str(stac_path))
+        assert cube.metadata.band_names == []
 
         caplog.set_level(logging.WARNING)
-        # Test with non-existing bands in the collection metadata
-        cube = con120.load_stac(str(stac_path), bands=["B04"])
-        assert cube.metadata.band_names == ["B04"]
-        expected_warning = "Bands ['B04'] are not available in the collection metadata. Using requested bands as is."
-        assert expected_warning in caplog.text
+        cube = con120.load_stac(str(stac_path), bands=["B01", "B02"])
+        assert cube.metadata.band_names == ["B01", "B02"]
+        assert (
+            "The specified bands ['B01', 'B02'] are not a subset of the bands [] found in the STAC metadata (unknown bands: ['B01', 'B02']). Using specified bands as is."
+            in caplog.text
+        )
         caplog.clear()
 
-        cube = con120.load_stac(str(stac_path), bands=["B03", "B04", "B05"])
-        assert cube.metadata.band_names == ["B03", "B04", "B05"]
-        expected_warning = (
-            "Bands ['B04', 'B05'] are not available in the collection metadata. Using requested bands as is."
-        )
-        assert expected_warning in caplog.text
-        caplog.clear()
 
     @pytest.mark.parametrize(
         "bands",
