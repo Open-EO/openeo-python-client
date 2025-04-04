@@ -100,6 +100,28 @@ def test_band_dimension_band_index():
         bdim.band_index("yellow")
 
 
+def test_band_dimension_contains_band():
+    bdim = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490),
+            Band("B03", "green", 0.560),
+            Band("B04", "red", 0.665),
+        ],
+    )
+
+    # Test band names
+    assert bdim.contains_band("B02")
+    assert not bdim.contains_band("B05")
+
+    # Test indexes
+    assert bdim.contains_band(0)
+    assert not bdim.contains_band(4)
+
+    # Test common names
+    assert bdim.contains_band("blue")
+    assert not bdim.contains_band("yellow")
+
 def test_band_dimension_band_name():
     bdim = BandDimension(
         name="spectral",
