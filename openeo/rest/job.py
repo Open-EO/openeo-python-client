@@ -5,10 +5,13 @@ import json
 import logging
 import time
 import typing
+import urllib.error
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+from urllib.error import HTTPError
 
 import requests
+import shutil
 
 from openeo.internal.documentation import openeo_endpoint
 from openeo.internal.jupyter import (
@@ -31,6 +34,8 @@ from openeo.rest import (
 from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.util import ensure_dir
+
+MAX_RETRIES_DOWNLOAD = 3
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -402,11 +407,39 @@ class ResultAsset:
             target = target / self.name
         ensure_dir(target.parent)
         logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
-        response = self._get_response(stream=True)
-        with target.open("wb") as f:
-            for block in response.iter_content(chunk_size=chunk_size):
-                f.write(block)
+        self._download_chunked(target, chunk_size)
         return target
+
+    def _download_chunked(self, target: Path, chunk_size: int):
+        file_size = None
+        try:
+            head = requests.head(self.href, stream=True)
+            if head.ok:
+                file_size = int(head.headers['Content-Length'])
+            else:
+                head.raise_for_status()
+            with target.open('wb') as f:
+                for from_byte_index in range(0, file_size, chunk_size):
+                    to_byte_index = min(from_byte_index + chunk_size - 1, file_size - 1)
+                    tries_left = MAX_RETRIES_DOWNLOAD
+                    while tries_left > 0:
+                        try:
+                            range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
+                            with requests.get(self.href, headers=range_headers, stream=True) as r:
+                                if r.ok:
+                                    shutil.copyfileobj(r.raw, f)
+                                    break
+                                else:
+                                    r.raise_for_status()
+                        except requests.exceptions.HTTPError as error:
+                            tries_left -= 1
+                            if tries_left < 1:
+                                raise error
+                            else:
+                                logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {self.href} (status {error.response.status_code}) - retrying")
+                                continue
+        except requests.exceptions.HTTPError as http_error:
+            raise OpenEoApiPlainError(message=f"Failed to download {self.href}", http_status_code=http_error.response.status_code, error_message=http_error.response.text)
 
     def _get_response(self, stream=True) -> requests.Response:
         return self.job.connection.get(self.href, stream=stream)
@@ -501,7 +534,7 @@ class JobResults:
                     "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
                 )
 
-    def download_file(self, target: Union[Path, str] = None, name: str = None) -> Path:
+    def download_file(self, target: Union[Path, str] = None, name: str = None, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE) -> Path:
         """
         Download single asset. Can be used when there is only one asset in the
         :py:class:`JobResults`, or when the desired asset name is given explicitly.
@@ -513,12 +546,12 @@ class JobResults:
         :return: path of downloaded asset
         """
         try:
-            return self.get_asset(name=name).download(target=target)
+            return self.get_asset(name=name).download(target=target, chunk_size=chunk_size)
         except MultipleAssetException:
             raise OpenEoClientException(
                 "Can not use `download_file` with multiple assets. Use `download_files` instead.")
 
-    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True) -> List[Path]:
+    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE) -> List[Path]:
         """
         Download all assets to given folder.
 
@@ -531,7 +564,7 @@ class JobResults:
             raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
         ensure_dir(target)
 
-        downloaded = [a.download(target) for a in self.get_assets()]
+        downloaded = [a.download(target, chunk_size=chunk_size) for a in self.get_assets()]
 
         if include_stac_metadata:
             # TODO #184: convention for metadata file name?
