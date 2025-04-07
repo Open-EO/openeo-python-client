@@ -3,12 +3,11 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import re
 import time
 import typing
-import urllib.error
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from urllib.error import HTTPError
 
 import requests
 import shutil
@@ -35,8 +34,6 @@ from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import LogEntry, log_level_name, normalize_log_level
 from openeo.util import ensure_dir
 
-MAX_RETRIES_DOWNLOAD = 3
-
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
@@ -45,7 +42,8 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_JOB_RESULTS_FILENAME = "job-results.json"
-
+MAX_RETRIES_PER_CHUNK = 3
+RETRIABLE_STATUSCODES = [408, 429, 500, 501, 502, 503, 504]
 
 class BatchJob:
     """
@@ -407,39 +405,8 @@ class ResultAsset:
             target = target / self.name
         ensure_dir(target.parent)
         logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
-        self._download_chunked(target, chunk_size)
+        _download_chunked(self.href, target, chunk_size)
         return target
-
-    def _download_chunked(self, target: Path, chunk_size: int):
-        file_size = None
-        try:
-            head = requests.head(self.href, stream=True)
-            if head.ok:
-                file_size = int(head.headers['Content-Length'])
-            else:
-                head.raise_for_status()
-            with target.open('wb') as f:
-                for from_byte_index in range(0, file_size, chunk_size):
-                    to_byte_index = min(from_byte_index + chunk_size - 1, file_size - 1)
-                    tries_left = MAX_RETRIES_DOWNLOAD
-                    while tries_left > 0:
-                        try:
-                            range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
-                            with requests.get(self.href, headers=range_headers, stream=True) as r:
-                                if r.ok:
-                                    shutil.copyfileobj(r.raw, f)
-                                    break
-                                else:
-                                    r.raise_for_status()
-                        except requests.exceptions.HTTPError as error:
-                            tries_left -= 1
-                            if tries_left < 1:
-                                raise error
-                            else:
-                                logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {self.href} (status {error.response.status_code}) - retrying")
-                                continue
-        except requests.exceptions.HTTPError as http_error:
-            raise OpenEoApiPlainError(message=f"Failed to download {self.href}", http_status_code=http_error.response.status_code, error_message=http_error.response.text)
 
     def _get_response(self, stream=True) -> requests.Response:
         return self.job.connection.get(self.href, stream=stream)
@@ -455,6 +422,51 @@ class ResultAsset:
         return self._get_response().content
 
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
+
+
+def _download_chunked(url: str, target: Path, chunk_size: int):
+    try:
+        file_size = _determine_content_length(url)
+        with target.open('wb') as f:
+            for from_byte_index in range(0, file_size, chunk_size):
+                to_byte_index = min(from_byte_index + chunk_size - 1, file_size - 1)
+                tries_left = MAX_RETRIES_PER_CHUNK
+                while tries_left > 0:
+                    try:
+                        range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
+                        with requests.get(url, headers=range_headers, stream=True) as r:
+                            if r.ok:
+                                shutil.copyfileobj(r.raw, f)
+                                break
+                            else:
+                                r.raise_for_status()
+                    except requests.exceptions.HTTPError as error:
+                        tries_left -= 1
+                        if tries_left > 0 and error.response.status_code in RETRIABLE_STATUSCODES:
+                            logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.response.status_code}) - retrying")
+                            continue
+                        else:
+                            raise error
+    except requests.exceptions.HTTPError as http_error:
+        raise OpenEoApiPlainError(message=f"Failed to download {url}", http_status_code=http_error.response.status_code, error_message=http_error.response.text)
+
+
+def _determine_content_length(url: str) -> int:
+    range_0_0_response = requests.get(url, headers={"Range": f"bytes=0-0"})
+    if range_0_0_response.status_code == 206:
+        content_range_header = range_0_0_response.headers.get("Content-Range")
+        match = re.match(r"^bytes \d+-\d+/(\d+)$", content_range_header)
+        if match:
+            return int(match.group(1))
+
+        content_range_prefix = "bytes 0-0/"
+        if content_range_header.startswith(content_range_prefix):
+            return int(content_range_header[len(content_range_prefix):])
+    head = requests.head(url, stream=True)
+    if head.ok:
+        return int(head.headers['Content-Length'])
+    else:
+        head.raise_for_status()
 
 
 class MultipleAssetException(OpenEoClientException):

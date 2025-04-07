@@ -543,7 +543,7 @@ def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
     return job
 
 @pytest.fixture
-def job_with_chunked_asset(con100, requests_mock, tmp_path) -> BatchJob:
+def job_with_chunked_asset_using_head(con100, requests_mock, tmp_path) -> BatchJob:
     requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
         "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
     }})
@@ -554,8 +554,29 @@ def job_with_chunked_asset(con100, requests_mock, tmp_path) -> BatchJob:
         from_bytes = r
         to_bytes = min(r + chunk_size, len(TIFF_CONTENT)) - 1
         # fail the 1st time, serve the content chunk the 2nd time
+        requests_mock.get(API_URL + "/dl/jjr1.tiff", request_headers={"Range": "bytes=0-0"},
+                          response_list=[{"status_code": 404, "text": "Not found"}])
         requests_mock.get(API_URL + "/dl/jjr1.tiff", request_headers={"Range": f"bytes={from_bytes}-{to_bytes}"},
-                     response_list = [{"status_code": 500, "text": "Server error"},     {"content": TIFF_CONTENT[from_bytes:to_bytes+1]}])
+                     response_list = [{"status_code": 500, "text": "Server error"},
+                                      {"status_code": 206, "content": TIFF_CONTENT[from_bytes:to_bytes+1]}])
+    job = BatchJob("jj1", connection=con100)
+    return job
+
+@pytest.fixture
+def job_with_chunked_asset_using_get_0_0(con100, requests_mock, tmp_path) -> BatchJob:
+    requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
+        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+    }})
+    requests_mock.get(API_URL + "/dl/jjr1.tiff", request_headers={"Range": "bytes=0-0"},
+                      response_list=[{"status_code": 206, "text": "", "headers": {"Content-Range": f"bytes 0-0/{len(TIFF_CONTENT)}"}}])
+    chunk_size = 1000
+    for r in range(0, len(TIFF_CONTENT), chunk_size):
+        from_bytes = r
+        to_bytes = min(r + chunk_size, len(TIFF_CONTENT)) - 1
+        # fail the 1st time, serve the content chunk the 2nd time
+        requests_mock.get(API_URL + "/dl/jjr1.tiff", request_headers={"Range": f"bytes={from_bytes}-{to_bytes}"},
+                     response_list = [{"status_code": 408, "text": "Server error"},
+                                      {"status_code": 206, "content": TIFF_CONTENT[from_bytes:to_bytes+1]}])
     job = BatchJob("jj1", connection=con100)
     return job
 
@@ -595,8 +616,16 @@ def test_get_results_download_file(job_with_1_asset: BatchJob, tmp_path):
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
 
-def test_get_results_download_chunked_file(job_with_chunked_asset: BatchJob, tmp_path):
-    job = job_with_chunked_asset
+def test_get_results_download_chunked_file_using_get_0_0(job_with_chunked_asset_using_get_0_0: BatchJob, tmp_path):
+    job = job_with_chunked_asset_using_get_0_0
+    target = tmp_path / "result.tiff"
+    res = job.get_results().download_file(target, chunk_size=1000)
+    assert res == target
+    with target.open("rb") as f:
+        assert f.read() == TIFF_CONTENT
+
+def test_get_results_download_chunked_file_using_head(job_with_chunked_asset_using_head: BatchJob, tmp_path):
+    job = job_with_chunked_asset_using_head
     target = tmp_path / "result.tiff"
     res = job.get_results().download_file(target, chunk_size=1000)
     assert res == target
