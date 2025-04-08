@@ -2988,7 +2988,6 @@ class TestLoadStac:
             assert caplog.text == ""
         else:
             assert expected_warning in caplog.text
-        caplog.clear()
 
     def test_load_stac_band_filtering_no_requested_bands(self, con120, tmp_path):
         stac_path = tmp_path / "stac.json"
@@ -3017,7 +3016,6 @@ class TestLoadStac:
             "The specified bands ['B01', 'B02'] are not a subset of the bands [] found in the STAC metadata (unknown bands: ['B01', 'B02']). Using specified bands as is."
             in caplog.text
         )
-        caplog.clear()
 
 
     @pytest.mark.parametrize(

@@ -444,12 +444,6 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO: also apply spatial/temporal filters to metadata?
 
             if isinstance(bands, list):
-                if not metadata.has_band_dimension():
-                    metadata = metadata.add_dimension(
-                        name="bands",
-                        type="bands",
-                        label=None,
-                    )
                 unknown_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
                 if len(unknown_bands) == 0:
                     metadata = metadata.filter_bands(band_names=bands)
