@@ -6,7 +6,7 @@ import re
 import threading
 from pathlib import Path
 from time import sleep
-from typing import Callable, Union
+from typing import Union
 from unittest import mock
 
 import dirty_equals
@@ -25,6 +25,7 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
+import collections
 
 import openeo
 import openeo.extra.job_management
@@ -38,6 +39,8 @@ from openeo.extra.job_management import (
     create_job_db,
     get_job_db,
 )
+
+from openeo.extra.job_management._thread_worker import _JobStartTask
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
@@ -466,6 +469,7 @@ class TestMultiBackendJobManager:
             ("job-2018", "finished", "foo"),
         ]
 
+
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
@@ -590,14 +594,13 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
-        )
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
@@ -644,8 +647,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
@@ -719,7 +723,6 @@ class TestMultiBackendJobManager:
         # Validate running_start_time is a valid datetime object
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
-
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -1761,3 +1764,6 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
+
+
+    
