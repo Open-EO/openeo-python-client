@@ -986,6 +986,93 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
         assert not metadata.has_temporal_dimension()
 
 
+@pytest.mark.skipif(
+    not _PYSTAC_1_9_EXTENSION_INTERFACE,
+    reason="No backport of implementation/test below PySTAC 1.9 extension interface",
+)
+@pytest.mark.parametrize(
+    ["stac_dict", "expected"],
+    [
+        (
+            # Item without cube:dimensions metadata -> assume spatial dimensions x and y
+            StacDummyBuilder.item(),
+            {"x": [None, None], "y": [None, None]},
+        ),
+        (
+            StacDummyBuilder.item(
+                cube_dimensions={
+                    "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                    "x": {"type": "spatial", "axis": "x", "extent": [-10, 20]},
+                    "y": {"type": "spatial", "axis": "y", "extent": [30, 50]},
+                }
+            ),
+            {"x": [-10, 20], "y": [30, 50]},
+        ),
+        (
+            # Custom dimension names
+            StacDummyBuilder.item(
+                cube_dimensions={
+                    "TTT": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                    "XXX": {"type": "spatial", "axis": "x", "extent": [-10, 20]},
+                    "YYY": {"type": "spatial", "axis": "y", "extent": [30, 50]},
+                }
+            ),
+            {"XXX": [-10, 20], "YYY": [30, 50]},
+        ),
+        (
+            # Explicitly absent spatial dimensions
+            StacDummyBuilder.item(
+                cube_dimensions={
+                    "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                }
+            ),
+            {},
+        ),
+        (
+            # No cube:dimensions metadata -> assume spatial dimensions x and y
+            StacDummyBuilder.collection(),
+            {"x": [None, None], "y": [None, None]},
+        ),
+        (
+            StacDummyBuilder.collection(
+                cube_dimensions={
+                    "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                    "x": {"type": "spatial", "axis": "x", "extent": [-10, 20]},
+                    "y": {"type": "spatial", "axis": "y", "extent": [30, 50]},
+                }
+            ),
+            {"x": [-10, 20], "y": [30, 50]},
+        ),
+        (
+            # Explicitly absent spatial dimensions
+            StacDummyBuilder.collection(
+                cube_dimensions={
+                    "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                }
+            ),
+            {},
+        ),
+        (
+            StacDummyBuilder.catalog(),
+            {"x": [None, None], "y": [None, None]},
+        ),
+        (
+            # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
+            StacDummyBuilder.catalog(stac_extensions=[StacDummyBuilder._EXT_DATACUBE]),
+            {"x": [None, None], "y": [None, None]},
+        ),
+    ],
+)
+def test_metadata_from_stac_spatial_dimensions(tmp_path, stac_dict, expected):
+    path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+    dims = metadata.spatial_dimensions
+    assert all(isinstance(d, SpatialDimension) for d in dims)
+    assert {d.name: d.extent for d in dims} == expected
+
+
 @pytest.mark.parametrize(
     ["kwargs", "expected_x", "expected_y"],
     [

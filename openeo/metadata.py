@@ -653,12 +653,17 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     else:
         raise ValueError(stac_object)
 
-    # At least assume there are spatial dimensions
-    # TODO: are there conditions in which we even should not assume the presence of spatial dimensions?
-    dimensions = [
-        SpatialDimension(name="x", extent=[None, None]),
-        SpatialDimension(name="y", extent=[None, None]),
-    ]
+    dimensions = []
+
+    spatial_dimensions = _StacMetadataParser().get_spatial_dimensions(stac_object)
+    # Unless spatial dimensions are explicitly absent from the STAC metadata:
+    # assume we at least have spatial dimensions ("x" and "y", per openEO API recommendation).
+    if spatial_dimensions is None:
+        spatial_dimensions = [
+            SpatialDimension(name="x", extent=[None, None]),
+            SpatialDimension(name="y", extent=[None, None]),
+        ]
+    dimensions.extend(spatial_dimensions)
 
     # TODO: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
@@ -778,3 +783,17 @@ class _StacMetadataParser:
             if len(temporal_dims) == 1:
                 name, extent = temporal_dims[0]
                 return TemporalDimension(name=name, extent=extent)
+
+    def get_spatial_dimensions(self, stac_obj: pystac.STACObject) -> Union[List[SpatialDimension], None]:
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            if stac_obj.ext.has("cube") and hasattr(stac_obj.ext, "cube"):
+                return [
+                    SpatialDimension(
+                        name=n,
+                        extent=d.extent or [None, None],
+                        crs=d.reference_system or SpatialDimension.DEFAULT_CRS,
+                        step=d.step,
+                    )
+                    for (n, d) in stac_obj.ext.cube.dimensions.items()
+                    if d.dim_type == pystac.extensions.datacube.DimensionType.SPATIAL
+                ]
