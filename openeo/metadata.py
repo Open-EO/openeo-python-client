@@ -423,6 +423,25 @@ class CubeMetadata:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
 
+    def ensure_band_dimension(
+        self, *, name: Optional[str] = None, bands: List[Union[Band, str]], warning: str
+    ) -> CubeMetadata:
+        """
+        Create new CubeMetadata object, ensuring a band dimension with given bands.
+        This will override any existing band dimension, and is intended for
+        special cases where pragmatism necessitates to ignore the original metadata.
+        For example, to overrule badly/incomplete detected band names from STAC metadata.
+        """
+        _log.warning(warning)
+        if name is None:
+            # Preserve original band dimension name if possible
+            name = self.band_dimension.name if self.has_band_dimension() else "bands"
+        bands = [b if isinstance(b, Band) else Band(name=b) for b in bands]
+        band_dimension = BandDimension(name=name, bands=bands)
+        return self._clone_and_update(
+            dimensions=[d for d in self._dimensions if not isinstance(d, BandDimension)] + [band_dimension]
+        )
+
     def drop_dimension(self, name: str = None) -> CubeMetadata:
         """Create new CubeMetadata object without dropped dimension with given name"""
         dimension_names = self.dimension_names()
@@ -666,13 +685,13 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         raise ValueError(stac_object)
 
     # At least assume there are spatial dimensions
-    # TODO: are there conditions in which we even should not assume the presence of spatial dimensions?
+    # TODO #743: are there conditions in which we even should not assume the presence of spatial dimensions?
     dimensions = [
         SpatialDimension(name="x", extent=[None, None]),
         SpatialDimension(name="y", extent=[None, None]),
     ]
 
-    # TODO: conditionally include band dimension when there was actual indication of band metadata?
+    # TODO #743: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     dimensions.append(band_dimension)
 

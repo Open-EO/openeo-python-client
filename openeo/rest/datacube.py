@@ -444,14 +444,23 @@ class DataCube(_ProcessGraphAbstraction):
             # TODO: also apply spatial/temporal filters to metadata?
 
             if isinstance(bands, list):
-                unknown_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
-                if len(unknown_bands) == 0:
-                    metadata = metadata.filter_bands(band_names=bands)
+                if metadata.has_band_dimension():
+                    unknown_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
+                    if len(unknown_bands) == 0:
+                        # Ideal case: bands requested by user correspond with bands extracted from metadata.
+                        metadata = metadata.filter_bands(band_names=bands)
+                    else:
+                        metadata = metadata.ensure_band_dimension(
+                            bands=bands,
+                            warning=f"The specified bands {bands} in `load_stac` are not a subset of the bands {metadata.band_dimension.band_names} found in the STAC metadata (unknown bands: {unknown_bands}). Working with specified bands as is.",
+                        )
                 else:
-                    logging.warning(
-                        f"The specified bands {bands} are not a subset of the bands {metadata.band_dimension.band_names} found in the STAC metadata (unknown bands: {unknown_bands}). Using specified bands as is."
+                    metadata = metadata.ensure_band_dimension(
+                        name="bands",
+                        bands=bands,
+                        warning=f"Bands {bands} were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
                     )
-                    metadata = metadata.rename_labels(dimension="bands", target=bands)
+
         except Exception as e:
             log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
             metadata = None

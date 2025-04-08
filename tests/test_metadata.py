@@ -779,6 +779,58 @@ def test_cubemetadata_drop_dimension():
         metadata.drop_dimension("x")
 
 
+def test_cubemetadata_ensure_band_dimension_add_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+        ]
+    )
+    new = metadata.ensure_band_dimension(bands=["red", "green"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bands"]
+    assert new.band_names == ["red", "green"]
+
+
+def test_cubemetadata_ensure_band_dimension_add_name_and_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+        ]
+    )
+    new = metadata.ensure_band_dimension(name="bandzz", bands=["red", "green"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bandzz"]
+    assert new.band_names == ["red", "green"]
+
+
+def test_cubemetadata_ensure_band_dimension_override_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    new = metadata.ensure_band_dimension(bands=["tomato", "lettuce"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bands"]
+    assert new.band_names == ["tomato", "lettuce"]
+
+
+def test_cubemetadata_ensure_band_dimension_override_name_and_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    new = metadata.ensure_band_dimension(
+        name="bandzz", bands=["tomato", "lettuce"], warning="ensure_band_dimension at work"
+    )
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bandzz"]
+    assert new.band_names == ["tomato", "lettuce"]
+
+
 def test_collectionmetadata_subclass():
     class MyCollectionMetadata(CollectionMetadata):
         def __init__(self, metadata: dict, dimensions: List[Dimension] = None, bbox=None):
