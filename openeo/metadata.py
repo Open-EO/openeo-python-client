@@ -431,8 +431,14 @@ class CubeMetadata:
         This will override any existing band dimension, and is intended for
         special cases where pragmatism necessitates to ignore the original metadata.
         For example, to overrule badly/incomplete detected band names from STAC metadata.
+
+        .. note::
+            It is required to specify a warning message as this method is only intended
+            to be used as temporary stop-gap solution for use cases that are possibly not future-proof.
+            Enforcing a warning should make that clear and avoid that users unknowingly depend on
+            metadata handling behavior that is not guaranteed to be stable.
         """
-        _log.warning(warning)
+        _log.warning(warning or "ensure_band_dimension: overriding band dimension metadata with user-defined bands.")
         if name is None:
             # Preserve original band dimension name if possible
             name = self.band_dimension.name if self.has_band_dimension() else "bands"
