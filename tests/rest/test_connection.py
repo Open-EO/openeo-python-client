@@ -2981,12 +2981,23 @@ class TestLoadStac:
         stac_ref = build_stac_ref(
             StacDummyBuilder.collection(
                 # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+                summaries={
+                    "eo:bands": [
+                        {"name": "B01", "common_name": "coastal"},
+                        {"name": "B02", "common_name": "blue"},
+                        {"name": "B03", "common_name": "green"},
+                    ]
+                }
             )
         )
 
         cube = dummy_backend.connection.load_stac(stac_ref)
         assert cube.metadata.band_names == ["B01", "B02", "B03"]
+        assert cube.metadata.bands == [
+            Band(name="B01", common_name="coastal"),
+            Band(name="B02", common_name="blue"),
+            Band(name="B03", common_name="green"),
+        ]
 
         cube.execute()
         assert dummy_backend.get_pg("load_stac")["arguments"] == {
@@ -2994,25 +3005,43 @@ class TestLoadStac:
         }
 
     @pytest.mark.parametrize(
-        "bands, expected_warning",
+        "bands, expected_warning, expected_result_bands",
         [
             (
                 ["B04"],
                 "The specified bands ['B04'] in `load_stac` are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04']). Working with specified bands as is.",
+                [Band(name="B04")],
             ),
             (
                 ["B03", "B04", "B05"],
                 "The specified bands ['B03', 'B04', 'B05'] in `load_stac` are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04', 'B05']). Working with specified bands as is.",
+                [Band(name="B03", common_name="green"), Band(name="B04"), Band(name="B05")],
             ),
-            (["B03", "B02"], None),
-            (["B01", "B02", "B03"], None),
+            (["B03", "B02"], None, [Band(name="B03", common_name="green"), Band(name="B02", common_name="blue")]),
+            (
+                ["B01", "B02", "B03"],
+                None,
+                [
+                    Band(name="B01", common_name="coastal"),
+                    Band(name="B02", common_name="blue"),
+                    Band(name="B03", common_name="green"),
+                ],
+            ),
         ],
     )
-    def test_load_stac_band_filtering(self, dummy_backend, build_stac_ref, caplog, bands, expected_warning):
+    def test_load_stac_band_filtering(
+        self, dummy_backend, build_stac_ref, caplog, bands, expected_warning, expected_result_bands
+    ):
         stac_ref = build_stac_ref(
             StacDummyBuilder.collection(
                 # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+                summaries={
+                    "eo:bands": [
+                        {"name": "B01", "common_name": "coastal"},
+                        {"name": "B02", "common_name": "blue"},
+                        {"name": "B03", "common_name": "green"},
+                    ]
+                }
             )
         )
 
@@ -3024,6 +3053,8 @@ class TestLoadStac:
             assert caplog.text == ""
         else:
             assert expected_warning in caplog.text
+
+        assert cube.metadata.bands == expected_result_bands
 
         cube.execute()
         assert dummy_backend.get_pg("load_stac")["arguments"] == {

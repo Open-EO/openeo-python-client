@@ -436,8 +436,18 @@ class CubeMetadata:
         if name is None:
             # Preserve original band dimension name if possible
             name = self.band_dimension.name if self.has_band_dimension() else "bands"
-        bands = [b if isinstance(b, Band) else Band(name=b) for b in bands]
-        band_dimension = BandDimension(name=name, bands=bands)
+        new_bands = []
+        if self.has_band_dimension():
+            for band in bands:
+                try:
+                    # Preserve original band fields if possible
+                    original_band_idx = self.band_dimension.band_index(band.name if isinstance(band, Band) else band)
+                    new_bands.append(self.band_dimension.bands[original_band_idx])
+                except ValueError:
+                    new_bands.append(band if isinstance(band, Band) else Band(name=band))
+        else:
+            new_bands = [b if isinstance(b, Band) else Band(name=b) for b in bands]
+        band_dimension = BandDimension(name=name, bands=new_bands)
         return self._clone_and_update(
             dimensions=[d for d in self._dimensions if not isinstance(d, BandDimension)] + [band_dimension]
         )

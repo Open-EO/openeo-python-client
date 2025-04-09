@@ -831,6 +831,20 @@ def test_cubemetadata_ensure_band_dimension_override_name_and_bands():
     assert new.band_names == ["tomato", "lettuce"]
 
 
+def test_cubemetadata_ensure_band_dimension_partial_override():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+            BandDimension(name="bands", bands=[Band("red", common_name="redz"), Band("green", common_name="greenz")]),
+        ]
+    )
+    new = metadata.ensure_band_dimension(name="bands", bands=["red", "blue"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bands"]
+    assert new.band_names == ["red", "blue"]
+    assert new.bands == [Band("red", common_name="redz"), Band("blue")]
+
+
 def test_collectionmetadata_subclass():
     class MyCollectionMetadata(CollectionMetadata):
         def __init__(self, metadata: dict, dimensions: List[Dimension] = None, bbox=None):
