@@ -210,7 +210,7 @@ class RestApiConnection:
         :param auth: optional custom authentication to use instead of the default one
         :return: response: Response
         """
-        return self.request("get", path=path, params=params, auth=auth, **kwargs)
+        return self.request("head", path=path, params=params, auth=auth, **kwargs)
 
     def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
