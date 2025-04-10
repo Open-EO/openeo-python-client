@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import re
 import time
 import typing
 from pathlib import Path
@@ -15,7 +14,6 @@ import shutil
 from openeo.internal.documentation import openeo_endpoint
 from openeo.internal.jupyter import (
     VisualDict,
-    VisualList,
     render_component,
     render_error,
 )
@@ -31,7 +29,7 @@ from openeo.rest import (
     OpenEoClientException,
 )
 from openeo.rest.models.general import LogsResponse
-from openeo.rest.models.logs import LogEntry, log_level_name, normalize_log_level
+from openeo.rest.models.logs import log_level_name
 from openeo.util import ensure_dir
 
 if typing.TYPE_CHECKING:
@@ -405,7 +403,7 @@ class ResultAsset:
             target = target / self.name
         ensure_dir(target.parent)
         logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
-        _download_chunked(self.href, target, chunk_size)
+        self._download_to_file(url=self.href, target=target, chunk_size=chunk_size)
         return target
 
     def _get_response(self, stream=True) -> requests.Response:
@@ -424,9 +422,16 @@ class ResultAsset:
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
 
 
-def _download_chunked(url: str, target: Path, chunk_size: int):
-    try:
-        file_size = _determine_content_length(url)
+    def _download_to_file(self, url: str, target: Path, chunk_size: int):
+        head = requests.head(url, stream=True)
+        if head.ok and 'Accept-Ranges' in head.headers and 'bytes' in head.headers['Accept-Ranges']:
+            file_size = int(head.headers['Content-Length'])
+            self._download_chunked(url=url, target=target, file_size=file_size, chunk_size=chunk_size)
+        else:
+            self._download_unchunked(url=url, target=target)
+
+
+    def _download_chunked(self, url: str, target: Path, file_size: int, chunk_size: int):
         with target.open('wb') as f:
             for from_byte_index in range(0, file_size, chunk_size):
                 to_byte_index = min(from_byte_index + chunk_size - 1, file_size - 1)
@@ -434,39 +439,24 @@ def _download_chunked(url: str, target: Path, chunk_size: int):
                 while tries_left > 0:
                     try:
                         range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
-                        with requests.get(url, headers=range_headers, stream=True) as r:
-                            if r.ok:
-                                shutil.copyfileobj(r.raw, f)
-                                break
-                            else:
-                                r.raise_for_status()
-                    except requests.exceptions.HTTPError as error:
+                        with self.job.connection.get(path=url, headers=range_headers, stream=True) as r:
+                            r.raise_for_status()
+                            shutil.copyfileobj(r.raw, f)
+                        break
+                    except OpenEoApiPlainError as error:
                         tries_left -= 1
-                        if tries_left > 0 and error.response.status_code in RETRIABLE_STATUSCODES:
-                            logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.response.status_code}) - retrying")
+                        if tries_left > 0 and error.http_status_code in RETRIABLE_STATUSCODES:
+                            logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying")
                             continue
                         else:
                             raise error
-    except requests.exceptions.HTTPError as http_error:
-        raise OpenEoApiPlainError(message=f"Failed to download {url}", http_status_code=http_error.response.status_code, error_message=http_error.response.text)
 
 
-def _determine_content_length(url: str) -> int:
-    range_0_0_response = requests.get(url, headers={"Range": f"bytes=0-0"})
-    if range_0_0_response.status_code == 206:
-        content_range_header = range_0_0_response.headers.get("Content-Range")
-        match = re.match(r"^bytes \d+-\d+/(\d+)$", content_range_header)
-        if match:
-            return int(match.group(1))
-
-        content_range_prefix = "bytes 0-0/"
-        if content_range_header.startswith(content_range_prefix):
-            return int(content_range_header[len(content_range_prefix):])
-    head = requests.head(url, stream=True)
-    if head.ok:
-        return int(head.headers['Content-Length'])
-    else:
-        head.raise_for_status()
+    def _download_unchunked(self, url: str, target: Path):
+        with self.job.connection.get(path=url, stream=True) as r:
+            r.raise_for_status()
+            with target.open("wb") as f:
+                shutil.copyfileobj(r.raw, f)
 
 
 class MultipleAssetException(OpenEoClientException):
