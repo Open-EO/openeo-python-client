@@ -194,6 +194,24 @@ class RestApiConnection:
         """
         return self.request("get", path=path, params=params, stream=stream, auth=auth, **kwargs)
 
+    def head(
+        self,
+        path: str,
+        *,
+        params: Optional[dict] = None,
+        auth: Optional[AuthBase] = None,
+        **kwargs,
+    ) -> Response:
+        """
+        Do HEAD request to REST API.
+
+        :param path: API path (without root url)
+        :param params: Additional query parameters
+        :param auth: optional custom authentication to use instead of the default one
+        :return: response: Response
+        """
+        return self.request("head", path=path, params=params, auth=auth, **kwargs)
+
     def post(self, path: str, json: Optional[dict] = None, **kwargs) -> Response:
         """
         Do POST request to REST API.
