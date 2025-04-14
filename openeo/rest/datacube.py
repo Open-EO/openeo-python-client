@@ -450,12 +450,12 @@ class DataCube(_ProcessGraphAbstraction):
                         # Ideal case: bands requested by user correspond with bands extracted from metadata.
                         metadata = metadata.filter_bands(band_names=bands)
                     else:
-                        metadata = metadata.ensure_band_dimension(
+                        metadata = metadata._ensure_band_dimension(
                             bands=bands,
                             warning=f"The specified bands {bands} in `load_stac` are not a subset of the bands {metadata.band_dimension.band_names} found in the STAC metadata (unknown bands: {unknown_bands}). Working with specified bands as is.",
                         )
                 else:
-                    metadata = metadata.ensure_band_dimension(
+                    metadata = metadata._ensure_band_dimension(
                         name="bands",
                         bands=bands,
                         warning=f"Bands {bands} were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
