@@ -100,6 +100,28 @@ def test_band_dimension_band_index():
         bdim.band_index("yellow")
 
 
+def test_band_dimension_contains_band():
+    bdim = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490),
+            Band("B03", "green", 0.560),
+            Band("B04", "red", 0.665),
+        ],
+    )
+
+    # Test band names
+    assert bdim.contains_band("B02")
+    assert not bdim.contains_band("B05")
+
+    # Test indexes
+    assert bdim.contains_band(0)
+    assert not bdim.contains_band(4)
+
+    # Test common names
+    assert bdim.contains_band("blue")
+    assert not bdim.contains_band("yellow")
+
 def test_band_dimension_band_name():
     bdim = BandDimension(
         name="spectral",
@@ -804,6 +826,60 @@ def test_cubemetadata_drop_dimension():
 
     with pytest.raises(ValueError):
         metadata.drop_dimension("x")
+
+
+def test_cubemetadata_ensure_band_dimension_add_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+        ]
+    )
+    new = metadata._ensure_band_dimension(bands=["red", "green"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bands"]
+    assert new.band_names == ["red", "green"]
+
+
+def test_cubemetadata_ensure_band_dimension_add_name_and_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+        ]
+    )
+    new = metadata._ensure_band_dimension(
+        name="bandzz", bands=["red", "green"], warning="ensure_band_dimension at work"
+    )
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bandzz"]
+    assert new.band_names == ["red", "green"]
+
+
+def test_cubemetadata_ensure_band_dimension_override_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    new = metadata._ensure_band_dimension(bands=["tomato", "lettuce"], warning="ensure_band_dimension at work")
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bands"]
+    assert new.band_names == ["tomato", "lettuce"]
+
+
+def test_cubemetadata_ensure_band_dimension_override_name_and_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            TemporalDimension(name="t", extent=None),
+            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    new = metadata._ensure_band_dimension(
+        name="bandzz", bands=["tomato", "lettuce"], warning="ensure_band_dimension at work"
+    )
+    assert new.has_band_dimension()
+    assert new.dimension_names() == ["t", "bandzz"]
+    assert new.band_names == ["tomato", "lettuce"]
 
 
 def test_collectionmetadata_subclass():
