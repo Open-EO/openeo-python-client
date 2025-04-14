@@ -375,22 +375,20 @@ class CubeMetadata:
         :return: Updated metadata
         """
         self.assert_valid_dimension(dimension)
-        loc = self.dimension_names().index(dimension)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename_labels(target, source)
-
-        return self._clone_and_update(dimensions=new_dimensions)
+        return self._clone_and_update(
+            dimensions=[
+                d.rename_labels(target=target, source=source) if d.name == dimension else d for d in self._dimensions
+            ]
+        )
 
     def rename_dimension(self, source: str, target: str) -> CubeMetadata:
         """
         Rename source dimension into target, preserving other properties
         """
         self.assert_valid_dimension(source)
-        loc = self.dimension_names().index(source)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename(target)
-
-        return self._clone_and_update(dimensions=new_dimensions)
+        return self._clone_and_update(
+            dimensions=[d.rename(name=target) if d.name == source else d for d in self._dimensions]
+        )
 
     def reduce_dimension(self, dimension_name: str) -> CubeMetadata:
         """Create new CubeMetadata object by collapsing/reducing a dimension."""

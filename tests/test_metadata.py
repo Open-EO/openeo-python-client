@@ -599,6 +599,55 @@ def test_metadata_bands_dimension(spec):
     assert metadata.band_common_names == ["F00", None]
 
 
+def test_cubemetadata_rename_labels():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=None),
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    renamed = metadata.rename_labels(dimension="b", target=["raspberry", "lime"])
+    assert isinstance(renamed, CubeMetadata)
+    assert renamed.dimension_names() == ["x", "b"]
+    assert renamed.band_names == ["raspberry", "lime"]
+    assert renamed.bands == [Band("raspberry"), Band("lime")]
+
+
+def test_cubemetadata_rename_labels_invalid_dimension():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=None),
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    with pytest.raises(ValueError, match=re.escape("Invalid dimension 'tempus'. Should be one of ['x', 'b']")):
+        _ = metadata.rename_labels(dimension="tempus", target=["1999"])
+
+
+def test_cubemetadata_rename_dimension():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=None),
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    renamed = metadata.rename_dimension("b", "bands")
+    assert renamed.dimension_names() == ["x", "bands"]
+    assert renamed.band_dimension.name == "bands"
+    assert renamed.band_names == ["red", "green"]
+
+
+def test_cubemetadata_rename_dimension_invalid_dimension():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=None),
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    with pytest.raises(ValueError, match=re.escape("Invalid dimension 'bandzz'. Should be one of ['x', 'b']")):
+        _ = metadata.rename_dimension("bandzz", "bands")
+
+
 def test_collectionmetadata_reduce_dimension():
     metadata = CollectionMetadata(
         {"cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["red", "green"]}}}
