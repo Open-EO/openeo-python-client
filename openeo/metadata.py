@@ -421,7 +421,7 @@ class CubeMetadata:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
 
-    def ensure_band_dimension(
+    def _ensure_band_dimension(
         self, *, name: Optional[str] = None, bands: List[Union[Band, str]], warning: str
     ) -> CubeMetadata:
         """
