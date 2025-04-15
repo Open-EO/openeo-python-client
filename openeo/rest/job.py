@@ -3,20 +3,16 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import shutil
 import time
 import typing
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import requests
-import shutil
 
 from openeo.internal.documentation import openeo_endpoint
-from openeo.internal.jupyter import (
-    VisualDict,
-    render_component,
-    render_error,
-)
+from openeo.internal.jupyter import VisualDict, render_component, render_error
 from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,

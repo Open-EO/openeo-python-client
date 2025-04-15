@@ -53,7 +53,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def exists(self) -> bool:
         return any(c.id == self.collection_id for c in self.client.get_collections())
-    
+
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`

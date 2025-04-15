@@ -12,7 +12,12 @@ import requests
 
 import openeo
 import openeo.rest.job
-from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException, DEFAULT_DOWNLOAD_CHUNK_SIZE
+from openeo.rest import (
+    DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    JobFailedException,
+    OpenEoApiPlainError,
+    OpenEoClientException,
+)
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
