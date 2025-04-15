@@ -673,7 +673,7 @@ class MultiBackendJobManager:
         try:
             # Ensure running start time is valid
             job_running_start_time = rfc3339.parse_datetime(row.get("running_start_time"), with_timezone=True)
-
+            
             # Parse the current time into a datetime object with timezone info
             current_time = rfc3339.parse_datetime(rfc3339.utcnow(), with_timezone=True)
 
@@ -681,12 +681,12 @@ class MultiBackendJobManager:
             elapsed = current_time - job_running_start_time
 
             if elapsed > self._cancel_running_job_after:
-
+    
                 _log.info(
                     f"Cancelling long-running job {job.job_id} (after {elapsed}, running since {job_running_start_time})"
                 )
                 job.stop()
-
+                
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
