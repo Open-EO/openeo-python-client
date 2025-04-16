@@ -14,6 +14,7 @@ _log = logging.getLogger(__name__)
 class _TaskResult:
     """Container for task results with optional components"""
     job_id: str  # Mandatory
+
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
@@ -78,29 +79,36 @@ class _JobManagerWorkerThreadPool:
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
 
     def submit_task(self, task: Task) -> None:
+        """
+        ubmits a tasks to the internal Threadpool executor and keeps.
+        """
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-
     def process_futures(self) -> List[_TaskResult]:
 
-        updates = []
+        results = []  
+        to_keep = [] 
+
+        # Use timeout=0 to avoid blocking and check for completed futures
         done, _ = concurrent.futures.wait(
             [f for f, _ in self._future_task_pairs], timeout=0,
             return_when=concurrent.futures.FIRST_COMPLETED
         )
 
         # Process completed futures and their tasks
-        for future, task in self._future_task_pairs[:]:
+        for future, task in self._future_task_pairs:
             if future in done:
                 try:
-                    updates.append(future.result())
+                    results.append(future.result())
                     
                 except Exception as e:
                     _log.exception(f"Error processing task: {e}")
-                finally:
-                    self._future_task_pairs.remove((future, task))  # Cleanup
-        return updates
+            else:  
+                to_keep.append((future, task))  
+
+        self._future_task_pairs = to_keep  
+        return results
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""

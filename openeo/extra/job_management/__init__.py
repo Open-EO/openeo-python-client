@@ -111,7 +111,7 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _update_row(self, job_id: str, updates: dict):
-        """Atomically update specific fields of a job record"""
+        """Update specific fields of a job in the database."""
         ...
 
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
@@ -573,31 +573,7 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-        # Process launched jobs (#TODO can we collapse these two with redesign)
-        # Collect async updates
-        results = self._worker_pool.process_futures()
-        
-        # Apply updates in main thread
-        for result in results:
-                # Update database using job_id
-            if result.db_update:
-                try: 
-                    job_db._update_row(result.job_id, result.db_update)
-
-                except KeyError:
-                    _log.warning(f"Job {result.job_id} not found in job_db, skipping update")
-                
-            # Update statistics
-            if result.stats_update:
-                try:
-                    # Update stats with the new values
-                    for key, count in result.stats_update.items():
-                        stats[str(key)] += int(count)
-
-                except Exception as e:
-                    _log.error(f"Error while updating stats for job {result.job_id}: {e}")
-                    
-
+        self._process_threadworker_updates(self._worker_pool, job_db, stats)
         
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -673,8 +649,6 @@ class MultiBackendJobManager:
                             self._worker_pool.submit_task(task)
                             
                             stats["job_queued_for_start"] += 1
-                            #TODO find a better status name; its confusing that we have a start job function which moves to created, to qued for start, to queued, to running.
-                            #perhaps submitted_to_backend?
                             df.loc[i, "status"] = "queued_for_start"
                         except OpenEoApiError as e:
                             _log.info(f"Failed submitting task {task} to thread pool with error: {e}")
@@ -684,6 +658,64 @@ class MultiBackendJobManager:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
                 stats["start_job skipped"] += 1
+
+    def _process_threadworker_updates(
+        self,
+        worker_pool: _JobManagerWorkerThreadPool,
+        job_db: JobDatabaseInterface,
+        stats: dict
+    ) -> None:
+        """Processes asynchronous job updates from worker threads and applies them to the job database and statistics.
+        
+        This wrapper function is responsible for:
+        1. Collecting completed results from the worker thread pool
+        2. applying database updates for each job result
+        3. applying statistics updates
+        4. Handles errors with comprehensive logging
+        
+        :param worker_pool:
+            Thread pool instance managing the asynchronous job operations.
+            Should provide a `process_futures()` method returning completed job results.
+            
+        :param job_db:
+            Job database implementing the :py:class:`JobDatabaseInterface` interface.
+            Used to persist job status updates and metadata.
+            Must support the `_update_row(job_id: str, updates: dict)` method.
+            
+        :param stats:
+            Dictionary tracking operational statistics that will be updated in-place.
+            Expected to handle string keys with integer values.
+            Statistics will be updated with counts from completed job results.
+            
+        :return: 
+            None: All updates are applied in-place to the job_db and stats parameters.
+.
+        """
+        results = worker_pool.process_futures()
+        stats_updates = collections.defaultdict(int)
+        
+        for result in results:
+            try:
+                # Handle job database updates
+                if result.db_update:
+                    _log.debug(f"Processing update for job {result.job_id}")
+                    job_db._update_row(job_id=result.job_id, updates=result.db_update)
+                
+                # Aggregate statistics updates
+                if result.stats_update:
+                    for key, count in result.stats_update.items():
+                        stats_updates[key] += int(count)
+                        
+    
+            except Exception as e:
+                _log.error(
+                    f"Failed aggregating the updates for update for job {result.job_id}: {str(e)}")
+        
+        # Apply all stat updates
+        for key, count in stats_updates.items():
+            stats[key] = stats.get(key, 0) + count
+                
+
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -943,43 +975,52 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             self._df = df
 
     def _update_row(self, job_id: str, updates: dict):
+        """
+        Propagates dataframe updates provided in a dictionary to the row relevant for said job_id.
+
+        :param job_id: a job_id.
+        :param updates: a dictionary containing status updates.
+
+        :return: DataFrame with jobs filtered by status.
+        """
         if self._df is None:
             raise ValueError("Job database not initialized")
 
+        # Create boolean mask for target row
         mask = self._df["id"] == job_id
-        if mask.sum() != 1:
-            _log.error(f"Job {job_id!r} not found or duplicated in database")
+        match_count = mask.sum()
+        
+        # Handle row identification issues
+        #TODO: make this more robust, e.g. falling back on the row index?
+        if match_count == 0:
+            _log.error(f"Job {job_id!r} not found in database")
+            return
+        if match_count > 1:
+            _log.error(f"Duplicate job ID {job_id!r} found in database")
             return
 
-        valid_columns = set(MultiBackendJobManager._COLUMN_REQUIREMENTS.keys())
-        filtered_updates = {k: v for k, v in updates.items() if k in valid_columns}
+        # Get valid columns 
+        valid_columns = set(self._df.columns)  
+        filtered_updates = {}
         
-        for col, value in filtered_updates.items():
-            self._validate_update(mask, col, value)
-        
-        if filtered_updates:
-            self.persist(self._df)
+        # Validate update keys s
+        for key, value in updates.items():
+            if key in valid_columns:
+                filtered_updates[key] = value
+            else:
+                _log.warning(f"Ignoring invalid column {key!r} in update for job {job_id}")
 
-    def _validate_update(self, mask, col, value):
-        props = MultiBackendJobManager._COLUMN_REQUIREMENTS[col]
+        # Bulk update 
+        if  not filtered_updates:
+            return
         try:
-            if pd.isna(value):
-                if props.default is None:
-                    self._df.loc[mask, col] = None
-                else:
-                    _log.warning(f"Null not allowed for {col!r} - skipping update")
-                return
-            
-            if props.dtype == "str":
-                value = str(value).strip()
-            elif props.dtype == "float64":
-                value = float(value)
-            elif props.dtype == "int64":
-                value = int(value)
-            self._df.loc[mask, col] = value
-            
+            # Update all columns in a single operation
+            self._df.loc[mask, list(filtered_updates.keys())] = list(filtered_updates.values())
+            self.persist(self._df)
         except Exception as e:
-            _log.error(f"Unexpected error updating {col!r}: {e}")
+            _log.error(f"Failed to persist row update for job {job_id}: {e}")
+
+
 
 class CsvJobDatabase(FullDataFrameJobDatabase):
     """
