@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from typing import Optional, Any, List, Dict, Tuple
 import openeo
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Optional, Dict
 
 
 _log = logging.getLogger(__name__)
@@ -60,14 +58,14 @@ class _JobStartTask(Task):
             return _TaskResult(
                 job_id=self.job_id,
                 db_update={"status": "queued"},
-                stats_update={"jobs_started": 1},
+                stats_update={"job start": 1},
             )
         except Exception as e:
             _log.error(f"Failed to start job {self.job_id}: {e}")
             return _TaskResult(
                 job_id=self.job_id,
                 db_update={"status": "start_failed"},  
-                stats_update={"start_failures": 1})
+                stats_update={"start_job error": 1})
         
 class _JobManagerWorkerThreadPool:
     """
@@ -78,29 +76,37 @@ class _JobManagerWorkerThreadPool:
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
 
     def submit_task(self, task: Task) -> None:
+        """
+        ubmits a tasks to the internal Threadpool executor and keeps.
+        """
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
+    def process_futures(self) -> list[ _TaskResult]:
 
-    def process_futures(self) -> List[_TaskResult]:
+        results = []  
+        to_keep = [] 
 
-        updates = []
+        # Use timeout=0 to avoid blocking and check for completed futures
         done, _ = concurrent.futures.wait(
             [f for f, _ in self._future_task_pairs], timeout=0,
             return_when=concurrent.futures.FIRST_COMPLETED
         )
 
         # Process completed futures and their tasks
-        for future, task in self._future_task_pairs[:]:
+        for future, task in self._future_task_pairs:
             if future in done:
                 try:
-                    updates.append(future.result())
+                    result = future.result()
+                    results.append(result)
                     
                 except Exception as e:
                     _log.exception(f"Error processing task: {e}")
-                finally:
-                    self._future_task_pairs.remove((future, task))  # Cleanup
-        return updates
+            else:  
+                to_keep.append((future, task))  
+
+        self._future_task_pairs = to_keep  
+        return results
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""
