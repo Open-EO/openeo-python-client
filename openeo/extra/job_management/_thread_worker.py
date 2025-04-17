@@ -33,9 +33,10 @@ class _JobStartTask(Task):
         bearer_token (Optional[str]): An optional token for authentication.
         job_id (str): The identifier of the job to start.
     """
+    job_id: str
     root_url: str
     bearer_token: Optional[str]
-    job_id: str
+    
 
     def __post_init__(self) -> None:
         # Validation remains unchanged
@@ -98,10 +99,16 @@ class _JobManagerWorkerThreadPool:
             if future in done:
                 try:
                     result = future.result()
-                    results.append(result)
                     
                 except Exception as e:
+
                     _log.exception(f"Error processing task: {e}")
+                    result =  _TaskResult(
+                                job_id=task.job_id,
+                                db_update={"status": "start_failed"},  
+                                stats_update={"start_job error": 1})
+                    
+                results.append(result)
             else:  
                 to_keep.append((future, task))  
 
