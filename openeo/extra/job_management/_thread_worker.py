@@ -82,7 +82,7 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-    def process_futures(self) -> list[tuple[Task, _TaskResult]]:
+    def process_futures(self) -> list[ _TaskResult]:
 
         results = []  
         to_keep = [] 
