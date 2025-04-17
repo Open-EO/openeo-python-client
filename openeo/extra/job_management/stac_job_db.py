@@ -247,15 +247,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             for _ in concurrent.futures.as_completed(futures):
                 continue
 
-    def _update_row(self, series: pd.Series) -> None:
-        """
-        Update a single job in the STAC API.
-        Here we simply re‑ingest that one item.
-        """
-        item = self.item_from(series)
-        # use your existing bulk‑upload helper to push just this one
-        self._ingest_bulk([item])
-
     def join_url(self, url_path: str) -> str:
         """Create a URL from the base_url and the url_path.
 
