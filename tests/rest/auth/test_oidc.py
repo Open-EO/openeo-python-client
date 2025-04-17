@@ -238,6 +238,15 @@ def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_m
     assert p.get_scopes_string() == "openid"
 
 
+def test_provider_info_issuer_broken_json(requests_mock):
+    requests_mock.get("https://authit.test/.well-known/openid-configuration", text="<marquee>nope!</marquee>")
+    with pytest.raises(
+        OidcException,
+        match="Failed to obtain OIDC discovery document from 'https://authit.test/.well-known/openid-configuration': JSONDecodeError",
+    ):
+        OidcProviderInfo(issuer="https://authit.test")
+
+
 def test_oidc_client_info_uses_device_flow_pkce_support(requests_mock):
     oidc_issuer = "https://oidc.test"
     oidc_mock = OidcMock(

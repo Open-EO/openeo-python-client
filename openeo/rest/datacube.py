@@ -17,7 +17,18 @@ import typing
 import urllib.parse
 import warnings
 from builtins import staticmethod
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import requests
@@ -430,10 +441,27 @@ class DataCube(_ProcessGraphAbstraction):
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
+            # TODO: also apply spatial/temporal filters to metadata?
+
             if isinstance(bands, list):
-                # TODO: also apply spatial/temporal filters to metadata?
-                metadata = metadata.filter_bands(band_names=bands)
-        except Exception:
+                if metadata.has_band_dimension():
+                    unknown_bands = [b for b in bands if not metadata.band_dimension.contains_band(b)]
+                    if len(unknown_bands) == 0:
+                        # Ideal case: bands requested by user correspond with bands extracted from metadata.
+                        metadata = metadata.filter_bands(band_names=bands)
+                    else:
+                        metadata = metadata._ensure_band_dimension(
+                            bands=bands,
+                            warning=f"The specified bands {bands} in `load_stac` are not a subset of the bands {metadata.band_dimension.band_names} found in the STAC metadata (unknown bands: {unknown_bands}). Working with specified bands as is.",
+                        )
+                else:
+                    metadata = metadata._ensure_band_dimension(
+                        name="bands",
+                        bands=bands,
+                        warning=f"Bands {bands} were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+                    )
+
+        except Exception as e:
             log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
             metadata = None
         return cls(graph=graph, connection=connection, metadata=metadata)
@@ -2386,6 +2414,7 @@ class DataCube(_ProcessGraphAbstraction):
         auto_add_save_result: bool = True,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        on_response_headers: Optional[Callable[[Mapping], None]] = None,
     ) -> Union[None, bytes]:
         """
         Send the underlying process graph to the backend
@@ -2403,6 +2432,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param on_response_headers: (optional) callback to handle/show the response headers
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
@@ -2413,6 +2443,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
+
+        .. versionchanged:: 0.40
+            Added argument ``on_response_headers``.
         """
         # TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...
         if auto_add_save_result:
@@ -2420,7 +2453,12 @@ class DataCube(_ProcessGraphAbstraction):
         else:
             res = self
         return self._connection.download(
-            res.flat_graph(), outputfile=outputfile, validate=validate, additional=additional, job_options=job_options
+            res.flat_graph(),
+            outputfile=outputfile,
+            validate=validate,
+            additional=additional,
+            job_options=job_options,
+            on_response_headers=on_response_headers,
         )
 
     def validate(self) -> List[dict]:

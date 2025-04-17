@@ -19,6 +19,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Set,
@@ -1568,6 +1569,7 @@ class Connection(RestApiConnection):
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        on_response_headers: Optional[Callable[[Mapping], None]] = None,
     ) -> Union[None, bytes]:
         """
         Send the underlying process graph to the backend
@@ -1586,13 +1588,17 @@ class Connection(RestApiConnection):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param on_response_headers: (optional) callback to handle/show the response headers
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
             Otherwise, ``None`` is returned.
 
-        .. versionadded:: 0.36.0
+        .. versionchanged:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
+
+        .. versionchanged:: 0.40
+            Added argument ``on_response_headers``.
         """
         pg_with_metadata = self._build_request_with_process_graph(
             process_graph=graph, additional=additional, job_options=job_options
@@ -1605,6 +1611,8 @@ class Connection(RestApiConnection):
             stream=True,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+        if on_response_headers:
+            on_response_headers(response.headers)
 
         if outputfile is not None:
             target = Path(outputfile)
