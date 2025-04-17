@@ -694,7 +694,7 @@ class MultiBackendJobManager:
         results = worker_pool.process_futures()
         stats_updates = collections.defaultdict(int)
         
-        for result in results:
+        for result in results: 
             try:
                 # Handle job database updates
                 if result.db_update:

@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from typing import Optional, Any, List, Dict, Tuple
 import openeo
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Optional, Dict
 
 
 _log = logging.getLogger(__name__)
@@ -14,7 +12,6 @@ _log = logging.getLogger(__name__)
 class _TaskResult:
     """Container for task results with optional components"""
     job_id: str  # Mandatory
-
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
@@ -61,14 +58,14 @@ class _JobStartTask(Task):
             return _TaskResult(
                 job_id=self.job_id,
                 db_update={"status": "queued"},
-                stats_update={"jobs_started": 1},
+                stats_update={"job start": 1},
             )
         except Exception as e:
             _log.error(f"Failed to start job {self.job_id}: {e}")
             return _TaskResult(
                 job_id=self.job_id,
                 db_update={"status": "start_failed"},  
-                stats_update={"start_failures": 1})
+                stats_update={"start_job error": 1})
         
 class _JobManagerWorkerThreadPool:
     """
@@ -85,7 +82,7 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-    def process_futures(self) -> List[_TaskResult]:
+    def process_futures(self) -> list[tuple[Task, _TaskResult]]:
 
         results = []  
         to_keep = [] 
@@ -100,7 +97,8 @@ class _JobManagerWorkerThreadPool:
         for future, task in self._future_task_pairs:
             if future in done:
                 try:
-                    results.append(future.result())
+                    result = future.result()
+                    results.append(result)
                     
                 except Exception as e:
                     _log.exception(f"Error processing task: {e}")
