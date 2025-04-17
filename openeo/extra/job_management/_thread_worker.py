@@ -10,13 +10,34 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class _TaskResult:
-    """Container for task results with optional components"""
+    """
+    Container for the result of a task execution.
+    Used to communicate the outcome of job-related tasks.
+
+    :param job_id:
+        The ID of the job this result is associated with.
+
+    :param db_update:
+        Optional dictionary describing updates to apply to a job database,
+        such as status changes. Defaults to an empty dict.
+
+    :param stats_update:
+        Optional dictionary capturing statistical counters or metrics,
+        e.g., number of successful starts or errors. Defaults to an empty dict.
+    """
     job_id: str  # Mandatory
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
 class Task(ABC):
-    """Abstract base class for asynchronous tasks with safe update generation"""
+    """
+    Abstract base class for asynchronous tasks.
+
+    A task encapsulates a unit of work, typically executed asynchronously,
+    and returns a `_TaskResult` with job-related metadata and updates.
+
+    Implementations must override the `execute` method to define the task logic.
+    """
     
     @abstractmethod
     def execute(self) -> _TaskResult:
@@ -26,16 +47,38 @@ class Task(ABC):
 @dataclass
 class _JobStartTask(Task):
     """
-    A task for starting jobs asynchronously.
+    Task for starting a backend job asynchronously.
 
-    Attributes:
-        root_url (str): The URL of the backend.
-        bearer_token (Optional[str]): An optional token for authentication.
-        job_id (str): The identifier of the job to start.
+    Connects to an OpenEO backend using the provided URL and optional token,
+    retrieves the specified job, and attempts to start it.
+
+    Usage example:
+
+    .. code-block:: python
+
+        task = _JobStartTask(
+            job_id="1234",
+            root_url="https://openeo.test",
+            bearer_token="secret"
+        )
+        result = task.execute()
+
+    :param job_id:
+        Identifier of the job to start on the backend.
+
+    :param root_url:
+        The root URL of the OpenEO backend to connect to.
+
+    :param bearer_token:
+        Optional Bearer token used for authentication.
+
+    :raises ValueError:
+        If any of the input parameters are invalid (e.g., empty strings).
     """
+    job_id: str
     root_url: str
     bearer_token: Optional[str]
-    job_id: str
+    
 
     def __post_init__(self) -> None:
         # Validation remains unchanged
@@ -47,7 +90,16 @@ class _JobStartTask(Task):
             raise ValueError(f"job_id must be a non-empty string, got {self.job_id!r}")
 
     def execute(self) -> _TaskResult:
-        """Executes the job start task and returns a JobStartResult."""
+        """
+        Executes the job start process using the OpenEO connection.
+
+        Authenticates if a bearer token is provided, retrieves the job by ID,
+        and attempts to start it.
+
+        :returns:
+            A `_TaskResult` with status and statistics metadata, indicating
+            success or failure of the job start.
+        """
         try:
             conn = openeo.connect(self.root_url)
             if self.bearer_token:
@@ -69,7 +121,14 @@ class _JobStartTask(Task):
         
 class _JobManagerWorkerThreadPool:
     """
-    Manages a thread pool for executing tasks asynchronously and handles postprocessing.
+    Thread pool-based worker that manages the execution of asynchronous tasks.
+
+    Internally wraps a `ThreadPoolExecutor` and manages submission,
+    tracking, and result processing of tasks.
+
+    :param max_workers:
+        Maximum number of concurrent threads to use for execution.
+        Defaults to 2.
     """
     def __init__(self, max_workers: int = 2):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
@@ -77,13 +136,27 @@ class _JobManagerWorkerThreadPool:
 
     def submit_task(self, task: Task) -> None:
         """
-        ubmits a tasks to the internal Threadpool executor and keeps.
+        Submit a task to the thread pool executor.
+
+        Tasks are scheduled for asynchronous execution and tracked
+        internally to allow later processing of their results.
+
+        :param task:
+            An instance of `Task` to be executed.
         """
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
     def process_futures(self) -> List[ _TaskResult]:
+        """
+        Process and retrieve results from completed tasks.
 
+        This method checks which futures have finished without blocking,
+        collects their results.
+
+        :returns:
+            A list of `_TaskResult` objects from completed tasks.
+        """
         results = []  
         to_keep = [] 
 
@@ -98,10 +171,16 @@ class _JobManagerWorkerThreadPool:
             if future in done:
                 try:
                     result = future.result()
-                    results.append(result)
                     
                 except Exception as e:
+
                     _log.exception(f"Error processing task: {e}")
+                    result =  _TaskResult(
+                                job_id=task.job_id,
+                                db_update={"status": "start_failed"},  
+                                stats_update={"start_job error": 1})
+                    
+                results.append(result)
             else:  
                 to_keep.append((future, task))  
 
