@@ -109,10 +109,6 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
-    @abc.abstractmethod
-    def _update_row(self, job_id: str, updates: dict):
-        """Update specific fields of a job in the database."""
-        ...
 
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
