@@ -1016,6 +1016,8 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         except Exception as e:
             _log.error(f"Failed to persist row update for job {job_id}: {e}")
 
+    
+
 
 
 class CsvJobDatabase(FullDataFrameJobDatabase):
