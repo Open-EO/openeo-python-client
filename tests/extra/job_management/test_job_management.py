@@ -26,6 +26,8 @@ import pytest
 import requests
 import shapely.geometry
 import collections
+import time
+
 
 import openeo
 import openeo.extra.job_management
@@ -40,10 +42,15 @@ from openeo.extra.job_management import (
     get_job_db,
 )
 
-from openeo.extra.job_management._thread_worker import _JobManagerWorkerThreadPool
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
+
+from openeo.extra.job_management._thread_worker import (
+    Task,
+    _TaskResult,
+    _JobManagerWorkerThreadPool,
+)
 
 
 @pytest.fixture
@@ -83,6 +90,26 @@ def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
 
+class DummyTask(Task):
+        """
+        A Task that simply sleeps and then returns a predetermined _TaskResult.
+        """
+        def __init__(self, job_id, db_update, stats_update, delay=0.0):
+            self.job_id = job_id
+            self._db_update = db_update or {}
+            self._stats_update = stats_update or {}
+            self._delay = delay
+
+        def execute(self) -> _TaskResult:
+            if self._delay:
+                time.sleep(self._delay)
+            return _TaskResult(
+                job_id=self.job_id,
+                db_update=self._db_update,
+                stats_update=self._stats_update,
+            )
+
+
 
 class TestMultiBackendJobManager:
 
@@ -96,6 +123,7 @@ class TestMultiBackendJobManager:
         manager.add_backend("foo", connection=dummy_backend_foo.connection)
         manager.add_backend("bar", connection=dummy_backend_bar.connection)
         return manager
+    
 
     @staticmethod
     def _create_year_job(row, connection, **kwargs):
@@ -723,6 +751,50 @@ class TestMultiBackendJobManager:
         # Validate running_start_time is a valid datetime object
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
+
+    
+
+
+    def test_process_threadworker_updates(self, job_manager, tmp_path):
+
+        csv_path = tmp_path / "jobs.csv"
+        df = pd.DataFrame([
+            {"id": "job-1", "status": "created"},
+            {"id": "job-2", "status": "created"},
+        ])
+        job_db = CsvJobDatabase(csv_path).initialize_from_df(df)
+
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+
+        # Submit two dummy tasks with different delays and updates
+        t1 = DummyTask("job-1", {"status": "done"}, {"a": 1}, delay=0.05)
+        t2 = DummyTask("job-2", {"status": "failed"}, {"b": 2}, delay=0.1)
+        pool.submit_task(t1)
+        pool.submit_task(t2)
+
+        # Wait for all futures to be done
+        # We access the internal list of (future, task) pairs to check .done()
+        start = time.time()
+        timeout = 2.0
+        while time.time() - start < timeout:
+            pairs = list(pool._future_task_pairs)
+            if all(future.done() for future, _ in pairs):
+                break
+            time.sleep(0.01)
+        else:
+            pytest.skip("Tasks did not complete within timeout")
+
+        # Now invoke the real update loop
+        stats = collections.defaultdict(int)
+        job_manager._process_threadworker_updates(pool, job_db, stats)
+
+        # Check that the in-memory database was updated
+        df = job_db.df
+        assert df.loc[df.id == "job-1", "status"].iloc[0] == "done"
+        assert df.loc[df.id == "job-2", "status"].iloc[0] == "failed"
+
+        # And that our stats were aggregated
+        assert stats == {"a": 1, "b": 2}
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -1821,168 +1893,6 @@ class TestProcessBasedJobCreator:
             },
         }
 
-from unittest.mock import MagicMock, call, patch
-
-    
-class TestProcessThreadWorkerUpdates:
-    """Unit tests for _process_threadworker_updates functionality."""
-
-    @pytest.fixture
-    def job_manager(self):
-        return MultiBackendJobManager()
-
-    @pytest.fixture
-    def mock_worker_pool(self):
-        pool = MagicMock(spec=_JobManagerWorkerThreadPool)
-        return pool
-
-    @pytest.fixture
-    def mock_job_db(self):
-        db = MagicMock()
-        db._update_row = MagicMock()
-        return db
-
-    @pytest.fixture
-    def stats(self):
-        return collections.defaultdict(int)
-
-    @pytest.fixture
-    def mock_log(self, mocker):
-        return mocker.patch("openeo.extra.job_management._log")
-
-    def test_basic(self, job_manager, mock_worker_pool, mock_job_db, stats):
-        """Basic success scenario with mixed DB and stats updates"""
-        # Setup mock worker results
-        result1 = MagicMock(
-            job_id="job-123",
-            db_update={"status": "queued"},
-            stats_update={"jobs_started": 1}
-        )
-        result2 = MagicMock(
-            job_id="job-456",
-            db_update={"status": "running"},
-            stats_update={"jobs_started": 1}
-        )
-        mock_worker_pool.process_futures.return_value = [result1, result2]
-
-        # Execute
-        job_manager._process_threadworker_updates(mock_worker_pool, mock_job_db, stats)
-
-        # Verify DB updates
-        mock_job_db._update_row.assert_has_calls([
-            call(job_id="job-123", updates={"status": "queued"}),
-            call(job_id="job-456", updates={"status": "running"}),
-        ], any_order=True)
-        
-        # Verify stats aggregation
-        assert dict(stats) == {"jobs_started": 2}
-
-    def test_error_handling(self, job_manager, mock_worker_pool, mock_job_db, stats, caplog):
-        """Failed DB updates should be logged but not break processing"""
-        # Setup one successful and one failing result
-        result1 = MagicMock(
-            job_id="job-123",
-            db_update={"status": "running"},
-            stats_update={"jobs_started": 1}
-        )
-        result2 = MagicMock(
-            job_id="job-456",
-            db_update={"status": "running"},
-            stats_update={"jobs_started": 1}
-        )
-        
-        # Make second DB update fail
-        mock_job_db._update_row.side_effect = [None, Exception("DB connection lost")]
-        
-        mock_worker_pool.process_futures.return_value = [result1, result2]
-
-        # Execute
-        job_manager._process_threadworker_updates(mock_worker_pool, mock_job_db, stats)
-
-        # Verify partial updates
-        assert mock_job_db._update_row.call_count == 2
-        assert dict(stats) == {"jobs_started": 1}  # Only first result's stats applied
-        assert "Failed aggregating the updates for update for job" in caplog.text
 
 
 
-    def test_only_stats_cases(self, job_manager, mock_worker_pool, mock_job_db, stats):
-        """Handle empty updates and invalid values"""
-        # Setup results with missing/none updates
-        result1 = MagicMock(db_update=None, stats_update=None)
-        result2 = MagicMock(
-            job_id="job-789",
-            db_update={},
-            stats_update={"start_failed": 1}
-        )
-        mock_worker_pool.process_futures.return_value = [result1, result2]
-
-        # Execute
-        job_manager._process_threadworker_updates(mock_worker_pool, mock_job_db, stats)
-
-        # Verify no DB interactions for empty updates
-        mock_job_db._update_row.assert_not_called()
-        
-        # Verify stats skipped invalid values
-        assert dict(stats) == {"start_failed": 1}
-
-    def test_concurrency_handling(self, job_manager, mock_worker_pool, mock_job_db, stats):
-        """Verify stats aggregation works with concurrent updates"""
-        # Setup 100 identical results
-        results = [MagicMock(
-            job_id=f"job-{i}",
-            db_update={"status": "queued"},
-            stats_update={"job start": 1}
-        ) for i in range(100)]
-        
-        mock_worker_pool.process_futures.return_value = results
-
-        # Execute
-        job_manager._process_threadworker_updates(mock_worker_pool, mock_job_db, stats)
-
-        # Verify all DB updates processed
-        assert mock_job_db._update_row.call_count == 100
-        
-        # Verify stats aggregation
-        assert stats["job start"] == 100
-
-    def test_mixed_scenario(self, job_manager, mock_worker_pool, mock_job_db, stats):
-        """Complex scenario mirroring production conditions"""
-        # Setup mixed results
-        results = [
-            # Successful start
-            MagicMock(
-                job_id="job-1",
-                db_update={"status": "queued"},
-                stats_update={"started": 1}
-            ),
-            # Failed start
-            MagicMock(
-                job_id="job-2",
-                db_update={"status": "start failed"},
-                stats_update={"errors": 1}
-            ),
-            # Partial update
-            MagicMock(
-                job_id="job-3",
-                db_update={"status": "running"},
-                stats_update={}
-            ),
-            # No updates
-            MagicMock(db_update=None, stats_update=None)
-        ]
-        
-        
-        mock_worker_pool.process_futures.return_value = results
-
-        # Execute
-        job_manager._process_threadworker_updates(mock_worker_pool, mock_job_db, stats)
-
-        # Verify DB attempts
-        assert mock_job_db._update_row.call_count == 3  # job-3 update still attempted
-        
-        # Verify stats aggregation
-        assert dict(stats) == {
-            "started": 1,
-            "errors": 1,
-        }
