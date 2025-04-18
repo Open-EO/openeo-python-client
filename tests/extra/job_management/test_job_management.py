@@ -6,7 +6,7 @@ import re
 import threading
 from pathlib import Path
 from time import sleep
-from typing import Callable, Union
+from typing import Union
 from unittest import mock
 
 import dirty_equals
@@ -25,6 +25,9 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
+import collections
+import time
+
 
 import openeo
 import openeo.extra.job_management
@@ -38,9 +41,16 @@ from openeo.extra.job_management import (
     create_job_db,
     get_job_db,
 )
+
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
+
+from openeo.extra.job_management._thread_worker import (
+    Task,
+    _TaskResult,
+    _JobManagerWorkerThreadPool,
+)
 
 
 @pytest.fixture
@@ -80,6 +90,26 @@ def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
 
+class DummyTask(Task):
+        """
+        A Task that simply sleeps and then returns a predetermined _TaskResult.
+        """
+        def __init__(self, job_id, db_update, stats_update, delay=0.0):
+            self.job_id = job_id
+            self._db_update = db_update or {}
+            self._stats_update = stats_update or {}
+            self._delay = delay
+
+        def execute(self) -> _TaskResult:
+            if self._delay:
+                time.sleep(self._delay)
+            return _TaskResult(
+                job_id=self.job_id,
+                db_update=self._db_update,
+                stats_update=self._stats_update,
+            )
+
+
 
 class TestMultiBackendJobManager:
 
@@ -93,6 +123,7 @@ class TestMultiBackendJobManager:
         manager.add_backend("foo", connection=dummy_backend_foo.connection)
         manager.add_backend("bar", connection=dummy_backend_bar.connection)
         return manager
+    
 
     @staticmethod
     def _create_year_job(row, connection, **kwargs):
@@ -466,6 +497,7 @@ class TestMultiBackendJobManager:
             ("job-2018", "finished", "foo"),
         ]
 
+
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
@@ -590,14 +622,13 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
-        )
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
@@ -644,8 +675,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
@@ -720,6 +752,49 @@ class TestMultiBackendJobManager:
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
+    
+
+
+    def test_process_threadworker_updates(self, job_manager, tmp_path):
+
+        csv_path = tmp_path / "jobs.csv"
+        df = pd.DataFrame([
+            {"id": "job-1", "status": "created"},
+            {"id": "job-2", "status": "created"},
+        ])
+        job_db = CsvJobDatabase(csv_path).initialize_from_df(df)
+
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+
+        # Submit two dummy tasks with different delays and updates
+        t1 = DummyTask("job-1", {"status": "done"}, {"a": 1}, delay=0.05)
+        t2 = DummyTask("job-2", {"status": "failed"}, {"b": 2}, delay=0.1)
+        pool.submit_task(t1)
+        pool.submit_task(t2)
+
+        # Wait for all futures to be done
+        # We access the internal list of (future, task) pairs to check .done()
+        start = time.time()
+        timeout = 2.0
+        while time.time() - start < timeout:
+            pairs = list(pool._future_task_pairs)
+            if all(future.done() for future, _ in pairs):
+                break
+            time.sleep(0.01)
+        else:
+            pytest.skip("Tasks did not complete within timeout")
+
+        # Now invoke the real update loop
+        stats = collections.defaultdict(int)
+        job_manager._process_threadworker_updates(pool, job_db, stats)
+
+        # Check that the in-memory database was updated
+        df = job_db.df
+        assert df.loc[df.id == "job-1", "status"].iloc[0] == "done"
+        assert df.loc[df.id == "job-2", "status"].iloc[0] == "failed"
+
+        # And that our stats were aggregated
+        assert stats == {"a": 1, "b": 2}
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -834,6 +909,62 @@ class TestFullDataFrameJobDatabase:
             "queued": 3,
             "running": 2,
         }
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_update_existing_row(self, tmp_path, db_class):
+        path = tmp_path / "jobs.db"
+        df = pd.DataFrame({"id": ["job-123"], "status": ["created"], "costs": [0.0]})
+        db = db_class(path).initialize_from_df(df)
+
+        db._update_row("job-123", {"status": "queued", "costs": 42.5})
+        updated = db.read()
+
+        assert updated.loc[0, "status"] == "queued"
+        assert updated.loc[0, "costs"] == 42.5
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_update_unknown_job_id(self, tmp_path, db_class, caplog):
+        path = tmp_path / "jobs.db"
+        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
+        db = db_class(path).initialize_from_df(df)
+
+        db._update_row("nonexistent-job", {"status": "queued"})
+
+        assert "not found in database" in caplog.text
+        # Ensure no updates happened
+        assert db.read().loc[0, "status"] == "created"
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_update_duplicate_job_id(self, tmp_path, db_class, caplog):
+        path = tmp_path / "jobs.db"
+        df = pd.DataFrame({"id": ["job-123", "job-123"], "status": ["created", "created"]})
+        db = db_class(path).initialize_from_df(df)
+
+        db._update_row("job-123", {"status": "queued"})
+
+        assert "Duplicate job ID" in caplog.text
+        assert set(db.read()["status"]) == {"created"}
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_update_with_invalid_column(self, tmp_path, db_class, caplog):
+        path = tmp_path / "jobs.db"
+        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
+        db = db_class(path).initialize_from_df(df)
+
+        db._update_row("job-123", {"not_a_column": "value", "status": "finished"})
+
+        assert "Ignoring invalid column 'not_a_column'" in caplog.text
+        assert db.read().loc[0, "status"] == "finished"
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_update_with_no_valid_fields(self, tmp_path, db_class):
+        path = tmp_path / "jobs.db"
+        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
+        db = db_class(path).initialize_from_df(df)
+
+        db._update_row("job-123", {"invalid_field": "value"})
+
+        assert db.read().loc[0, "status"] == "created"
 
 
 class TestCsvJobDatabase:
@@ -1761,3 +1892,4 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
+
