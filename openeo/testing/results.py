@@ -8,8 +8,10 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
 import xarray
 import xarray.testing
+from scipy.spatial import ConvexHull
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
 from openeo.util import repr_truncate
@@ -88,6 +90,97 @@ def _as_xarray_dataarray(data: Union[str, Path, xarray.DataArray]) -> xarray.Dat
     return data
 
 
+def _compare_xarray_dataarray_xy(
+    actual: Union[xarray.DataArray, str, Path],
+    expected: Union[xarray.DataArray, str, Path],
+    *,
+    rtol: float = _DEFAULT_RTOL,
+    atol: float = _DEFAULT_ATOL,
+) -> List[str]:
+    """
+    Compare two xarray DataArrays with tolerance and report mismatch issues (as strings)
+
+    Checks that are done (with tolerance):
+    - (optional) Check fraction of mismatching pixels (difference exceeding some tolerance).
+      If fraction is below a given threshold, ignore these mismatches in subsequent comparisons.
+      If fraction is above the threshold, report this issue.
+    - Compare actual and expected data with `xarray.testing.assert_allclose` and specified tolerances.
+
+    :return: list of issues (empty if no issues)
+    """
+    # TODO: make this a public function?
+    # TODO: option for nodata fill value?
+    # TODO: option to include data type check?
+    # TODO: option to cast to some data type (or even rescale) before comparison?
+    # TODO: also compare attributes of the DataArray?
+    actual = _as_xarray_dataarray(actual)
+    expected = _as_xarray_dataarray(expected)
+    issues = []
+
+    if actual.dims != expected.dims:
+        issues.append(f"Dimension mismatch: {actual.dims} != {expected.dims}")
+    for dim in sorted(set(expected.dims).intersection(actual.dims)):
+        acs = actual.coords[dim].values
+        ecs = expected.coords[dim].values
+        if not (acs.shape == ecs.shape and (acs == ecs).all()):
+            issues.append(f"Coordinates mismatch for dimension {dim!r}: {acs} != {ecs}")
+    if actual.shape != expected.shape:
+        issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
+
+    if not issues:
+        threshold = abs(expected * rtol) + atol
+        diff_exact = abs(expected - actual)
+        diff_mask = diff_exact > threshold
+        diff_lenient = diff_exact.where(diff_mask)
+
+        non_x_y_dims = list(set(expected.dims) - {"x", "y"})
+        value_mapping = dict(map(lambda d: (d, expected[d].data), non_x_y_dims))
+        shape = tuple([len(value_mapping[x]) for x in non_x_y_dims])
+
+        for shape_index, v in np.ndenumerate(np.ndarray(shape)):
+            indexers = {}
+            for index, value_index in enumerate(shape_index):
+                indexers[non_x_y_dims[index]] = value_mapping[non_x_y_dims[index]][value_index]
+            diff_data = diff_lenient.sel(indexers=indexers)
+            total_pixel_count = expected.sel(indexers).count().item()
+            diff_pixel_count = diff_data.count().item()
+
+            if diff_pixel_count > 0:
+                diff_pixel_percentage = round(diff_pixel_count * 100 / total_pixel_count, 1)
+                diff_mean = round(diff_data.mean().item(), 1)
+                diff_var = round(diff_data.var().item(), 1)
+
+                key = ",".join([f"{k} {str(v1)}" for k, v1 in indexers.items()])
+                issues.append(
+                    f"{key}: value difference min:{diff_data.min().data}, max: {diff_data.max().data}, mean: {diff_mean}, var: {diff_var}"
+                )
+
+                coord_grid = np.meshgrid(diff_data.coords["y"], diff_data.coords["x"])
+                mask = diff_data.notnull()
+                c1 = coord_grid[0][mask]
+                c2 = coord_grid[1][mask]
+                coordinates = np.dstack((c1, c2)).reshape(-1, 2)
+                if len(coordinates) > 2:
+                    hull = ConvexHull(coordinates)
+                    area = hull.volume
+
+                    x_m = diff_data.coords["x"][0].data
+                    x_M = diff_data.coords["x"][-1].data
+                    y_m = diff_data.coords["y"][0].data
+                    y_M = diff_data.coords["y"][-1].data
+
+                    total_area = abs((y_M - y_m) * (x_M - x_m))
+                    area_percentage = round(area * 100 / total_area, 1)
+                    issues.append(
+                        f"{key}: differing pixels: {diff_pixel_count}/{total_pixel_count} ({diff_pixel_percentage}%), spread over {area_percentage}% of the area"
+                    )
+                else:
+                    issues.append(
+                        f"{key}: differing pixels: {diff_pixel_count}/{total_pixel_count} ({diff_pixel_percentage}%)"
+                    )
+    return issues
+
+
 def _compare_xarray_dataarray(
     actual: Union[xarray.DataArray, str, Path],
     expected: Union[xarray.DataArray, str, Path],
@@ -128,11 +221,15 @@ def _compare_xarray_dataarray(
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
 
-    try:
-        xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
-    except AssertionError as e:
-        # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
-        issues.append(str(e).strip())
+    if not issues:
+        if {"x", "y"} <= set(expected.dims):
+            issues = _compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol)
+        else:
+            try:
+                xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
+            except AssertionError as e:
+                # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
+                issues.append(str(e).strip())
 
     return issues
 
@@ -162,6 +259,31 @@ def assert_xarray_dataarray_allclose(
     if issues:
         raise AssertionError("\n".join(issues))
 
+
+def assert_xarray_dataarray_allclose_xy(
+    actual: Union[xarray.DataArray, str, Path],
+    expected: Union[xarray.DataArray, str, Path],
+    *,
+    rtol: float = _DEFAULT_RTOL,
+    atol: float = _DEFAULT_ATOL,
+):
+    """
+    Assert that two Xarray ``DataArray`` instances are equal (with tolerance).
+
+    :param actual: actual data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.
+    :param expected: expected or reference data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.
+    :param rtol: relative tolerance
+    :param atol: absolute tolerance
+    :raises AssertionError: if not equal within the given tolerance
+
+    .. versionadded:: 0.31.0
+
+    .. warning::
+        This function is experimental and subject to change.
+    """
+    issues = _compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol)
+    if issues:
+        raise AssertionError("\n".join(issues))
 
 def _compare_xarray_datasets(
     actual: Union[xarray.Dataset, str, Path],
@@ -250,7 +372,10 @@ def assert_xarray_allclose(
     if isinstance(actual, xarray.Dataset) and isinstance(expected, xarray.Dataset):
         assert_xarray_dataset_allclose(actual, expected, rtol=rtol, atol=atol)
     elif isinstance(actual, xarray.DataArray) and isinstance(expected, xarray.DataArray):
-        assert_xarray_dataarray_allclose(actual, expected, rtol=rtol, atol=atol)
+        if (["x", "y", "band"]).elements_in(expected.dims):
+            assert_xarray_dataarray_allclose_xy(actual, expected, rtol=rtol, atol=atol)
+        else:
+            assert_xarray_dataarray_allclose(actual, expected, rtol=rtol, atol=atol)
     else:
         raise ValueError(f"Unsupported types: {type(actual)} and {type(expected)}")
 
