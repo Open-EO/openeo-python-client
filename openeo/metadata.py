@@ -488,6 +488,7 @@ class CubeMetadata:
     def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
         return self._clone_and_update(dimensions=list(target._dimensions))
 
+
 class CollectionMetadata(CubeMetadata):
     """
     Wrapper for EO Data Collection metadata.

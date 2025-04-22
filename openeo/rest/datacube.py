@@ -157,7 +157,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _do_metadata_normalization(self) -> bool:
         """Do metadata-based normalization/validation of dimension names, band names, ..."""
-        return isinstance(self.metadata, CollectionMetadata)
+        return isinstance(self.metadata, CubeMetadata)
 
     def _assert_valid_dimension_name(self, name: str) -> str:
         if self._do_metadata_normalization():

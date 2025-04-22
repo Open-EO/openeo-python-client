@@ -4,6 +4,7 @@ import re
 from typing import Dict, List, Optional, Set
 
 from openeo import BaseOpenEoException
+from openeo.metadata import CollectionMetadata
 from openeo.processes import ProcessBuilder, array_create, array_modify
 from openeo.rest.datacube import DataCube
 
@@ -273,7 +274,7 @@ def compute_and_rescale_indices(
         # Automatic band mapping
         band_mapping = _BandMapping()
         if platform is None:
-            if datacube.metadata and datacube.metadata.get("id"):
+            if isinstance(datacube.metadata, CollectionMetadata) and datacube.metadata.get("id"):
                 platform = band_mapping.guess_platform(name=datacube.metadata.get("id"))
             else:
                 raise BandMappingException("Unable to determine satellite platform from data cube metadata")
