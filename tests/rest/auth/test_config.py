@@ -113,10 +113,10 @@ class TestAuthConfig:
         assert config.get_basic_auth("foo") == (None, None)
         assert config.get_oidc_client_configs("oeo.test", "default") == (None, None)
 
-    def test_basic_auth(self, tmp_path):
+    def test_basic_auth(self, tmp_path, time_machine):
+        time_machine.move_to("2020-06-08T11:18:27Z")
         config = AuthConfig(path=tmp_path)
-        with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_basic_auth("oeo.test", "John", "j0hn123")
+        config.set_basic_auth("oeo.test", "John", "j0hn123")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
@@ -137,10 +137,10 @@ class TestAuthConfig:
         assert config.get_basic_auth(to_set) == ("John", "j0hn123")
         assert config.get_basic_auth(to_get) == ("John", "j0hn123")
 
-    def test_oidc(self, tmp_path):
+    def test_oidc(self, tmp_path, time_machine):
+        time_machine.move_to("2020-06-08T11:18:27Z")
         config = AuthConfig(path=tmp_path)
-        with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_oidc_client_config("oeo.test", "default", client_id="client123", client_secret="$6cr67")
+        config.set_oidc_client_config("oeo.test", "default", client_id="client123", client_secret="$6cr67")
         assert config.path.exists()
         assert [p.name for p in tmp_path.iterdir()] == [AuthConfig.DEFAULT_FILENAME]
         with config.path.open("r") as f:
@@ -157,10 +157,10 @@ class TestAuthConfig:
         ("https://oeo.test", "https://oeo.test/"),
         ("https://oeo.test/", "https://oeo.test"),
     ])
-    def test_oidc_backend_normalization(self, tmp_path, to_set, to_get):
+    def test_oidc_backend_normalization(self, tmp_path, to_set, to_get, time_machine):
+        time_machine.move_to("2020-06-08T11:18:27Z")
         config = AuthConfig(path=tmp_path)
-        with mock.patch.object(openeo.rest.auth.config, "utcnow_rfc3339", return_value="2020-06-08T11:18:27Z"):
-            config.set_oidc_client_config(to_set, "default", client_id="client123", client_secret="$6cr67")
+        config.set_oidc_client_config(to_set, "default", client_id="client123", client_secret="$6cr67")
         for backend in [to_set, to_get]:
             assert config.get_oidc_client_configs(backend, "default") == ("client123", "$6cr67")
             assert config.get_oidc_provider_configs(backend) == {
