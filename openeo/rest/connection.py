@@ -1097,7 +1097,7 @@ class Connection(RestApiConnection):
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
-            None, Dict[str, Union[str, PGNode, Callable]], List[CollectionProperty], CollectionProperty
+            Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
         ] = None,
         max_cloud_cover: Optional[float] = None,
         fetch_metadata: bool = True,
@@ -1198,7 +1198,9 @@ class Connection(RestApiConnection):
         spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
-        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        properties: Union[
+            Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
+        ] = None,
     ) -> DataCube:
         """
         Loads data from a static STAC catalog or a STAC API Collection and returns the data as a processable :py:class:`DataCube`.
@@ -1292,6 +1294,8 @@ class Connection(RestApiConnection):
             The value must be a condition (user-defined process) to be evaluated against a STAC API.
             This parameter is not supported for static STAC.
 
+            See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of property filters.
+
         .. versionadded:: 0.17.0
 
         .. versionchanged:: 0.23.0
@@ -1300,6 +1304,9 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.37.0
             Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
+
+        .. versionchanged:: 0.41.0
+            Add support for :py:func:`~openeo.rest.graph_building.collection_property` based property filters
         """
         return DataCube.load_stac(
             url=url,

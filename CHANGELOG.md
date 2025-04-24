@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support `collection_property` based property filtering in `load_stac` ([#246](https://github.com/Open-EO/openeo-python-client/issues/246))
+
 ### Changed
 
 - Eliminate deprecated `utcnow` usage patterns. Introduce `Rfc3339.now_utc()` method (as replacement for deprecated `utcnow()` method) to simplify finding deprecated `utcnow` usage in user code. ([#760](https://github.com/Open-EO/openeo-python-client/issues/760))
