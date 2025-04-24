@@ -486,7 +486,10 @@ class CubeMetadata:
         return self._clone_and_update(dimensions=dimensions)
 
     def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
-        return self._clone_and_update(dimensions=list(target._dimensions))
+        # Replace spatial dimensions with ones from target, but keep other dimensions
+        dimensions = [d for d in (self._dimensions or []) if not isinstance(d, SpatialDimension)]
+        dimensions.extend(target.spatial_dimensions)
+        return self._clone_and_update(dimensions=dimensions)
 
 
 class CollectionMetadata(CubeMetadata):

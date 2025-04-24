@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve original non-spatial dimensions in `CubeMetadata.resample_cube_spatial()` ([Open-EO/openeo-python-driver#397](https://github.com/Open-EO/openeo-python-driver/issues/397))
+
 
 ## [0.40.0] - 2025-04-14
 
