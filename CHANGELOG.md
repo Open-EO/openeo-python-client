@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Eliminate deprecated `utcnow` usage patterns. Introduce `Rfc3339.now_utc()` method (as replacement for deprecated `utcnow()` method) to simplify finding deprecated `utcnow` usage in user code. ([#760](https://github.com/Open-EO/openeo-python-client/issues/760))
+- `Connection.list_jobs()`: change default `limit` to 100 (instead of fake "unlimited" which was arbitrarily capped in practice anyway) ([#677](https://github.com/Open-EO/openeo-python-client/issues/677))
 
 ### Removed
 
