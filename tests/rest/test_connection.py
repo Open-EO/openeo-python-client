@@ -2788,24 +2788,94 @@ class TestLoadStac:
             }
         }
 
-    def test_properties(self, con120):
-        cube = con120.load_stac("https://provider.test/dataset", properties={"platform": lambda p: p == "S2A"})
+    @pytest.mark.parametrize(
+        ["properties", "expected"],
+        [
+            (
+                # dict with callable
+                {"platform": lambda p: p == "S2A"},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # Single collection_property
+                (openeo.collection_property("platform") == "S2A"),
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # List of collection_properties
+                [
+                    openeo.collection_property("platform") == "S2A",
+                    openeo.collection_property("flavor") == "salty",
+                ],
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    },
+                    "flavor": {
+                        "process_graph": {
+                            "eq2": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "salty"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+            (
+                # Advanced PGNode usage
+                {"platform": PGNode(process_id="custom_foo", arguments={"mode": "bar"})},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "customfoo1": {
+                                "process_id": "custom_foo",
+                                "arguments": {"mode": "bar"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+    def test_property_filtering(self, con120, properties, expected):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            properties=properties,
+        )
         assert cube.flat_graph() == {
             "loadstac1": {
                 "process_id": "load_stac",
                 "arguments": {
                     "url": "https://provider.test/dataset",
-                    "properties": {
-                        "platform": {
-                            "process_graph": {
-                                "eq1": {
-                                    "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
-                                    "process_id": "eq",
-                                    "result": True,
-                                }
-                            }
-                        }
-                    },
+                    "properties": expected,
                 },
                 "result": True,
             }

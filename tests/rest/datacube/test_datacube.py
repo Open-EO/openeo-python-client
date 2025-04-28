@@ -898,6 +898,28 @@ def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadat
     ]
 
 
+def test_resample_cube_spatial_preserve_non_spatial(s2cube):
+    cube_xytb = s2cube.resample_spatial(resolution=11, projection=32631)
+    cube_xyt = s2cube.reduce_dimension(dimension="bands", reducer="mean").resample_spatial(
+        resolution=22, projection=32631
+    )
+    cube_xyb = s2cube.reduce_dimension(dimension="t", reducer="mean").resample_spatial(resolution=33, projection=32631)
+
+    result = cube_xyt.resample_cube_spatial(target=cube_xytb)
+    assert result.metadata.dimension_names() == ["t", "x", "y"]
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=11),
+        SpatialDimension(name="y", extent=None, crs=32631, step=11),
+    ]
+
+    result = cube_xyb.resample_cube_spatial(target=cube_xyt)
+    assert result.metadata.dimension_names() == ["bands", "x", "y"]
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=22),
+        SpatialDimension(name="y", extent=None, crs=32631, step=22),
+    ]
+
+
 def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):
     cube = s2cube.resample_spatial(resolution=10, projection=32631)
     target = s2cube_without_metadata
