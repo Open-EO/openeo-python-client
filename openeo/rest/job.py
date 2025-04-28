@@ -420,7 +420,7 @@ class ResultAsset:
 
     def _download_to_file(self, url: str, target: Path, chunk_size: int):
         head = self.job.connection.head(url, stream=True)
-        if head.ok and 'Accept-Ranges' in head.headers and 'bytes' in head.headers['Accept-Ranges']:
+        if head.ok and head.headers.get("Accept-Ranges") == "bytes":
             file_size = int(head.headers['Content-Length'])
             self._download_chunked(url=url, target=target, file_size=file_size, chunk_size=chunk_size)
         else:
