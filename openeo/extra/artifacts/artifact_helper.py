@@ -1,10 +1,20 @@
-from typing import Optional
+from typing import Dict, Optional, Type
 
 from openeo import Connection
-from openeo.extra.artifacts.artifact_helper_abc import ArtifactHelperBuilderABC, ArtifactHelperABC
-from openeo.extra.artifacts._s3.artifact_helper import S3ArtifactHelper
+from openeo.extra.artifacts._s3sts.artifact_helper import S3STSArtifactHelper
+from openeo.extra.artifacts._s3sts.config import S3STSConfig
+from openeo.extra.artifacts.artifact_helper_abc import (
+    ArtifactHelperABC,
+    ArtifactHelperBuilderABC,
+)
+from openeo.extra.artifacts.backend import ArtifactCapabilities
 from openeo.extra.artifacts.config import StorageConfig
+from openeo.extra.artifacts.exceptions import UnsupportedArtifactsType
 
+cfg_to_helper: Dict[Type[StorageConfig], Type[ArtifactHelperABC]] = {S3STSConfig: S3STSArtifactHelper}
+cfg_type_to_helper: Dict[str, Type[ArtifactHelperABC]] = {
+    StorageConfig.get_type_from(cfg): helper for cfg, helper in cfg_to_helper.items()
+}
 
 class ArtifactHelper(ArtifactHelperBuilderABC):
     @classmethod
@@ -26,5 +36,15 @@ class ArtifactHelper(ArtifactHelperBuilderABC):
         presigned_uri = artifact_helper.get_presigned_url(storage_uri)
         ```
         """
-        # At time of writing there is only one type of artifact store supported so no resolving done yet.
-        return S3ArtifactHelper.from_openeo_connection(conn, config)
+        if config is None:
+            config_type = ArtifactCapabilities(conn).get_preferred_artifacts_provider().type
+        else:
+            config_type = config.get_type()
+
+        try:
+            artifact_helper = cfg_type_to_helper[config_type]
+            return artifact_helper.from_openeo_connection(
+                conn, ArtifactCapabilities(conn).get_preferred_artifacts_provider(), config=config
+            )
+        except KeyError as ke:
+            raise UnsupportedArtifactsType(config_type) from ke

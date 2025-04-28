@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
-from openeo import Connection
+from openeo.extra.artifacts.backend import ProviderCfg
 
 _METADATA_LOADED = "_sc_metadata_loaded"
 
@@ -13,18 +14,29 @@ class StorageConfig(ABC):
     It greatly depends on the type of storage so the enforced API is limited to load metadata using the connection.
     """
     @abstractmethod
-    def _load_openeo_connection_metadata(self, conn: Connection) -> None:
+    def _load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
         """
-        Implementations implement their logic of adapting config based on metadata from the current OpenEO connection
-        in this method.
+        Implementations implement their logic of adapting config based on metadata from the current OpenEO connection.
+
+        The config depends on the storage type so here it can deal with settings specific for this type of storage.
         """
 
-    def load_openeo_connection_metadata(self, conn: Connection) -> None:
+    @staticmethod
+    def get_type_from(cls: Any) -> str:
+        """The type is the name of the implementing class so that is the first object used for method resolution"""
+        return cls.__mro__[0].__name__
+
+    @classmethod
+    def get_type(cls) -> str:
+        """Return the storage config type"""
+        return cls.get_type_from(cls)
+
+    def load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
         """
         This is the method that is actually used to load metadata. Metadata is only loaded once.
         """
         if not self.is_openeo_connection_metadata_loaded():
-            self._load_openeo_connection_metadata(conn)
+            self._load_connection_provided_cfg(provider_cfg)
             object.__setattr__(self, _METADATA_LOADED, True)
 
     def is_openeo_connection_metadata_loaded(self) -> bool:

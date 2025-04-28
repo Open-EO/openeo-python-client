@@ -61,6 +61,8 @@ artifacts_require = [
     "botocore"
 ]
 
+typing_requires = ["types-boto3-s3", "types-boto3-sts"]
+
 
 name = "openeo"
 setup(
@@ -92,7 +94,7 @@ setup(
     ],
     extras_require={
         "tests": tests_require + artifacts_require,
-        "dev": tests_require + docs_require,
+        "dev": tests_require + docs_require + typing_requires + artifacts_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"

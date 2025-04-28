@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
-from openeo.extra.artifacts._s3.model import AWSSTSCredentials
-from openeo.extra.artifacts._s3.config import S3Config
+
+from openeo.extra.artifacts._s3sts.config import S3STSConfig
+from openeo.extra.artifacts._s3sts.model import AWSSTSCredentials
 from openeo.rest.auth.auth import BearerAuth
 from openeo.rest.connection import Connection
 
 
 class OpenEOSTSClient:
-    def __init__(self, config: S3Config):
+    def __init__(self, config: S3STSConfig):
         self.config = config
 
     def assume_from_openeo_connection(self, conn: Connection) -> AWSSTSCredentials:
@@ -20,7 +20,7 @@ class OpenEOSTSClient:
         assert auth is not None
         if not isinstance(auth, BearerAuth):
             raise ValueError("Only connections that have BearerAuth can be used.")
-        auth_token = auth.bearer.split('/')
+        auth_token = auth.bearer.split("/")
         sts = self.config.build_client("sts")
 
         return AWSSTSCredentials.from_assume_role_response(
@@ -31,6 +31,6 @@ class OpenEOSTSClient:
                 DurationSeconds=43200,
             )
         )
-    
+
     def _get_aws_access_role(self) -> str:
         return self.config.sts_role_arn

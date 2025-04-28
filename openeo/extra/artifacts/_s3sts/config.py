@@ -1,14 +1,17 @@
 from dataclasses import dataclass, field
-import boto3
-import botocore
-
-from openeo import Connection
-from openeo.utils.version import ComparableVersion
-from openeo.extra.artifacts._s3.tracer import add_trace_id, add_trace_id_as_query_parameter
-from openeo.extra.artifacts.config import StorageConfig
-from botocore.config import Config
 from typing import Optional
 
+import boto3
+import botocore
+from botocore.config import Config
+
+from openeo.extra.artifacts._s3sts.tracer import (
+    add_trace_id,
+    add_trace_id_as_query_parameter,
+)
+from openeo.extra.artifacts.backend import ProviderCfg
+from openeo.extra.artifacts.config import StorageConfig
+from openeo.utils.version import ComparableVersion
 
 if ComparableVersion(botocore.__version__).below("1.36.0"):
     # Before 1.36 checksuming was not done by default anyway and therefore
@@ -16,7 +19,7 @@ if ComparableVersion(botocore.__version__).below("1.36.0"):
     no_default_checksum_cfg = Config()
 else:
     no_default_checksum_cfg = Config(
-        request_checksum_calculation='when_required',
+        request_checksum_calculation="when_required",
     )
 
 
@@ -24,8 +27,9 @@ DISABLE_TRACING_TRACE_ID = "00000000-0000-0000-0000-000000000000"
 
 
 @dataclass(frozen=True)
-class S3Config(StorageConfig):
+class S3STSConfig(StorageConfig):
     """The s3 endpoint url protocol:://fqdn[:portnumber]"""
+
     s3_endpoint_url: Optional[str] = None
     """The sts endpoint url protocol:://fqdn[:portnumber]"""
     sts_endpoint_url: Optional[str] = None
@@ -35,19 +39,22 @@ class S3Config(StorageConfig):
     botocore_config: Config = field(default_factory=lambda: no_default_checksum_cfg)
     """The role ARN to be assumed"""
     sts_role_arn: Optional[str] = None
+    """The bucket to store the object into"""
+    bucket: Optional[str] = None
 
-    def _load_openeo_connection_metadata(self, conn: Connection) -> None:
-        """
-        Hard coding since connection does not allow automatic determining config yet.
-        """
+    def _load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
+        assert provider_cfg.type == "S3STSConfig"
         if self.s3_endpoint_url is None:
-            object.__setattr__(self, "s3_endpoint_url", "https://s3.waw3-1.openeo.v1.dataspace.copernicus.eu")
+            object.__setattr__(self, "s3_endpoint_url", provider_cfg["s3_endpoint"])
 
         if self.sts_endpoint_url is None:
-            object.__setattr__(self, "sts_endpoint_url", "https://sts.waw3-1.openeo.v1.dataspace.copernicus.eu")
+            object.__setattr__(self, "sts_endpoint_url", provider_cfg["sts_endpoint"])
 
         if self.sts_role_arn is None:
-            object.__setattr__(self, "sts_role_arn", "arn:aws:iam::000000000000:role/S3Access")
+            object.__setattr__(self, "sts_role_arn", provider_cfg["role"])
+
+        if self.bucket is None:
+            object.__setattr__(self, "bucket", provider_cfg["bucket"])
 
     def should_trace(self) -> bool:
         return self.trace_id != DISABLE_TRACING_TRACE_ID
@@ -62,9 +69,9 @@ class S3Config(StorageConfig):
         session_kwargs = session_kwargs or {}
         session = boto3.Session(region_name=self._get_storage_region(), **session_kwargs)
         client = session.client(
-            service_name, 
+            service_name,
             endpoint_url=self._get_endpoint_url(service_name),
-            config=self.botocore_config,   
+            config=self.botocore_config,
         )
         if self.should_trace():
             add_trace_id(client, self.trace_id)
@@ -76,8 +83,8 @@ class S3Config(StorageConfig):
         idx = uri.find(uri_separator)
         if idx < 0:
             raise ValueError("_remove_protocol_from_uri must be of form protocol://...")
-        return uri[idx+len(uri_separator):]
-    
+        return uri[idx + len(uri_separator) :]
+
     def _get_storage_region(self) -> str:
         """
         S3 URIs follow the convention detailed on https://docs.aws.amazon.com/general/latest/gr/s3.html

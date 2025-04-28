@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
+from openeo.extra.artifacts.backend import ProviderCfg
 from openeo.extra.artifacts.config import StorageConfig
 from openeo.extra.artifacts.uri import StorageURI
 from openeo.rest.connection import Connection
-from pathlib import Path
 
 
 class ArtifactHelperBuilderABC(ABC):
@@ -18,16 +20,18 @@ class ArtifactHelperBuilderABC(ABC):
         raise NotImplementedError("ArtifactHelperBuilders must have their own implementation")
 
 
-class ArtifactHelperABC(ArtifactHelperBuilderABC, ABC):
+class ArtifactHelperABC(ABC):
     @classmethod
-    def from_openeo_connection(cls, conn: Connection, config: Optional[StorageConfig] = None) -> ArtifactHelperABC:
+    def from_openeo_connection(
+        cls, conn: Connection, provider_cfg: ProviderCfg, *, config: Optional[StorageConfig] = None
+    ) -> ArtifactHelperABC:
         """
         Create a new Artifact helper from the OpenEO connection. This is the starting point to upload artifacts.
         Each implementation has its own builder
         """
         if config is None:
             config = cls._get_default_storage_config()
-        config.load_openeo_connection_metadata(conn)
+        config.load_connection_provided_cfg(provider_cfg)
         return cls._from_openeo_connection(conn, config)
 
     @abstractmethod

@@ -1,5 +1,5 @@
-from typing import Callable
 import logging
+from typing import Callable
 
 """
 The trace helps to pass on an X-Request-ID header value in all requests made by a
@@ -18,12 +18,13 @@ def create_header_adder(request_id: str) -> Callable:
             return
         logger.debug("Adding trace id: {request_id}")
         request.headers.add_header(TRACE_ID_KEY, request_id)
+
     return add_request_id_header
 
 
 def add_trace_id(client, trace_id: str = "") -> None:
     header_adder = create_header_adder(trace_id)
-    client.meta.events.register('before-sign.s3', header_adder)
+    client.meta.events.register("before-sign.s3", header_adder)
 
 
 def add_trace_id_as_query_parameter(url, trace_id: str) -> str:

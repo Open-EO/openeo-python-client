@@ -1,5 +1,6 @@
-from openeo.extra.artifacts._s3.config import S3Config
 import pytest
+
+from openeo.extra.artifacts._s3sts.config import S3STSConfig
 
 
 @pytest.mark.parametrize("s3_endpoint_uri,expected", [
@@ -14,7 +15,7 @@ import pytest
 ])
 def test_region_should_be_derived_correctly(s3_endpoint_uri: str, expected: str):
     # GIVEN config with a certain endpoint
-    config = S3Config(s3_endpoint_url=s3_endpoint_uri)
+    config = S3STSConfig(s3_endpoint_url=s3_endpoint_uri)
 
     # WHEN a region is extracted
     region = config._get_storage_region()
@@ -25,7 +26,7 @@ def test_region_should_be_derived_correctly(s3_endpoint_uri: str, expected: str)
 
 def test_extracting_region_from_invalid_url_must_give_value_error():
     # GIVEN a config with invalid url
-    config = S3Config(s3_endpoint_url="https://www.google.com")
+    config = S3STSConfig(s3_endpoint_url="https://www.google.com")
 
     # WHEN a region is extracted
     # THEN a Value error is raised
