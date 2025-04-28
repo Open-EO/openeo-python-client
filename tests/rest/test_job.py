@@ -79,7 +79,7 @@ def test_execute_batch(con100, requests_mock, tmpdir):
             }
         },
     )
-    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": f"{len("tiffdata")}"})
+    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": str(len("tiffdata"))})
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
 
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
@@ -238,7 +238,7 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
             }
         },
     )
-    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": f"{len("tiffdata")}"})
+    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": str(len("tiffdata"))})
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
 
