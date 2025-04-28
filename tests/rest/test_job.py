@@ -600,10 +600,10 @@ def test_get_results_download_file(job_with_1_asset: BatchJob, tmp_path):
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
 
-def test_get_results_download_chunked_file_using_head(job_with_chunked_asset_using_head: BatchJob, tmp_path):
+def test_get_results_download_file_ranged(job_with_chunked_asset_using_head: BatchJob, tmp_path):
     job = job_with_chunked_asset_using_head
     target = tmp_path / "result.tiff"
-    res = job.get_results().download_file(target, chunk_size=1000)
+    res = job.get_results().download_file(target, range_size=1000)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
