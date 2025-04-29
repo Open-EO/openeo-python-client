@@ -19,7 +19,13 @@ import openeo
 from openeo import BatchJob
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
-from openeo.metadata import _PYSTAC_1_9_EXTENSION_INTERFACE, TemporalDimension
+from openeo.metadata import (
+    _PYSTAC_1_9_EXTENSION_INTERFACE,
+    Band,
+    BandDimension,
+    CubeMetadata,
+    TemporalDimension,
+)
 from openeo.rest import (
     CapabilitiesException,
     OpenEoApiError,
@@ -40,7 +46,7 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
-from openeo.rest.models.general import Link
+from openeo.rest.models.general import Link, ValidationResponse
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
@@ -2737,6 +2743,21 @@ def test_load_result_filters(requests_mock):
 
 
 class TestLoadStac:
+    @pytest.fixture
+    def build_stac_ref(self, tmp_path) -> typing.Callable[[dict], str]:
+        """
+        Helper to dump (STAC) data to a temp file and return the path.
+        """
+        # TODO #738 instead of working with local files: real request mocking of STAC resources compatible with pystac?
+
+        def dump(data) -> str:
+            stac_path = tmp_path / "stac.json"
+            with stac_path.open("w", encoding="utf8") as f:
+                json.dump(data, fp=f)
+            return str(stac_path)
+
+        return dump
+
     def test_basic(self, con120):
         cube = con120.load_stac("https://provider.test/dataset")
         assert cube.flat_graph() == {
@@ -2767,24 +2788,94 @@ class TestLoadStac:
             }
         }
 
-    def test_properties(self, con120):
-        cube = con120.load_stac("https://provider.test/dataset", properties={"platform": lambda p: p == "S2A"})
+    @pytest.mark.parametrize(
+        ["properties", "expected"],
+        [
+            (
+                # dict with callable
+                {"platform": lambda p: p == "S2A"},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # Single collection_property
+                (openeo.collection_property("platform") == "S2A"),
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # List of collection_properties
+                [
+                    openeo.collection_property("platform") == "S2A",
+                    openeo.collection_property("flavor") == "salty",
+                ],
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    },
+                    "flavor": {
+                        "process_graph": {
+                            "eq2": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "salty"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+            (
+                # Advanced PGNode usage
+                {"platform": PGNode(process_id="custom_foo", arguments={"mode": "bar"})},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "customfoo1": {
+                                "process_id": "custom_foo",
+                                "arguments": {"mode": "bar"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+    def test_property_filtering(self, con120, properties, expected):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            properties=properties,
+        )
         assert cube.flat_graph() == {
             "loadstac1": {
                 "process_id": "load_stac",
                 "arguments": {
                     "url": "https://provider.test/dataset",
-                    "properties": {
-                        "platform": {
-                            "process_graph": {
-                                "eq1": {
-                                    "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
-                                    "process_id": "eq",
-                                    "result": True,
-                                }
-                            }
-                        }
-                    },
+                    "properties": expected,
                 },
                 "result": True,
             }
@@ -2890,20 +2981,19 @@ class TestLoadStac:
         }
 
     @pytest.mark.parametrize("temporal_dim", ["t", "datezz"])
-    def test_load_stac_reduce_temporal(self, con120, tmp_path, temporal_dim):
-        stac_path = tmp_path / "stac.json"
-        stac_data = StacDummyBuilder.collection(
-            cube_dimensions={temporal_dim: {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
+    def test_load_stac_reduce_temporal(self, con120, build_stac_ref, temporal_dim):
+        stac_ref = build_stac_ref(
+            StacDummyBuilder.collection(
+                cube_dimensions={temporal_dim: {"type": "temporal", "extent": ["2024-01-01", "2024-04-04"]}}
+            )
         )
-        # TODO #738 real request mocking of STAC resources compatible with pystac?
-        stac_path.write_text(json.dumps(stac_data))
 
-        cube = con120.load_stac(str(stac_path))
+        cube = con120.load_stac(stac_ref)
         reduced = cube.reduce_temporal("max")
         assert reduced.flat_graph() == {
             "loadstac1": {
                 "process_id": "load_stac",
-                "arguments": {"url": str(stac_path)},
+                "arguments": {"url": stac_ref},
             },
             "reducedimension1": {
                 "process_id": "reduce_dimension",
@@ -2957,19 +3047,174 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
 
-    def test_load_stac_band_filtering(self, con120, tmp_path):
-        stac_path = tmp_path / "stac.json"
-        stac_data = StacDummyBuilder.collection(
-            summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+    def test_load_stac_default_band_handling(self, dummy_backend, build_stac_ref):
+        stac_ref = build_stac_ref(
+            StacDummyBuilder.collection(
+                # TODO #586 also cover STAC 1.1 style "bands"
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+            )
         )
-        # TODO #738 real request mocking of STAC resources compatible with pystac?
-        stac_path.write_text(json.dumps(stac_data))
 
-        cube = con120.load_stac(str(stac_path))
+        cube = dummy_backend.connection.load_stac(stac_ref)
         assert cube.metadata.band_names == ["B01", "B02", "B03"]
 
-        cube = con120.load_stac(str(stac_path), bands=["B03", "B02"])
-        assert cube.metadata.band_names == ["B03", "B02"]
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            "url": stac_ref,
+        }
+
+    @pytest.mark.parametrize(
+        "bands, expected_warning",
+        [
+            (
+                ["B04"],
+                "The specified bands ['B04'] in `load_stac` are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04']). Working with specified bands as is.",
+            ),
+            (
+                ["B03", "B04", "B05"],
+                "The specified bands ['B03', 'B04', 'B05'] in `load_stac` are not a subset of the bands ['B01', 'B02', 'B03'] found in the STAC metadata (unknown bands: ['B04', 'B05']). Working with specified bands as is.",
+            ),
+            (["B03", "B02"], None),
+            (["B01", "B02", "B03"], None),
+        ],
+    )
+    def test_load_stac_band_filtering(self, dummy_backend, build_stac_ref, caplog, bands, expected_warning):
+        stac_ref = build_stac_ref(
+            StacDummyBuilder.collection(
+                # TODO #586 also cover STAC 1.1 style "bands"
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
+            )
+        )
+
+        caplog.set_level(logging.WARNING)
+        # Test with non-existing bands in the collection metadata
+        cube = dummy_backend.connection.load_stac(stac_ref, bands=bands)
+        assert cube.metadata.band_names == bands
+        if expected_warning is None:
+            assert caplog.text == ""
+        else:
+            assert expected_warning in caplog.text
+
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            "url": stac_ref,
+            "bands": bands,
+        }
+
+    def test_load_stac_band_filtering_no_band_metadata_default(self, dummy_backend, build_stac_ref, caplog):
+        stac_ref = build_stac_ref(StacDummyBuilder.collection())
+
+        cube = dummy_backend.connection.load_stac(stac_ref)
+        # TODO #743: what should the default list of bands be?
+        assert cube.metadata.band_names == []
+
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            "url": stac_ref,
+        }
+
+    @pytest.mark.parametrize(
+        ["bands", "has_band_dimension", "expected_pg_args", "expected_warning"],
+        [
+            (None, False, {}, None),
+            (
+                ["B02", "B03"],
+                True,
+                {"bands": ["B02", "B03"]},
+                "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+            ),
+        ],
+    )
+    def test_load_stac_band_filtering_no_band_dimension(
+        self, dummy_backend, build_stac_ref, bands, has_band_dimension, expected_pg_args, expected_warning, caplog
+    ):
+        stac_ref = build_stac_ref(StacDummyBuilder.collection())
+
+        # This is a temporary mock.patch hack to make metadata_from_stac return metadata without a band dimension
+        # TODO #743: Do this properly through appropriate STAC metadata
+        from openeo.metadata import metadata_from_stac as orig_metadata_from_stac
+
+        def metadata_from_stac(url: str):
+            metadata = orig_metadata_from_stac(url=url)
+            assert metadata.has_band_dimension()
+            metadata = metadata.drop_dimension("bands")
+            assert not metadata.has_band_dimension()
+            return metadata
+
+        with mock.patch("openeo.rest.datacube.metadata_from_stac", new=metadata_from_stac):
+            cube = dummy_backend.connection.load_stac(stac_ref, bands=bands)
+
+        assert cube.metadata.has_band_dimension() == has_band_dimension
+
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            **expected_pg_args,
+            "url": stac_ref,
+        }
+
+        if expected_warning:
+            assert expected_warning in caplog.text
+        else:
+            assert not caplog.text
+
+    def test_load_stac_band_filtering_no_band_metadata(self, dummy_backend, build_stac_ref, caplog):
+        caplog.set_level(logging.WARNING)
+        stac_ref = build_stac_ref(StacDummyBuilder.collection())
+
+        cube = dummy_backend.connection.load_stac(stac_ref, bands=["B01", "B02"])
+        assert cube.metadata.band_names == ["B01", "B02"]
+        assert (
+            # TODO: better warning than confusing "not a subset of the bands []" ?
+            "The specified bands ['B01', 'B02'] in `load_stac` are not a subset of the bands [] found in the STAC metadata (unknown bands: ['B01', 'B02']). Working with specified bands as is."
+            in caplog.text
+        )
+
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            "url": stac_ref,
+            "bands": ["B01", "B02"],
+        }
+
+    @pytest.mark.parametrize(
+        ["bands", "expected_pg_args", "expected_warning"],
+        [
+            (None, {}, None),
+            (
+                ["B02", "B03"],
+                {"bands": ["B02", "B03"]},
+                "The specified bands ['B02', 'B03'] in `load_stac` are not a subset of the bands ['Bz1', 'Bz2'] found in the STAC metadata (unknown bands: ['B02', 'B03']). Working with specified bands as is",
+            ),
+        ],
+    )
+    def test_load_stac_band_filtering_custom_band_dimension(
+        self, dummy_backend, build_stac_ref, bands, expected_pg_args, expected_warning, caplog
+    ):
+        stac_ref = build_stac_ref(StacDummyBuilder.collection())
+
+        # This is a temporary mock.patch hack to make metadata_from_stac return metadata with a custom band dimension
+        # TODO #743: Do this properly through appropriate STAC metadata
+        from openeo.metadata import metadata_from_stac as orig_metadata_from_stac
+
+        def metadata_from_stac(url: str):
+            return CubeMetadata(dimensions=[BandDimension(name="bandzz", bands=[Band("Bz1"), Band("Bz2")])])
+
+        with mock.patch("openeo.rest.datacube.metadata_from_stac", new=metadata_from_stac):
+            cube = dummy_backend.connection.load_stac(stac_ref, bands=bands)
+
+        assert cube.metadata.has_band_dimension()
+        assert cube.metadata.band_dimension.name == "bandzz"
+
+        cube.execute()
+        assert dummy_backend.get_pg("load_stac")["arguments"] == {
+            **expected_pg_args,
+            "url": stac_ref,
+        }
+
+        if expected_warning:
+            assert expected_warning in caplog.text
+        else:
+            assert not caplog.text
+
 
     @pytest.mark.parametrize(
         "bands",
@@ -4620,6 +4865,17 @@ def test_validate_process_graph(con120, dummy_backend):
     dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
     cube = con120.load_collection("S2")
     res = con120.validate_process_graph(cube)
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadcollection1": {
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+    ]
+    assert isinstance(res, ValidationResponse)
     assert res == [{"code": "OddSupport", "message": "Odd values are not supported."}]
 
 

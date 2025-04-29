@@ -9,13 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support `collection_property` based property filtering in `load_stac` ([#246](https://github.com/Open-EO/openeo-python-client/issues/246))
+- Add `validate()` method to `SaveResult`, `VectorCube`, `MlModel` and `StacResource` classes ([#766](https://github.com/Open-EO/openeo-python-client/issues/766))
+
+### Changed
+
+- Eliminate deprecated `utcnow` usage patterns. Introduce `Rfc3339.now_utc()` method (as replacement for deprecated `utcnow()` method) to simplify finding deprecated `utcnow` usage in user code. ([#760](https://github.com/Open-EO/openeo-python-client/issues/760))
+- `Connection.list_jobs()`: change default `limit` to 100 (instead of fake "unlimited" which was arbitrarily capped in practice anyway) ([#677](https://github.com/Open-EO/openeo-python-client/issues/677))
+
+### Removed
+
+### Fixed
+
+- Preserve original non-spatial dimensions in `CubeMetadata.resample_cube_spatial()` ([Open-EO/openeo-python-driver#397](https://github.com/Open-EO/openeo-python-driver/issues/397))
+
+
+## [0.40.0] - 2025-04-14
+
+### Added
+
 - `sar_backscatter`: try to retrieve coefficient options from backend ([#693](https://github.com/Open-EO/openeo-python-client/issues/693))
 - Improve error message when OIDC provider is unavailable ([#751](https://github.com/Open-EO/openeo-python-client/issues/751))
 - Added `on_response_headers` argument to `DataCube.download()` and related to handle (e.g. `print`) the response headers ([#560](https://github.com/Open-EO/openeo-python-client/issues/560))
 
 ### Changed
 
-### Removed
+- When the bands provided to `Connection.load_stac(..., bands=[...])` do not fully match the bands the client extracted from the STAC metadata, a warning will be triggered, but the provided band names will still be used during the client-side preparation of the process graph. This is a pragmatic approach to bridge the gap between differing interpretations of band detection in STAC. Note that this might produce process graphs that are technically invalid and might not work on other backends or future versions of the backend you currently use. It is recommended to consult with the provider of the STAC metadata and openEO backend on the correct and future-proof band names. ([#752](https://github.com/Open-EO/openeo-python-client/issues/752))
 
 ### Fixed
 

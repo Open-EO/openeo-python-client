@@ -19,6 +19,7 @@ from openeo.internal.processes.builder import (
 )
 from openeo.internal.warnings import UserDeprecationWarning
 from openeo.rest import OpenEoClientException
+from openeo.rest.models.general import ValidationResponse
 from openeo.util import dict_no_none, str_truncate
 
 if typing.TYPE_CHECKING:
@@ -103,6 +104,16 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
         return PGNode(process_id=process_id, arguments=arguments, namespace=namespace)
 
     # TODO #278 also move process graph "execution" methods here: `download`, `execute`, `execute_batch`, `create_job`, `save_udf`,  ...
+
+    def validate(self) -> ValidationResponse:
+        """
+        Validate a process graph without executing it.
+
+        :return: container of validation of errors (dictionaries with "code" and "message" fields)
+
+        .. versionadded:: 0.41.0
+        """
+        return self._connection.validate_process_graph(self)
 
     def _repr_html_(self):
         process = {"process_graph": self.flat_graph()}
