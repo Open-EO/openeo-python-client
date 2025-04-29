@@ -8,6 +8,7 @@ from openeo.extra.job_management._job_splitting import (
     split_area,
 )
 
+# TODO: using fixtures for these simple objects is a bit overkill, makes the test harder to follow, and undermines opportunity to parameterize
 
 @pytest.fixture
 def mock_polygon_wgs():
@@ -89,54 +90,54 @@ class TestBoundingBox:
 
 class TestSizeBasedTileGrid:
     def test_from_size_projection(self):
-        splitter = _SizeBasedTileGrid.from_size_projection(0.1, "EPSG:4326")
+        splitter = _SizeBasedTileGrid.from_size_projection(size=0.1, projection="EPSG:4326")
         assert splitter.epsg == 4326
         assert splitter.size == 0.1
 
     def test_get_tiles_raises_exception(self):
         """test get_tiles when the input geometry is not a dict or shapely.geometry.Polygon"""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(0.1, "EPSG:4326")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=0.1, projection="EPSG:4326")
         with pytest.raises(JobSplittingFailure):
             tile_grid.get_tiles("invalid_geometry")
 
     def test_simple_get_tiles_dict(self, mock_dict_with_crs_utm, mock_polygon_utm):
         """test get_tiles when the the tile grid size is equal to the size of the input geometry. The original geometry should be returned as polygon."""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(100_000, "EPSG:3857")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=100_000, projection="EPSG:3857")
         tiles = tile_grid.get_tiles(mock_dict_with_crs_utm)
         assert len(tiles) == 1
         assert tiles[0] == mock_polygon_utm
 
     def test_multiple_get_tile_dict(self, mock_dict_with_crs_utm):
         """test get_tiles when the the tile grid size is smaller than the size of the input geometry. The input geometry should be split into multiple tiles."""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(20_000, "EPSG:3857")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=20_000, projection="EPSG:3857")
         tiles = tile_grid.get_tiles(mock_dict_with_crs_utm)
         assert len(tiles) == 25
         assert tiles[0] == shapely.geometry.box(0.0, 0.0, 20_000.0, 20_000.0)
 
     def test_larger_get_tile_dict(self, mock_dict_with_crs_utm, mock_polygon_utm):
         """test get_tiles when the the tile grid size is larger than the size of the input geometry. The original geometry should be returned."""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(200_000, "EPSG:3857")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=200_000, projection="EPSG:3857")
         tiles = tile_grid.get_tiles(mock_dict_with_crs_utm)
         assert len(tiles) == 1
         assert tiles[0] == mock_polygon_utm
 
     def test_get_tiles_polygon_wgs(self, mock_polygon_wgs):
         """test get_tiles when the input geometry is a polygon in wgs and the tile grid is in wgs"""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(0.1, "EPSG:4326")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=0.1, projection="EPSG:4326")
         tiles = tile_grid.get_tiles(mock_polygon_wgs)
         assert len(tiles) == 100
         assert tiles[0] == shapely.geometry.box(0.0, 0.0, 0.1, 0.1)
 
     def test_simple_get_tiles_polygon(self, mock_polygon_utm):
         """test get_tiles when the the tile grid size is equal to the size of the input geometry. The original geometry should be returned."""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(100_000.0, "EPSG:3857")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=100_000.0, projection="EPSG:3857")
         tiles = tile_grid.get_tiles(mock_polygon_utm)
         assert len(tiles) == 1
         assert tiles[0] == mock_polygon_utm
 
     def test_larger_get_tiles_polygon(self, mock_polygon_utm):
         """test get_tiles when the the tile grid size is larger than the size of the input geometry. The original geometry should be returned."""
-        tile_grid = _SizeBasedTileGrid.from_size_projection(200_000.0, "EPSG:3857")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=200_000.0, projection="EPSG:3857")
         tiles = tile_grid.get_tiles(mock_polygon_utm)
         assert len(tiles) == 1
         assert tiles[0] == mock_polygon_utm
