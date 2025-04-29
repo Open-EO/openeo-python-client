@@ -11,6 +11,7 @@ from openeo.util import normalize_crs
 class JobSplittingFailure(Exception):
     pass
 
+
 class _BoundingBox(NamedTuple):
     """Simple NamedTuple container for a bounding box"""
 

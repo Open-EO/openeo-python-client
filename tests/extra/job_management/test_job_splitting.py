@@ -1,7 +1,7 @@
 import pytest
 import shapely
 
-from openeo.extra.job_management.job_splitting import (
+from openeo.extra.job_management._job_splitting import (
     JobSplittingFailure,
     _BoundingBox,
     _SizeBasedTileGrid,
@@ -38,7 +38,6 @@ def mock_dict_with_crs_utm():
         "north": 100_000.0,
         "crs": "EPSG:3857",
     }
-
 
 
 class TestBoundingBox:
@@ -89,7 +88,6 @@ class TestBoundingBox:
 
 
 class TestSizeBasedTileGrid:
-
     def test_from_size_projection(self):
         splitter = _SizeBasedTileGrid.from_size_projection(0.1, "EPSG:4326")
         assert splitter.epsg == 4326
