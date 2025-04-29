@@ -15,6 +15,8 @@ class JobSplittingFailure(Exception):
 class _BoundingBox(NamedTuple):
     """Simple NamedTuple container for a bounding box"""
 
+    # TODO: this should be moved to more general utility module, and/or merged with existing BBoxDict
+
     west: float
     south: float
     east: float
@@ -46,6 +48,8 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
     """Interface for tile grid classes"""
 
     @abc.abstractmethod
+    # TODO: is it intentional that this method returns a list of non-multi polygons even if the input can be multi-polygon?
+    # TODO: typehint states that geometry can be a dict too, but that is very liberal, it's probably just about bounding box kind of dicts?
     def get_tiles(self, geometry: Union[Dict, MultiPolygon, Polygon]) -> List[Polygon]:
         """Calculate tiles to cover given bounding box"""
         ...
@@ -57,17 +61,21 @@ class _SizeBasedTileGrid(_TileGridInterface):
     The size is in m for UTM projections or degrees for WGS84.
     """
 
-    def __init__(self, epsg: int, size: float):
+    def __init__(self, *, epsg: int, size: float):
+        # TODO: normalize_crs does not necessarily return an int (could also be a WKT2 string, or even None), but further logic seems to assume it's an int
         self.epsg = normalize_crs(epsg)
         self.size = size
 
     @classmethod
-    def from_size_projection(cls, size: float, projection: str) -> "_SizeBasedTileGrid":
+    def from_size_projection(cls, *, size: float, projection: str) -> "_SizeBasedTileGrid":
         """Create a tile grid from size and projection"""
-        return cls(normalize_crs(projection), size)
+        # TODO: the constructor also does normalize_crs, so this factory looks like overkill at the moment
+        return cls(epsg=normalize_crs(projection), size=size)
 
     def _epsg_is_meters(self) -> bool:
         """Check if the projection unit is in meters. (EPSG:3857 or UTM)"""
+        # TODO: this is a bit misleading: this code just checks some EPSG ranges (UTM and 3857) and calls all the rest to be not in meters.
+        #       It would be better to raise an exception on unknown EPSG codes than claiming they're not in meter
         return 32601 <= self.epsg <= 32660 or 32701 <= self.epsg <= 32760 or self.epsg == 3857
 
     @staticmethod
@@ -108,9 +116,10 @@ class _SizeBasedTileGrid(_TileGridInterface):
         else:
             raise JobSplittingFailure("geometry must be a dict or a shapely.geometry.Polygon or MultiPolygon")
 
+        # TODO: being a meter based EPSG does not imply that offset should be 500_000
         x_offset = 500_000 if self._epsg_is_meters() else 0
 
-        tiles = _SizeBasedTileGrid._split_bounding_box(bbox, x_offset, self.size)
+        tiles = _SizeBasedTileGrid._split_bounding_box(to_cover=bbox, x_offset=x_offset, tile_size=self.size)
 
         return tiles
 
@@ -125,8 +134,10 @@ def split_area(
     :param tile_size: size of tiles in unit of measure of the projection
     :return: list of tiles (polygons).
     """
+    # TODO EPSG 3857 is probably not a good default projection. Probably better to make it a required parameter
     if isinstance(aoi, dict):
+        # TODO: this possibly overwrites the given projection without the user noticing, making usage confusing
         projection = aoi.get("crs", projection)
 
-    tile_grid = _SizeBasedTileGrid.from_size_projection(tile_size, projection)
+    tile_grid = _SizeBasedTileGrid.from_size_projection(size=tile_size, projection=projection)
     return tile_grid.get_tiles(aoi)
