@@ -994,7 +994,11 @@ class Connection(RestApiConnection):
             a local file path or URL to a JSON representation,
             a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
 
-        :return: list of errors (dictionaries with "code" and "message" fields)
+        :return: container of validation errors (dictionaries with "code" and "message" fields)
+
+        .. versionchanged:: 0.38.0
+            returns a :py:class:`~openeo.rest.models.general.ValidationResponse` object
+            instead of a simple list of error dictionaries.
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
         data = self.post(path="/validation", json=pg_with_metadata, expected_status=200).json()

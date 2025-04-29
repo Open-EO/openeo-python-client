@@ -74,6 +74,7 @@ from openeo.rest._datacube import (
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.models.general import ValidationResponse
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -2499,13 +2500,20 @@ class DataCube(_ProcessGraphAbstraction):
             on_response_headers=on_response_headers,
         )
 
-    def validate(self) -> List[dict]:
+    def validate(self) -> ValidationResponse:
         """
         Validate a process graph without executing it.
 
-        :return: list of errors (dictionaries with "code" and "message" fields)
+        :return: container of validation of errors (dictionaries with "code" and "message" fields)
+
+        .. versionchanged:: 0.38.0
+            returns a :py:class:`~openeo.rest.models.general.ValidationResponse` object
+            instead of a simple list of error dictionaries.
         """
-        return self._connection.validate_process_graph(self.flat_graph())
+        # TODO this method implementation does not really override something
+        #       it is just kept to override the doc.
+        #       At some point this should be removed for simplicity.
+        return super().validate()
 
     def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)

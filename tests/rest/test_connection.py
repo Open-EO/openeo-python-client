@@ -46,7 +46,7 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
-from openeo.rest.models.general import Link
+from openeo.rest.models.general import Link, ValidationResponse
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
@@ -4865,6 +4865,17 @@ def test_validate_process_graph(con120, dummy_backend):
     dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
     cube = con120.load_collection("S2")
     res = con120.validate_process_graph(cube)
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadcollection1": {
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+    ]
+    assert isinstance(res, ValidationResponse)
     assert res == [{"code": "OddSupport", "message": "Odd values are not supported."}]
 
 
