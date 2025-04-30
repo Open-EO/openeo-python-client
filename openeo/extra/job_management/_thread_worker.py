@@ -6,7 +6,7 @@ import concurrent.futures
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, override
+from typing import Any, Dict, List, Optional, Tuple
 
 import openeo
 
@@ -94,7 +94,6 @@ class _JobStartTask(ConnectedTask):
     Task for starting an openEO batch job (the `POST /jobs/<job_id>/result` request).
     """
 
-    @override
     def execute(self) -> _TaskResult:
         """
         Start job identified by `job_id` on the backend.
