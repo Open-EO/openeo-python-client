@@ -35,6 +35,7 @@ class DummyBackend:
     # TODO: move to openeo.testing
     # TODO: unify "batch_jobs", "batch_jobs_full" and "extra_job_metadata_fields"?
     # TODO: unify "sync_requests" and "sync_requests_full"?
+    # TODO: support checking bearer token
 
     __slots__ = (
         "_requests_mock",
