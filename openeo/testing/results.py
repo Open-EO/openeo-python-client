@@ -90,6 +90,27 @@ def _as_xarray_dataarray(data: Union[str, Path, xarray.DataArray]) -> xarray.Dat
     return data
 
 
+def ascii_art(diff_data: DataArray) -> str:
+    scale: int = max(1, (diff_data.sizes["x"] / 100))
+    data_max = diff_data.max().item()
+    if data_max == 0:
+        data_max = 1
+    grayscale_characters = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+    coarsened = diff_data.coarsen(dim={"x": scale, "y": scale}, boundary="pad").all()
+    top = "┌" + "─" * coarsened.sizes["x"] + "┐\n"
+    bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
+    return (
+        top
+        + "\n".join(
+            [
+                "│" + "".join([grayscale_characters[70 - int(v * 70 / data_max)] for v in row]) + "│"
+                for row in coarsened.transpose()
+            ]
+        )
+        + bottom
+    )
+
+
 def _compare_xarray_dataarray_xy(
     actual: Union[xarray.DataArray, str, Path],
     expected: Union[xarray.DataArray, str, Path],
@@ -154,6 +175,9 @@ def _compare_xarray_dataarray_xy(
                 issues.append(
                     f"{key}: value difference min:{diff_data.min().data}, max: {diff_data.max().data}, mean: {diff_mean}, var: {diff_var}"
                 )
+
+                print(f"Difference ascii art for {key}")
+                print(ascii_art(diff_data))
 
                 coord_grid = np.meshgrid(diff_data.coords["y"], diff_data.coords["x"])
                 mask = diff_data.notnull()
