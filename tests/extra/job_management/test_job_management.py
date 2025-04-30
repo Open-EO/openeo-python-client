@@ -94,7 +94,7 @@ class DummyTask(Task):
     """
 
     def __init__(self, job_id, db_update, stats_update, delay=0.0):
-        self.job_id = job_id
+        super().__init__(job_id=job_id)
         self._db_update = db_update or {}
         self._stats_update = stats_update or {}
         self._delay = delay
