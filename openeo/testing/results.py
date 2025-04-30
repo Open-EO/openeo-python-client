@@ -12,6 +12,7 @@ import numpy as np
 import xarray
 import xarray.testing
 from scipy.spatial import ConvexHull
+from xarray import DataArray
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
 from openeo.util import repr_truncate
