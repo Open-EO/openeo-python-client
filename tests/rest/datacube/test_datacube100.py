@@ -2129,7 +2129,7 @@ def test_load_collection_max_cloud_cover_summaries_warning(
     if expect_warning:
         assert len(recwarn.list) == 1
         assert re.search(
-            "property filtering.*undefined.*collection metadata.*eo:cloud_cover",
+            "Property filtering.*unsupported.*collection.*metadata.*eo:cloud_cover",
             str(recwarn.pop(UserWarning).message),
         )
     else:

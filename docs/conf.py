@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'openEO Python Client'
-copyright = '2017 - {d}, Jeroen Dries'.format(d=datetime.datetime.utcnow().strftime("%Y"))
+copyright = '2017 - {d}, Jeroen Dries'.format(d=datetime.date.today().strftime("%Y"))
 author = 'Jeroen Dries'
 
 # The version info for the project you're documenting, acts as replacement for

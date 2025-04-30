@@ -1110,3 +1110,47 @@ def test_metadata_resample_cube_spatial(cube_metadata):
         SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
         SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
     ]
+
+
+def test_metadata_resample_cube_spatial_preserve_non_spatial():
+    xy1 = [
+        SpatialDimension(name="x", extent=[12, 17], crs=4326, step=0.1),
+        SpatialDimension(name="y", extent=[41, 51], crs=4326, step=0.1),
+    ]
+    t1 = TemporalDimension(name="t", extent=["2024-01-01", "2024-10-01"])
+    b1 = BandDimension(name="bands", bands=[Band("B1"), Band("B11")])
+    metadata1 = CubeMetadata(dimensions=xy1 + [t1, b1])
+
+    xy2 = [
+        SpatialDimension(name="x", extent=[22, 27], crs=4326, step=0.1),
+        SpatialDimension(name="y", extent=[42, 52], crs=4326, step=0.1),
+    ]
+    t2 = TemporalDimension(name="t", extent=["2024-02-02", "2024-12-02"])
+    metadata2 = CubeMetadata(dimensions=xy2 + [t2])
+
+    xy3 = [
+        SpatialDimension(name="x", extent=[32, 37], crs=4326, step=0.1),
+        SpatialDimension(name="y", extent=[43, 53], crs=4326, step=0.1),
+    ]
+    b3 = BandDimension(name="bands", bands=[Band("B3"), Band("B33")])
+    metadata3 = CubeMetadata(dimensions=xy3 + [b3])
+
+    result12 = metadata1.resample_cube_spatial(target=metadata2)
+    assert result12.spatial_dimensions == xy2
+    assert result12.band_dimension == b1
+    assert result12.temporal_dimension == t1
+
+    result21 = metadata2.resample_cube_spatial(target=metadata1)
+    assert result21.spatial_dimensions == xy1
+    assert not result21.has_band_dimension()
+    assert result21.temporal_dimension == t2
+
+    result23 = metadata2.resample_cube_spatial(target=metadata3)
+    assert result23.spatial_dimensions == xy3
+    assert not result23.has_band_dimension()
+    assert result23.temporal_dimension == t2
+
+    result31 = metadata3.resample_cube_spatial(target=metadata1)
+    assert result31.spatial_dimensions == xy1
+    assert result31.band_dimension == b3
+    assert not result31.has_temporal_dimension()
