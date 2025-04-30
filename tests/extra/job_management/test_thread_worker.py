@@ -1,17 +1,65 @@
+import logging
 import time
 
-import pandas as pd
 import pytest
 import requests
 
-# Import the refactored classes and helper functions from your codebase.
-# Adjust the import paths as needed.
 from openeo.extra.job_management._thread_worker import (
     _JobManagerWorkerThreadPool,
     _JobStartTask,
+    _TaskResult,
 )
+from openeo.rest._testing import DummyBackend
 
-# --- Fixtures and Helpers ---
+
+@pytest.fixture
+def dummy_backend(requests_mock) -> DummyBackend:
+    dummy = DummyBackend.at_url("https://foo.test", requests_mock=requests_mock)
+    dummy.setup_simple_job_status_flow(queued=3, running=5)
+    return dummy
+
+
+class TestTaskResult:
+    def test_default(self):
+        result = _TaskResult(job_id="j-123")
+        assert result.job_id == "j-123"
+        assert result.db_update == {}
+        assert result.stats_update == {}
+
+
+class TestJobStartTask:
+    def test_start_success(self, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        job = dummy_backend.connection.create_job(process_graph={})
+
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        result = task.execute()
+
+        assert result == _TaskResult(
+            job_id="job-000",
+            db_update={"status": "queued"},
+            stats_update={"job start": 1},
+        )
+        assert job.status() == "queued"
+        assert caplog.messages == []
+
+    def test_start_failure(self, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        job = dummy_backend.connection.create_job(process_graph={})
+        dummy_backend.setup_job_start_failure()
+
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        result = task.execute()
+
+        assert result == _TaskResult(
+            job_id="job-000",
+            db_update={"status": "start_failed"},
+            stats_update={"start_job error": 1},
+        )
+        assert job.status() == "error"
+        assert caplog.messages == [
+            "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting " "for you, buddy')"
+        ]
 
 
 @pytest.fixture
@@ -22,23 +70,6 @@ def worker_pool():
     pool.shutdown()
 
 
-@pytest.fixture
-def sample_dataframe():
-    """Creates a pandas DataFrame for job tracking."""
-    df = pd.DataFrame(
-        [
-            {"id": "job-123", "status": "queued_for_start", "other_field": "foo"},
-            {"id": "job-456", "status": "queued_for_start", "other_field": "bar"},
-            {"id": "job-789", "status": "other", "other_field": "baz"},
-        ]
-    )
-    return df
-
-
-@pytest.fixture
-def initial_stats():
-    """Returns a dictionary with initial stats counters."""
-    return {"job start": 0, "job start failed": 0}
 
 
 @pytest.fixture
@@ -47,6 +78,7 @@ def successful_backend_mock(requests_mock):
     Returns a helper to set up a successful backend.
     Mocks a version check, job start, and job status check.
     """
+    # TODO: use DummyBackend here instead?
 
     def _setup(root_url: str, job_id: str, status: str = "queued"):
         # Backend version check
@@ -67,7 +99,6 @@ def valid_task():
     return _JobStartTask(root_url="https://foo.test", bearer_token="test-token", job_id="test-job-123")
 
 
-import time
 
 
 def wait_for_results(worker_pool, timeout=3.0, interval=0.1):
@@ -85,7 +116,6 @@ def wait_for_results(worker_pool, timeout=3.0, interval=0.1):
     raise TimeoutError(f"Timed out after {timeout}s waiting for worker pool results.")
 
 
-# --- Tests for the Worker Thread Pool and Futures Postprocessing ---
 
 
 class TestJobManagerWorkerThreadPool:
