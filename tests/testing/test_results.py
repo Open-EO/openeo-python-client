@@ -390,11 +390,11 @@ class TestAssertJobResults:
         with raises_assertion_error_or_not(
             r"Issues for file 'data.nc'.*"
             r"Issues for variable 'b1'.*"
-            r"t 0: value difference min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 0: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
             r"t 0: differing pixels: 20/20 \(100.0%\), spread over 100.0% of the area.*"
-            r"t 1: value difference min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 1: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
             r"t 1: differing pixels: 20/20 \(100.0%\), spread over 100.0% of the area.*"
-            r"t 2: value difference min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 2: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
             r"t 2: differing pixels: 20/20 \(100.0%\), spread over 100.0% of the area"
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
@@ -432,7 +432,7 @@ class TestAssertJobResults:
         with raises_assertion_error_or_not(
             r"Issues for file 'data.nc'.*"
             r"Issues for variable 'b2'.*"
-            r"t 2: value difference min:33.0, max: 42.0, mean: 37.5, var: 11.2.*"
+            r"t 2: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:33.0, max: 42.0, mean: 37.5, var: 11.2.*"
             r"t 2: differing pixels: 4/20 \(20.0%\), spread over 8.3% of the area"
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
