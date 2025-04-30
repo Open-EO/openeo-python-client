@@ -6,7 +6,7 @@ import concurrent.futures
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openeo
 
@@ -150,42 +150,42 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-    def process_futures(self) -> List[_TaskResult]:
+    def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], int]:
         """
-        Process and retrieve results from completed tasks.
+        Checks state of futures and collect results from completed ones.
 
-        This method checks which futures have finished without blocking,
-        collects their results.
+        :param timeout: whether to wait for futures to complete or not:
+            - 0: don't wait, just return current state.
+            - non-zero value: wait for that many seconds to allow futures to complete,
+            - None: (not recommended) wait indefinitely.
 
         :returns:
-            A list of `_TaskResult` objects from completed tasks.
+            Tuple of two elements: list of `_TaskResult` objects from completed tasks.
+            and number of remaining tasks that are still in progress.
         """
         results = []
         to_keep = []
 
-        # Use timeout=0 to avoid blocking and check for completed futures
-        done, _ = concurrent.futures.wait(
-            [f for f, _ in self._future_task_pairs], timeout=0, return_when=concurrent.futures.FIRST_COMPLETED
-        )
+        done, _ = concurrent.futures.wait([f for f, _ in self._future_task_pairs], timeout=timeout)
 
-        # Process completed futures and their tasks
         for future, task in self._future_task_pairs:
             if future in done:
                 try:
                     result = future.result()
                 except Exception as e:
-                    _log.exception(f"Failed to get result from future: {e}")
+                    _log.exception(f"Threaded task {task!r} failed: {e!r}")
                     result = _TaskResult(
                         job_id=task.job_id,
-                        db_update={"status": "future.result() failed"},
-                        stats_update={"future.result() error": 1},
+                        db_update={"status": "threaded task failed"},
+                        stats_update={"threaded task failed": 1},
                     )
                 results.append(result)
             else:
                 to_keep.append((future, task))
+        _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
-        return results
+        return results, len(to_keep)
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""

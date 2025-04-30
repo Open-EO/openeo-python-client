@@ -687,7 +687,7 @@ class MultiBackendJobManager:
         :return:
             None: All updates are applied in-place to the job_db and stats parameters.
         """
-        results = worker_pool.process_futures()
+        results, _ = worker_pool.process_futures()
         stats_updates = collections.defaultdict(int)
 
         for result in results:
