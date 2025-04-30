@@ -1,12 +1,13 @@
 import concurrent.futures
 import logging
-from dataclasses import dataclass, field
-from typing import Optional, Any, List, Dict, Tuple
-import openeo
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
+import openeo
 
 _log = logging.getLogger(__name__)
+
 
 @dataclass
 class _TaskResult:
@@ -25,9 +26,11 @@ class _TaskResult:
         Optional dictionary capturing statistical counters or metrics,
         e.g., number of successful starts or errors. Defaults to an empty dict.
     """
+
     job_id: str  # Mandatory
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
+
 
 class Task(ABC):
     """
@@ -38,12 +41,13 @@ class Task(ABC):
 
     Implementations must override the `execute` method to define the task logic.
     """
-    
+
     @abstractmethod
     def execute(self) -> _TaskResult:
         """Execute the task and return a raw result"""
         pass
-    
+
+
 @dataclass
 class _JobStartTask(Task):
     """
@@ -75,10 +79,10 @@ class _JobStartTask(Task):
     :raises ValueError:
         If any of the input parameters are invalid (e.g., empty strings).
     """
+
     job_id: str
     root_url: str
     bearer_token: Optional[str]
-    
 
     def __post_init__(self) -> None:
         # Validation remains unchanged
@@ -115,10 +119,10 @@ class _JobStartTask(Task):
         except Exception as e:
             _log.error(f"Failed to start job {self.job_id}: {e}")
             return _TaskResult(
-                job_id=self.job_id,
-                db_update={"status": "start_failed"},  
-                stats_update={"start_job error": 1})
-        
+                job_id=self.job_id, db_update={"status": "start_failed"}, stats_update={"start_job error": 1}
+            )
+
+
 class _JobManagerWorkerThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
@@ -130,6 +134,7 @@ class _JobManagerWorkerThreadPool:
         Maximum number of concurrent threads to use for execution.
         Defaults to 2.
     """
+
     def __init__(self, max_workers: int = 2):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
@@ -147,7 +152,7 @@ class _JobManagerWorkerThreadPool:
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
 
-    def process_futures(self) -> List[ _TaskResult]:
+    def process_futures(self) -> List[_TaskResult]:
         """
         Process and retrieve results from completed tasks.
 
@@ -157,13 +162,12 @@ class _JobManagerWorkerThreadPool:
         :returns:
             A list of `_TaskResult` objects from completed tasks.
         """
-        results = []  
-        to_keep = [] 
+        results = []
+        to_keep = []
 
         # Use timeout=0 to avoid blocking and check for completed futures
         done, _ = concurrent.futures.wait(
-            [f for f, _ in self._future_task_pairs], timeout=0,
-            return_when=concurrent.futures.FIRST_COMPLETED
+            [f for f, _ in self._future_task_pairs], timeout=0, return_when=concurrent.futures.FIRST_COMPLETED
         )
 
         # Process completed futures and their tasks
@@ -171,20 +175,18 @@ class _JobManagerWorkerThreadPool:
             if future in done:
                 try:
                     result = future.result()
-                    
+
                 except Exception as e:
-
                     _log.exception(f"Error processing task: {e}")
-                    result =  _TaskResult(
-                                job_id=task.job_id,
-                                db_update={"status": "start_failed"},  
-                                stats_update={"start_job error": 1})
-                    
-                results.append(result)
-            else:  
-                to_keep.append((future, task))  
+                    result = _TaskResult(
+                        job_id=task.job_id, db_update={"status": "start_failed"}, stats_update={"start_job error": 1}
+                    )
 
-        self._future_task_pairs = to_keep  
+                results.append(result)
+            else:
+                to_keep.append((future, task))
+
+        self._future_task_pairs = to_keep
         return results
 
     def shutdown(self) -> None:
