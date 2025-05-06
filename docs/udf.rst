@@ -294,7 +294,9 @@ instead of the original digital number range (thousands):
 
 UDF's that transform cube metadata
 ==================================
-This is a new/experimental feature so may still be subject to change.
+
+.. warning::
+    This is a new/experimental feature so may still be subject to change.
 
 In some cases, a UDF can have impact on the metadata of a cube, but this can not always
 be easily inferred by process graph evaluation logic without running the actual
@@ -314,9 +316,9 @@ To invoke a UDF like this, the apply_neighborhood method is most suitable:
 
 .. code-block:: python
 
-    udf_code = Path("udf_modify_spatial.py").read_text()
+    udf = openeo.UDF.from_file("udf_modify_spatial.py", runtime="Python-Jep")
     cube_updated = cube.apply_neighborhood(
-        lambda data: data.run_udf(udf=udf_code, runtime="Python-Jep", context=dict()),
+        udf,
         size=[
             {"dimension": "x", "value": 128, "unit": "px"},
             {"dimension": "y", "value": 128, "unit": "px"},
