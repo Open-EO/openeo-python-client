@@ -97,16 +97,19 @@ def ascii_art(diff_data: DataArray) -> str:
     if data_max == 0:
         data_max = 1
     grayscale_characters = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
-    coarsened = diff_data.coarsen(dim={"x": scale, "y": scale}, boundary="pad").all()
-    if coarsened.dims[0] != "y":
-        coarsened = coarsened.transpose()
+    coarsened = diff_data.coarsen(dim={"x": scale, "y": scale}, boundary="pad").mean()
+    coarsened = coarsened.transpose("y", "x", ...)
     top = "┌" + "─" * coarsened.sizes["x"] + "┐\n"
     bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
 
     def pixelChar(v) -> str:
-        i = int(v * 70 / data_max)
+        if np.isnan(v):
+            return " "
+        i = int(v * 69 / data_max)
         if v > 0 and i == 0:
             i = 1
+        else:
+            i = min(69, i)
         return grayscale_characters[69 - i]
 
     return top + "\n".join(["│" + "".join([pixelChar(v) for v in row]) + "│" for row in coarsened]) + bottom
@@ -169,17 +172,13 @@ def _compare_xarray_dataarray_xy(
 
             if diff_pixel_count > 0:
                 diff_pixel_percentage = round(diff_pixel_count * 100 / total_pixel_count, 1)
-                diff_mean = round(diff_data.mean().item(), 1)
-                diff_var = round(diff_data.var().item(), 1)
+                diff_mean = round(diff_data.mean().item(), 2)
+                diff_var = round(diff_data.var().item(), 2)
 
                 key = ",".join([f"{k} {str(v1)}" for k, v1 in indexers.items()])
                 issues.append(
                     f"{key}: value difference exceeds tolerance (rtol {rtol}, atol {atol}), min:{diff_data.min().data}, max: {diff_data.max().data}, mean: {diff_mean}, var: {diff_var}"
                 )
-
-                print(f"Difference ascii art for {key}")
-                art = ascii_art(diff_data)
-                print(art)
 
                 coord_grid = np.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
 
@@ -189,6 +188,11 @@ def _compare_xarray_dataarray_xy(
                 c1 = coord_grid[0][mask]
                 c2 = coord_grid[1][mask]
                 coordinates = np.dstack((c1, c2)).reshape(-1, 2)
+
+                art = ascii_art(diff_data)
+                print(f"Difference ascii art for {key}")
+                print(art)
+
                 if len(coordinates) > 2:
                     hull = ConvexHull(coordinates)
                     area = hull.volume
