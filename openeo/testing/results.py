@@ -8,18 +8,22 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
 import xarray
 import xarray.testing
+from xarray import DataArray
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
 from openeo.util import repr_truncate
 
 _log = logging.getLogger(__name__)
 
-
 _DEFAULT_RTOL = 1e-6
 _DEFAULT_ATOL = 1e-6
 
+# https://paulbourke.net/dataformats/asciiart
+DEFAULT_GRAYSCALE_70_CHARACTERS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
+DEFAULT_GRAYSCALE_10_CHARACTERS = " .:-=+*#%@"
 
 def _load_xarray_netcdf(path: Union[str, Path], **kwargs) -> xarray.Dataset:
     """
@@ -88,12 +92,105 @@ def _as_xarray_dataarray(data: Union[str, Path, xarray.DataArray]) -> xarray.Dat
     return data
 
 
+def _ascii_art(
+    diff_data: DataArray,
+    *,
+    max_width: int = 60,
+    y_vs_x_aspect_ratio=2.5,
+    grayscale_characters: str = DEFAULT_GRAYSCALE_70_CHARACTERS,
+) -> str:
+    max_grayscale_idx = len(grayscale_characters) - 1
+    x_scale: int = max(1, int(diff_data.sizes["x"] / max_width))
+    y_scale: int = max(1, int(diff_data.sizes["y"] / (max_width / y_vs_x_aspect_ratio)))
+    data_max = diff_data.max().item()
+    if data_max == 0:
+        data_max = 1
+    coarsened = diff_data.coarsen(dim={"x": x_scale, "y": y_scale}, boundary="pad").mean()
+    coarsened = coarsened.transpose("y", "x", ...)
+    top = "┌" + "─" * coarsened.sizes["x"] + "┐\n"
+    bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
+
+    def _pixel_char(v) -> str:
+        i = 0 if np.isnan(v) else int(v * max_grayscale_idx / data_max)
+        if v > 0 and i == 0:
+            i = 1  # don't show a blank for a difference above the threshold
+        else:
+            i = min(max_grayscale_idx, i)
+        return grayscale_characters[i]
+
+    return top + "\n".join(["│" + "".join([_pixel_char(v) for v in row]) + "│" for row in coarsened]) + bottom
+
+
+def _compare_xarray_dataarray_xy(
+    actual: Union[xarray.DataArray, str, Path],
+    expected: Union[xarray.DataArray, str, Path],
+    *,
+    rtol: float = _DEFAULT_RTOL,
+    atol: float = _DEFAULT_ATOL,
+    name: str = None,
+) -> List[str]:
+    """
+    Additional compare for two compatible spatial xarray DataArrays with tolerance (rtol, atol)
+    :return: list of issues (empty if no issues)
+    """
+    issues = []
+    threshold = abs(expected * rtol) + atol
+    diff_exact = abs(expected - actual)
+    diff_mask = diff_exact > threshold
+    diff_lenient = diff_exact.where(diff_mask)
+
+    non_x_y_dims = list(set(expected.dims) - {"x", "y"})
+    value_mapping = dict(map(lambda d: (d, expected[d].data), non_x_y_dims))
+    shape = tuple([len(value_mapping[x]) for x in non_x_y_dims])
+
+    for shape_index, v in np.ndenumerate(np.ndarray(shape)):
+        indexers = {}
+        for index, value_index in enumerate(shape_index):
+            indexers[non_x_y_dims[index]] = value_mapping[non_x_y_dims[index]][value_index]
+        diff_data = diff_lenient.sel(indexers=indexers)
+        total_pixel_count = expected.sel(indexers).count().item()
+        diff_pixel_count = diff_data.count().item()
+
+        if diff_pixel_count > 0:
+            diff_pixel_percentage = round(diff_pixel_count * 100 / total_pixel_count, 1)
+            diff_mean = round(diff_data.mean().item(), 2)
+            diff_var = round(diff_data.var().item(), 2)
+
+            key = name + ": " if name else ""
+            key += ",".join([f"{k} {str(v1)}" for k, v1 in indexers.items()])
+            issues.append(
+                f"{key}: value difference exceeds tolerance (rtol {rtol}, atol {atol}), min:{diff_data.min().data}, max: {diff_data.max().data}, mean: {diff_mean}, var: {diff_var}"
+            )
+
+            _log.warning(f"Difference (ascii art) for {key}:\n{_ascii_art(diff_data)}")
+
+            coord_grid = np.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
+            mask = diff_data.notnull()
+            if mask.dims[0] != "y":
+                mask = mask.transpose()
+            x_coords = coord_grid[0][mask]
+            y_coords = coord_grid[1][mask]
+
+            diff_bbox = ((x_coords.min().item(), y_coords.min().item()), (x_coords.max().item(), y_coords.max().item()))
+            diff_area = (x_coords.max() - x_coords.min()) * (y_coords.max() - y_coords.min())
+            total_area = abs(
+                (diff_data.coords["y"][-1].data - diff_data.coords["y"][0].data)
+                * (diff_data.coords["x"][-1].data - diff_data.coords["x"][0].data)
+            )
+            area_percentage = round(diff_area * 100 / total_area, 1)
+            issues.append(
+                f"{key}: differing pixels: {diff_pixel_count}/{total_pixel_count} ({diff_pixel_percentage}%), bbox {diff_bbox} - {area_percentage}% of the area"
+            )
+    return issues
+
+
 def _compare_xarray_dataarray(
     actual: Union[xarray.DataArray, str, Path],
     expected: Union[xarray.DataArray, str, Path],
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    name: str = None,
 ) -> List[str]:
     """
     Compare two xarray DataArrays with tolerance and report mismatch issues (as strings)
@@ -116,7 +213,7 @@ def _compare_xarray_dataarray(
     issues = []
 
     # `xarray.testing.assert_allclose` currently does not always
-    # provides detailed information about shape/dimension mismatches
+    # provide detailed information about shape/dimension mismatches
     # so we enrich the issue listing with some more details
     if actual.dims != expected.dims:
         issues.append(f"Dimension mismatch: {actual.dims} != {expected.dims}")
@@ -127,13 +224,14 @@ def _compare_xarray_dataarray(
             issues.append(f"Coordinates mismatch for dimension {dim!r}: {acs} != {ecs}")
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
-
+    compatible = len(issues) == 0
     try:
         xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
     except AssertionError as e:
         # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
         issues.append(str(e).strip())
-
+    if compatible and {"x", "y"} <= set(expected.dims):
+        issues.extend(_compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol, name=name))
     return issues
 
 
@@ -162,7 +260,6 @@ def assert_xarray_dataarray_allclose(
     if issues:
         raise AssertionError("\n".join(issues))
 
-
 def _compare_xarray_datasets(
     actual: Union[xarray.Dataset, str, Path],
     expected: Union[xarray.Dataset, str, Path],
@@ -180,7 +277,6 @@ def _compare_xarray_datasets(
     expected = _as_xarray_dataset(expected)
 
     all_issues = []
-    # TODO: just leverage DataSet support in xarray.testing.assert_allclose for all this?
     actual_vars = set(actual.data_vars)
     expected_vars = set(expected.data_vars)
     _log.debug(f"_compare_xarray_datasets: actual_vars={actual_vars!r} expected_vars={expected_vars!r}")
@@ -188,7 +284,7 @@ def _compare_xarray_datasets(
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
         _log.debug(f"_compare_xarray_datasets: comparing variable {var!r}")
-        issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol)
+        issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol, name=var)
         if issues:
             all_issues.append(f"Issues for variable {var!r}:")
             all_issues.extend(issues)
