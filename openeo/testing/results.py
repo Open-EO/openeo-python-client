@@ -406,7 +406,7 @@ def assert_xarray_allclose(
     if isinstance(actual, xarray.Dataset) and isinstance(expected, xarray.Dataset):
         assert_xarray_dataset_allclose(actual, expected, rtol=rtol, atol=atol)
     elif isinstance(actual, xarray.DataArray) and isinstance(expected, xarray.DataArray):
-        if (["x", "y", "band"]).elements_in(expected.dims):
+        if {"x", "y"}.issubset(expected.dims):
             assert_xarray_dataarray_allclose_xy(actual, expected, rtol=rtol, atol=atol)
         else:
             assert_xarray_dataarray_allclose(actual, expected, rtol=rtol, atol=atol)
