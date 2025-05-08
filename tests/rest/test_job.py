@@ -18,9 +18,7 @@ from openeo.rest.models.logs import LogEntry
 
 API_URL = "https://oeo.test"
 
-TIFF_CONTENT = b'T1f7D6t6l0l' * 1000
-
-
+TIFF_CONTENT = b'T1f7D6t6l0l' * 10000
 
 @pytest.fixture
 def con100(requests_mock):
@@ -74,7 +72,9 @@ def test_execute_batch(con100, requests_mock, tmpdir):
             }
         },
     )
+    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": str(len("tiffdata"))})
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
+
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
 
     path = tmpdir.join("tmp.tiff")
@@ -231,6 +231,7 @@ def test_execute_batch_with_soft_errors(con100, requests_mock, tmpdir, error_res
             }
         },
     )
+    requests_mock.head(API_URL + "/jobs/f00ba5/files/output.tiff", headers={"Content-Length": str(len("tiffdata"))})
     requests_mock.get(API_URL + "/jobs/f00ba5/files/output.tiff", text="tiffdata")
     requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={'logs': []})
 
@@ -536,10 +537,56 @@ def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
     requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
         "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
     }})
+    requests_mock.head(API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
+
     job = BatchJob("jj1", connection=con100)
     return job
 
+@pytest.fixture
+def job_with_chunked_asset_using_head(con100, requests_mock, tmp_path) -> BatchJob:
+    def handle_content(request, context):
+        range = request.headers.get("Range")
+        assert range
+        search = re.search(r"bytes=(\d+)-(\d+)", range)
+        assert search
+        from_bytes = int(search.group(1))
+        to_bytes = int(search.group(2))
+        assert from_bytes < to_bytes
+        return TIFF_CONTENT[from_bytes : to_bytes + 1]
+
+    requests_mock.get(
+        API_URL + "/jobs/jj1/results",
+        json={
+            "assets": {
+                "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+            }
+        },
+    )
+    requests_mock.head(
+        API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}", "Accept-Ranges": "bytes"}
+    )
+    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=handle_content)
+    job = BatchJob("jj1", connection=con100)
+    return job
+
+
+@pytest.fixture
+def job_with_chunked_asset_using_head_old(con100, requests_mock, tmp_path) -> BatchJob:
+    requests_mock.get(API_URL + "/jobs/jj1/results", json={"assets": {
+        "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
+    }})
+    requests_mock.head(API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}", "Accept-Ranges": "bytes"})
+
+    chunk_size = 1000
+    for r in range(0, len(TIFF_CONTENT), chunk_size):
+        from_bytes = r
+        to_bytes = min(r + chunk_size, len(TIFF_CONTENT)) - 1
+        requests_mock.get(API_URL + "/dl/jjr1.tiff", request_headers={"Range": f"bytes={from_bytes}-{to_bytes}"},
+                     response_list = [{"status_code": 500, "text": "Server error"},
+                                      {"status_code": 206, "content": TIFF_CONTENT[from_bytes:to_bytes+1]}])
+    job = BatchJob("jj1", connection=con100)
+    return job
 
 @pytest.fixture
 def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
@@ -551,8 +598,11 @@ def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
             "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
         }
     })
+    requests_mock.head(API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
+    requests_mock.head(API_URL + "/dl/jjr2.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
+
     job = BatchJob("jj2", connection=con100)
     return job
 
@@ -574,6 +624,13 @@ def test_get_results_download_file(job_with_1_asset: BatchJob, tmp_path):
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
 
+def test_get_results_download_file_ranged(job_with_chunked_asset_using_head: BatchJob, tmp_path):
+    job = job_with_chunked_asset_using_head
+    target = tmp_path / "result.tiff"
+    res = job.get_results().download_file(target, range_size=1000)
+    assert res == target
+    with target.open("rb") as f:
+        assert f.read() == TIFF_CONTENT
 
 def test_download_result_folder(job_with_1_asset: BatchJob, tmp_path):
     job = job_with_1_asset
@@ -714,6 +771,7 @@ def test_get_results_download_files_include_stac_metadata(
 
 def test_result_asset_download_file(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.head(href, headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
@@ -729,6 +787,7 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
 
 def test_result_asset_download_file_error(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.head(href, status_code=500, text="Nope!")
     requests_mock.get(href, status_code=500, text="Nope!")
 
     job = BatchJob("jj", connection=con100)
@@ -743,6 +802,7 @@ def test_result_asset_download_file_error(con100, requests_mock, tmp_path):
 
 def test_result_asset_download_folder(con100, requests_mock, tmp_path):
     href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.head(href, headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
@@ -770,6 +830,7 @@ def test_result_asset_load_json(con100, requests_mock):
 
 def test_result_asset_load_bytes(con100, requests_mock):
     href = API_URL + "/dl/jjr1.tiff"
+    requests_mock.head(href, headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
@@ -797,6 +858,7 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         return TIFF_CONTENT
 
     requests_mock.get(API_URL + "/jobs/jj1/results", json=get_results)
+    requests_mock.head("https://evilcorp.test/dl/jjr1.tiff", headers={"Content-Length": "666"})
     requests_mock.get("https://evilcorp.test/dl/jjr1.tiff", content=download_tiff)
 
     con100.authenticate_basic("john", "j0hn")
