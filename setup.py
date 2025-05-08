@@ -21,8 +21,7 @@ tests_require = [
     "mock",
     "requests-mock>=1.8.0",
     "httpretty>=1.1.4",
-    "urllib3<2.3.0",
-    # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
+    "urllib3<2.3.0",  # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
     "netCDF4>=1.7.0",
     "matplotlib",  # TODO: eliminate matplotlib as test dependency
     # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
@@ -35,7 +34,6 @@ tests_require = [
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
-    "scipy",  # for Convex Hull algorithm
 ]
 
 docs_require = [
@@ -84,6 +82,7 @@ setup(
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
+        "scipy",  # for Convex Hull algorithm
     ],
     extras_require={
         "tests": tests_require,
