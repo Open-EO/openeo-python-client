@@ -91,13 +91,14 @@ def _as_xarray_dataarray(data: Union[str, Path, xarray.DataArray]) -> xarray.Dat
     return data
 
 
-def ascii_art(diff_data: DataArray) -> str:
-    scale: int = max(1, int(diff_data.sizes["x"] / 100))
+def ascii_art(diff_data: DataArray, *, max_width: int = 60, y_vs_x_aspect_ratio=2.5) -> str:
+    x_scale: int = max(1, int(diff_data.sizes["x"] / max_width))
+    y_scale: int = max(1, int(diff_data.sizes["x"] / (max_width * y_vs_x_aspect_ratio)))
     data_max = diff_data.max().item()
     if data_max == 0:
         data_max = 1
     grayscale_characters = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
-    coarsened = diff_data.coarsen(dim={"x": scale, "y": scale}, boundary="pad").mean()
+    coarsened = diff_data.coarsen(dim={"x": x_scale, "y": y_scale}, boundary="pad").mean()
     coarsened = coarsened.transpose("y", "x", ...)
     top = "┌" + "─" * coarsened.sizes["x"] + "┐\n"
     bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
