@@ -1,4 +1,3 @@
-import inspect
 import itertools
 import json
 import logging
@@ -9,16 +8,10 @@ from unittest import mock
 
 import pytest
 import requests
-from charset_normalizer import from_bytes
 
 import openeo
 import openeo.rest.job
-from openeo.rest import (
-    DEFAULT_DOWNLOAD_CHUNK_SIZE,
-    JobFailedException,
-    OpenEoApiPlainError,
-    OpenEoClientException,
-)
+from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
