@@ -82,7 +82,6 @@ setup(
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
-        "scipy",  # for Convex Hull algorithm
     ],
     extras_require={
         "tests": tests_require,
