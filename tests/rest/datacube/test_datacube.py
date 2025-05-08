@@ -26,6 +26,7 @@ from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
+from openeo.rest.models.general import ValidationResponse
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import dict_no_none
 
@@ -1595,3 +1596,21 @@ def test_execute_batch_with_title(s2cube, dummy_backend):
             "description": "Lorem ipsum dolor S2 amet",
         }
     }
+
+
+def test_cube_validate(con120, dummy_backend):
+    dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
+    cube = con120.load_collection("S2")
+    result = cube.validate()
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                "result": True,
+            },
+        }
+    ]
+    assert isinstance(result, ValidationResponse)
+    assert result == [{"code": "OddSupport", "message": "Odd values are not supported."}]

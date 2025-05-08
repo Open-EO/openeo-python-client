@@ -10,6 +10,7 @@ from openeo.api.process import Parameter
 from openeo.rest import OpenEoClientException
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
+from openeo.rest.models.general import ValidationResponse
 from openeo.rest.vectorcube import VectorCube
 from openeo.util import InvalidBBoxException, dict_no_none
 
@@ -854,3 +855,21 @@ def test_execute_batch_with_title(vector_cube, dummy_backend):
             "description": "Lorem ipsum dolor S2 amet",
         }
     }
+
+
+def test_vector_cube_validate(vector_cube, dummy_backend):
+    dummy_backend.next_validation_errors = [{"code": "OfflineRequired", "message": "Turn off your smartphone"}]
+
+    result = vector_cube.validate()
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadgeojson1": {
+                "process_id": "load_geojson",
+                "arguments": {"data": {"coordinates": [1, 2], "type": "Point"}, "properties": []},
+                "result": True,
+            }
+        }
+    ]
+    assert isinstance(result, ValidationResponse)
+    assert result == [{"code": "OfflineRequired", "message": "Turn off your smartphone"}]

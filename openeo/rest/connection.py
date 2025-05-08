@@ -889,11 +889,13 @@ class Connection(RestApiConnection):
 
         raise OpenEoClientException("Process does not exist.")
 
-    def list_jobs(self, limit: Union[int, None] = None) -> JobListingResponse:
+    def list_jobs(self, limit: Union[int, None] = 100) -> JobListingResponse:
         """
         Lists (batch) jobs metadata of the authenticated user.
 
-        :param limit: maximum number of jobs to return. Setting this limit enables pagination.
+        :param limit: maximum number of jobs to return (with pagination).
+            Can be set to ``None`` to disable pagination,
+            but note that the backend might still silently cap the listing in practice.
 
         :return: job_list: Dict of all jobs of the user.
 
@@ -903,6 +905,9 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.38.0
             Returns a :py:class:`~openeo.rest.models.general.JobListingResponse` object
             instead of simple ``List[dict]``.
+
+        .. versionchanged:: 0.41.0
+            Change default value of ``limit`` to 100 (instead of unlimited).
         """
         # TODO: Parse the result so that Job classes returned?
         # TODO: when pagination is enabled: how to expose link to next page?
@@ -994,7 +999,11 @@ class Connection(RestApiConnection):
             a local file path or URL to a JSON representation,
             a :py:class:`~openeo.rest.multiresult.MultiResult` object, ...
 
-        :return: list of errors (dictionaries with "code" and "message" fields)
+        :return: container of validation errors (dictionaries with "code" and "message" fields)
+
+        .. versionchanged:: 0.38.0
+            returns a :py:class:`~openeo.rest.models.general.ValidationResponse` object
+            instead of a simple list of error dictionaries.
         """
         pg_with_metadata = self._build_request_with_process_graph(process_graph)["process"]
         data = self.post(path="/validation", json=pg_with_metadata, expected_status=200).json()

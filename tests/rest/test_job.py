@@ -874,7 +874,8 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
 @pytest.mark.parametrize(
     ["list_jobs_kwargs", "expected_qs"],
     [
-        ({}, {}),
+        ({}, {"limit": ["100"]}),
+        ({"limit": None}, {}),
         ({"limit": 123}, {"limit": ["123"]}),
     ],
 )
