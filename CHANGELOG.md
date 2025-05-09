@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support `collection_property` based property filtering in `load_stac` ([#246](https://github.com/Open-EO/openeo-python-client/issues/246))
 - Add `validate()` method to `SaveResult`, `VectorCube`, `MlModel` and `StacResource` classes ([#766](https://github.com/Open-EO/openeo-python-client/issues/766))
+- Automatically retry on `429 Too Many Requests` HTTP errors ([#441](https://github.com/Open-EO/openeo-python-client/issues/441))
 
 ### Changed
 

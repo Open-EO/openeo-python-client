@@ -5,6 +5,7 @@ import sys
 from typing import Iterable, Optional, Union
 
 import requests
+import requests.adapters
 from requests import Response
 from requests.auth import AuthBase
 
@@ -12,6 +13,7 @@ import openeo
 from openeo.rest import OpenEoApiError, OpenEoApiPlainError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth
 from openeo.util import ContextTimer, ensure_list, str_truncate, url_join
+from openeo.utils.http import session_with_retries
 
 _log = logging.getLogger(__name__)
 
@@ -26,15 +28,22 @@ class RestApiConnection:
     def __init__(
         self,
         root_url: str,
+        *,
         auth: Optional[AuthBase] = None,
         session: Optional[requests.Session] = None,
         default_timeout: Optional[int] = None,
         slow_response_threshold: Optional[float] = None,
+        retry: Union[requests.adapters.Retry, dict, bool, None] = None,
     ):
         self._root_url = root_url
         self._auth = None
         self.auth = auth or NullAuth()
-        self.session = session or requests.Session()
+        if session:
+            self.session = session
+        elif retry is not False:
+            self.session = session_with_retries(retry=retry)
+        else:
+            self.session = requests.Session()
         self.default_timeout = default_timeout or DEFAULT_TIMEOUT
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(

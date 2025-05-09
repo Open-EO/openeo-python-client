@@ -284,7 +284,7 @@ class MultiBackendJobManager:
         503 Service Unavailable
         504 Gateway Timeout
         """
-        # TODO: refactor this helper out of this class and unify with `openeo_driver.util.http.requests_with_retry`
+        # TODO: migrate this to now built-in retry configuration of `Connection` or `openeo.util.http.retry_adapter`?
         status_forcelist = [500, 502, 503, 504]
         retries = Retry(
             total=MAX_RETRIES,
