@@ -1,3 +1,4 @@
+import contextlib
 import itertools
 import json
 import logging
@@ -6,6 +7,8 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
+import dirty_equals
+import httpretty
 import pytest
 import requests
 
@@ -309,6 +312,101 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
         "0:00:20 Job 'f00ba5': " + expected,
         "0:00:33 Job 'f00ba5': " + expected,
     ]
+
+
+@httpretty.activate(allow_net_connect=False)
+@pytest.mark.parametrize(
+    ["retry_config", "extra_responses", "expectation_context", "expected_sleeps"],
+    [
+        (  # Default retry settings
+            None,
+            [
+                httpretty.Response(status=502, body="Bad Gateway"),
+                httpretty.Response(status=504, body="Service Unavailable"),
+            ],
+            contextlib.nullcontext(),
+            [0.1, 23, 34],
+        ),
+        (
+            # Only retry on 429 (and fail on 500)
+            {"status_forcelist": [429]},
+            [
+                httpretty.Response(status=500, body="Internal Server Error"),
+            ],
+            pytest.raises(OpenEoApiPlainError, match=re.escape("[500] Internal Server Error")),
+            [0.1, 23],
+        ),
+        (
+            # No retry setup
+            False,
+            [],
+            pytest.raises(OpenEoApiPlainError, match=re.escape("[429] Too Many Requests")),
+            [0.1],
+        ),
+    ],
+)
+def test_execute_batch_retry_after_429_too_many_requests(
+    tmpdir, retry_config, extra_responses, expectation_context, expected_sleeps
+):
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/",
+        body=json.dumps({"api_version": "1.0.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}),
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/file_formats",
+        body=json.dumps({"output": {"GTiff": {"gis_data_types": ["raster"]}}}),
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/collections/SENTINEL2",
+        body=json.dumps({"foo": "bar"}),
+    )
+    httpretty.register_uri(
+        httpretty.POST, uri=API_URL + "/jobs", status=201, adding_headers={"OpenEO-Identifier": "f00ba5"}, body=""
+    )
+    httpretty.register_uri(httpretty.POST, uri=API_URL + "/jobs/f00ba5/results", status=202)
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/jobs/f00ba5",
+        responses=[
+            httpretty.Response(body=json.dumps({"status": "queued"})),
+            httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "23"}),
+            httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
+        ]
+        + extra_responses
+        + [
+            httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
+            httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "34"}),
+            httpretty.Response(body=json.dumps({"status": "finished", "progress": 100})),
+        ],
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/jobs/f00ba5/results",
+        body=json.dumps(
+            {
+                "assets": {
+                    "output.tiff": {
+                        "href": API_URL + "/jobs/f00ba5/files/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                    },
+                }
+            }
+        ),
+    )
+    httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/files/output.tiff", body="tiffdata")
+    httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/logs", body=json.dumps({"logs": []}))
+
+    con = openeo.connect(API_URL, retry=retry_config)
+
+    with mock.patch("time.sleep") as sleep_mock:
+        job = con.load_collection("SENTINEL2").create_job()
+        with expectation_context:
+            job.start_and_wait(max_poll_interval=0.1)
+
+    assert sleep_mock.call_args_list == dirty_equals.Contains(*(mock.call(s) for s in expected_sleeps))
 
 
 class LogGenerator:
