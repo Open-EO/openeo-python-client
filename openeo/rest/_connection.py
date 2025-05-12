@@ -5,7 +5,7 @@ import sys
 from typing import Iterable, Optional, Union
 
 import requests
-import requests.adapters
+import urllib3.util
 from requests import Response
 from requests.auth import AuthBase
 
@@ -33,7 +33,7 @@ class RestApiConnection:
         session: Optional[requests.Session] = None,
         default_timeout: Optional[int] = None,
         slow_response_threshold: Optional[float] = None,
-        retry: Union[requests.adapters.Retry, dict, bool, None] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ):
         self._root_url = root_url
         self._auth = None
