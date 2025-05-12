@@ -23,7 +23,8 @@ fake_creds_response: AssumeRoleWithWebIdentityResponseTypeDef = {
         "AccessKeyId": "akid",
         "SecretAccessKey": "secret",
         "SessionToken": "token",
-        "Expiration": datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(hours=1),
+        # TODO: go for datetime.datetime.now(tz=datetime.UTC) once 3.10 support is no longer needed
+        "Expiration": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
     },
     "SubjectFromWebIdentityToken": "tokensubject",
     "AssumedRoleUser": {"AssumedRoleId": "1", "Arn": "not important"},
