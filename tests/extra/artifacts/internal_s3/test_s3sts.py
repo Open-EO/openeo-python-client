@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import dataclasses
 import datetime
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 from unittest.mock import Mock
 
 import pytest
-from types_boto3_sts.type_defs import AssumeRoleWithWebIdentityResponseTypeDef
+
+if TYPE_CHECKING:
+    from types_boto3_sts.type_defs import AssumeRoleWithWebIdentityResponseTypeDef
 
 from openeo import Connection
 from openeo.extra.artifacts import ArtifactHelper
