@@ -29,7 +29,8 @@ import requests
 import shapely.errors
 import shapely.geometry.base
 import shapely.wkt
-from requests.adapters import HTTPAdapter, Retry
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from openeo import BatchJob, Connection
 from openeo.internal.processes.parse import (

@@ -28,8 +28,8 @@ from typing import (
 )
 
 import requests
-import requests.adapters
 import shapely.geometry.base
+import urllib3.util
 from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
@@ -117,7 +117,7 @@ class Connection(RestApiConnection):
         Usage of this parameter is deprecated, use the specific authentication methods instead.
     :param retry: general request retry settings, can be specified as:
 
-        - :py:class:`requests.adapters.Retry` object
+        - :py:class:`urllib3.util.Retry` object
           or a dictionary with corresponding keyword arguments
           (e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...)
         - ``None`` (default) to use default openEO-oriented retry settings
@@ -141,7 +141,7 @@ class Connection(RestApiConnection):
         refresh_token_store: Optional[RefreshTokenStore] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
         auth: Optional[AuthBase] = None,
-        retry: Union[requests.adapters.Retry, dict, bool, None] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ):
         if "://" not in url:
             url = "https://" + url
@@ -1898,7 +1898,7 @@ def connect(
     session: Optional[requests.Session] = None,
     default_timeout: Optional[int] = None,
     auto_validate: bool = True,
-    retry: Union[requests.adapters.Retry, dict, bool, None] = None,
+    retry: Union[urllib3.util.Retry, dict, bool, None] = None,
 ) -> Connection:
     """
     This method is the entry point to OpenEO.
@@ -1920,7 +1920,7 @@ def connect(
     :param auto_validate: toggle to automatically validate process graphs before execution
     :param retry: general request retry settings, can be specified as:
 
-        - :py:class:`requests.adapters.Retry` object
+        - :py:class:`urllib3.util.Retry` object
           or a dictionary with corresponding keyword arguments
           (e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...)
         - ``None`` (default) to use default openEO-oriented retry settings
