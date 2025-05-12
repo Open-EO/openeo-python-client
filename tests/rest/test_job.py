@@ -14,12 +14,7 @@ import requests
 
 import openeo
 import openeo.rest.job
-from openeo.rest import (
-    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
-    JobFailedException,
-    OpenEoApiPlainError,
-    OpenEoClientException,
-)
+from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
@@ -321,28 +316,38 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
 
 @httpretty.activate(allow_net_connect=False)
 @pytest.mark.parametrize(
-    ["retry", "expectation_context", "expected_sleeps"],
+    ["retry_config", "extra_responses", "expectation_context", "expected_sleeps"],
     [
         (  # Default retry settings
             None,
+            [
+                httpretty.Response(status=502, body="Bad Gateway"),
+                httpretty.Response(status=504, body="Service Unavailable"),
+            ],
             contextlib.nullcontext(),
             [0.1, 23, 34],
         ),
         (
             # Only retry on 429 (and fail on 500)
             {"status_forcelist": [429]},
+            [
+                httpretty.Response(status=500, body="Internal Server Error"),
+            ],
             pytest.raises(OpenEoApiPlainError, match=re.escape("[500] Internal Server Error")),
-            [0.1, 23, DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL],
+            [0.1, 23],
         ),
         (
             # No retry setup
             False,
+            [],
             pytest.raises(OpenEoApiPlainError, match=re.escape("[429] Too Many Requests")),
             [0.1],
         ),
     ],
 )
-def test_execute_batch_retry_after_429_too_many_requests(tmpdir, retry, expectation_context, expected_sleeps):
+def test_execute_batch_retry_after_429_too_many_requests(
+    tmpdir, retry_config, extra_responses, expectation_context, expected_sleeps
+):
     httpretty.register_uri(
         httpretty.GET,
         uri=API_URL + "/",
@@ -369,8 +374,9 @@ def test_execute_batch_retry_after_429_too_many_requests(tmpdir, retry, expectat
             httpretty.Response(body=json.dumps({"status": "queued"})),
             httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "23"}),
             httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
-            httpretty.Response(status=502, body="Bad Gateway"),
-            httpretty.Response(status=500, body="Internal Server Error"),
+        ]
+        + extra_responses
+        + [
             httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
             httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "34"}),
             httpretty.Response(body=json.dumps({"status": "finished", "progress": 100})),
@@ -393,7 +399,7 @@ def test_execute_batch_retry_after_429_too_many_requests(tmpdir, retry, expectat
     httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/files/output.tiff", body="tiffdata")
     httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/logs", body=json.dumps({"logs": []}))
 
-    con = openeo.connect(API_URL, retry=retry)
+    con = openeo.connect(API_URL, retry=retry_config)
 
     with mock.patch("time.sleep") as sleep_mock:
         job = con.load_collection("SENTINEL2").create_job()

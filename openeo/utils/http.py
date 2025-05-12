@@ -21,7 +21,6 @@ DEFAULT_BACKOFF_FACTOR = 2.5
 DEFAULT_RETRY_FORCELIST = frozenset(
     [
         429,  # Too Many Requests
-        500,  # Internal Server Error
         502,  # Bad Gateway
         503,  # Service Unavailable
         504,  # Gateway Timeout
