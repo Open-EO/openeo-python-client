@@ -1,5 +1,3 @@
-import contextlib
-import logging
 from typing import Iterator
 from unittest import mock
 

@@ -6,6 +6,7 @@ from typing import Collection, Union
 
 import requests
 import requests.adapters
+from urllib3.util import Retry
 
 DEFAULT_RETRIES_TOTAL = 5
 
@@ -28,21 +29,21 @@ DEFAULT_RETRY_FORCELIST = frozenset(
 )
 
 
-def retry_adapter(
+def retry_configuration(
     *,
     total: int = DEFAULT_RETRIES_TOTAL,
     backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
     status_forcelist: Collection[int] = DEFAULT_RETRY_FORCELIST,
     **kwargs,
-) -> requests.adapters.Retry:
+) -> Retry:
     """
-    Factory for creating a `requests.adapters.Retry` configuration object with
+    Factory for creating a :py:class:`urllib3.util.retry.Retry` configuration object with
     openEO-oriented retry settings.
 
     :param total: Total number of retries to allow
     :param backoff_factor: scaling factor for sleeps between retries
     :param status_forcelist: A set of integer HTTP status codes that we should force a retry on.
-    :param kwargs: additional kwargs to pass to `requests.adapters.Retry`
+    :param kwargs: additional kwargs to pass to :py:class:`urllib3.util.retry.Retry`
     :return:
 
     Inspiration and references:
@@ -50,7 +51,7 @@ def retry_adapter(
     - https://urllib3.readthedocs.io/en/latest/reference/urllib3.util.html#urllib3.util.Retry
     - https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/#retry-on-failure
     """
-    retry = requests.adapters.Retry(
+    retry = Retry(
         total=total,
         backoff_factor=backoff_factor,
         status_forcelist=status_forcelist,
@@ -59,32 +60,28 @@ def retry_adapter(
     return retry
 
 
-def _to_retry(
-    retry: Union[requests.adapters.Retry, dict, None],
-) -> requests.adapters.Retry:
+def _to_retry(retry: Union[Retry, dict, None]) -> Retry:
     """
-    Convert a retry specification to a `requests.adapters.Retry` object.
+    Convert a retry specification to a :py:class:`urllib3.util.retry.Retry` object.
     """
-    if isinstance(retry, requests.adapters.Retry):
-        return retry
+    if isinstance(retry, Retry):
+        pass
     elif isinstance(retry, dict):
-        adapter = retry_adapter(**retry)
+        retry = retry_configuration(**retry)
     elif retry in {None, True}:
-        adapter = retry_adapter()
+        retry = retry_configuration()
     else:
         raise ValueError(f"Invalid retry setting: {retry!r}")
-    return adapter
+    return retry
 
 
-def session_with_retries(
-    retry: Union[requests.adapters.Retry, dict, None] = None,
-) -> requests.Session:
+def session_with_retries(retry: Union[Retry, dict, None] = None) -> requests.Session:
     """
     Factory for a requests session with openEO-oriented retry settings.
 
     :param retry: The retry configuration, can be specified as:
-        - :py:class:`requests.adapters.Retry`
-        - a dictionary with :py:class:`requests.adapters.Retry` arguments,
+        - :py:class:`urllib3.util.retry.Retry`
+        - a dictionary with :py:class:`urllib3.util.retry.Retry` arguments,
           e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...
         - ``None`` for default openEO-oriented retry settings
     """
