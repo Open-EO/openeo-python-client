@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import shutil
 import time
 import typing
 from pathlib import Path
@@ -438,7 +437,8 @@ class ResultAsset:
                         range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
                         with self.job.connection.get(path=url, headers=range_headers, stream=True) as r:
                             r.raise_for_status()
-                            shutil.copyfileobj(fsrc=r.raw, fdst=f, length=chunk_size)
+                            for block in r.iter_content(chunk_size=chunk_size):
+                                f.write(block)
                         break
                     except OpenEoApiPlainError as error:
                         tries_left -= 1
@@ -453,7 +453,8 @@ class ResultAsset:
         with self.job.connection.get(path=url, stream=True) as r:
             r.raise_for_status()
             with target.open("wb") as f:
-                shutil.copyfileobj(fsrc=r.raw, fdst=f, length=chunk_size)
+                for block in r.iter_content(chunk_size=chunk_size):
+                    f.write(block)
 
 
 class MultipleAssetException(OpenEoClientException):
