@@ -4,19 +4,7 @@ class ArtifactsException(Exception):
     """
 
 
-class NoArtifactsCapability(ArtifactsException):
-    """
-    There is no artifacts capability exposed by the backend
-    """
-
-
 class NoAdvertisedProviders(ArtifactsException):
-    """
-    The OpenEO backend does not advertise providers for artifacts storage
-    """
-
-
-class EmptyAdvertisedProviders(ArtifactsException):
     """
     The providers list is empty
     """
@@ -49,3 +37,6 @@ class NoDefaultConfig(ArtifactsException):
 
 class InvalidProviderCfg(ArtifactsException):
     """The backend has an invalid provider config. This must be fixed by the provider of the backend."""
+
+
+class ProviderSpecificException(ArtifactsException): ...

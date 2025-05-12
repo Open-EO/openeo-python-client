@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from types_boto3_sts.client import STSClient
 
 from openeo.extra.artifacts._s3sts.config import S3STSConfig
 from openeo.extra.artifacts._s3sts.model import AWSSTSCredentials
+from openeo.extra.artifacts.exceptions import ProviderSpecificException
 from openeo.rest.auth.auth import BearerAuth
 from openeo.rest.connection import Connection
 
@@ -19,12 +24,11 @@ class OpenEOSTSClient:
         auth = conn.auth
         assert auth is not None
         if not isinstance(auth, BearerAuth):
-            raise ValueError("Only connections that have BearerAuth can be used.")
+            raise ProviderSpecificException("Only connections that have BearerAuth can be used.")
         auth_token = auth.bearer.split("/")
-        sts = self.config.build_client("sts")
 
         return AWSSTSCredentials.from_assume_role_response(
-            sts.assume_role_with_web_identity(
+            self._get_sts_client().assume_role_with_web_identity(
                 RoleArn=self._get_aws_access_role(),
                 RoleSessionName=f"artifact-helper-{datetime.datetime.now(datetime.UTC).strftime('%Y%m%d%H%M%S')}",
                 WebIdentityToken=auth_token[2],
@@ -32,5 +36,8 @@ class OpenEOSTSClient:
             )
         )
 
+    def _get_sts_client(self) -> STSClient:
+        return self.config.build_client("sts")
+
     def _get_aws_access_role(self) -> str:
-        return self.config.sts_role_arn
+        return self.config.role

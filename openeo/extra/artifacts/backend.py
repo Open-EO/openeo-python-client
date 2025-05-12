@@ -4,11 +4,8 @@ from typing import Any, Dict, List, TypedDict
 
 from openeo import Connection
 from openeo.extra.artifacts.exceptions import (
-    ArtifactsException,
-    EmptyAdvertisedProviders,
     InvalidProviderCfg,
     NoAdvertisedProviders,
-    NoArtifactsCapability,
     NoDefaultConfig,
 )
 
@@ -74,17 +71,17 @@ class ArtifactCapabilities:
             try:
                 _capabilities_cache[url] = self.conn.get("/").json()["artifacts"]
             except KeyError:
-                raise NoArtifactsCapability()
+                raise NoAdvertisedProviders()
         return _capabilities_cache[url]
 
     def _get_artifacts_providers(self) -> List[TProviderCfg]:
         try:
             return self.get_artifacts_capabilities()["providers"]
-        except (KeyError, ArtifactsException) as e:
+        except KeyError as e:
             raise NoAdvertisedProviders() from e
 
     def get_preferred_artifacts_provider(self) -> ProviderCfg:
         try:
             return ProviderCfg.from_typed_dict(self._get_artifacts_providers()[0])
-        except (IndexError, ArtifactsException) as e:
-            raise EmptyAdvertisedProviders() from e
+        except IndexError as e:
+            raise NoAdvertisedProviders() from e

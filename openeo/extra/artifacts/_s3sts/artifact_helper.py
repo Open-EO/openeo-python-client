@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from types_boto3_s3.client import S3Client
@@ -26,7 +26,7 @@ class S3STSArtifactHelper(ArtifactHelperABC):
         self.conn = conn
         self.config = config
         self._creds = self.get_new_creds()
-        self._s3: S3Client = config.build_client("s3", session_kwargs=self._creds.as_kwargs())
+        self._s3: Optional[S3Client] = None
 
     @classmethod
     def _from_openeo_connection(cls, conn: Connection, config: S3STSConfig) -> S3STSArtifactHelper:
@@ -55,6 +55,8 @@ class S3STSArtifactHelper(ArtifactHelperABC):
     def _get_s3_client(self):
         # TODO: validate whether credentials are still reasonably long valid
         # and if not refresh credentials and rebuild client
+        if self._s3 is None:
+            self._s3 = self.config.build_client("s3", session_kwargs=self._creds.as_kwargs())
         return self._s3
 
     def upload_file(self, path: str | Path, object_name: str = "") -> S3URI:

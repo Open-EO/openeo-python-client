@@ -30,28 +30,28 @@ DISABLE_TRACING_TRACE_ID = "00000000-0000-0000-0000-000000000000"
 class S3STSConfig(StorageConfig):
     """The s3 endpoint url protocol:://fqdn[:portnumber]"""
 
-    s3_endpoint_url: Optional[str] = None
+    s3_endpoint: Optional[str] = None
     """The sts endpoint url protocol:://fqdn[:portnumber]"""
-    sts_endpoint_url: Optional[str] = None
+    sts_endpoint: Optional[str] = None
     """The trace_id is if you want to send a uuid4 identifier to the backend"""
     trace_id: str = DISABLE_TRACING_TRACE_ID
     """You can change the botocore_config used but this is an expert option"""
     botocore_config: Config = field(default_factory=lambda: no_default_checksum_cfg)
     """The role ARN to be assumed"""
-    sts_role_arn: Optional[str] = None
+    role: Optional[str] = None
     """The bucket to store the object into"""
     bucket: Optional[str] = None
 
     def _load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
         assert provider_cfg.type == "S3STSConfig"
-        if self.s3_endpoint_url is None:
-            object.__setattr__(self, "s3_endpoint_url", provider_cfg["s3_endpoint"])
+        if self.s3_endpoint is None:
+            object.__setattr__(self, "s3_endpoint", provider_cfg["s3_endpoint"])
 
-        if self.sts_endpoint_url is None:
-            object.__setattr__(self, "sts_endpoint_url", provider_cfg["sts_endpoint"])
+        if self.sts_endpoint is None:
+            object.__setattr__(self, "sts_endpoint", provider_cfg["sts_endpoint"])
 
-        if self.sts_role_arn is None:
-            object.__setattr__(self, "sts_role_arn", provider_cfg["role"])
+        if self.role is None:
+            object.__setattr__(self, "role", provider_cfg["role"])
 
         if self.bucket is None:
             object.__setattr__(self, "bucket", provider_cfg["bucket"])
@@ -91,7 +91,7 @@ class S3STSConfig(StorageConfig):
         """
         s3_names = ["s3", "s3-fips"]
         reserved_words = ["dualstack", "prod", "stag", "dev"]
-        s3_endpoint_parts = self._remove_protocol_from_uri(self.s3_endpoint_url).split(".")
+        s3_endpoint_parts = self._remove_protocol_from_uri(self.s3_endpoint).split(".")
         for s3_name in s3_names:
             try:
                 old_idx = s3_endpoint_parts.index(s3_name)
@@ -104,13 +104,13 @@ class S3STSConfig(StorageConfig):
                 return s3_endpoint_parts[idx]
             except ValueError:
                 continue
-        raise ValueError(f"Cannot determine region from {self.s3_endpoint_url}")
+        raise ValueError(f"Cannot determine region from {self.s3_endpoint}")
 
     def _get_endpoint_url(self, service_name: str) -> str:
         if service_name == "s3":
-            return self.s3_endpoint_url
+            return self.s3_endpoint
         elif service_name == "sts":
-            return self.sts_endpoint_url
+            return self.sts_endpoint
         raise ValueError(f"Unsupported service {service_name}")
 
     def add_trace_id_qp_if_needed(self, url: str) -> str:
@@ -119,4 +119,4 @@ class S3STSConfig(StorageConfig):
         return add_trace_id_as_query_parameter(url, self.trace_id)
 
     def get_sts_role_arn(self) -> str:
-        return self.sts_role_arn
+        return self.role
