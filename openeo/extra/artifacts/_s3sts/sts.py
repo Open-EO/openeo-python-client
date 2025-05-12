@@ -30,7 +30,7 @@ class OpenEOSTSClient:
         return AWSSTSCredentials.from_assume_role_response(
             self._get_sts_client().assume_role_with_web_identity(
                 RoleArn=self._get_aws_access_role(),
-                RoleSessionName=f"artifact-helper-{datetime.datetime.now(datetime.UTC).strftime('%Y%m%d%H%M%S')}",
+                RoleSessionName=f"artifact-helper-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 WebIdentityToken=auth_token[2],
                 DurationSeconds=43200,
             )
