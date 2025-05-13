@@ -43,23 +43,33 @@ class CollectionListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /collections`` request
+    :param connection: optional connection object to use for federation extension
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_collections()`
 
     .. versionadded:: 0.38.0
     """
 
-    __slots__ = ["_data"]
+    __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict):
+    def __init__(self, response_data: dict, connection = None):
         self._data = response_data
+        self._connection = connection
         # Mimic original list of collection metadata dictionaries
         super().__init__(response_data["collections"])
 
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
-        return render_component(component="collections", data=self)
+        federation = self._connection.capabilities().ext_federation_backend_details() if self._connection else None
+        return render_component(
+            component="collections",
+            data=self,
+            parameters={
+                "missing": self.ext_federation_missing(),
+                "federation": federation,
+            }
+        )
 
     @property
     def links(self) -> List[Link]:
@@ -94,24 +104,34 @@ class ProcessListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /processes`` request
+    :param connection: optional connection object to use for federation extension
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_processes()`
 
     .. versionadded:: 0.38.0
     """
 
-    __slots__ = ["_data"]
+    __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict):
+    def __init__(self, response_data: dict, connection = None):
         self._data = response_data
+        self._connection = connection
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["processes"])
 
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
+        federation = self._connection.capabilities().ext_federation_backend_details() if self._connection else None
         return render_component(
-            component="processes", data=self, parameters={"show-graph": True, "provide-download": False}
+            component="processes",
+            data=self,
+            parameters={
+                "show-graph": True,
+                "provide-download": False,
+                "missing": self.ext_federation_missing(),
+                "federation": federation,
+            }
         )
 
     @property
@@ -148,23 +168,34 @@ class JobListingResponse(list):
         but now also provides methods/properties to access additional response data.
 
     :param response_data: response data from a ``GET /jobs`` request
+    :param connection: optional connection object to use for federation extension
 
     .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_jobs()`
 
     .. versionadded:: 0.38.0
     """
 
-    __slots__ = ["_data"]
+    __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict):
+    def __init__(self, response_data: dict, connection = None):
         self._data = response_data
+        self._connection = connection
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["jobs"])
 
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
-        return render_component(component="data-table", data=self, parameters={"columns": "jobs"})
+        federation = self._connection.capabilities().ext_federation_backend_details() if self._connection else None
+        return render_component(
+            component="data-table",
+            data=self,
+            parameters={
+                "columns": "jobs",
+                "missing": self.ext_federation_missing(),
+                "federation": federation,
+            }
+        )
 
     @property
     def links(self) -> List[Link]:
@@ -202,6 +233,7 @@ class LogsResponse(list):
 
     :param response_data: response data from a ``GET /jobs/{job_id}/logs``
         or ``GET /services/{service_id}/logs`` request.
+    :param connection: optional connection object to use for federation extension
 
     .. seealso:: :py:meth:`~openeo.rest.job.BatchJob.logs()`
         and :py:meth:`~openeo.rest.service.Service.logs()`
@@ -209,10 +241,11 @@ class LogsResponse(list):
     .. versionadded:: 0.38.0
     """
 
-    __slots__ = ["_data"]
+    __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, *, log_level: Optional[str] = None):
+    def __init__(self, response_data: dict, *, log_level: Optional[str] = None, connection = None):
         self._data = response_data
+        self._connection = connection
 
         logs = response_data.get("logs", [])
         # Extra client-side level filtering (in case the back-end does not support that)
@@ -237,7 +270,15 @@ class LogsResponse(list):
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
-        return render_component(component="logs", data=self)
+        federation = self._connection.capabilities().ext_federation_backend_details() if self._connection else None
+        return render_component(
+            component="logs",
+            data=self,
+            parameters={
+                "missing": self.ext_federation_missing(),
+                "federation": federation,
+            }
+        )
 
     @property
     def logs(self) -> List[LogEntry]:
