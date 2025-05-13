@@ -13,7 +13,6 @@ _version = {}
 with open("openeo/_version.py") as fp:
     exec(fp.read(), _version)
 
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -55,7 +54,6 @@ jupyter_require = [
     "ipyleaflet>=0.17.0",
     "ipython",
 ]
-
 
 name = "openeo"
 setup(

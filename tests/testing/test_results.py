@@ -13,7 +13,6 @@ from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
     assert_job_results_allclose,
-    assert_xarray_allclose,
     assert_xarray_dataarray_allclose,
     assert_xarray_dataset_allclose,
 )
@@ -350,6 +349,110 @@ class TestAssertJobResults:
         ds.to_netcdf(expected_dir / "data.nc")
         ds.to_netcdf(actual_dir / "data.nc")
         assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_xy_success(self, tmp_path, actual_dir, expected_dir):
+        expected_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        expected_ds.to_netcdf(expected_dir / "data.nc")
+        actual_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=1 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        actual_ds.to_netcdf(actual_dir / "data.nc")
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path, rtol=1)
+
+    def test_allclose_minimal_xy_different(self, tmp_path, actual_dir, expected_dir):
+        expected_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        expected_ds.to_netcdf(expected_dir / "data.nc")
+        actual_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=1 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        actual_ds.to_netcdf(actual_dir / "data.nc")
+        with raises_assertion_error_or_not(
+            r"Issues for file 'data.nc'.*"
+            r"Issues for variable 'b1'.*"
+            r"Left and right DataArray objects are not close.*Differing values:.*"
+            r"t 0: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 0: differing pixels: 20/20 \(100.0%\), bbox \(\(4, 5\), \(7, 9\)\) - 100.0% of the area.*"
+            r"t 1: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 1: differing pixels: 20/20 \(100.0%\), bbox \(\(4, 5\), \(7, 9\)\) - 100.0% of the area.*"
+            r"t 2: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:1.0, max: 1.0, mean: 1.0, var: 0.0.*"
+            r"t 2: differing pixels: 20/20 \(100.0%\), bbox \(\(4, 5\), \(7, 9\)\) - 100.0% of the area"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_minimal_xy_different_small_area(self, tmp_path, actual_dir, expected_dir):
+        expected_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=3 * numpy.ones((3, 4, 5))),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        expected_ds.to_netcdf(expected_dir / "data.nc")
+        b2_modified_data = 3 * numpy.ones((3, 4, 5))
+        b2_modified_data[2][2][2] *= 15
+        b2_modified_data[2][2][3] *= 14
+        b2_modified_data[2][3][2] *= 13
+        b2_modified_data[2][3][3] *= 12
+        actual_ds = xarray.Dataset(
+            {
+                "b1": xarray.Variable(dims=["t", "x", "y"], data=2 * numpy.ones((3, 4, 5))),
+                "b2": xarray.Variable(dims=["t", "x", "y"], data=b2_modified_data),
+            },
+            coords={
+                "t": range(0, 3),
+                "x": range(4, 8),
+                "y": range(5, 10),
+            },
+        )
+        actual_ds.to_netcdf(actual_dir / "data.nc")
+        with raises_assertion_error_or_not(
+            r"Issues for file 'data.nc'.*"
+            r"Issues for variable 'b2'.*"
+            r"Left and right DataArray objects are not close.*Differing values:.*"
+            r"t 2: value difference exceeds tolerance \(rtol 1e-06, atol 1e-06\), min:33.0, max: 42.0, mean: 37.5, var: 11.2.*"
+            r"t 2: differing pixels: 4/20 \(20.0%\), bbox \(\(6, 7\), \(7, 8\)\) - 8.3% of the area"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
     def test_allclose_basic_fail(self, tmp_path, actual_dir, expected_dir):
         expected_ds = xarray.Dataset({"a": (["time"], [1, 2, 3])}, coords={"time": [11, 22, 33]})
