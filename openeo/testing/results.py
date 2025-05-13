@@ -134,13 +134,17 @@ def _compare_xarray_dataarray_xy(
     :return: list of issues (empty if no issues)
     """
     issues = []
-    threshold = abs(expected * rtol) + atol
-    diff_exact = abs(expected - actual)
+
+    actual_as_float = actual.astype(dtype=float)
+    expected_as_float = expected.astype(dtype=float)
+
+    threshold = abs(expected_as_float * rtol) + atol
+    diff_exact = abs(expected_as_float - actual_as_float)
     diff_mask = diff_exact > threshold
     diff_lenient = diff_exact.where(diff_mask)
 
-    non_x_y_dims = list(set(expected.dims) - {"x", "y"})
-    value_mapping = dict(map(lambda d: (d, expected[d].data), non_x_y_dims))
+    non_x_y_dims = list(set(expected_as_float.dims) - {"x", "y"})
+    value_mapping = dict(map(lambda d: (d, expected_as_float[d].data), non_x_y_dims))
     shape = tuple([len(value_mapping[x]) for x in non_x_y_dims])
 
     for shape_index, v in np.ndenumerate(np.ndarray(shape)):
@@ -148,7 +152,7 @@ def _compare_xarray_dataarray_xy(
         for index, value_index in enumerate(shape_index):
             indexers[non_x_y_dims[index]] = value_mapping[non_x_y_dims[index]][value_index]
         diff_data = diff_lenient.sel(indexers=indexers)
-        total_pixel_count = expected.sel(indexers).count().item()
+        total_pixel_count = expected_as_float.sel(indexers).count().item()
         diff_pixel_count = diff_data.count().item()
 
         if diff_pixel_count > 0:
@@ -230,8 +234,10 @@ def _compare_xarray_dataarray(
     except AssertionError as e:
         # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
         issues.append(str(e).strip())
-    if compatible and {"x", "y"} <= set(expected.dims):
-        issues.extend(_compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol, name=name))
+        if compatible and {"x", "y"} <= set(expected.dims):
+            issues.extend(
+                _compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol, name=name)
+            )
     return issues
 
 
