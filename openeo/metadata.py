@@ -218,6 +218,16 @@ class BandDimension(Dimension):
     def rename(self, name) -> Dimension:
         return BandDimension(name=name, bands=self.bands)
 
+    def contains_band(self, band: Union[int, str]) -> bool:
+        """
+        Check if the given band name or index is present in the dimension.
+        """
+        try:
+            self.band_index(band)
+            return True
+        except ValueError:
+            return False
+
 
 class GeometryDimension(Dimension):
     # TODO: how to model/store labels of geometry dimension?
@@ -365,22 +375,20 @@ class CubeMetadata:
         :return: Updated metadata
         """
         self.assert_valid_dimension(dimension)
-        loc = self.dimension_names().index(dimension)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename_labels(target, source)
-
-        return self._clone_and_update(dimensions=new_dimensions)
+        return self._clone_and_update(
+            dimensions=[
+                d.rename_labels(target=target, source=source) if d.name == dimension else d for d in self._dimensions
+            ]
+        )
 
     def rename_dimension(self, source: str, target: str) -> CubeMetadata:
         """
         Rename source dimension into target, preserving other properties
         """
         self.assert_valid_dimension(source)
-        loc = self.dimension_names().index(source)
-        new_dimensions = self._dimensions.copy()
-        new_dimensions[loc] = new_dimensions[loc].rename(target)
-
-        return self._clone_and_update(dimensions=new_dimensions)
+        return self._clone_and_update(
+            dimensions=[d.rename(name=target) if d.name == source else d for d in self._dimensions]
+        )
 
     def reduce_dimension(self, dimension_name: str) -> CubeMetadata:
         """Create new CubeMetadata object by collapsing/reducing a dimension."""
@@ -412,6 +420,31 @@ class CubeMetadata:
         else:
             dim = Dimension(type=type or "other", name=name)
         return self._clone_and_update(dimensions=self._dimensions + [dim])
+
+    def _ensure_band_dimension(
+        self, *, name: Optional[str] = None, bands: List[Union[Band, str]], warning: str
+    ) -> CubeMetadata:
+        """
+        Create new CubeMetadata object, ensuring a band dimension with given bands.
+        This will override any existing band dimension, and is intended for
+        special cases where pragmatism necessitates to ignore the original metadata.
+        For example, to overrule badly/incomplete detected band names from STAC metadata.
+
+        .. note::
+            It is required to specify a warning message as this method is only intended
+            to be used as temporary stop-gap solution for use cases that are possibly not future-proof.
+            Enforcing a warning should make that clear and avoid that users unknowingly depend on
+            metadata handling behavior that is not guaranteed to be stable.
+        """
+        _log.warning(warning or "ensure_band_dimension: overriding band dimension metadata with user-defined bands.")
+        if name is None:
+            # Preserve original band dimension name if possible
+            name = self.band_dimension.name if self.has_band_dimension() else "bands"
+        bands = [b if isinstance(b, Band) else Band(name=b) for b in bands]
+        band_dimension = BandDimension(name=name, bands=bands)
+        return self._clone_and_update(
+            dimensions=[d for d in self._dimensions if not isinstance(d, BandDimension)] + [band_dimension]
+        )
 
     def drop_dimension(self, name: str = None) -> CubeMetadata:
         """Create new CubeMetadata object without dropped dimension with given name"""
@@ -453,7 +486,11 @@ class CubeMetadata:
         return self._clone_and_update(dimensions=dimensions)
 
     def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
-        return self._clone_and_update(dimensions=list(target._dimensions))
+        # Replace spatial dimensions with ones from target, but keep other dimensions
+        dimensions = [d for d in (self._dimensions or []) if not isinstance(d, SpatialDimension)]
+        dimensions.extend(target.spatial_dimensions)
+        return self._clone_and_update(dimensions=dimensions)
+
 
 class CollectionMetadata(CubeMetadata):
     """
@@ -656,13 +693,13 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         raise ValueError(stac_object)
 
     # At least assume there are spatial dimensions
-    # TODO: are there conditions in which we even should not assume the presence of spatial dimensions?
+    # TODO #743: are there conditions in which we even should not assume the presence of spatial dimensions?
     dimensions = [
         SpatialDimension(name="x", extent=[None, None]),
         SpatialDimension(name="y", extent=[None, None]),
     ]
 
-    # TODO: conditionally include band dimension when there was actual indication of band metadata?
+    # TODO #743: conditionally include band dimension when there was actual indication of band metadata?
     band_dimension = BandDimension(name="bands", bands=bands)
     dimensions.append(band_dimension)
 

@@ -268,9 +268,12 @@ class OidcProviderInfo:
             raise ValueError("At least `issuer` or `discovery_url` should be specified")
         if not requests_session:
             requests_session = requests.Session()
-        discovery_resp = requests_session.get(self.discovery_url, timeout=20)
-        discovery_resp.raise_for_status()
-        self.config = discovery_resp.json()
+        try:
+            discovery_resp = requests_session.get(self.discovery_url, timeout=20)
+            discovery_resp.raise_for_status()
+            self.config = discovery_resp.json()
+        except Exception as e:
+            raise OidcException(f"Failed to obtain OIDC discovery document from {self.discovery_url!r}: {e!r}") from e
         self.issuer = issuer or self.config["issuer"]
         # Minimal set of scopes to request
         self._supported_scopes = self.config.get("scopes_supported", ["openid"])

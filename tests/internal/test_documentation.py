@@ -61,13 +61,16 @@ def test_extract_main_description():
         (DataCube.create_job, VectorCube.create_job),
         (DataCube.execute_batch, VectorCube.execute_batch),
         (DataCube.save_result, VectorCube.save_result),
+        (DataCube.validate, VectorCube.validate),
         # DataCube vs MlModel
         (DataCube.create_job, MlModel.create_job),
         (DataCube.execute_batch, MlModel.execute_batch),
+        (DataCube.validate, MlModel.validate),
         # DataCube vs StacResource
         (DataCube.download, StacResource.download),
         (DataCube.create_job, StacResource.create_job),
         (DataCube.execute_batch, StacResource.execute_batch),
+        (DataCube.validate, StacResource.validate),
     ],
 )
 def test_cube_processing_params_and_return(method_a, method_b):

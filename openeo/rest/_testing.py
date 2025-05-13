@@ -103,6 +103,10 @@ class DummyBackend:
         requests_mock.delete(
             re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), json=self._handle_delete_job_results
         )
+        requests_mock.head(
+            re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
+            headers={"Content-Length": "666"}
+        )
         requests_mock.get(
             re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
             content=self._handle_get_job_result_asset,
@@ -179,6 +183,7 @@ class DummyBackend:
         elif isinstance(result, str):
             result = result.encode("utf-8")
         assert isinstance(result, bytes)
+        context.headers["OpenEO-Identifier"] = f"r-{len(self.sync_requests):03d}"
         return result
 
     def _handle_post_jobs(self, request, context):

@@ -246,7 +246,7 @@ we will use a concrete version ``0.8.0`` in the examples below.
 #.  Create release commit:
 
     A.  **Drop the pre-release suffix** from the version string in ``openeo/_version.py``
-        so that it just a "final" semantic versioning string, e.g. ``0.8.0``
+        so that it is just a "final" semantic versioning string, e.g. ``0.8.0``
 
     B.  **Update CHANGELOG.md**: rename the "Unreleased" section title
         to contain version and date, e.g.::

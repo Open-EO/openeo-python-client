@@ -26,6 +26,7 @@ from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import DataCube
+from openeo.rest.models.general import ValidationResponse
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import dict_no_none
 
@@ -898,6 +899,28 @@ def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadat
     ]
 
 
+def test_resample_cube_spatial_preserve_non_spatial(s2cube):
+    cube_xytb = s2cube.resample_spatial(resolution=11, projection=32631)
+    cube_xyt = s2cube.reduce_dimension(dimension="bands", reducer="mean").resample_spatial(
+        resolution=22, projection=32631
+    )
+    cube_xyb = s2cube.reduce_dimension(dimension="t", reducer="mean").resample_spatial(resolution=33, projection=32631)
+
+    result = cube_xyt.resample_cube_spatial(target=cube_xytb)
+    assert result.metadata.dimension_names() == ["t", "x", "y"]
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=11),
+        SpatialDimension(name="y", extent=None, crs=32631, step=11),
+    ]
+
+    result = cube_xyb.resample_cube_spatial(target=cube_xyt)
+    assert result.metadata.dimension_names() == ["bands", "x", "y"]
+    assert result.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=22),
+        SpatialDimension(name="y", extent=None, crs=32631, step=22),
+    ]
+
+
 def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):
     cube = s2cube.resample_spatial(resolution=10, projection=32631)
     target = s2cube_without_metadata
@@ -1573,3 +1596,21 @@ def test_execute_batch_with_title(s2cube, dummy_backend):
             "description": "Lorem ipsum dolor S2 amet",
         }
     }
+
+
+def test_cube_validate(con120, dummy_backend):
+    dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
+    cube = con120.load_collection("S2")
+    result = cube.validate()
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                "result": True,
+            },
+        }
+    ]
+    assert isinstance(result, ValidationResponse)
+    assert result == [{"code": "OddSupport", "message": "Odd values are not supported."}]

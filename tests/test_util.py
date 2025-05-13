@@ -12,6 +12,7 @@ import pyproj
 import pytest
 import shapely.geometry
 
+from openeo.internal.warnings import UserDeprecationWarning
 from openeo.util import (
     BBoxDict,
     ContextTimer,
@@ -284,11 +285,16 @@ class TestRfc3339:
         time_machine.move_to("2023-02-10T12:34:56Z")
         assert rfc3339.today() == "2023-02-10"
 
-    def test_utcnow(self, time_machine):
+    def test_now_utc(self, time_machine):
         time_machine.move_to("2023-02-10T12:34:56Z")
-        assert rfc3339.utcnow() == "2023-02-10T12:34:56Z"
+        assert rfc3339.now_utc() == "2023-02-10T12:34:56Z"
         time_machine.move_to("2023-02-10T12:34:56+03")
-        assert rfc3339.utcnow() == "2023-02-10T09:34:56Z"
+        assert rfc3339.now_utc() == "2023-02-10T09:34:56Z"
+
+    def test_legacy_utcnow(self, time_machine):
+        time_machine.move_to("2023-02-10T12:34:56Z")
+        with pytest.warns(UserDeprecationWarning, match=r"Call to deprecated method utcnow.*Use `\.now_utc` instead"):
+            assert rfc3339.utcnow() == "2023-02-10T12:34:56Z"
 
 
 def test_dict_no_none_kwargs():

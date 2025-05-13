@@ -1,7 +1,7 @@
 import concurrent.futures
 import datetime
 import logging
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -53,6 +53,17 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def exists(self) -> bool:
         return any(c.id == self.collection_id for c in self.client.get_collections())
+    
+    def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
+        by adding the default columns and setting the index.
+        """
+        df = MultiBackendJobManager._normalize_df(df)
+        # If the user doesn't specify the item_id column, we will use the index.
+        if "item_id" not in df.columns:
+            df = df.reset_index(names=["item_id"])
+        return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
         """
@@ -83,7 +94,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
                 raise FileExistsError(f"Job database {self!r} already exists.")
             elif on_exists == "append":
                 existing_df = self.get_by_status([])
-                df = MultiBackendJobManager._normalize_df(df)
+                df = self._normalize_df(df)
                 df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
                 self.persist(df)
                 return self
@@ -91,7 +102,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             else:
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
 
-        df = MultiBackendJobManager._normalize_df(df)
+        df = self._normalize_df(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -105,7 +116,6 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         item_dict = item.to_dict()
         item_id = item_dict["id"]
-        dt = item_dict["properties"]["datetime"]
 
         return pd.Series(item_dict["properties"], name=item_id)
 
@@ -118,6 +128,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :return: pystac.Item
         """
         series_dict = series.to_dict()
+        item_id = series_dict.pop("item_id")
         item_dict = {}
         item_dict.setdefault("stac_version", pystac.get_stac_version())
         item_dict.setdefault("type", "Feature")
@@ -139,7 +150,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             item_dict["geometry"] = None
 
         # from_dict handles associating any Links and Assets with the Item
-        item_dict["id"] = series.name
+        item_dict["id"] = item_id
         item = pystac.Item.from_dict(item_dict)
         if self.has_geometry:
             item.bbox = shape(series[self.geometry_column]).bounds
@@ -151,13 +162,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
-        items = self.get_by_status(statuses, max=200)
+        items = self.get_by_status(statuses)
         if items is None:
             return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
 
-    def get_by_status(self, statuses: Iterable[str], max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
@@ -172,10 +183,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         series = [self.series_from(item) for item in search_results.items()]
 
-        df = pd.DataFrame(series)
+        df = pd.DataFrame(series).reset_index(names=["item_id"])
         if len(series) == 0:
             # TODO: What if default columns are overwritten by the user?
-            df = MultiBackendJobManager._normalize_df(
+            df = self._normalize_df(
                 df
             )  # Even for an empty dataframe the default columns are required
         return df

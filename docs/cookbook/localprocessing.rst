@@ -48,11 +48,12 @@ The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog,
     >>> temporal_extent = ["2019-01-01", "2019-06-15"]
     >>> bands = ["red"]
     >>> properties = {"eo:cloud_cover": dict(lt=50)}
-    >>> s2_cube = local_conn.load_stac(url=url,
-    ...    spatial_extent=spatial_extent,
-    ...    temporal_extent=temporal_extent,
-    ...    bands=bands,
-    ...    properties=properties,
+    >>> s2_cube = local_conn.load_stac(
+    ...     url=url,
+    ...     spatial_extent=spatial_extent,
+    ...     temporal_extent=temporal_extent,
+    ...     bands=bands,
+    ...     properties=properties,
     ... )
     >>> s2_cube.execute()
     <xarray.DataArray 'stackstac-08730b1b5458a4ed34edeee60ac79254' (time: 177,
@@ -94,6 +95,7 @@ With some sample data we can now check the STAC metadata for the local files by 
 .. code:: python
 
    from openeo.local import LocalConnection
+
    local_data_folders = [
        "./openeo-localprocessing-data/sample_netcdf",
        "./openeo-localprocessing-data/sample_geotiff",
@@ -162,10 +164,11 @@ We can perform the same example using data provided by STAC Collection:
 .. code:: python
 
     from openeo.local import LocalConnection
+
     local_conn = LocalConnection("./")
 
     url = "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a"
-    spatial_extent =  {"east": 11.40, "north": 46.52, "south": 46.46, "west": 11.25}
+    spatial_extent = {"east": 11.40, "north": 46.52, "south": 46.46, "west": 11.25}
     temporal_extent = ["2022-06-01", "2022-06-30"]
     bands = ["red", "nir"]
     properties = {"eo:cloud_cover": dict(lt=80)}

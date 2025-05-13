@@ -28,13 +28,15 @@ using the openEO Python Client library:
     import openeo
 
     # Build a UDF object from an inline string with Python source code.
-    udf = openeo.UDF("""
-    import xarray
+    udf = openeo.UDF(
+        """
+        import xarray
 
-    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-        cube.values = 0.0001 * cube.values
-        return cube
-    """)
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            cube.values = 0.0001 * cube.values
+            return cube
+        """
+    )
 
     # Or load the UDF code from a separate file.
     # udf = openeo.UDF.from_file("udf-code.py")
@@ -173,7 +175,7 @@ In most of the examples here, we will start from an initial Sentinel2 data cube 
         "SENTINEL2_L2A",
         spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
         temporal_extent=["2022-03-01", "2022-03-31"],
-        bands=["B02", "B03", "B04"]
+        bands=["B02", "B03", "B04"],
     )
 
 
@@ -202,6 +204,7 @@ The UDF code is this short script (the part that does the actual value rescaling
     :emphasize-lines: 5
 
     import xarray
+
 
     def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
         cube.values = 0.0001 * cube.values
@@ -244,17 +247,19 @@ The UDF-specific part is highlighted.
         "SENTINEL2_L2A",
         spatial_extent={"west": 4.00, "south": 51.04, "east": 4.10, "north": 51.1},
         temporal_extent=["2022-03-01", "2022-03-31"],
-        bands=["B02", "B03", "B04"]
+        bands=["B02", "B03", "B04"],
     )
 
     # Create a UDF object from inline source code.
-    udf = openeo.UDF("""
-    import xarray
+    udf = openeo.UDF(
+        """
+        import xarray
 
-    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-        cube.values = 0.0001 * cube.values
-        return cube
-    """)
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            cube.values = 0.0001 * cube.values
+            return cube
+        """
+    )
 
     # Pass UDF object as child process to `apply`.
     rescaled = s2_cube.apply(process=udf)
@@ -289,7 +294,9 @@ instead of the original digital number range (thousands):
 
 UDF's that transform cube metadata
 ==================================
-This is a new/experimental feature so may still be subject to change.
+
+.. warning::
+    This is a new/experimental feature so may still be subject to change.
 
 In some cases, a UDF can have impact on the metadata of a cube, but this can not always
 be easily inferred by process graph evaluation logic without running the actual
@@ -300,7 +307,7 @@ To provide evaluation logic with this information, the user should implement the
 :py:meth:`~openeo.udf.udf_signatures.apply_metadata()` function as part of the UDF.
 Please refer to the documentation of that function for more information.
 
-.. literalinclude:: ../examples/udf/udf_modify_spatial.py
+.. literalinclude:: examples/udf/udf_modify_spatial.py
     :language: python
     :caption: Example of a UDF that adjusts spatial metadata ``udf_modify_spatial.py``
     :name: spatial_udf
@@ -309,13 +316,15 @@ To invoke a UDF like this, the apply_neighborhood method is most suitable:
 
 .. code-block:: python
 
-    udf_code = Path('udf_modify_spatial.py').read_text()
+    udf = openeo.UDF.from_file("udf_modify_spatial.py", runtime="Python-Jep")
     cube_updated = cube.apply_neighborhood(
-        lambda data: data.run_udf(udf=udf_code, runtime='Python-Jep', context=dict()),
+        udf,
         size=[
-            {'dimension': 'x', 'value': 128, 'unit': 'px'},
-            {'dimension': 'y', 'value': 128, 'unit': 'px'}
-        ], overlap=[])
+            {"dimension": "x", "value": 128, "unit": "px"},
+            {"dimension": "y", "value": 128, "unit": "px"},
+        ],
+        overlap=[],
+    )
 
 
 
@@ -350,13 +359,17 @@ the datacube.
 
 .. code-block:: python
 
-    output_cube = inputs_cube.apply_neighborhood(my_udf, size=[
-            {'dimension': 'x', 'value': 112, 'unit': 'px'},
-            {'dimension': 'y', 'value': 112, 'unit': 'px'}
-        ], overlap=[
-            {'dimension': 'x', 'value': 8, 'unit': 'px'},
-            {'dimension': 'y', 'value': 8, 'unit': 'px'}
-        ])
+    output_cube = inputs_cube.apply_neighborhood(
+        my_udf,
+        size=[
+            {"dimension": "x", "value": 112, "unit": "px"},
+            {"dimension": "y", "value": 112, "unit": "px"},
+        ],
+        overlap=[
+            {"dimension": "x", "value": 8, "unit": "px"},
+            {"dimension": "y", "value": 8, "unit": "px"},
+        ],
+    )
 
 
 
@@ -380,7 +393,7 @@ that is available in the SciPy Python library.
 To ensure that openEO understand your function, it needs to follow some rules, the UDF specification.
 This is an example that follows those rules:
 
-.. literalinclude:: ../examples/udf/smooth_savitzky_golay.py
+.. literalinclude:: examples/udf/smooth_savitzky_golay.py
     :language: python
     :caption: Example UDF code ``smooth_savitzky_golay.py``
     :name: savgol_udf
@@ -396,7 +409,7 @@ and apply it along a dimension:
 
 .. code-block:: python
 
-    smoothing_udf = openeo.UDF.from_file('smooth_savitzky_golay.py')
+    smoothing_udf = openeo.UDF.from_file("smooth_savitzky_golay.py")
     smoothed_evi = evi_cube_masked.apply_dimension(smoothing_udf, dimension="t")
 
 
@@ -607,7 +620,7 @@ Example
 -------
 
 
-An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/profiling_example.py>`_ .
+An example code can be found `here <https://github.com/Open-EO/openeo-python-client/tree/master/examples/archive/profiling_example.py>`_ .
 
 
 
@@ -629,6 +642,7 @@ For example: to discover the shape of the data cube chunk that you receive in yo
 
     from openeo.udf import inspect
     import xarray
+
 
     def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
         inspect(data=[cube.shape], message="UDF logging shape of my cube")

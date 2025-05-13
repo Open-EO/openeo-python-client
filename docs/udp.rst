@@ -474,12 +474,12 @@ building, storing, and finally executing the UDP.
         name="temporal_extent",
         description="The date range to calculate the EVI for.",
         schema={"type": "array", "subtype": "temporal-interval"},
-        default =["2018-06-15", "2018-06-27"]
+        default=["2018-06-15", "2018-06-27"],
     )
     geometry = Parameter(
         name="geometry",
         description="The geometry (a single (multi)polygon or a feature collection of (multi)polygons) of to calculate the EVI for.",
-        schema={"type": "object", "subtype": "geojson"}
+        schema={"type": "object", "subtype": "geojson"},
     )
 
     # Load raw SENTINEL2_L2A data

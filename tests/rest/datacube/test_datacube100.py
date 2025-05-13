@@ -2129,7 +2129,7 @@ def test_load_collection_max_cloud_cover_summaries_warning(
     if expect_warning:
         assert len(recwarn.list) == 1
         assert re.search(
-            "property filtering.*undefined.*collection metadata.*eo:cloud_cover",
+            "Property filtering.*unsupported.*collection.*metadata.*eo:cloud_cover",
             str(recwarn.pop(UserWarning).message),
         )
     else:
@@ -2826,6 +2826,53 @@ def test_sar_backscatter_coefficient_invalid(con100):
     cube = con100.load_collection("S2")
     with pytest.raises(OpenEoClientException, match="Invalid.*coef.*unicorn.*Should.*sigma0-ellipsoid.*gamma0-terrain"):
         cube.sar_backscatter(coefficient="unicorn")
+
+
+def test_sar_backscatter_check_coefficient_backend(con100, requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    processes = [
+        {
+            "id": "sar_backscatter",
+            "description": "Computes backscatter from SAR input",
+            "summary": "Computes backscatter from SAR input",
+            "parameters": [
+                {
+                    "default": "gamma0-ellipsoid",
+                    "description": "Select the radiometric correction coefficient.",
+                    "name": "coefficient",
+                    "schema": [
+                        {
+                            "enum": [
+                                "beta0",
+                                "sigma0-ellipsoid",
+                                "sigma0-terrain",
+                                "gamma0-ellipsoid",
+                                "gamma0-terrain",
+                            ],
+                            "type": "string",
+                        },
+                    ],
+                },
+            ],
+            "returns": {"description": "incremented value", "schema": {"type": "integer"}},
+        }
+    ]
+    requests_mock.get(API_URL + "/processes", json={"processes": processes})
+    cube = con100.load_collection("S2").sar_backscatter()
+    assert _get_leaf_node(cube) == {
+        "process_id": "sar_backscatter",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "coefficient": "gamma0-ellipsoid",
+            "elevation_model": None,
+            "mask": False,
+            "contributing_area": False,
+            "local_incidence_angle": False,
+            "ellipsoid_incidence_angle": False,
+            "noise_removal": True,
+        },
+        "result": True,
+    }
 
 
 def test_datacube_from_process(con100):

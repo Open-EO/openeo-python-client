@@ -573,9 +573,9 @@ class TestMultiBackendJobManager:
         job_manager_root_dir,
     ):
         def get_status(job_id, current_status):
-            if rfc3339.utcnow() < start_time:
+            if rfc3339.now_utc() < start_time:
                 return "queued"
-            elif rfc3339.utcnow() < end_time:
+            elif rfc3339.now_utc() < end_time:
                 return "running"
             return end_status
 
@@ -685,9 +685,9 @@ class TestMultiBackendJobManager:
         job_manager_root_dir,
     ):
         def get_status(job_id, current_status):
-            if rfc3339.utcnow() < start_time:
+            if rfc3339.now_utc() < start_time:
                 return "queued"
-            elif rfc3339.utcnow() < end_time:
+            elif rfc3339.now_utc() < end_time:
                 return "running"
             return end_status
 

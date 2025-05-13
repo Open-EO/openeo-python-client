@@ -23,6 +23,8 @@ import requests
 import shapely.geometry.base
 from deprecated import deprecated
 
+from openeo.internal.warnings import legacy_alias
+
 try:
     # pyproj is an optional dependency
     import pyproj
@@ -194,11 +196,14 @@ class Rfc3339:
         """Today (date) in RFC3339 format"""
         return self.date(dt.date.today())
 
-    def utcnow(self) -> str:
-        """Current UTC datetime in RFC3339 format."""
+    def now_utc(self) -> str:
+        """Current datetime (in UTC timezone) in RFC3339 format."""
         # Current time in UTC timezone (instead of naive `datetime.datetime.utcnow()`, per `datetime` documentation)
         now = dt.datetime.now(tz=dt.timezone.utc)
         return self.datetime(now)
+
+    # Legacy alias
+    utcnow = legacy_alias(now_utc, name="utcnow", since="0.41.0")
 
 
 # Default RFC3339 date-time formatter

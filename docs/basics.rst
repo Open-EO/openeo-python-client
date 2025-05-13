@@ -126,8 +126,8 @@ We load an initial small spatio-temporal slice (a data cube) as follows:
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = ["2021-02-01", "2021-04-30"],
-        bands=["B02", "B04", "B08"]
+        temporal_extent=["2021-02-01", "2021-04-30"],
+        bands=["B02", "B04", "B08"],
     )
 
 Note how we specify a the region of interest, a time range and a set of bands to load.
@@ -279,8 +279,8 @@ First, we load a new ``SENTINEL2_L2A`` based data cube with this specific ``SCL`
     s2_scl = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = ["2021-02-01", "2021-04-30"],
-        bands=["SCL"]
+        temporal_extent=["2021-02-01", "2021-04-30"],
+        bands=["SCL"],
     )
 
 Now we can use the compact "band math" feature again to build a
@@ -362,7 +362,7 @@ Building on the experience from previous sections, we first build a masked EVI c
     sentinel2_cube = connection.load_collection(
         "SENTINEL2_L2A",
         spatial_extent={"west": 5.14, "south": 51.17, "east": 5.17, "north": 51.19},
-        temporal_extent = ["2020-01-01", "2021-12-31"],
+        temporal_extent=["2020-01-01", "2021-12-31"],
         bands=["B02", "B04", "B08", "SCL"],
     )
 
@@ -413,6 +413,7 @@ which we massage a bit more:
     from openeo.rest.conversions import timeseries_json_to_pandas
 
     import json
+
     with open("evi-aggregation.json") as f:
         data = json.load(f)
 

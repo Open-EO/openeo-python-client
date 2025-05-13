@@ -13,7 +13,6 @@ _version = {}
 with open("openeo/_version.py") as fp:
     exec(fp.read(), _version)
 
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -63,7 +62,6 @@ artifacts_require = [
 
 typing_requires = ["types-boto3-s3", "types-boto3-sts"]
 
-
 name = "openeo"
 setup(
     name=name,
@@ -83,7 +81,7 @@ setup(
         "requests>=2.26.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
-        "xarray>=0.12.3,!=2025.01.2",
+        "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
         # TODO #715 compatibility with pystac 1.12

@@ -77,9 +77,11 @@ Basic usage example with a remote process definition:
 
     # Initialize job database from a dataframe,
     # with desired parameter values to fill in.
-    df = pd.DataFrame({
-        "start_date": ["2021-01-01", "2021-02-01", "2021-03-01"],
-    })
+    df = pd.DataFrame(
+        {
+            "start_date": ["2021-01-01", "2021-02-01", "2021-03-01"],
+        }
+    )
     job_db = create_job_db("jobs.csv").initialize_from_df(df)
 
     # Create and run job manager,

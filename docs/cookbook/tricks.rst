@@ -69,11 +69,13 @@ For example:
 .. code-block:: python
 
     # `execute` with raw JSON string
-    connection.execute("""
+    connection.execute(
+        """
         {
             "add": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": true}
         }
-    """)
+    """
+    )
 
     # `download` with local path to JSON file
     connection.download("path/to/my-process-graph.json")
@@ -99,7 +101,7 @@ where you could pass a *backend-side* path as ``geometries``, e.g.:
 
     cube = cube.aggregate_spatial(
         geometries="/backend/path/to/geometries.json",
-        reducer="mean"
+        reducer="mean",
     )
 
 The client would handle this by automatically adding a ``read_vector`` process
@@ -124,7 +126,7 @@ for example as follows:
 
     cube = cube.aggregate_spatial(
         geometries=process("read_vector", filename="/backend/path/to/geometries.json"),
-        reducer="mean"
+        reducer="mean",
     )
 
 Note that this is also works with older versions of the openEO Python client library.

@@ -59,11 +59,6 @@ def assert_private_file(path: Path):
             raise PermissionError(message)
 
 
-def utcnow_rfc3339() -> str:
-    """Current datetime formatted as RFC-3339 string."""
-    return rfc3339.datetime(datetime.utcnow())
-
-
 def _normalize_url(url: str) -> str:
     """Normalize a url (trim trailing slash), to simplify equality checking."""
     return url.rstrip("/") or "/"
@@ -146,7 +141,7 @@ class AuthConfig(PrivateJsonFile):
         if "metadata" not in data:
             data["metadata"] = {
                 "type": "AuthConfig",
-                "created": utcnow_rfc3339(),
+                "created": rfc3339.now_utc(),
                 "created_by": "openeo-python-client {v}".format(v=__version__),
                 "version": 1,
             }
@@ -169,7 +164,7 @@ class AuthConfig(PrivateJsonFile):
             "basic",
         )
         # TODO: support multiple basic auth credentials? (pick latest by default for example)
-        deep_set(data, *keys, "date", value=utcnow_rfc3339())
+        deep_set(data, *keys, "date", value=rfc3339.now_utc())
         deep_set(data, *keys, "username", value=username)
         if password:
             deep_set(data, *keys, "password", value=password)
@@ -203,7 +198,7 @@ class AuthConfig(PrivateJsonFile):
         data = self.load()
         keys = ("backends", _normalize_url(backend), "oidc", "providers", provider_id)
         # TODO: support multiple clients? (pick latest by default for example)
-        deep_set(data, *keys, "date", value=utcnow_rfc3339())
+        deep_set(data, *keys, "date", value=rfc3339.now_utc())
         deep_set(data, *keys, "client_id", value=client_id)
         deep_set(data, *keys, "client_secret", value=client_secret)
         if issuer:
@@ -233,7 +228,7 @@ class RefreshTokenStore(PrivateJsonFile):
             _normalize_url(issuer),
             client_id,
             value={
-                "date": utcnow_rfc3339(),
+                "date": rfc3339.now_utc(),
                 "refresh_token": refresh_token,
             },
         )

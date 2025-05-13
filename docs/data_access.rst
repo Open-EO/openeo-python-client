@@ -274,7 +274,7 @@ For example, to filter on the relative orbit number of SAR data:
         "SENTINEL1_GRD",
         ...,
         properties={
-            "relativeOrbitNumber": lambda x: x==116
+            "relativeOrbitNumber": lambda x: x == 116,
         },
     )
 

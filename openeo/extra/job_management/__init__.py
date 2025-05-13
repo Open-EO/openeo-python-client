@@ -595,7 +595,7 @@ class MultiBackendJobManager:
             df.loc[i, "status"] = "start_failed"
             stats["start_job error"] += 1
         else:
-            df.loc[i, "start_time"] = rfc3339.utcnow()
+            df.loc[i, "start_time"] = rfc3339.now_utc()
             if job:
                 df.loc[i, "id"] = job.job_id
                 with ignore_connection_errors(context="get status"):
@@ -675,7 +675,7 @@ class MultiBackendJobManager:
             job_running_start_time = rfc3339.parse_datetime(row.get("running_start_time"), with_timezone=True)
             
             # Parse the current time into a datetime object with timezone info
-            current_time = rfc3339.parse_datetime(rfc3339.utcnow(), with_timezone=True)
+            current_time = rfc3339.parse_datetime(rfc3339.now_utc(), with_timezone=True)
 
             # Calculate the elapsed time between job start and now
             elapsed = current_time - job_running_start_time
@@ -751,7 +751,7 @@ class MultiBackendJobManager:
 
                 if previous_status in {"created", "queued"} and new_status == "running":
                     stats["job started running"] += 1
-                    active.loc[i, "running_start_time"] = rfc3339.utcnow()
+                    active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
                 if self._cancel_running_job_after and new_status == "running":
                     if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
@@ -759,7 +759,7 @@ class MultiBackendJobManager:
                             f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
                             )
                         stats["job started running"] += 1
-                        active.loc[i, "running_start_time"] = rfc3339.utcnow()
+                        active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
                     self._cancel_prolonged_job(the_job, active.loc[i])
 
