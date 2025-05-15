@@ -1370,8 +1370,8 @@ class DataCube(_ProcessGraphAbstraction):
         # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
         process: Union[str, typing.Callable, UDF, PGNode] = None,
         version: Optional[str] = None,
-        # TODO: dimension has no default (per spec)?
-        dimension: str = "t",
+        # TODO #774 fully drop default value for dimension after deprecation period
+        dimension: str = _UNSET,
         target_dimension: Optional[str] = None,
         context: Optional[dict] = None,
     ) -> DataCube:
@@ -1426,6 +1426,9 @@ class DataCube(_ProcessGraphAbstraction):
             of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
             See :ref:`old_udf_api` for more background about the changes.
 
+        .. versionchanged:: 0.42.0
+            Not explicitly specifying the ``dimension`` argument is deprecated and will trigger warnings.
+            The original fallback value "t" is still in place, but that will be removed in a future version.
         """
         # TODO #137 #181 #312 remove support for code/runtime/version
         if runtime or (isinstance(code, str) and "\n" in code) or version:
@@ -1446,6 +1449,17 @@ class DataCube(_ProcessGraphAbstraction):
         process = build_child_callback(
             process=process, parent_parameters=["data", "context"], connection=self.connection
         )
+
+        if dimension is _UNSET:
+            # TODO #774 fully drop this dimension fallback value after deprecation period
+            warnings.warn(
+                "Using `DataCube.apply_dimension()` without explicit `dimension` argument is deprecated and will become invalid in a future version. "
+                "Falling back on dimension 't'.",
+                category=UserDeprecationWarning,
+                stacklevel=2,
+            )
+            dimension = "t"
+
         arguments = {
             "data": THIS,
             "process": process,
