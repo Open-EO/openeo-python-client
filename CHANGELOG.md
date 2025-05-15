@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `DataCube.apply_dimension()`: explicitly specifying the `dimension` argument is now mandatory. The old default (dimension "t") was unnecessarily opinionated and causing confusion about how the process handles dimensions. ([#774](https://github.com/Open-EO/openeo-python-client/issues/774))
+
 ### Removed
 
 ### Fixed

@@ -1366,14 +1366,14 @@ class DataCube(_ProcessGraphAbstraction):
     def apply_dimension(
         self,
         code: Optional[str] = None,
-        runtime=None,
+        *,
         # TODO: drop None default of process (when `code` and `runtime` args can be dropped)
         process: Union[str, typing.Callable, UDF, PGNode] = None,
-        version: Optional[str] = None,
-        # TODO: dimension has no default (per spec)?
-        dimension: str = "t",
+        dimension: str,
         target_dimension: Optional[str] = None,
         context: Optional[dict] = None,
+        runtime: Optional[str] = None,
+        version: Optional[str] = None,
     ) -> DataCube:
         """
         Applies a process to all pixel values along a dimension of a raster data cube. For example,
@@ -1426,6 +1426,21 @@ class DataCube(_ProcessGraphAbstraction):
             of using an :py:class:`UDF <openeo.rest._datacube.UDF>` object in the ``process`` argument.
             See :ref:`old_udf_api` for more background about the changes.
 
+        .. versionchanged:: 0.42.0
+            Argument ``dimension`` is mandatory now.
+            It used to have default value "t" but that was overly opinionated
+            and causing confusion about how dimensions are handled.
+
+            As related side-effect, and as further deprecation of the old ``code``/``runtime``/``version`` API,
+            at most one positional argument is allowed now.
+            This argument still has its original name ``code``,
+            but it's likely it will be renamed to ``process`` in the future.
+            For optimal future (and backward) compatibility,
+            it is recommended to always use keyword arguments,
+            e.g. with at least ``process`` and ``dimension``:
+
+            .. code-block:: python
+                cube.apply_dimension(process=..., dimension=...)
         """
         # TODO #137 #181 #312 remove support for code/runtime/version
         if runtime or (isinstance(code, str) and "\n" in code) or version:
