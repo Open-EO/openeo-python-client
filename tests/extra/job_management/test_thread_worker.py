@@ -1,170 +1,271 @@
+import logging
+import threading
 import time
+from dataclasses import dataclass
+from typing import Iterator
+
 import pytest
-import pandas as pd
 import requests
 
-# Import the refactored classes and helper functions from your codebase.
-# Adjust the import paths as needed.
 from openeo.extra.job_management._thread_worker import (
+    Task,
     _JobManagerWorkerThreadPool,
-    _JobStartTask)
+    _JobStartTask,
+    _TaskResult,
+)
+from openeo.rest._testing import DummyBackend
 
-# --- Fixtures and Helpers ---
-
-@pytest.fixture
-def worker_pool():
-    """Fixture for creating and cleaning up a worker thread pool."""
-    pool = _JobManagerWorkerThreadPool(max_workers=2)
-    yield pool
-    pool.shutdown()
 
 @pytest.fixture
-def sample_dataframe():
-    """Creates a pandas DataFrame for job tracking."""
-    df = pd.DataFrame([
-        {"id": "job-123", "status": "queued_for_start", "other_field": "foo"},
-        {"id": "job-456", "status": "queued_for_start", "other_field": "bar"},
-        {"id": "job-789", "status": "other", "other_field": "baz"}
-    ])
-    return df
+def dummy_backend(requests_mock) -> DummyBackend:
+    dummy = DummyBackend.at_url("https://foo.test", requests_mock=requests_mock)
+    dummy.setup_simple_job_status_flow(queued=2, running=5)
+    return dummy
 
-@pytest.fixture
-def initial_stats():
-    """Returns a dictionary with initial stats counters."""
-    return {"job start": 0, "job start failed": 0}
 
-@pytest.fixture
-def successful_backend_mock(requests_mock):
-    """
-    Returns a helper to set up a successful backend.
-    Mocks a version check, job start, and job status check.
-    """
-    def _setup(root_url: str, job_id: str, status: str = "queued"):
-        # Backend version check
-        requests_mock.get(root_url, json={"api_version": "1.1.0"})
-        # Job start: assume that the job start endpoint returns a JSON response (simulate the backend behavior)
-        requests_mock.post(f"{root_url}/jobs/{job_id}/results", json={"job_id": job_id, "status": status}, status_code=202)
-        # Job status check
-        requests_mock.get(f"{root_url}/jobs/{job_id}", json={"job_id": job_id, "status": status})
-    return _setup
+class TestTaskResult:
+    def test_default(self):
+        result = _TaskResult(job_id="j-123")
+        assert result.job_id == "j-123"
+        assert result.db_update == {}
+        assert result.stats_update == {}
 
-@pytest.fixture
-def valid_task():
-    """Fixture to create a valid _JobStartTask instance."""
-    return _JobStartTask(
-        root_url="https://foo.test",
-        bearer_token="test-token",
-        job_id="test-job-123"
-    )
 
-import time
+class TestJobStartTask:
+    def test_start_success(self, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        job = dummy_backend.connection.create_job(process_graph={})
 
-def wait_for_results(worker_pool, timeout=3.0, interval=0.1):
-    """
-    Wait for the worker pool to return results, with timeout safety.
-    Raises:
-        TimeoutError if no results are available within timeout.
-    """
-    start = time.time()
-    while time.time() - start < timeout:
-        results = worker_pool.process_futures()
-        if results:
-            return results
-        time.sleep(interval)
-    raise TimeoutError(f"Timed out after {timeout}s waiting for worker pool results.")
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        result = task.execute()
 
-# --- Tests for the Worker Thread Pool and Futures Postprocessing ---
+        assert result == _TaskResult(
+            job_id="job-000",
+            db_update={"status": "queued"},
+            stats_update={"job start": 1},
+        )
+        assert job.status() == "queued"
+        assert caplog.messages == []
+
+    def test_start_failure(self, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        job = dummy_backend.connection.create_job(process_graph={})
+        dummy_backend.setup_job_start_failure()
+
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        result = task.execute()
+
+        assert result == _TaskResult(
+            job_id="job-000",
+            db_update={"status": "start_failed"},
+            stats_update={"start_job error": 1},
+        )
+        assert job.status() == "error"
+        assert caplog.messages == [
+            "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting " "for you, buddy')"
+        ]
+
+
+
+
+class NopTask(Task):
+    """Do Nothing"""
+
+    def execute(self) -> _TaskResult:
+        return _TaskResult(job_id=self.job_id)
+
+
+class DummyTask(Task):
+    def execute(self) -> _TaskResult:
+        if self.job_id == "j-666":
+            raise ValueError("Oh no!")
+        return _TaskResult(
+            job_id=self.job_id,
+            db_update={"status": "dummified"},
+            stats_update={"dummy": 1},
+        )
+
+
+@dataclass(frozen=True)
+class BlockingTask(Task):
+    """Another dummy task that blocks until an event is set, and optionally fails."""
+
+    event: threading.Event
+    timeout: int = 5
+    success: bool = True
+
+    def execute(self) -> _TaskResult:
+        released = self.event.wait(timeout=self.timeout)
+        if not released:
+            raise TimeoutError("Waiting for event timed out")
+        if not self.success:
+            raise ValueError("Oh no!")
+        return _TaskResult(job_id=self.job_id, db_update={"status": "all fine"})
+
+
+
 
 class TestJobManagerWorkerThreadPool:
-    def test_worker_thread_lifecycle(self, worker_pool):
-        """Test that the worker thread pool starts and shuts down as expected."""
-       
-        # Before shutdown, the executor should be active
-        assert not worker_pool._executor._shutdown
+    @pytest.fixture
+    def worker_pool(self) -> Iterator[_JobManagerWorkerThreadPool]:
+        """Fixture for creating and cleaning up a worker thread pool."""
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        yield pool
+        pool.shutdown()
+
+    def test_no_tasks(self, worker_pool):
+        results, remaining = worker_pool.process_futures(timeout=10)
+        assert results == []
+        assert remaining == 0
+
+    def test_submit_and_process(self, worker_pool):
+        worker_pool.submit_task(DummyTask(job_id="j-123"))
+        results, remaining = worker_pool.process_futures(timeout=10)
+        assert results == [
+            _TaskResult(job_id="j-123", db_update={"status": "dummified"}, stats_update={"dummy": 1}),
+        ]
+        assert remaining == 0
+
+    def test_submit_and_process_zero_timeout(self, worker_pool):
+        worker_pool.submit_task(DummyTask(job_id="j-123"))
+        # Trigger context switch
+        time.sleep(0.1)
+        results, remaining = worker_pool.process_futures(timeout=0)
+        assert results == [
+            _TaskResult(job_id="j-123", db_update={"status": "dummified"}, stats_update={"dummy": 1}),
+        ]
+        assert remaining == 0
+
+    def test_submit_and_process_with_error(self, worker_pool):
+        worker_pool.submit_task(DummyTask(job_id="j-666"))
+        results, remaining = worker_pool.process_futures(timeout=10)
+        assert results == [
+            _TaskResult(
+                job_id="j-666",
+                db_update={"status": "threaded task failed"},
+                stats_update={"threaded task failed": 1},
+            ),
+        ]
+        assert remaining == 0
+
+    def test_submit_and_process_iterative(self, worker_pool):
+        worker_pool.submit_task(NopTask(job_id="j-1"))
+        results, remaining = worker_pool.process_futures(timeout=1)
+        assert results == [_TaskResult(job_id="j-1")]
+        assert remaining == 0
+
+        # Add some more
+        worker_pool.submit_task(NopTask(job_id="j-22"))
+        worker_pool.submit_task(NopTask(job_id="j-222"))
+        results, remaining = worker_pool.process_futures(timeout=1)
+        assert results == [_TaskResult(job_id="j-22"), _TaskResult(job_id="j-222")]
+        assert remaining == 0
+
+    def test_submit_multiple_simple(self, worker_pool):
+        # A bunch of dummy tasks
+        for j in range(5):
+            worker_pool.submit_task(NopTask(job_id=f"j-{j}"))
+
+        # Process all of them (non-zero timeout, which should be plenty of time for all of them to finish)
+        results, remaining = worker_pool.process_futures(timeout=1)
+        expected = [_TaskResult(job_id=f"j-{j}") for j in range(5)]
+        assert sorted(results, key=lambda r: r.job_id) == expected
+
+    def test_submit_multiple_blocking_and_failing(self, worker_pool):
+        # Setup bunch of blocking tasks, some failing
+        events = []
+        n = 5
+        for j in range(n):
+            event = threading.Event()
+            events.append(event)
+            worker_pool.submit_task(
+                BlockingTask(
+                    job_id=f"j-{j}",
+                    event=event,
+                    success=j != 3,
+                )
+            )
+
+        # Initial state: nothing happened yet
+        results, remaining = worker_pool.process_futures(timeout=0)
+        assert (results, remaining) == ([], n)
+
+        # No changes even after timeout
+        results, remaining = worker_pool.process_futures(timeout=0.1)
+        assert (results, remaining) == ([], n)
+
+        # Set one event and wait for corresponding result
+        events[0].set()
+        results, remaining = worker_pool.process_futures(timeout=0.1)
+        assert results == [
+            _TaskResult(job_id="j-0", db_update={"status": "all fine"}),
+        ]
+        assert remaining == n - 1
+
+        # Release all but one event
+        for j in range(n - 1):
+            events[j].set()
+        results, remaining = worker_pool.process_futures(timeout=0.1)
+        assert results == [
+            _TaskResult(job_id="j-1", db_update={"status": "all fine"}),
+            _TaskResult(job_id="j-2", db_update={"status": "all fine"}),
+            _TaskResult(
+                job_id="j-3", db_update={"status": "threaded task failed"}, stats_update={"threaded task failed": 1}
+            ),
+        ]
+        assert remaining == 1
+
+        # Release all events
+        for j in range(n):
+            events[j].set()
+        results, remaining = worker_pool.process_futures(timeout=0.1)
+        assert results == [
+            _TaskResult(job_id="j-4", db_update={"status": "all fine"}),
+        ]
+        assert remaining == 0
+
+    def test_shutdown(self, worker_pool):
+        # Before shutdown
+        worker_pool.submit_task(NopTask(job_id="j-123"))
+        results, remaining = worker_pool.process_futures(timeout=0.1)
+        assert (results, remaining) == ([_TaskResult(job_id="j-123")], 0)
+
         worker_pool.shutdown()
-        assert worker_pool._executor._shutdown
 
+        # After shutdown, no new tasks should be accepted
+        with pytest.raises(RuntimeError, match="cannot schedule new futures after shutdown"):
+            worker_pool.submit_task(NopTask(job_id="j-456"))
 
-    def test_submit_and_process_successful_task(
-        self, worker_pool, valid_task, successful_backend_mock, requests_mock
-    ):
-        """Test successful submission and processing of a task."""
-        # Setup successful backend responses for the valid task.
-        successful_backend_mock(valid_task.root_url, valid_task.job_id)
-        worker_pool.submit_task(valid_task)
-        
-        # Wait for the task to complete
-        results = wait_for_results(worker_pool)
+    def test_job_start_task(self, worker_pool, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        job = dummy_backend.connection.create_job(process_graph={})
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token=None)
+        worker_pool.submit_task(task)
 
-        # Unpack and assert
-        for result in results:
-            # Check that we updated the DB to "queued"
-            assert result.db_update == {"status": "queued"}
+        results, remaining = worker_pool.process_futures(timeout=1)
+        assert results == [
+            _TaskResult(
+                job_id="job-000",
+                db_update={"status": "queued"},
+                stats_update={"job start": 1},
+            )
+        ]
+        assert remaining == 0
+        assert caplog.messages == []
 
-            # Check that the stats_update reflects one "job start"
-            assert result.stats_update == {"job start": 1}
+    def test_job_start_task_failure(self, worker_pool, dummy_backend, caplog):
+        caplog.set_level(logging.WARNING)
+        dummy_backend.setup_job_start_failure()
 
+        job = dummy_backend.connection.create_job(process_graph={})
+        task = _JobStartTask(job_id=job.job_id, root_url=dummy_backend.connection.root_url, bearer_token=None)
+        worker_pool.submit_task(task)
 
-    def test_network_failure_in_task(self, worker_pool, valid_task, requests_mock):
-        """Test that a task encountering a network failure returns a failed result."""
-        # Simulate a connection error
-        requests_mock.get(valid_task.root_url,
-                          exc=requests.exceptions.ConnectionError("Backend down"))
-        worker_pool.submit_task(valid_task)
-       
-        results = wait_for_results(worker_pool)
-
-        for result in results:
-            # On failure we set status to "start_failed"
-            assert result.db_update == {"status": "start_failed"}
-
-            # And we increment the "start_job error" counter
-            assert result.stats_update == {"start_job error": 1}
-
-
-    def test_mixed_success_and_failure_tasks(
-        self, worker_pool, requests_mock, successful_backend_mock
-    ):
-        """Test processing multiple tasks with mixed outcomes."""
-        # Success case
-        task_success = _JobStartTask(
-            root_url="https://foo.test",
-            bearer_token="token",
-            job_id="job-ok"
-        )
-        successful_backend_mock(task_success.root_url, task_success.job_id)
-
-        # Failure case
-        task_fail = _JobStartTask(
-            root_url="https://bar.test",
-            bearer_token="token",
-            job_id="job-fail"
-        )
-        requests_mock.get(task_fail.root_url,
-                          exc=requests.exceptions.ConnectionError("Network error"))
-
-        worker_pool.submit_task(task_success)
-        worker_pool.submit_task(task_fail)
-
-        results = wait_for_results(worker_pool)
-
-        # Verify each outcome by job_id
-        for result in results:
-            if result.job_id == "job-ok":
-                assert result.db_update == {"status": "queued"}
-                assert result.stats_update == {"job start": 1}
-            elif result.job_id == "job-fail":
-                assert result.db_update == {"status": "start_failed"}
-                assert result.stats_update == {"start_job error": 1}
-            else:
-                pytest.skip(f"Unexpected task {result.job_id}")
-
-    def test_worker_pool_bookkeeping(self, worker_pool, valid_task, successful_backend_mock, requests_mock):
-        """Ensure that processed futures are removed from the pool's internal tracking."""
-        successful_backend_mock(valid_task.root_url, valid_task.job_id)
-        worker_pool.submit_task(valid_task)
-        results = wait_for_results(worker_pool)
-
-        # Assuming your refactoring clears out futures after processing,
-        # the internal list (or maps) should be empty.
-        assert len(worker_pool._future_task_pairs) == 0
+        results, remaining = worker_pool.process_futures(timeout=1)
+        assert results == [
+            _TaskResult(job_id="job-000", db_update={"status": "start_failed"}, stats_update={"start_job error": 1})
+        ]
+        assert remaining == 0
+        assert caplog.messages == [
+            "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting for you, buddy')"
+        ]

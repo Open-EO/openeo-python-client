@@ -1,9 +1,11 @@
+import collections
 import copy
 import datetime
 import json
 import logging
 import re
 import threading
+import time
 from pathlib import Path
 from time import sleep
 from typing import Union
@@ -25,9 +27,6 @@ import pandas as pd
 import pytest
 import requests
 import shapely.geometry
-import collections
-import time
-
 
 import openeo
 import openeo.extra.job_management
@@ -41,16 +40,14 @@ from openeo.extra.job_management import (
     create_job_db,
     get_job_db,
 )
-
+from openeo.extra.job_management._thread_worker import (
+    Task,
+    _JobManagerWorkerThreadPool,
+    _TaskResult,
+)
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
-
-from openeo.extra.job_management._thread_worker import (
-    Task,
-    _TaskResult,
-    _JobManagerWorkerThreadPool,
-)
 
 
 @pytest.fixture
@@ -90,25 +87,26 @@ def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
 
+
 class DummyTask(Task):
-        """
-        A Task that simply sleeps and then returns a predetermined _TaskResult.
-        """
-        def __init__(self, job_id, db_update, stats_update, delay=0.0):
-            self.job_id = job_id
-            self._db_update = db_update or {}
-            self._stats_update = stats_update or {}
-            self._delay = delay
+    """
+    A Task that simply sleeps and then returns a predetermined _TaskResult.
+    """
 
-        def execute(self) -> _TaskResult:
-            if self._delay:
-                time.sleep(self._delay)
-            return _TaskResult(
-                job_id=self.job_id,
-                db_update=self._db_update,
-                stats_update=self._stats_update,
-            )
+    def __init__(self, job_id, db_update, stats_update, delay=0.0):
+        super().__init__(job_id=job_id)
+        self._db_update = db_update or {}
+        self._stats_update = stats_update or {}
+        self._delay = delay
 
+    def execute(self) -> _TaskResult:
+        if self._delay:
+            time.sleep(self._delay)
+        return _TaskResult(
+            job_id=self.job_id,
+            db_update=self._db_update,
+            stats_update=self._stats_update,
+        )
 
 
 class TestMultiBackendJobManager:
@@ -123,7 +121,6 @@ class TestMultiBackendJobManager:
         manager.add_backend("foo", connection=dummy_backend_foo.connection)
         manager.add_backend("bar", connection=dummy_backend_bar.connection)
         return manager
-    
 
     @staticmethod
     def _create_year_job(row, connection, **kwargs):
@@ -497,7 +494,6 @@ class TestMultiBackendJobManager:
             ("job-2018", "finished", "foo"),
         ]
 
-
     @httpretty.activate(allow_net_connect=False, verbose=True)
     @pytest.mark.parametrize("http_error_status", [502, 503, 504])
     def test_resilient_backend_reports_error_when_max_retries_exceeded(self, tmp_path, http_error_status, sleep_mock):
@@ -752,16 +748,14 @@ class TestMultiBackendJobManager:
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
-    
-
-
     def test_process_threadworker_updates(self, job_manager, tmp_path):
-
         csv_path = tmp_path / "jobs.csv"
-        df = pd.DataFrame([
-            {"id": "job-1", "status": "created"},
-            {"id": "job-2", "status": "created"},
-        ])
+        df = pd.DataFrame(
+            [
+                {"id": "job-1", "status": "created"},
+                {"id": "job-2", "status": "created"},
+            ]
+        )
         job_db = CsvJobDatabase(csv_path).initialize_from_df(df)
 
         pool = _JobManagerWorkerThreadPool(max_workers=2)
@@ -1892,4 +1886,3 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
-
