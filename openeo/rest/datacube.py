@@ -74,6 +74,7 @@ from openeo.rest._datacube import (
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob, RESTJob
 from openeo.rest.mlmodel import MlModel
+from openeo.rest.models.general import ValidationResponse
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
@@ -157,7 +158,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     def _do_metadata_normalization(self) -> bool:
         """Do metadata-based normalization/validation of dimension names, band names, ..."""
-        return isinstance(self.metadata, CollectionMetadata)
+        return isinstance(self.metadata, CubeMetadata)
 
     def _assert_valid_dimension_name(self, name: str) -> str:
         if self._do_metadata_normalization():
@@ -175,7 +176,7 @@ class DataCube(_ProcessGraphAbstraction):
         bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
-            None, Dict[str, Union[str, PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty
+            Dict[str, Union[PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty, None
         ] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> DataCube:
@@ -250,27 +251,13 @@ class DataCube(_ProcessGraphAbstraction):
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
 
-        if isinstance(properties, list):
-            # TODO: warn about items that are not CollectionProperty objects instead of silently dropping them.
-            properties = {p.name: p.from_node() for p in properties if isinstance(p, CollectionProperty)}
-        if isinstance(properties, CollectionProperty):
-            properties = {properties.name: properties.from_node()}
-        elif properties is None:
-            properties = {}
-        if max_cloud_cover:
-            properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
-        if properties:
-            summaries = metadata and metadata.get("summaries") or {}
-            undefined_properties = set(properties.keys()).difference(summaries.keys())
-            if undefined_properties:
-                warnings.warn(
-                    f"{collection_id} property filtering with properties that are undefined "
-                    f"in the collection metadata (summaries): {', '.join(undefined_properties)}.",
-                    stacklevel=2,
-                )
-            arguments["properties"] = {
-                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
-            }
+        properties = cls._build_load_properties_argument(
+            properties=properties,
+            supported_properties=(metadata.get("summaries", default={}).keys() if metadata else None),
+            max_cloud_cover=max_cloud_cover,
+        )
+        if properties is not None:
+            arguments["properties"] = properties
 
         pg = PGNode(
             process_id='load_collection',
@@ -281,6 +268,50 @@ class DataCube(_ProcessGraphAbstraction):
     create_collection = legacy_alias(
         load_collection, name="create_collection", since="0.4.6"
     )
+
+    @classmethod
+    def _build_load_properties_argument(
+        cls,
+        properties: Union[
+            Dict[str, Union[PGNode, typing.Callable]],
+            List[CollectionProperty],
+            CollectionProperty,
+            None,
+        ],
+        *,
+        supported_properties: Optional[typing.Collection[str]] = None,
+        max_cloud_cover: Optional[float] = None,
+    ) -> Union[Dict[str, PGNode], None]:
+        """
+        Helper to convert/build the ``properties`` argument
+        for ``load_collection`` and ``load_stac`` from user input
+        """
+        if isinstance(properties, CollectionProperty):
+            properties = [properties]
+        if isinstance(properties, list):
+            if not all(isinstance(p, CollectionProperty) for p in properties):
+                raise ValueError(
+                    f"When providing load properties as a list, all items must be CollectionProperty objects, but got {properties}"
+                )
+            properties = {p.name: p.from_node() for p in properties}
+
+        if max_cloud_cover is not None:
+            properties = properties or {}
+            properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
+
+        if isinstance(properties, dict):
+            if supported_properties:
+                unsupported_properties = set(properties.keys()).difference(supported_properties)
+                if unsupported_properties:
+                    warnings.warn(
+                        f"Property filtering with unsupported properties according to collection/STAC metadata: {unsupported_properties} (supported: {supported_properties}).",
+                        stacklevel=3,
+                    )
+            properties = {
+                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
+            }
+
+        return properties
 
     @classmethod
     @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
@@ -314,7 +345,9 @@ class DataCube(_ProcessGraphAbstraction):
         spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
         temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
-        properties: Optional[Dict[str, Union[str, PGNode, Callable]]] = None,
+        properties: Union[
+            Dict[str, Union[PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty, None
+        ] = None,
         connection: Optional[Connection] = None,
     ) -> DataCube:
         """
@@ -409,14 +442,19 @@ class DataCube(_ProcessGraphAbstraction):
             The value must be a condition (user-defined process) to be evaluated against a STAC API.
             This parameter is not supported for static STAC.
 
+            See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of property filters.
+
         :param connection: The connection to use to connect with the backend.
 
         .. versionadded:: 0.33.0
 
         .. versionchanged:: 0.37.0
             Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
+
+        .. versionchanged:: 0.41.0
+            Add support for :py:func:`~openeo.rest.graph_building.collection_property` based property filters
         """
-        arguments = {"url": url}
+        arguments: dict = {"url": url}
         if spatial_extent:
             arguments["spatial_extent"] = _get_geometry_argument(
                 argument=spatial_extent,
@@ -434,10 +472,11 @@ class DataCube(_ProcessGraphAbstraction):
         bands = cls._get_bands(bands, process_id="load_stac")
         if bands is not None:
             arguments["bands"] = bands
-        if properties:
-            arguments["properties"] = {
-                prop: build_child_callback(pred, parent_parameters=["value"]) for prop, pred in properties.items()
-            }
+
+        properties = cls._build_load_properties_argument(properties=properties)
+        if properties is not None:
+            arguments["properties"] = properties
+
         graph = PGNode("load_stac", arguments=arguments)
         try:
             metadata = metadata_from_stac(url)
@@ -2461,13 +2500,20 @@ class DataCube(_ProcessGraphAbstraction):
             on_response_headers=on_response_headers,
         )
 
-    def validate(self) -> List[dict]:
+    def validate(self) -> ValidationResponse:
         """
         Validate a process graph without executing it.
 
-        :return: list of errors (dictionaries with "code" and "message" fields)
+        :return: container of validation of errors (dictionaries with "code" and "message" fields)
+
+        .. versionchanged:: 0.38.0
+            returns a :py:class:`~openeo.rest.models.general.ValidationResponse` object
+            instead of a simple list of error dictionaries.
         """
-        return self._connection.validate_process_graph(self.flat_graph())
+        # TODO this method implementation does not really override something
+        #       it is just kept to override the doc.
+        #       At some point this should be removed for simplicity.
+        return super().validate()
 
     def tiled_viewing_service(self, type: str, **kwargs) -> Service:
         return self._connection.create_service(self.flat_graph(), type=type, **kwargs)

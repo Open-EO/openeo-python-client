@@ -46,7 +46,7 @@ from openeo.rest.connection import (
     extract_connections,
     paginate,
 )
-from openeo.rest.models.general import Link
+from openeo.rest.models.general import Link, ValidationResponse
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
@@ -2788,24 +2788,94 @@ class TestLoadStac:
             }
         }
 
-    def test_properties(self, con120):
-        cube = con120.load_stac("https://provider.test/dataset", properties={"platform": lambda p: p == "S2A"})
+    @pytest.mark.parametrize(
+        ["properties", "expected"],
+        [
+            (
+                # dict with callable
+                {"platform": lambda p: p == "S2A"},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # Single collection_property
+                (openeo.collection_property("platform") == "S2A"),
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    }
+                },
+            ),
+            (
+                # List of collection_properties
+                [
+                    openeo.collection_property("platform") == "S2A",
+                    openeo.collection_property("flavor") == "salty",
+                ],
+                {
+                    "platform": {
+                        "process_graph": {
+                            "eq1": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
+                                "result": True,
+                            }
+                        }
+                    },
+                    "flavor": {
+                        "process_graph": {
+                            "eq2": {
+                                "process_id": "eq",
+                                "arguments": {"x": {"from_parameter": "value"}, "y": "salty"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+            (
+                # Advanced PGNode usage
+                {"platform": PGNode(process_id="custom_foo", arguments={"mode": "bar"})},
+                {
+                    "platform": {
+                        "process_graph": {
+                            "customfoo1": {
+                                "process_id": "custom_foo",
+                                "arguments": {"mode": "bar"},
+                                "result": True,
+                            }
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+    def test_property_filtering(self, con120, properties, expected):
+        cube = con120.load_stac(
+            "https://provider.test/dataset",
+            properties=properties,
+        )
         assert cube.flat_graph() == {
             "loadstac1": {
                 "process_id": "load_stac",
                 "arguments": {
                     "url": "https://provider.test/dataset",
-                    "properties": {
-                        "platform": {
-                            "process_graph": {
-                                "eq1": {
-                                    "arguments": {"x": {"from_parameter": "value"}, "y": "S2A"},
-                                    "process_id": "eq",
-                                    "result": True,
-                                }
-                            }
-                        }
-                    },
+                    "properties": expected,
                 },
                 "result": True,
             }
@@ -4795,6 +4865,17 @@ def test_validate_process_graph(con120, dummy_backend):
     dummy_backend.next_validation_errors = [{"code": "OddSupport", "message": "Odd values are not supported."}]
     cube = con120.load_collection("S2")
     res = con120.validate_process_graph(cube)
+
+    assert dummy_backend.validation_requests == [
+        {
+            "loadcollection1": {
+                "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+                "process_id": "load_collection",
+                "result": True,
+            }
+        }
+    ]
+    assert isinstance(res, ValidationResponse)
     assert res == [{"code": "OddSupport", "message": "Odd values are not supported."}]
 
 

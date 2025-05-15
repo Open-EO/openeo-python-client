@@ -7,7 +7,6 @@ from openeo.udf.debug import inspect
 
 
 def apply_metadata(input_metadata: CollectionMetadata, context: dict) -> CollectionMetadata:
-
     xstep = input_metadata.get("x", "step")
     ystep = input_metadata.get("y", "step")
     new_metadata = {
@@ -24,8 +23,6 @@ def fancy_upsample_function(array: np.array, factor: int = 2) -> np.array:
 
 
 def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
-    array: xarray.DataArray = cube.get_array()
-
     cubearray: xarray.DataArray = cube.get_array().copy() + 60
 
     # We make prediction and transform numpy array back to datacube
@@ -37,7 +34,7 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     if cubearray.data.ndim == 4 and cubearray.data.shape[0] == 1:
         cubearray = cubearray[0]
     predicted_array = fancy_upsample_function(cubearray.data, 2)
-    inspect(predicted_array, "test message")
+    inspect(data=predicted_array, message="predicted array")
     coord_x = np.linspace(
         start=cube.get_array().coords["x"].min(),
         stop=cube.get_array().coords["x"].max() + init_pixel_size_x,
@@ -50,6 +47,10 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
         num=predicted_array.shape[-1],
         endpoint=False,
     )
-    predicted_cube = xarray.DataArray(predicted_array, dims=["bands", "x", "y"], coords=dict(x=coord_x, y=coord_y))
+    predicted_cube = xarray.DataArray(
+        predicted_array,
+        dims=["bands", "x", "y"],
+        coords=dict(x=coord_x, y=coord_y),
+    )
 
     return XarrayDataCube(predicted_cube)
