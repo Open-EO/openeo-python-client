@@ -669,7 +669,6 @@ class MultiBackendJobManager:
         """
         # Retrieve completed task results without waiting
         results, _ = worker_pool.process_futures(timeout=0)
-        stats_updates = collections.defaultdict(int)
         updates_list: List[Dict[str, Any]] = []
 
         for result in results:
@@ -686,7 +685,7 @@ class MultiBackendJobManager:
                 #TODO we should only update statuses in the natrual order; if in track_statuses we are already on running, we push it back to queued in the inal table
                 if result.stats_update:
                     for key, count in result.stats_update.items():
-                        stats_updates[key] += int(count)
+                        stats[key] += int(count)
             except Exception as e:
                 _log.error(f"Failed processing update for job {result.job_id}: {e}")
 
@@ -699,10 +698,6 @@ class MultiBackendJobManager:
             job_db.persist(df_updates)
 
             stats["job_db persist"] += 1
-
-        # Update stats counters
-        for key, count in stats_updates.items():
-            stats[key] = stats.get(key, 0) + count
 
     def on_job_done(self, job: BatchJob, row):
         """
