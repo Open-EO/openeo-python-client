@@ -740,54 +740,70 @@ class TestMultiBackendJobManager:
         # Mock sleep() to skip one hour at a time instead of actually sleeping
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
-
+    
         final_df = CsvJobDatabase(job_db_path).read()
 
         # Validate running_start_time is a valid datetime object
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
-    def test_process_threadworker_updates(self, job_manager, tmp_path):
-        csv_path = tmp_path / "jobs.csv"
-        df = pd.DataFrame(
-            [
-                {"id": "job-1", "status": "created"},
-                {"id": "job-2", "status": "created"},
-            ]
-        )
-        job_db = CsvJobDatabase(csv_path).initialize_from_df(df)
 
+
+
+    def test_process_threadworker_updates(self, tmp_path):
+
+        # 1) Reusable DummyTask
+        class DummyTask(Task):
+            def __init__(self, job_id, df_idx, db_update=None, stats_update=None, delay=0.0):
+                super().__init__(job_id=job_id, df_idx=df_idx)
+                self._db_update = db_update or {}
+                self._stats_update = stats_update or {}
+                self._delay = delay
+
+            def execute(self) -> _TaskResult:
+                if self._delay:
+                    time.sleep(self._delay)
+                return _TaskResult(
+                    job_id=self.job_id,
+                    df_idx=self.df_idx,
+                    db_update=self._db_update,
+                    stats_update=self._stats_update,
+                )
+
+        # 2) Prepare thread-pool and stats
         pool = _JobManagerWorkerThreadPool(max_workers=2)
-
-        # Submit two dummy tasks with different delays and updates
-        t1 = DummyTask("job-1", {"status": "done"}, {"a": 1}, delay=0.05)
-        t2 = DummyTask("job-2", {"status": "failed"}, {"b": 2}, delay=0.1)
-        pool.submit_task(t1)
-        pool.submit_task(t2)
-
-        # Wait for all futures to be done
-        # We access the internal list of (future, task) pairs to check .done()
-        start = time.time()
-        timeout = 2.0
-        while time.time() - start < timeout:
-            pairs = list(pool._future_task_pairs)
-            if all(future.done() for future, _ in pairs):
-                break
-            time.sleep(0.01)
-        else:
-            pytest.skip("Tasks did not complete within timeout")
-
-        # Now invoke the real update loop
         stats = collections.defaultdict(int)
-        job_manager._process_threadworker_updates(pool, job_db, stats)
 
-        # Check that the in-memory database was updated
-        df = job_db.df
-        assert df.loc[df.id == "job-1", "status"].iloc[0] == "done"
-        assert df.loc[df.id == "job-2", "status"].iloc[0] == "failed"
+        # 3) Submit two DummyTasks
+        pool.submit_task(DummyTask("a", df_idx=0, db_update={"status": "finished"}, stats_update={"foo": 1}))
+        pool.submit_task(DummyTask("b", df_idx=1, db_update={"status": "error"},    stats_update={"bar": 2}))
 
-        # And that our stats were aggregated
-        assert stats == {"a": 1, "b": 2}
+        # 4) Initialize a job-db with two rows
+        df = pd.DataFrame({
+            "id":     ["a", "b"],
+            "status": ["running", "running"],
+        })
+
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
+
+
+
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        # 6) Call the private post-process method
+        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+
+        # 7) Read back the updated DataFrame
+        df_final = CsvJobDatabase(job_db_path).read()
+
+
+        # 8) Assert statuses and stats
+        assert df_final.loc[0, "status"] == "finished"
+        assert df_final.loc[1, "status"] == "error"
+        assert stats["foo"] == 1
+        assert stats["bar"] == 2
+        assert stats["job_db persist"] == 1
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(

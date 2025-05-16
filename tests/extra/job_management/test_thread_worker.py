@@ -75,7 +75,7 @@ class NopTask(Task):
     """Do Nothing"""
 
     def execute(self) -> _TaskResult:
-        return _TaskResult(job_id=self.job_id)
+        return _TaskResult(job_id=self.job_id, df_idx=self.df_idx)
 
 
 class DummyTask(Task):
@@ -163,7 +163,7 @@ class TestJobManagerWorkerThreadPool:
         worker_pool.submit_task(NopTask(job_id="j-22", df_idx= 22))
         worker_pool.submit_task(NopTask(job_id="j-222", df_idx= 222))
         results, remaining = worker_pool.process_futures(timeout=1)
-        assert results == [_TaskResult(job_id="j-22", df_idx= 2), _TaskResult(job_id="j-222",  df_idx= 222)]
+        assert results == [_TaskResult(job_id="j-22", df_idx= 22), _TaskResult(job_id="j-222",  df_idx= 222)]
         assert remaining == 0
 
     def test_submit_multiple_simple(self, worker_pool):
