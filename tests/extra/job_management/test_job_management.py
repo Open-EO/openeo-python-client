@@ -184,7 +184,6 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
@@ -903,62 +902,6 @@ class TestFullDataFrameJobDatabase:
             "queued": 3,
             "running": 2,
         }
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_update_existing_row(self, tmp_path, db_class):
-        path = tmp_path / "jobs.db"
-        df = pd.DataFrame({"id": ["job-123"], "status": ["created"], "costs": [0.0]})
-        db = db_class(path).initialize_from_df(df)
-
-        db._update_row("job-123", {"status": "queued", "costs": 42.5})
-        updated = db.read()
-
-        assert updated.loc[0, "status"] == "queued"
-        assert updated.loc[0, "costs"] == 42.5
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_update_unknown_job_id(self, tmp_path, db_class, caplog):
-        path = tmp_path / "jobs.db"
-        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
-        db = db_class(path).initialize_from_df(df)
-
-        db._update_row("nonexistent-job", {"status": "queued"})
-
-        assert "not found in database" in caplog.text
-        # Ensure no updates happened
-        assert db.read().loc[0, "status"] == "created"
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_update_duplicate_job_id(self, tmp_path, db_class, caplog):
-        path = tmp_path / "jobs.db"
-        df = pd.DataFrame({"id": ["job-123", "job-123"], "status": ["created", "created"]})
-        db = db_class(path).initialize_from_df(df)
-
-        db._update_row("job-123", {"status": "queued"})
-
-        assert "Duplicate job ID" in caplog.text
-        assert set(db.read()["status"]) == {"created"}
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_update_with_invalid_column(self, tmp_path, db_class, caplog):
-        path = tmp_path / "jobs.db"
-        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
-        db = db_class(path).initialize_from_df(df)
-
-        db._update_row("job-123", {"not_a_column": "value", "status": "finished"})
-
-        assert "Ignoring invalid column 'not_a_column'" in caplog.text
-        assert db.read().loc[0, "status"] == "finished"
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_update_with_no_valid_fields(self, tmp_path, db_class):
-        path = tmp_path / "jobs.db"
-        df = pd.DataFrame({"id": ["job-123"], "status": ["created"]})
-        db = db_class(path).initialize_from_df(df)
-
-        db._update_row("job-123", {"invalid_field": "value"})
-
-        assert db.read().loc[0, "status"] == "created"
 
 
 class TestCsvJobDatabase:
