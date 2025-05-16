@@ -34,6 +34,7 @@ class DummyBackend:
     # TODO: move to openeo.testing
     # TODO: unify "batch_jobs", "batch_jobs_full" and "extra_job_metadata_fields"?
     # TODO: unify "sync_requests" and "sync_requests_full"?
+    # TODO: support checking bearer token
 
     __slots__ = (
         "_requests_mock",
@@ -47,6 +48,7 @@ class DummyBackend:
         "next_result",
         "next_validation_errors",
         "_forced_job_status",
+        "_fail_on_job_start",
         "job_status_updater",
         "job_id_generator",
         "extra_job_metadata_fields",
@@ -72,6 +74,7 @@ class DummyBackend:
         self.next_validation_errors = []
         self.extra_job_metadata_fields = []
         self._forced_job_status: Dict[str, str] = {}
+        self._fail_on_job_start = {}
 
         # Job status update hook:
         #   callable that is called on starting a job, and getting job metadata
@@ -220,24 +223,52 @@ class DummyBackend:
         assert job_id in self.batch_jobs
         return job_id
 
+    def _set_job_status(self, job_id: str, status: str):
+        """Forced override of job status (e.g. for "canceled" or "error")"""
+        self.batch_jobs[job_id]["status"] = self._forced_job_status[job_id] = status
+
     def _get_job_status(self, job_id: str, current_status: str) -> str:
         if job_id in self._forced_job_status:
             return self._forced_job_status[job_id]
         return self.job_status_updater(job_id=job_id, current_status=current_status)
 
+    def setup_job_start_failure(
+        self,
+        *,
+        job_id: Union[str, None] = None,
+        status_code: int = 500,
+        response_body: Union[None, str, dict] = None,
+    ):
+        """
+        Setup for failure when starting a job.
+        :param job_id: job id to fail on, or None (wildcard) for all jobs
+        """
+        if response_body is None:
+            response_body = {"code": "Internal", "message": "No job starting for you, buddy"}
+        if not isinstance(response_body, bytes):
+            response_body = json.dumps(response_body).encode("utf-8")
+        self._fail_on_job_start[job_id] = {"status_code": status_code, "response_body": response_body}
+
     def _handle_post_job_results(self, request, context):
         """Handler of `POST /job/{job_id}/results` (start batch job)."""
         job_id = self._get_job_id(request)
         assert self.batch_jobs[job_id]["status"] == "created"
-        self.batch_jobs[job_id]["status"] = self._get_job_status(
-            job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
-        )
-        context.status_code = 202
+
+        failure = self._fail_on_job_start.get(job_id) or self._fail_on_job_start.get(None)
+        if not failure:
+            self.batch_jobs[job_id]["status"] = self._get_job_status(
+                job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
+            )
+            context.status_code = 202
+        else:
+            self._set_job_status(job_id=job_id, status="error")
+            context.status_code = failure["status_code"]
+            return failure["response_body"]
 
     def _handle_get_job(self, request, context):
         """Handler of `GET /job/{job_id}` (get batch job status and metadata)."""
         job_id = self._get_job_id(request)
-        # Allow updating status with `job_status_setter` once job got past status "created"
+        # Allow updating status with `job_status_updater` once job got past status "created"
         if self.batch_jobs[job_id]["status"] != "created":
             self.batch_jobs[job_id]["status"] = self._get_job_status(
                 job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
@@ -268,8 +299,7 @@ class DummyBackend:
     def _handle_delete_job_results(self, request, context):
         """Handler of `DELETE /job/{job_id}/results` (cancel job)."""
         job_id = self._get_job_id(request)
-        self.batch_jobs[job_id]["status"] = "canceled"
-        self._forced_job_status[job_id] = "canceled"
+        self._set_job_status(job_id=job_id, status="canceled")
         context.status_code = 204
 
     def _handle_get_job_result_asset(self, request, context):

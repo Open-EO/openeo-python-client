@@ -1,5 +1,8 @@
+import re
+
 import pytest
 
+from openeo.rest import OpenEoApiError
 from openeo.rest._testing import DummyBackend
 
 
@@ -94,3 +97,10 @@ class TestDummyBackend:
             assert job0.status() == "finished"
             assert job1.status() == "error"
             assert job2.status() == "finished"
+
+    def test_setup_job_start_failure(self, dummy_backend):
+        job = dummy_backend.connection.create_job(process_graph={})
+        dummy_backend.setup_job_start_failure()
+        with pytest.raises(OpenEoApiError, match=re.escape("[500] Internal: No job starting for you, buddy")):
+            job.start()
+        assert job.status() == "error"

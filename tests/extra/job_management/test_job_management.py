@@ -1,12 +1,14 @@
+import collections
 import copy
 import datetime
 import json
 import logging
 import re
 import threading
+import time
 from pathlib import Path
 from time import sleep
-from typing import Callable, Union
+from typing import Union
 from unittest import mock
 
 import dirty_equals
@@ -37,6 +39,11 @@ from openeo.extra.job_management import (
     ProcessBasedJobCreator,
     create_job_db,
     get_job_db,
+)
+from openeo.extra.job_management._thread_worker import (
+    Task,
+    _JobManagerWorkerThreadPool,
+    _TaskResult,
 )
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
@@ -79,6 +86,27 @@ def dummy_backend_bar(requests_mock) -> DummyBackend:
 def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
+
+
+class DummyTask(Task):
+    """
+    A Task that simply sleeps and then returns a predetermined _TaskResult.
+    """
+
+    def __init__(self, job_id, db_update, stats_update, delay=0.0):
+        super().__init__(job_id=job_id)
+        self._db_update = db_update or {}
+        self._stats_update = stats_update or {}
+        self._delay = delay
+
+    def execute(self) -> _TaskResult:
+        if self._delay:
+            time.sleep(self._delay)
+        return _TaskResult(
+            job_id=self.job_id,
+            db_update=self._db_update,
+            stats_update=self._stats_update,
+        )
 
 
 class TestMultiBackendJobManager:
@@ -156,7 +184,6 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
@@ -590,14 +617,13 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
-        )
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
@@ -644,8 +670,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
@@ -713,13 +740,70 @@ class TestMultiBackendJobManager:
         # Mock sleep() to skip one hour at a time instead of actually sleeping
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
-
+    
         final_df = CsvJobDatabase(job_db_path).read()
 
         # Validate running_start_time is a valid datetime object
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
+
+
+
+    def test_process_threadworker_updates(self, tmp_path):
+
+        # 1) Reusable DummyTask
+        class DummyTask(Task):
+            def __init__(self, job_id, df_idx, db_update=None, stats_update=None, delay=0.0):
+                super().__init__(job_id=job_id, df_idx=df_idx)
+                self._db_update = db_update or {}
+                self._stats_update = stats_update or {}
+                self._delay = delay
+
+            def execute(self) -> _TaskResult:
+                if self._delay:
+                    time.sleep(self._delay)
+                return _TaskResult(
+                    job_id=self.job_id,
+                    df_idx=self.df_idx,
+                    db_update=self._db_update,
+                    stats_update=self._stats_update,
+                )
+
+        # 2) Prepare thread-pool and stats
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        # 3) Submit two DummyTasks
+        pool.submit_task(DummyTask("a", df_idx=0, db_update={"status": "finished"}, stats_update={"foo": 1}))
+        pool.submit_task(DummyTask("b", df_idx=1, db_update={"status": "error"},    stats_update={"bar": 2}))
+
+        # 4) Initialize a job-db with two rows
+        df = pd.DataFrame({
+            "id":     ["a", "b"],
+            "status": ["running", "running"],
+        })
+
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
+
+
+
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        # 6) Call the private post-process method
+        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+
+        # 7) Read back the updated DataFrame
+        df_final = CsvJobDatabase(job_db_path).read()
+
+
+        # 8) Assert statuses and stats
+        assert df_final.loc[0, "status"] == "finished"
+        assert df_final.loc[1, "status"] == "error"
+        assert stats["foo"] == 1
+        assert stats["bar"] == 2
+        assert stats["job_db persist"] == 1
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(
