@@ -22,6 +22,9 @@ class _TaskResult:
     :param job_id:
         The ID of the job this result is associated with.
 
+    :param df_idx:
+        The index of job's row in the dataframe.
+
     :param db_update:
         Optional dictionary describing updates to apply to a job database,
         such as status changes. Defaults to an empty dict.
@@ -32,6 +35,7 @@ class _TaskResult:
     """
 
     job_id: str  # Mandatory
+    df_idx: int # Mandatory
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
@@ -52,10 +56,14 @@ class Task(ABC):
 
     :param job_id:
         Identifier of the job to start on the backend.
+    
+    :param df_idx:
+        Index of the row of the job in the dataframe.
+
     """
 
-    # TODO: strictly speaking, a job id does not unambiguously identify a job when multiple backends are in play.
     job_id: str
+    df_idx: int 
 
     @abstractmethod
     def execute(self) -> _TaskResult:
@@ -110,6 +118,7 @@ class _JobStartTask(ConnectedTask):
             _log.info(f"Job {self.job_id!r} started successfully")
             return _TaskResult(
                 job_id=self.job_id,
+                df_idx = self.df_idx,
                 db_update={"status": "queued"},
                 stats_update={"job start": 1},
             )
@@ -117,7 +126,10 @@ class _JobStartTask(ConnectedTask):
             _log.error(f"Failed to start job {self.job_id!r}: {e!r}")
             # TODO: more insights about the failure (e.g. the exception) are just logged, but lost from the result
             return _TaskResult(
-                job_id=self.job_id, db_update={"status": "start_failed"}, stats_update={"start_job error": 1}
+                job_id=self.job_id,
+                df_idx = self.df_idx,
+                db_update={"status": "start_failed"},
+                stats_update={"start_job error": 1}
             )
 
 
@@ -176,6 +188,7 @@ class _JobManagerWorkerThreadPool:
                     _log.exception(f"Threaded task {task!r} failed: {e!r}")
                     result = _TaskResult(
                         job_id=task.job_id,
+                        df_idx = task.df_idx,
                         db_update={"status": "threaded task failed"},
                         stats_update={"threaded task failed": 1},
                     )

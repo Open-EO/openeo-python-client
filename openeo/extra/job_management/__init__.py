@@ -641,6 +641,7 @@ class MultiBackendJobManager:
                                 root_url=job_con.root_url,
                                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                                 job_id=job.job_id,
+                                df_idx = i
                             )
                             _log.info(f"Submitting task {task} to thread pool")
                             self._worker_pool.submit_task(task)
@@ -675,9 +676,14 @@ class MultiBackendJobManager:
             try:
                 # Prepare database updates
                 if result.db_update:
-                    update = {'job_id': result.job_id, **result.db_update}
+                    update = {
+                    'id': result.job_id,
+                    'df_idx': result.df_idx,
+                    **result.db_update
+                     }
                     updates_list.append(update)
                 # Aggregate statistics updates
+                #TODO we should only update statuses in the natrual order; if in track_statuses we are already on running, we push it back to queued in the inal table
                 if result.stats_update:
                     for key, count in result.stats_update.items():
                         stats_updates[key] += int(count)
@@ -686,8 +692,13 @@ class MultiBackendJobManager:
 
         # Apply all database updates in a single persist call
         if updates_list:
+
             df_updates = pd.DataFrame(updates_list)
+            df_updates = df_updates.set_index("df_idx", drop=True)
+
             job_db.persist(df_updates)
+
+            stats["job_db persist"] += 1
 
         # Update stats counters
         for key, count in stats_updates.items():
@@ -811,7 +822,7 @@ class MultiBackendJobManager:
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
                 )
 
-                if new_status == "finished":
+                if previous_status != "finished" and new_status == "finished":
                     stats["job finished"] += 1
                     jobs_done.append((the_job, active.loc[i]))
 
@@ -947,7 +958,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
     def _merge_into_df(self, df: pd.DataFrame):
         if self._df is not None:
-            self._df.update(df, overwrite=True)
+            self._df.update(df, overwrite=True) #TODO index is not consistent so this creates an issue. --> when we get a row, we need to give the right index to the row. Best solution when creating a task; pass this one along
         else:
             self._df = df
 
