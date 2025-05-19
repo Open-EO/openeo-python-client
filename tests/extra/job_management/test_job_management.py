@@ -93,17 +93,16 @@ class DummyTask(Task):
     A Task that simply sleeps and then returns a predetermined _TaskResult.
     """
 
-    def __init__(self, job_id, db_update, stats_update, delay=0.0):
-        super().__init__(job_id=job_id)
+    def __init__(self, job_id, df_idx, db_update, stats_update):
+        super().__init__(job_id=job_id, df_idx = df_idx)
         self._db_update = db_update or {}
         self._stats_update = stats_update or {}
-        self._delay = delay
 
     def execute(self) -> _TaskResult:
-        if self._delay:
-            time.sleep(self._delay)
+
         return _TaskResult(
             job_id=self.job_id,
+            df_idx = self.df_idx,
             db_update=self._db_update,
             stats_update=self._stats_update,
         )
@@ -748,63 +747,94 @@ class TestMultiBackendJobManager:
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
 
-
-
-    def test_process_threadworker_updates(self, tmp_path):
-
-        # 1) Reusable DummyTask
-        class DummyTask(Task):
-            def __init__(self, job_id, df_idx, db_update=None, stats_update=None, delay=0.0):
-                super().__init__(job_id=job_id, df_idx=df_idx)
-                self._db_update = db_update or {}
-                self._stats_update = stats_update or {}
-                self._delay = delay
-
-            def execute(self) -> _TaskResult:
-                if self._delay:
-                    time.sleep(self._delay)
-                return _TaskResult(
-                    job_id=self.job_id,
-                    df_idx=self.df_idx,
-                    db_update=self._db_update,
-                    stats_update=self._stats_update,
-                )
-
-        # 2) Prepare thread-pool and stats
+    def test_process_threadworker_updates(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
         stats = collections.defaultdict(int)
 
-        # 3) Submit two DummyTasks
-        pool.submit_task(DummyTask("a", df_idx=0, db_update={"status": "finished"}, stats_update={"foo": 1}))
-        pool.submit_task(DummyTask("b", df_idx=1, db_update={"status": "error"},    stats_update={"bar": 2}))
+        # Submit tasks covering all cases
+        pool.submit_task(DummyTask("j-0", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
+        pool.submit_task(DummyTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update=None))
+        pool.submit_task(DummyTask("j-2", df_idx=2, db_update=None, stats_update={"queued": 1}))
+        pool.submit_task(DummyTask("j-3", df_idx=3, db_update=None, stats_update=None))
+        # Invalid index (not in DB)
+        pool.submit_task(DummyTask("j-missing", df_idx=4, db_update={"status": "created"}, stats_update=None))
 
-        # 4) Initialize a job-db with two rows
-        df = pd.DataFrame({
-            "id":     ["a", "b"],
-            "status": ["running", "running"],
+        df_initial = pd.DataFrame({
+            "id": ["j-0", "j-1", "j-2", "j-3"],
+            "status": ["created", "created", "created", "created"],
         })
-
-        job_db_path = tmp_path / "jobs.csv"
-        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
-
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
 
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
-        # 6) Call the private post-process method
-        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+        with caplog.at_level(logging.ERROR):
+            mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
 
-        # 7) Read back the updated DataFrame
-        df_final = CsvJobDatabase(job_db_path).read()
+        df_final = job_db.read()
 
+        # Assert no rows were appended
+        assert len(df_final) == 4
 
-        # 8) Assert statuses and stats
-        assert df_final.loc[0, "status"] == "finished"
-        assert df_final.loc[1, "status"] == "error"
-        assert stats["foo"] == 1
-        assert stats["bar"] == 2
+        # Assert updates
+        assert df_final.loc[0, "status"] == "queued"
+        assert df_final.loc[1, "status"] == "queued"
+        assert df_final.loc[2, "status"] == "created"
+        assert df_final.loc[3, "status"] == "created"
+
+        # Assert stats
+        assert stats.get("queued", 0) == 2
         assert stats["job_db persist"] == 1
 
+        # Assert error log for invalid index
+        assert any("Unknown row indiches" in msg for msg in caplog.messages)
+
+    def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        df_initial = pd.DataFrame({"id": ["j-0"], "status": ["created"]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        mgr._process_threadworker_updates(pool, job_db, stats)
+
+        df_final = job_db.read()
+        assert df_final.loc[0, "status"] == "created"
+        assert stats == {}
+
+
+    def test_logs_on_invalid_db_update(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        # Malformed db_update (not a dict unpackable via **)
+        class BadTask:
+            job_id = "bad-task"
+            df_idx = 0
+            db_update = "invalid"  # invalid
+            stats_update = None
+
+            def execute(self):
+                return self
+
+        pool.submit_task(BadTask())
+
+        df_initial = pd.DataFrame({"id": ["j-0"], "status": ["created"]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        with caplog.at_level(logging.ERROR):
+            mgr._process_threadworker_updates(pool, job_db, stats)
+
+        # DB should remain unchanged
+        df_final = job_db.read()
+        assert df_final.loc[0, "status"] == "created"
+
+        # Stats remain empty
+        assert stats == {}
+
+        # Assert log about invalid db update
+        assert any("Skipping invalid db_update for job" in msg for msg in caplog.messages)
 
 JOB_DB_DF_BASICS = pd.DataFrame(
     {

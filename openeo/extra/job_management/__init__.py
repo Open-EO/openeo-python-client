@@ -658,45 +658,74 @@ class MultiBackendJobManager:
 
     def _process_threadworker_updates(
         self,
-        worker_pool: _JobManagerWorkerThreadPool,
-        job_db: JobDatabaseInterface,
-        stats: dict,
+        worker_pool: '_JobManagerWorkerThreadPool',
+        job_db: 'JobDatabaseInterface',
+        stats: Dict[str, int],
     ) -> None:
         """
-        Processes asynchronous job updates from worker threads and applies them
-        to the job database and statistics.
+        Fetches completed TaskResult objects from the worker pool and applies
+        their db_update and stats_updates. Only existing DataFrame rows
+        (matched by df_idx) are upserted via job_db.persist(). Any results
+        targeting unknown df_idx indices are logged as errors but not persisted.
+
+
+
+        :param worker_pool: Thread-pool managing asynchronous Task executes
+        :param job_db:      Interface to append/upsert to the job database
+        :param stats:       Dictionary accumulating statistic counters
         """
-        # Retrieve completed task results without waiting
+        # Retrieve completed task results immediately
         results, _ = worker_pool.process_futures(timeout=0)
-        updates_list: List[Dict[str, Any]] = []
+        if not isinstance(results, list):
+            raise TypeError(f"Expected list of TaskResult, got {results}")
 
-        for result in results:
-            try:
-                # Prepare database updates
-                if result.db_update:
-                    update = {
-                    'id': result.job_id,
-                    'df_idx': result.df_idx,
-                    **result.db_update
-                     }
-                    updates_list.append(update)
-                # Aggregate statistics updates
-                #TODO we should only update statuses in the natrual order; if in track_statuses we are already on running, we push it back to queued in the inal table
-                if result.stats_update:
-                    for key, count in result.stats_update.items():
-                        stats[key] += int(count)
-            except Exception as e:
-                _log.error(f"Failed processing update for job {result.job_id}: {e}")
+        # Collect update dicts
+        updates: List[Dict[str, Any]] = []
+        for res in results:
+            # Process database updates
+            if res.db_update:
+                try:
+                    if 'id' in res.db_update or 'df_idx' in res.db_update:
+                        raise KeyError("db_update must not override 'id' or 'df_idx'")
+                    updates.append({
+                        'id': res.job_id,
+                        'df_idx': res.df_idx,
+                        **res.db_update,
+                    })
+                except Exception as e:
+                    _log.error(f"Skipping invalid db_update for job '{res.job_id}': {e}")
+                    
+            # Process stats updates
+            if res.stats_update:
+                for key, val in res.stats_update.items():
+                    try:
+                        count = int(val)
+                        stats[key] = stats.get(key, 0) + count
+                    except Exception:
+                        _log.error(
+                            f"Skipping invalid stats_update for job '{res.job_id}': "
+                            f"key={key!r}, val={val!r}"
+                        )
 
-        # Apply all database updates in a single persist call
-        if updates_list:
+        # No valid updates: nothing to persist
+        if not updates:
+            return
 
-            df_updates = pd.DataFrame(updates_list)
-            df_updates = df_updates.set_index("df_idx", drop=True)
+        # Build DataFrame of updates indexed by df_idx
+        df_updates = pd.DataFrame(updates).set_index('df_idx', drop=True)
 
-            job_db.persist(df_updates)
+        # Determine which rows to upsert
+        existing_indices = set(df_updates.index).intersection(job_db.read().index)
+        if existing_indices:
+            df_upsert = df_updates.loc[sorted(existing_indices)]
+            job_db.persist(df_upsert)
+            stats['job_db persist'] = stats.get('job_db persist', 0) + 1
 
-            stats["job_db persist"] += 1
+        # Any df_idx not in original index are errors
+        missing = set(df_updates.index) - existing_indices
+        if missing:
+            _log.error(f"Unknown df_idx values, skipping updates for: {sorted(missing)}")
+
 
     def on_job_done(self, job: BatchJob, row):
         """
