@@ -20,7 +20,7 @@ _log = logging.getLogger(__name__)
 
 _DEFAULT_RTOL = 1e-6
 _DEFAULT_ATOL = 1e-6
-_DEFAULT_PXTOL = 0.0
+_DEFAULT_PIXELTOL = 0.0
 
 # https://paulbourke.net/dataformats/asciiart
 DEFAULT_GRAYSCALE_70_CHARACTERS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
@@ -196,7 +196,7 @@ def _compare_xarray_dataarray(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
-    pxtol: Optional[float] = _DEFAULT_PXTOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     name: str = None,
 ) -> List[str]:
     """
@@ -233,10 +233,10 @@ def _compare_xarray_dataarray(
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
     try:
-        if pxtol > _DEFAULT_PXTOL:
+        if pixel_tolerance > _DEFAULT_PIXELTOL:
             assert (
                 actual != expected
-            ).mean().item() <= pxtol, "Percentage number of pixels that are different is above the threshold"
+            ).mean().item() <= pixel_tolerance, "Percentage number of pixels that are different is above the threshold"
         else:
             xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
     except AssertionError as e:
@@ -281,7 +281,7 @@ def _compare_xarray_datasets(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
-    pxtol: Optional[float] = _DEFAULT_PXTOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
 ) -> List[str]:
     """
     Compare two xarray ``DataSet``s with tolerance and report mismatch issues (as strings)
@@ -300,7 +300,9 @@ def _compare_xarray_datasets(
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
         _log.debug(f"_compare_xarray_datasets: comparing variable {var!r}")
-        issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol, pxtol=pxtol, name=var)
+        issues = _compare_xarray_dataarray(
+            actual[var], expected[var], rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance, name=var
+        )
         if issues:
             all_issues.append(f"Issues for variable {var!r}:")
             all_issues.extend(issues)
@@ -397,7 +399,7 @@ def _compare_job_results(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
-    pxtol: Optional[float] = _DEFAULT_PXTOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     tmp_path: Optional[Path] = None,
 ) -> List[str]:
     """
@@ -427,14 +429,14 @@ def _compare_job_results(
                 all_issues.extend(issues)
         elif expected_path.suffix.lower() in {".nc", ".netcdf"}:
             issues = _compare_xarray_datasets(
-                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pxtol=pxtol
+                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
             )
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
                 all_issues.extend(issues)
         elif expected_path.suffix.lower() in {".tif", ".tiff", ".gtiff", ".geotiff"}:
             issues = _compare_xarray_dataarray(
-                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pxtol=pxtol
+                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
             )
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
@@ -478,7 +480,7 @@ def assert_job_results_allclose(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
-    pxtol: Optional[float] = _DEFAULT_PXTOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     tmp_path: Optional[Path] = None,
 ):
     """
@@ -490,7 +492,7 @@ def assert_job_results_allclose(
         :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
-    :param pxtol: allowable tolerance for the number of pixels in percentage
+    :param pixel_tolerance: allowable tolerance for fraction of pixels in percentage
     :param tmp_path: root temp path to download results if needed.
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance
@@ -500,6 +502,8 @@ def assert_job_results_allclose(
     .. warning::
         This function is experimental and subject to change.
     """
-    issues = _compare_job_results(actual, expected, rtol=rtol, atol=atol, pxtol=pxtol, tmp_path=tmp_path)
+    issues = _compare_job_results(
+        actual, expected, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance, tmp_path=tmp_path
+    )
     if issues:
         raise AssertionError("\n".join(issues))
