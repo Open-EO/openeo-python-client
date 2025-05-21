@@ -190,15 +190,6 @@ def _compare_xarray_dataarray_xy(
     return issues
 
 
-def _check_pixel_tolerance(
-    actual: xarray.DataArray, expected: xarray.DataArray, pixel_tolerance: float = _DEFAULT_PIXELTOL
-):
-    """check if the percentage of pixels that are different is below the threshold"""
-    assert (
-        actual != expected
-    ).mean().item() * 100 <= pixel_tolerance, "Percentage number of pixels that are different is above the threshold"
-
-
 def _compare_xarray_dataarray(
     actual: Union[xarray.DataArray, str, Path],
     expected: Union[xarray.DataArray, str, Path],
@@ -241,24 +232,23 @@ def _compare_xarray_dataarray(
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
-    _pixel_tolerance_satisfied = True  # flag for pixel tolerance test
     try:
-        xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
+        if (pixel_tolerance > _DEFAULT_PIXELTOL) and compatible:
+            _bad_pixels = (actual * 1.0 - expected * 1.0) > atol
+            assert (
+                _bad_pixels.mean().item() * 100 <= pixel_tolerance
+            ), "Percentage number of pixels that are different is above the threshold"
+            xarray.testing.assert_allclose(
+                a=actual.where(~_bad_pixels), b=expected.where(~_bad_pixels), rtol=rtol, atol=atol
+            )
+        else:
+            xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
     except AssertionError as e:
-        if (pixel_tolerance > _DEFAULT_PIXELTOL) and compatible:  # skip if there are issues
-            try:
-                _check_pixel_tolerance(actual, expected, pixel_tolerance)
-            except AssertionError as e1:
-                issues.append(str(e1))
-                # Used to add the assertion error from assert_allclose to issues
-                _pixel_tolerance_satisfied = False
-        elif not _pixel_tolerance_satisfied:
-            # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
-            issues.append(str(e).strip())
-            if compatible and {"x", "y"} <= set(expected.dims):
-                issues.extend(
-                    _compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol, name=name)
-                )
+        issues.append(str(e).strip())
+        if compatible and {"x", "y"} <= set(expected.dims):
+            issues.extend(
+                _compare_xarray_dataarray_xy(actual=actual, expected=expected, rtol=rtol, atol=atol, name=name)
+            )
     return issues
 
 
