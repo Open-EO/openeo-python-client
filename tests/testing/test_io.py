@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from openeo.testing.io import TestDataLoader
+from openeo.testing.io import PreprocessError, TestDataLoader
 
 
 class TestTestDataLoader:
@@ -43,6 +43,23 @@ class TestTestDataLoader:
     @pytest.mark.parametrize(
         ["preprocess", "expected"],
         [
+            ({"apple": "banana"}, "'apple' not found in 'Hello, World!'"),
+            ({re.compile("ap+le"): "banana"}, "re.compile('ap+le') not found in 'Hello, World!'"),
+        ],
+    )
+    def test_load_text_missing_key(self, tmp_path, preprocess, expected):
+        (tmp_path / "hello.txt").write_text("Hello, World!", encoding="utf8")
+
+        loader = TestDataLoader(root=tmp_path)
+        with pytest.raises(PreprocessError, match=re.escape(expected)):
+            loader.load_text("hello.txt", preprocess=preprocess)
+
+        # Don't fail when verify_dict_keys=False
+        assert loader.load_text("hello.txt", preprocess=preprocess, verify_dict_keys=False) == "Hello, World!"
+
+    @pytest.mark.parametrize(
+        ["preprocess", "expected"],
+        [
             (None, {"salutation": "Hello", "target": "World"}),
             (lambda s: s.upper(), {"SALUTATION": "HELLO", "TARGET": "WORLD"}),
             (
@@ -73,3 +90,30 @@ class TestTestDataLoader:
 
         loader = TestDataLoader(root=tmp_path)
         assert loader.load_json("data.json", preprocess=preprocess) == expected
+
+    @pytest.mark.parametrize(
+        ["preprocess", "expected"],
+        [
+            (
+                {"apple": "banana"},
+                '\'apple\' not found in \'{"salutation": "Hello", "target": "World"}\'',
+            ),
+            (
+                {re.compile("ap+le"): "banana"},
+                're.compile(\'ap+le\') not found in \'{"salutation": "Hello", "target": "World"}\'',
+            ),
+        ],
+    )
+    def test_load_json_missing_key(self, tmp_path, preprocess, expected):
+        with (tmp_path / "data.json").open("w", encoding="utf8") as f:
+            json.dump({"salutation": "Hello", "target": "World"}, f)
+
+        loader = TestDataLoader(root=tmp_path)
+        with pytest.raises(PreprocessError, match=re.escape(expected)):
+            loader.load_json("data.json", preprocess=preprocess)
+
+        # Don't fail when verify_dict_keys=False
+        assert loader.load_json("data.json", preprocess=preprocess, verify_dict_keys=False) == {
+            "salutation": "Hello",
+            "target": "World",
+        }
