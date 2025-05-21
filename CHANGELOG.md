@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `openeo.testing.io.TestDataLoader`: unit test utility to compactly load (and optionally preprocess) tests data (text/JSON/...)
+
 ### Changed
 
 - `DataCube.apply_dimension()`: not explicitly specifying the `dimension` argument is deprecated and will trigger warnings ([#774](https://github.com/Open-EO/openeo-python-client/issues/774))
