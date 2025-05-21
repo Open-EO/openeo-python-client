@@ -216,7 +216,7 @@ def test_parameter_spatial_extent():
                         "description": "Coordinate reference "
                         "system of the extent, "
                         "specified as as [EPSG "
-                        "code](http://www.epsg-registry.org/) "
+                        "code](https://spatialreference.org/ref/epsg/) "
                         "or [WKT2 CRS "
                         "string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). "
                         "Defaults to `4326` (EPSG "

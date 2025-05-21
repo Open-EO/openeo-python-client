@@ -259,7 +259,7 @@ class Parameter:
                     "description": "North (upper right corner, coordinate axis 2).",
                 },
                 "crs": {
-                    "description": "Coordinate reference system of the extent, specified as as [EPSG code](http://www.epsg-registry.org/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
+                    "description": "Coordinate reference system of the extent, specified as as [EPSG code](https://spatialreference.org/ref/epsg/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
                     "anyOf": [
                         {
                             "type": "integer",
@@ -342,7 +342,7 @@ class Parameter:
                         "default": None,
                     },
                     "crs": {
-                        "description": "Coordinate reference system of the extent, specified as as [EPSG code](http://www.epsg-registry.org/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
+                        "description": "Coordinate reference system of the extent, specified as as [EPSG code](https://spatialreference.org/ref/epsg/) or [WKT2 CRS string](http://docs.opengeospatial.org/is/18-010r7/18-010r7.html). Defaults to `4326` (EPSG code 4326) unless the client explicitly requests a different coordinate reference system.",
                         "anyOf": [
                             {
                                 "title": "EPSG Code",
