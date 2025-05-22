@@ -115,7 +115,7 @@ for user contributions, which roughly follows these steps:
 Pre-commit for basic code quality checks
 ------------------------------------------
 
-We started using the `pre-commit <https://pre-commit.com/>`_ tool
+We started using the generic `pre-commit <https://pre-commit.com/>`_ tool
 for basic fine-tuning of code style and quality in new contributions.
 It's currently not enforced, but **enabling pre-commit is recommended** and appreciated
 when contributing code.
@@ -129,7 +129,7 @@ when contributing code.
 Pre-commit set up
 """"""""""""""""""
 
--   Install the general ``pre-commit`` command line tool:
+1.  Install the general ``pre-commit`` command line tool, for example:
 
     -   The simplest option is to install it directly in the *virtual environment*
         you are using for openEO Python client development (e.g. ``pip install pre-commit``).
@@ -137,9 +137,12 @@ Pre-commit set up
         (e.g. using `pipx <https://pipx.pypa.io/>`_,
         `uv tool <https://docs.astral.sh/uv/concepts/tools/>`_,
         conda, homebrew, ...)
-        so you can use it across different projects.
+        so you can easily (re)use it across different projects.
 
--   Install the project specific git hook scripts by running this in the root of your local git clone:
+    Or follow the official installation instructions at
+    `https://pre-commit.com/#install <https://pre-commit.com/#install>`_.
+
+2.  Install the project-specific git hook scripts by running this in the root of your local git clone:
 
     .. code-block:: console
 
@@ -273,11 +276,6 @@ we will use a concrete version ``0.8.0`` in the examples below.
             git add openeo/_version.py CHANGELOG.md
             git commit -m 'Release 0.8.0'
             git push origin master
-
-#.  Optional, but recommended: wait for **VITO Jenkins** to build this updated master
-    (trigger it manually if necessary),
-    so that a build of a final, non-alpha release ``0.8.0``
-    is properly uploaded to **VITO artifactory**.
 
 #.  Create release on `PyPI <https://pypi.org/>`_:
 

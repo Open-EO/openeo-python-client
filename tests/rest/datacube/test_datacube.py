@@ -992,6 +992,29 @@ def test_apply_dimension(connection, requests_mock):
         s22.apply_dimension(dimension='wut', code="subtract_mean")
 
 
+def test_apply_dimension_unspecified_dimension(s2cube, dummy_backend, recwarn):
+    s2cube.apply_dimension("cumsum").create_job()
+    assert dummy_backend.get_pg(process_id="apply_dimension") == {
+        "process_id": "apply_dimension",
+        "arguments": {
+            "data": {"from_node": "loadcollection1"},
+            "dimension": "t",
+            "process": {
+                "process_graph": {
+                    "cumsum1": {
+                        "arguments": {"data": {"from_parameter": "data"}},
+                        "process_id": "cumsum",
+                        "result": True,
+                    }
+                }
+            },
+        },
+    }
+    assert str(recwarn.pop()) == dirty_equals.IsStr(
+        regex=r".*UserDeprecationWarning.*apply_dimension.*without explicit.*dimension.*argument.*is deprecated.*filename.*[\\/]test_datacube.py.*"
+    )
+
+
 def test_download_path_str(connection, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/collections/S2", json={})
     requests_mock.post(API_URL + '/result', content=b"tiffdata")
