@@ -35,7 +35,7 @@ class NoDefaultConfig(ArtifactsException):
         return f"There was no default config provided by backend for {self.key}"
 
 
-class InvalidProviderCfg(ArtifactsException):
+class InvalidProviderConfig(ArtifactsException):
     """The backend has an invalid provider config. This must be fixed by the provider of the backend."""
 
 

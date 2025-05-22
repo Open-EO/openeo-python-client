@@ -9,16 +9,16 @@ from openeo.extra.artifacts._s3sts.tracer import (
     add_trace_id,
     add_trace_id_as_query_parameter,
 )
-from openeo.extra.artifacts.backend import ProviderCfg
+from openeo.extra.artifacts.backend import ProviderConfig
 from openeo.extra.artifacts.config import StorageConfig
 from openeo.utils.version import ComparableVersion
 
 if ComparableVersion(botocore.__version__).below("1.36.0"):
     # Before 1.36 checksuming was not done by default anyway and therefore
     # there was no opt-out.
-    no_default_checksum_cfg = Config()
+    no_default_checksum_config = Config()
 else:
-    no_default_checksum_cfg = Config(
+    no_default_checksum_config = Config(
         request_checksum_calculation="when_required",
     )
 
@@ -36,24 +36,24 @@ class S3STSConfig(StorageConfig):
     """The trace_id is if you want to send a uuid4 identifier to the backend"""
     trace_id: str = DISABLE_TRACING_TRACE_ID
     """You can change the botocore_config used but this is an expert option"""
-    botocore_config: Config = field(default_factory=lambda: no_default_checksum_cfg)
+    botocore_config: Config = field(default_factory=lambda: no_default_checksum_config)
     """The role ARN to be assumed"""
     role: Optional[str] = None
     """The bucket to store the object into"""
     bucket: Optional[str] = None
 
-    def _load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
+    def _load_connection_provided_config(self, provider_config: ProviderConfig) -> None:
         if self.s3_endpoint is None:
-            object.__setattr__(self, "s3_endpoint", provider_cfg["s3_endpoint"])
+            object.__setattr__(self, "s3_endpoint", provider_config["s3_endpoint"])
 
         if self.sts_endpoint is None:
-            object.__setattr__(self, "sts_endpoint", provider_cfg["sts_endpoint"])
+            object.__setattr__(self, "sts_endpoint", provider_config["sts_endpoint"])
 
         if self.role is None:
-            object.__setattr__(self, "role", provider_cfg["role"])
+            object.__setattr__(self, "role", provider_config["role"])
 
         if self.bucket is None:
-            object.__setattr__(self, "bucket", provider_cfg["bucket"])
+            object.__setattr__(self, "bucket", provider_config["bucket"])
 
     def should_trace(self) -> bool:
         return self.trace_id != DISABLE_TRACING_TRACE_ID

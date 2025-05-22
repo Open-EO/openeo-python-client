@@ -11,9 +11,9 @@ from openeo.extra.artifacts.backend import ArtifactCapabilities
 from openeo.extra.artifacts.config import StorageConfig
 from openeo.extra.artifacts.exceptions import UnsupportedArtifactsType
 
-cfg_to_helper: Dict[Type[StorageConfig], Type[ArtifactHelperABC]] = {S3STSConfig: S3STSArtifactHelper}
-cfg_type_to_helper: Dict[str, Type[ArtifactHelperABC]] = {
-    StorageConfig.get_type_from(cfg): helper for cfg, helper in cfg_to_helper.items()
+config_to_helper: Dict[Type[StorageConfig], Type[ArtifactHelperABC]] = {S3STSConfig: S3STSArtifactHelper}
+config_type_to_helper: Dict[str, Type[ArtifactHelperABC]] = {
+    StorageConfig.get_type_from(cfg): helper for cfg, helper in config_to_helper.items()
 }
 
 class ArtifactHelper(ArtifactHelperBuilderABC):
@@ -42,7 +42,7 @@ class ArtifactHelper(ArtifactHelperBuilderABC):
             config_type = config.get_type()
 
         try:
-            artifact_helper = cfg_type_to_helper[config_type]
+            artifact_helper = config_type_to_helper[config_type]
             return artifact_helper.from_openeo_connection(
                 conn, ArtifactCapabilities(conn).get_preferred_artifacts_provider(), config=config
             )

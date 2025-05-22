@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from openeo.extra.artifacts.backend import ArtifactCapabilities, ProviderCfg
+from openeo.extra.artifacts.backend import ProviderConfig
 from openeo.extra.artifacts.config import StorageConfig
 from openeo.extra.artifacts.uri import StorageURI
 from openeo.rest.connection import Connection
@@ -23,7 +23,7 @@ class ArtifactHelperBuilderABC(ABC):
 class ArtifactHelperABC(ABC):
     @classmethod
     def from_openeo_connection(
-        cls, conn: Connection, provider_cfg: ProviderCfg, *, config: Optional[StorageConfig] = None
+        cls, conn: Connection, provider_config: ProviderConfig, *, config: Optional[StorageConfig] = None
     ) -> ArtifactHelperABC:
         """
         Create a new Artifact helper from the OpenEO connection. This is the starting point to upload artifacts.
@@ -31,7 +31,7 @@ class ArtifactHelperABC(ABC):
         """
         if config is None:
             config = cls._get_default_storage_config()
-        config.load_connection_provided_cfg(provider_cfg)
+        config.load_connection_provided_config(provider_config)
         return cls._from_openeo_connection(conn, config)
 
     @abstractmethod
