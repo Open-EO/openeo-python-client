@@ -64,7 +64,9 @@ test_p_config = {
 
 @pytest.fixture
 def conn_with_stss3_capabilities(requests_mock, extra_api_capabilities) -> Iterator[Connection]:
-    extra_api_capabilities = {"artifacts": {"providers": [{"cfg": test_p_config, "id": "s3", "type": "S3STSConfig"}]}}
+    extra_api_capabilities = {
+        "artifacts": {"providers": [{"config": test_p_config, "id": "s3", "type": "S3STSConfig"}]}
+    }
     requests_mock.get(API_URL, json={"api_version": "1.0.0", **extra_api_capabilities})
     conn = Connection(API_URL)
     conn.auth = BearerAuth("oidc/fake/token")

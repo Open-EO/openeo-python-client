@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional, TypedDict
 
 from openeo import Connection
@@ -11,6 +12,7 @@ from openeo.extra.artifacts.exceptions import (
 )
 
 _capabilities_cache: Dict[str, Dict] = {}
+_log = logging.getLogger(__name__)
 
 
 class TProviderConfig(TypedDict):
@@ -53,7 +55,8 @@ class ProviderConfig:
     def raise_if_needed(self, operation: str):
         """Check if operation can be done if not raise an exception"""
         if self.exc is not None:
-            raise RuntimeError(f"Trying to {operation} for backend config which was not available") from self.exc
+            _log.error(f"Trying to {operation} for backend config which was not available")
+            raise self.exc
 
     def get_key(self, key: str) -> Any:
         self.raise_if_needed(f"get key {key}")
@@ -104,5 +107,7 @@ class ArtifactCapabilities:
     def get_preferred_artifacts_provider(self) -> ProviderConfig:
         try:
             return ProviderConfig.from_typed_dict(self._get_artifacts_providers()[0])
-        except (IndexError, ArtifactsException) as e:
+        except IndexError:
+            return ProviderConfig("id", "type", {}, exc=NoAdvertisedProviders())
+        except ArtifactsException as e:
             return ProviderConfig("id", "type", {}, exc=e)

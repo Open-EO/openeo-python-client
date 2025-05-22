@@ -29,7 +29,7 @@ from openeo.extra.artifacts.exceptions import (
                 "artifacts": {
                     "providers": [
                         {
-                            "cfg": {
+                            "config": {
                                 "bucket": "openeo-artifacts",
                                 "role": "arn:aws:iam::000000000000:role/S3Access",
                                 "s3_endpoint": "https://s3.oeo.test",
@@ -50,7 +50,7 @@ from openeo.extra.artifacts.exceptions import (
                 "artifacts": {
                     "providers": [
                         {
-                            "cfg": {
+                            "config": {
                                 "bucket": "openeo-artifacts",
                                 "role": "arn:aws:iam::000000000000:role/S3Access",
                                 "s3_endpoint": "https://s3.oeo.test",
@@ -81,7 +81,7 @@ from openeo.extra.artifacts.exceptions import (
                 "artifacts": {
                     "providers": [
                         {
-                            "cfg": {
+                            "config": {
                                 "bucket": "openeo-artifacts",
                                 "role": "arn:aws:iam::000000000000:role/S3Access",
                                 "s3_endpoint": "https://s3.oeo.test",
