@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from openeo.extra.artifacts.backend import ProviderCfg
+from openeo.extra.artifacts.backend import ArtifactCapabilities, ProviderCfg
 from openeo.extra.artifacts.config import StorageConfig
 from openeo.extra.artifacts.uri import StorageURI
 from openeo.rest.connection import Connection

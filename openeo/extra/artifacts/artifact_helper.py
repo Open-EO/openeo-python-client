@@ -37,7 +37,7 @@ class ArtifactHelper(ArtifactHelperBuilderABC):
         ```
         """
         if config is None:
-            config_type = ArtifactCapabilities(conn).get_preferred_artifacts_provider().type
+            config_type = ArtifactCapabilities(conn).get_preferred_artifacts_provider().get_type()
         else:
             config_type = config.get_type()
 

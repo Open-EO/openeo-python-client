@@ -43,7 +43,6 @@ class S3STSConfig(StorageConfig):
     bucket: Optional[str] = None
 
     def _load_connection_provided_cfg(self, provider_cfg: ProviderCfg) -> None:
-        assert provider_cfg.type == "S3STSConfig"
         if self.s3_endpoint is None:
             object.__setattr__(self, "s3_endpoint", provider_cfg["s3_endpoint"])
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -11,6 +10,7 @@ from openeo.extra.artifacts._s3sts.model import AWSSTSCredentials
 from openeo.extra.artifacts.exceptions import ProviderSpecificException
 from openeo.rest.auth.auth import BearerAuth
 from openeo.rest.connection import Connection
+from openeo.util import Rfc3339
 
 
 class OpenEOSTSClient:
@@ -30,7 +30,7 @@ class OpenEOSTSClient:
         return AWSSTSCredentials.from_assume_role_response(
             self._get_sts_client().assume_role_with_web_identity(
                 RoleArn=self._get_aws_access_role(),
-                RoleSessionName=f"artifact-helper-{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                RoleSessionName=f"artifact-helper-{Rfc3339().now_utc()}",
                 WebIdentityToken=auth_token[2],
                 DurationSeconds=43200,
             )
