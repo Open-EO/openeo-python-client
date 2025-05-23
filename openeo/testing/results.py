@@ -233,13 +233,15 @@ def _compare_xarray_dataarray(
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
     try:
-        if (pixel_tolerance > _DEFAULT_PIXELTOL) and compatible:
-            _bad_pixels = (actual * 1.0 - expected * 1.0) > atol
+        if pixel_tolerance and compatible:
+            threshold = abs(expected * rtol) + atol
+            bad_pixels = abs(actual * 1.0 - expected * 1.0) > threshold
+            percentage_bad_pixels = bad_pixels.mean().item() * 100
             assert (
-                _bad_pixels.mean().item() * 100 <= pixel_tolerance
-            ), "Percentage number of pixels that are different is above the threshold"
+                percentage_bad_pixels <= pixel_tolerance
+            ), f"{percentage_bad_pixels:.3f}% of pixels that are different and this is above the threshold of {pixel_tolerance:.3f}%"
             xarray.testing.assert_allclose(
-                a=actual.where(~_bad_pixels), b=expected.where(~_bad_pixels), rtol=rtol, atol=atol
+                a=actual.where(~bad_pixels), b=expected.where(~bad_pixels), rtol=rtol, atol=atol
             )
         else:
             xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
@@ -495,7 +497,7 @@ def assert_job_results_allclose(
         :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
-    :param pixel_tolerance: allowable tolerance for fraction of pixels in percentage
+    :param pixel_tolerance: maximum fracton of pixels (in percent) that is allowed to be different (considering ``atol`` and ``rtol``)
     :param tmp_path: root temp path to download results if needed.
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance

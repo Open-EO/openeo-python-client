@@ -154,7 +154,7 @@ class TestCompareXarray:
     @pytest.mark.parametrize(
         ["actual", "atol", "pixel_tolerance", "expected_issues"],
         [
-            (xarray.DataArray([1, 2, 3.001, 4, 5]), 1e-4, 21.0, []),
+            (xarray.DataArray([1, 2, 300, 4, 5]), 1e-4, 21.0, []),
             (xarray.DataArray([1, 2, 3.00001, 4.1, 5]), 1e-4, 21, []),
             (
                 xarray.DataArray([1, 2, 3.001, 4.1, 5]),
@@ -162,7 +162,7 @@ class TestCompareXarray:
                 21,
                 [
                     dirty_equals.IsStr(
-                        regex=r"Percentage number of pixels that are different is above the threshold",
+                        regex=r"40.000% of pixels that are different and this is above the threshold of 21.000%",
                         regex_flags=re.DOTALL,
                     )
                 ],
