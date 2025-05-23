@@ -676,8 +676,6 @@ class MultiBackendJobManager:
         """
         # Retrieve completed task results immediately
         results, _ = worker_pool.process_futures(timeout=0)
-        if not isinstance(results, list):
-            raise TypeError(f"Expected list of TaskResult, got {results}")
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []
@@ -685,27 +683,24 @@ class MultiBackendJobManager:
             # Process database updates
             if res.db_update:
                 try:
-                    if 'id' in res.db_update or 'df_idx' in res.db_update:
-                        raise KeyError("db_update must not override 'id' or 'df_idx'")
                     updates.append({
                         'id': res.job_id,
                         'df_idx': res.df_idx,
                         **res.db_update,
                     })
                 except Exception as e:
-                    _log.error(f"Skipping invalid db_update for job '{res.job_id}': {e}")
+                    _log.error(f"Skipping invalid db_update '{res.db_update}'for job '{res.job_id}': {e}", )
                     
             # Process stats updates
             if res.stats_update:
-                for key, val in res.stats_update.items():
-                    try:
+                try:
+                    for key, val in res.stats_update.items():
                         count = int(val)
                         stats[key] = stats.get(key, 0) + count
-                    except Exception:
-                        _log.error(
-                            f"Skipping invalid stats_update for job '{res.job_id}': "
-                            f"key={key!r}, val={val!r}"
-                        )
+                except Exception as e:
+                    _log.error(
+                        f"Skipping invalid stats_update {res.stats_update }for job '{res.job_id}': {e}"
+                    )
 
         # No valid updates: nothing to persist
         if not updates:
