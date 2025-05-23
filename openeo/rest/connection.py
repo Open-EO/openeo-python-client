@@ -29,6 +29,7 @@ from typing import (
 
 import requests
 import shapely.geometry.base
+import urllib3.util
 from requests.auth import AuthBase, HTTPBasicAuth
 
 import openeo
@@ -85,6 +86,11 @@ from openeo.util import (
     load_json_resource,
     rfc3339,
 )
+from openeo.utils.http import (
+    HTTP_201_CREATED,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
+)
 from openeo.utils.version import ComparableVersion
 
 __all__ = ["Connection", "connect"]
@@ -114,6 +120,16 @@ class Connection(RestApiConnection):
         optional :class:`OidcAuthenticator` object to use for renewing OIDC tokens.
     :param auth: Optional ``requests.auth.AuthBase`` object to use for requests.
         Usage of this parameter is deprecated, use the specific authentication methods instead.
+    :param retry: general request retry settings, can be specified as:
+
+        - :py:class:`urllib3.util.Retry` object
+          or a dictionary with corresponding keyword arguments
+          (e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...)
+        - ``None`` (default) to use default openEO-oriented retry settings
+        - ``False`` to disable retrying requests
+
+    .. versionchanged:: 0.41.0
+        Added ``retry`` argument.
     """
 
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
@@ -130,6 +146,7 @@ class Connection(RestApiConnection):
         refresh_token_store: Optional[RefreshTokenStore] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
         auth: Optional[AuthBase] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ):
         if "://" not in url:
             url = "https://" + url
@@ -139,6 +156,7 @@ class Connection(RestApiConnection):
             root_url=self.version_discovery(url, session=session, timeout=default_timeout),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
+            retry=retry,
         )
 
         # Initial API version check.
@@ -663,7 +681,10 @@ class Connection(RestApiConnection):
             # Initial request attempt
             return _request()
         except OpenEoApiError as api_exc:
-            if api_exc.http_status_code in {401, 403} and api_exc.code == "TokenInvalid":
+            if (
+                api_exc.http_status_code in {HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN}
+                and api_exc.code == "TokenInvalid"
+            ):
                 # Auth token expired: can we refresh?
                 if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
                     msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
@@ -1750,7 +1771,7 @@ class Connection(RestApiConnection):
         )
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
-        response = self.post("/jobs", json=pg_with_metadata, expected_status=201)
+        response = self.post("/jobs", json=pg_with_metadata, expected_status=HTTP_201_CREATED)
 
         job_id = None
         if "openeo-identifier" in response.headers:
@@ -1885,6 +1906,7 @@ def connect(
     session: Optional[requests.Session] = None,
     default_timeout: Optional[int] = None,
     auto_validate: bool = True,
+    retry: Union[urllib3.util.Retry, dict, bool, None] = None,
 ) -> Connection:
     """
     This method is the entry point to OpenEO.
@@ -1904,9 +1926,19 @@ def connect(
     :param auth_options: Options/arguments specific to the authentication type
     :param default_timeout: default timeout (in seconds) for requests
     :param auto_validate: toggle to automatically validate process graphs before execution
+    :param retry: general request retry settings, can be specified as:
 
-    .. versionadded:: 0.24.0
-        added ``auto_validate`` argument
+        - :py:class:`urllib3.util.Retry` object
+          or a dictionary with corresponding keyword arguments
+          (e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...)
+        - ``None`` (default) to use default openEO-oriented retry settings
+        - ``False`` to disable retrying requests
+
+    .. versionchanged:: 0.24.0
+        Added ``auto_validate`` argument
+
+    .. versionchanged:: 0.41.0
+        Added ``retry`` argument.
     """
 
     def _config_log(message):
@@ -1931,7 +1963,13 @@ def connect(
 
     if not url:
         raise OpenEoClientException("No openEO back-end URL given or known to connect to.")
-    connection = Connection(url, session=session, default_timeout=default_timeout, auto_validate=auto_validate)
+    connection = Connection(
+        url,
+        session=session,
+        default_timeout=default_timeout,
+        auto_validate=auto_validate,
+        retry=retry,
+    )
 
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type
     if auth_type in {None, False, 'null', 'none'}:

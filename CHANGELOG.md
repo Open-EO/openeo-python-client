@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `openeo.testing.io.TestDataLoader`: unit test utility to compactly load (and optionally preprocess) tests data (text/JSON/...)
+- `openeo.Connection`: automatically retry API requests on `429 Too Many Requests` HTTP errors, with appropriate delay if possible ([#441](https://github.com/Open-EO/openeo-python-client/issues/441))
 
 ### Changed
 
