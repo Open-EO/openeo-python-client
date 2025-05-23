@@ -1,3 +1,4 @@
+import contextlib
 import itertools
 import json
 import logging
@@ -6,6 +7,8 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
+import dirty_equals
+import httpretty
 import pytest
 import requests
 
@@ -15,6 +18,13 @@ from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientExc
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
+from openeo.utils.http import (
+    HTTP_402_PAYMENT_REQUIRED,
+    HTTP_429_TOO_MANY_REQUESTS,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_502_BAD_GATEWAY,
+    HTTP_503_SERVICE_UNAVAILABLE,
+)
 
 API_URL = "https://oeo.test"
 
@@ -309,6 +319,113 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
         "0:00:20 Job 'f00ba5': " + expected,
         "0:00:33 Job 'f00ba5': " + expected,
     ]
+
+
+@httpretty.activate(allow_net_connect=False)
+@pytest.mark.parametrize(
+    ["retry_config", "extra_responses", "expectation_context", "expected_sleeps"],
+    [
+        (  # Default retry settings
+            None,
+            [],
+            contextlib.nullcontext(),
+            [23, 34],
+        ),
+        (  # Default config with a generic 500 error
+            None,
+            [httpretty.Response(status=HTTP_500_INTERNAL_SERVER_ERROR, body="Internal Server Error")],
+            pytest.raises(OpenEoApiPlainError, match=re.escape("[500] Internal Server Error")),
+            [23],
+        ),
+        (  # Default config with a 503 error (skipped by soft error feature of execute_batch poll loop)
+            None,
+            [httpretty.Response(status=HTTP_503_SERVICE_UNAVAILABLE, body="Service Unavailable")],
+            contextlib.nullcontext(),
+            [23, 12.34, 34],
+        ),
+        (
+            # Explicit status_forcelist with custom status code to retry
+            {"status_forcelist": [HTTP_429_TOO_MANY_REQUESTS, HTTP_402_PAYMENT_REQUIRED]},
+            [httpretty.Response(status=HTTP_402_PAYMENT_REQUIRED, body="Payment Required")],
+            contextlib.nullcontext(),
+            [23, 34],
+        ),
+        (
+            # No retry setup: also fail on 429
+            False,
+            [],
+            pytest.raises(OpenEoApiPlainError, match=re.escape("[429] Too Many Requests")),
+            [],
+        ),
+    ],
+)
+def test_execute_batch_retry_after_429_too_many_requests(
+    tmpdir, retry_config, extra_responses, expectation_context, expected_sleeps
+):
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/",
+        body=json.dumps({"api_version": "1.0.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}),
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/file_formats",
+        body=json.dumps({"output": {"GTiff": {"gis_data_types": ["raster"]}}}),
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/collections/SENTINEL2",
+        body=json.dumps({"foo": "bar"}),
+    )
+    httpretty.register_uri(
+        httpretty.POST, uri=API_URL + "/jobs", status=201, adding_headers={"OpenEO-Identifier": "f00ba5"}, body=""
+    )
+    httpretty.register_uri(httpretty.POST, uri=API_URL + "/jobs/f00ba5/results", status=202)
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/jobs/f00ba5",
+        responses=[
+            httpretty.Response(body=json.dumps({"status": "queued"})),
+            httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "23"}),
+            httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
+        ]
+        + extra_responses
+        + [
+            httpretty.Response(body=json.dumps({"status": "running", "progress": 80})),
+            httpretty.Response(status=429, body="Too Many Requests", adding_headers={"Retry-After": "34"}),
+            httpretty.Response(body=json.dumps({"status": "finished", "progress": 100})),
+        ],
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        uri=API_URL + "/jobs/f00ba5/results",
+        body=json.dumps(
+            {
+                "assets": {
+                    "output.tiff": {
+                        "href": API_URL + "/jobs/f00ba5/files/output.tiff",
+                        "type": "image/tiff; application=geotiff",
+                    },
+                }
+            }
+        ),
+    )
+    httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/files/output.tiff", body="tiffdata")
+    httpretty.register_uri(httpretty.GET, uri=API_URL + "/jobs/f00ba5/logs", body=json.dumps({"logs": []}))
+
+    con = openeo.connect(API_URL, retry=retry_config)
+
+    max_poll_interval = 0.1
+    connection_retry_interval = 12.34
+    with mock.patch("time.sleep") as sleep_mock:
+        job = con.load_collection("SENTINEL2").create_job()
+        with expectation_context:
+            job.start_and_wait(max_poll_interval=max_poll_interval, connection_retry_interval=connection_retry_interval)
+
+    # Check retry related sleeps
+    actual_sleeps = [args[0] for args, kwargs in sleep_mock.call_args_list]
+    actual_sleeps = [s for s in actual_sleeps if s != max_poll_interval]
+    assert actual_sleeps == expected_sleeps
 
 
 class LogGenerator:

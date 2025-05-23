@@ -9,7 +9,7 @@ pytest.register_assert_rewrite(
 )
 
 
-from openeo.testing import TestDataLoader
+from openeo.testing.io import TestDataLoader
 from openeo.util import ensure_dir
 
 pytest_plugins = "pytester"
