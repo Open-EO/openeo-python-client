@@ -84,7 +84,7 @@ class DummyTask(Task):
             raise ValueError("Oh no!")
         return _TaskResult(
             job_id=self.job_id,
-            df_idx= self.df_idx,
+            df_idx=self.df_idx,
             db_update={"status": "dummified"},
             stats_update={"dummy": 1},
         )
@@ -104,7 +104,7 @@ class BlockingTask(Task):
             raise TimeoutError("Waiting for event timed out")
         if not self.success:
             raise ValueError("Oh no!")
-        return _TaskResult(job_id=self.job_id, df_idx= self.df_idx, db_update={"status": "all fine"})
+        return _TaskResult(job_id=self.job_id, df_idx=self.df_idx, db_update={"status": "all fine"})
 
 
 
@@ -154,16 +154,16 @@ class TestJobManagerWorkerThreadPool:
         assert remaining == 0
 
     def test_submit_and_process_iterative(self, worker_pool):
-        worker_pool.submit_task(NopTask(job_id="j-1", df_idx= 1))
+        worker_pool.submit_task(NopTask(job_id="j-1", df_idx=1))
         results, remaining = worker_pool.process_futures(timeout=1)
-        assert results == [_TaskResult(job_id="j-1", df_idx= 1)]
+        assert results == [_TaskResult(job_id="j-1", df_idx=1)]
         assert remaining == 0
 
         # Add some more
-        worker_pool.submit_task(NopTask(job_id="j-22", df_idx= 22))
-        worker_pool.submit_task(NopTask(job_id="j-222", df_idx= 222))
+        worker_pool.submit_task(NopTask(job_id="j-22", df_idx=22))
+        worker_pool.submit_task(NopTask(job_id="j-222", df_idx=222))
         results, remaining = worker_pool.process_futures(timeout=1)
-        assert results == [_TaskResult(job_id="j-22", df_idx= 22), _TaskResult(job_id="j-222",  df_idx= 222)]
+        assert results == [_TaskResult(job_id="j-22", df_idx=22), _TaskResult(job_id="j-222",  df_idx=222)]
         assert remaining == 0
 
     def test_submit_multiple_simple(self, worker_pool):

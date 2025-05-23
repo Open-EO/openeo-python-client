@@ -803,7 +803,7 @@ class TestMultiBackendJobManager:
         assert stats == {}
 
 
-    def test_logs_on_invalid_db_update(self, tmp_path, caplog):
+    def test_logs_on_invalid_update(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
         stats = collections.defaultdict(int)
 
@@ -812,7 +812,7 @@ class TestMultiBackendJobManager:
             job_id = "bad-task"
             df_idx = 0
             db_update = "invalid"  # invalid
-            stats_update = None
+            stats_update = "a"
 
             def execute(self):
                 return self
@@ -834,7 +834,8 @@ class TestMultiBackendJobManager:
         assert stats == {}
 
         # Assert log about invalid db update
-        assert any("Skipping invalid db_update for job" in msg for msg in caplog.messages)
+        assert any("Skipping invalid db_update" in msg for msg in caplog.messages)
+        assert any("Skipping invalid stats_update" in msg for msg in caplog.messages)
 
 JOB_DB_DF_BASICS = pd.DataFrame(
     {
