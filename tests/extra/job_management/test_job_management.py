@@ -786,7 +786,7 @@ class TestMultiBackendJobManager:
         assert stats["job_db persist"] == 1
 
         # Assert error log for invalid index
-        assert any("Unknown row indiches" in msg for msg in caplog.messages)
+        assert any("Skipping non-existing dataframe indiches" in msg for msg in caplog.messages)
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)

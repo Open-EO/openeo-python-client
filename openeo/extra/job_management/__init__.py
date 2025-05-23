@@ -724,7 +724,7 @@ class MultiBackendJobManager:
         # Any df_idx not in original index are errors
         missing = set(df_updates.index) - existing_indices
         if missing:
-            _log.error(f"Unknown df_idx values, skipping updates for: {sorted(missing)}")
+            _log.error(f"Skipping non-existing dataframe indiches: {sorted(missing)}")
 
 
     def on_job_done(self, job: BatchJob, row):
