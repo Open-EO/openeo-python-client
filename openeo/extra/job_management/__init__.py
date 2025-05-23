@@ -689,7 +689,7 @@ class MultiBackendJobManager:
                         **res.db_update,
                     })
                 except Exception as e:
-                    _log.error(f"Skipping invalid db_update '{res.db_update}'for job '{res.job_id}': {e}", )
+                    _log.error(f"Skipping invalid db_update '{res.db_update}' for job '{res.job_id}': {e}", )
                     
             # Process stats updates
             if res.stats_update:
@@ -699,7 +699,7 @@ class MultiBackendJobManager:
                         stats[key] = stats.get(key, 0) + count
                 except Exception as e:
                     _log.error(
-                        f"Skipping invalid stats_update {res.stats_update }for job '{res.job_id}': {e}"
+                        f"Skipping invalid stats_update {res.stats_update} for job '{res.job_id}': {e}"
                     )
 
         # No valid updates: nothing to persist
@@ -976,7 +976,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
     def _merge_into_df(self, df: pd.DataFrame):
         if self._df is not None:
-            self._df.update(df, overwrite=True) #TODO index is not consistent so this creates an issue. --> when we get a row, we need to give the right index to the row. Best solution when creating a task; pass this one along
+            self._df.update(df, overwrite=True) 
         else:
             self._df = df
 
