@@ -8,7 +8,29 @@ import requests
 import requests.adapters
 from urllib3.util import Retry
 
-DEFAULT_RETRIES_TOTAL = 5
+# Commonly used subset of HTTP response status codes
+HTTP_100_CONTINUE = 100
+HTTP_200_OK = 200
+HTTP_201_CREATED = 201
+HTTP_202_ACCEPTED = 202
+HTTP_204_NO_CONTENT = 204
+HTTP_301_MOVED_PERMANENTLY = 301
+HTTP_302_FOUND = 302
+HTTP_400_BAD_REQUEST = 400
+HTTP_401_UNAUTHORIZED = 401
+HTTP_402_PAYMENT_REQUIRED = 402
+HTTP_403_FORBIDDEN = 403
+HTTP_404_NOT_FOUND = 404
+HTTP_408_REQUEST_TIMEOUT = 408
+HTTP_429_TOO_MANY_REQUESTS = 429
+HTTP_500_INTERNAL_SERVER_ERROR = 500
+HTTP_501_NOT_IMPLEMENTED = 501
+HTTP_502_BAD_GATEWAY = 502
+HTTP_503_SERVICE_UNAVAILABLE = 503
+HTTP_504_GATEWAY_TIMEOUT = 504
+
+
+DEFAULT_RETRIES_TOTAL = 3
 
 # On `backoff_factor`: it influences how much to sleep according to the formula:
 #     sleep = {backoff factor} * (2 ** ({consecutive errors - 1}))
@@ -20,10 +42,7 @@ DEFAULT_BACKOFF_FACTOR = 2.5
 
 DEFAULT_RETRY_FORCELIST = frozenset(
     [
-        429,  # Too Many Requests
-        502,  # Bad Gateway
-        503,  # Service Unavailable
-        504,  # Gateway Timeout
+        HTTP_429_TOO_MANY_REQUESTS,
     ]
 )
 

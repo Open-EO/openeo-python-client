@@ -13,7 +13,7 @@ import openeo
 from openeo.rest import OpenEoApiError, OpenEoApiPlainError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth
 from openeo.util import ContextTimer, ensure_list, str_truncate, url_join
-from openeo.utils.http import session_with_retries
+from openeo.utils.http import HTTP_502_BAD_GATEWAY, session_with_retries
 
 _log = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ class RestApiConnection:
         _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
 
         # TODO: eliminate this VITO-backend specific error massaging?
-        if status_code == 502 and "Proxy Error" in text:
+        if status_code == HTTP_502_BAD_GATEWAY and "Proxy Error" in text:
             error_message = (
                 "Received 502 Proxy Error."
                 " This typically happens when a synchronous openEO processing request takes too long and is aborted."

@@ -40,8 +40,7 @@ class TestSessionWithRetries:
             (1, [], True),
             (2, [5], True),
             (3, [5, 10], True),
-            (5, [5, 10, 20, 40], True),
-            (6, [5, 10, 20, 40], False),
+            (4, [5, 10], False),
         ],
     )
     def test_default_multiple_attempts(self, time_sleep, fail_count, expected_sleeps, success):

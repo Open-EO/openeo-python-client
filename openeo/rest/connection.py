@@ -86,6 +86,11 @@ from openeo.util import (
     load_json_resource,
     rfc3339,
 )
+from openeo.utils.http import (
+    HTTP_201_CREATED,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
+)
 from openeo.utils.version import ComparableVersion
 
 __all__ = ["Connection", "connect"]
@@ -676,7 +681,10 @@ class Connection(RestApiConnection):
             # Initial request attempt
             return _request()
         except OpenEoApiError as api_exc:
-            if api_exc.http_status_code in {401, 403} and api_exc.code == "TokenInvalid":
+            if (
+                api_exc.http_status_code in {HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN}
+                and api_exc.code == "TokenInvalid"
+            ):
                 # Auth token expired: can we refresh?
                 if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
                     msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
@@ -1763,7 +1771,7 @@ class Connection(RestApiConnection):
         )
 
         self._preflight_validation(pg_with_metadata=pg_with_metadata, validate=validate)
-        response = self.post("/jobs", json=pg_with_metadata, expected_status=201)
+        response = self.post("/jobs", json=pg_with_metadata, expected_status=HTTP_201_CREATED)
 
         job_id = None
         if "openeo-identifier" in response.headers:
