@@ -22,7 +22,7 @@ _DEFAULT_RTOL = 1e-6
 _DEFAULT_ATOL = 1e-6
 
 # https://paulbourke.net/dataformats/asciiart
-DEFAULT_GRAYSCALE_70_CHARACTERS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
+DEFAULT_GRAYSCALE_70_CHARACTERS = r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
 DEFAULT_GRAYSCALE_10_CHARACTERS = " .:-=+*#%@"
 
 def _load_xarray_netcdf(path: Union[str, Path], **kwargs) -> xarray.Dataset:
