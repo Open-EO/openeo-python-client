@@ -239,7 +239,7 @@ def _compare_xarray_dataarray(
             percentage_bad_pixels = bad_pixels.mean().item() * 100
             assert (
                 percentage_bad_pixels <= pixel_tolerance
-            ), f"{percentage_bad_pixels:.3f}% of pixels that are different and this is above the threshold of {pixel_tolerance:.3f}%"
+            ), f"Fraction significantly differing pixels: {percentage_bad_pixels}% > {pixel_tolerance}%"
             xarray.testing.assert_allclose(
                 a=actual.where(~bad_pixels), b=expected.where(~bad_pixels), rtol=rtol, atol=atol
             )
@@ -497,7 +497,8 @@ def assert_job_results_allclose(
         :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
-    :param pixel_tolerance: maximum fraction of pixels (in percent) that is allowed to be different (considering ``atol`` and ``rtol``)
+    :param pixel_tolerance: maximum fraction of pixels (in percent)
+        that is allowed to be significantly different (considering ``atol`` and ``rtol``)
     :param tmp_path: root temp path to download results if needed.
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance
