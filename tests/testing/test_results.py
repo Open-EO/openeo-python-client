@@ -162,8 +162,7 @@ class TestCompareXarray:
                 21,
                 [
                     dirty_equals.IsStr(
-                        regex=r"40.000% of pixels that are different and this is above the threshold of 21.000%",
-                        regex_flags=re.DOTALL,
+                        regex=r"Fraction significantly differing pixels: 40.0% > 21%",
                     )
                 ],
             ),
