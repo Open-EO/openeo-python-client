@@ -41,6 +41,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.doctest',
     'myst_parser',
+    "sphinx.ext.intersphinx",
 ]
 
 import sphinx_autodoc_typehints
@@ -194,3 +195,13 @@ texinfo_documents = [
      author, 'openeo', 'One line description of project.',
      'Miscellaneous'),
 ]
+
+
+# Mapping for external documentation
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "urllib3": ("https://urllib3.readthedocs.io/en/stable/", None),
+}

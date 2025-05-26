@@ -5,6 +5,7 @@ import sys
 from typing import Iterable, Optional, Union
 
 import requests
+import urllib3.util
 from requests import Response
 from requests.auth import AuthBase
 
@@ -12,6 +13,7 @@ import openeo
 from openeo.rest import OpenEoApiError, OpenEoApiPlainError, OpenEoRestError
 from openeo.rest.auth.auth import NullAuth
 from openeo.util import ContextTimer, ensure_list, str_truncate, url_join
+from openeo.utils.http import HTTP_502_BAD_GATEWAY, session_with_retries
 
 _log = logging.getLogger(__name__)
 
@@ -26,15 +28,22 @@ class RestApiConnection:
     def __init__(
         self,
         root_url: str,
+        *,
         auth: Optional[AuthBase] = None,
         session: Optional[requests.Session] = None,
         default_timeout: Optional[int] = None,
         slow_response_threshold: Optional[float] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ):
         self._root_url = root_url
         self._auth = None
         self.auth = auth or NullAuth()
-        self.session = session or requests.Session()
+        if session:
+            self.session = session
+        elif retry is not False:
+            self.session = session_with_retries(retry=retry)
+        else:
+            self.session = requests.Session()
         self.default_timeout = default_timeout or DEFAULT_TIMEOUT
         self.default_headers = {
             "User-Agent": "openeo-python-client/{cv} {py}/{pv} {pl}".format(
@@ -165,7 +174,7 @@ class RestApiConnection:
         _log.warning(f"Failed to parse API error response: [{status_code}] {text!r} (headers: {response.headers})")
 
         # TODO: eliminate this VITO-backend specific error massaging?
-        if status_code == 502 and "Proxy Error" in text:
+        if status_code == HTTP_502_BAD_GATEWAY and "Proxy Error" in text:
             error_message = (
                 "Received 502 Proxy Error."
                 " This typically happens when a synchronous openEO processing request takes too long and is aborted."

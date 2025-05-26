@@ -27,6 +27,15 @@ from openeo.rest import (
 from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import log_level_name
 from openeo.util import ensure_dir
+from openeo.utils.http import (
+    HTTP_408_REQUEST_TIMEOUT,
+    HTTP_429_TOO_MANY_REQUESTS,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_501_NOT_IMPLEMENTED,
+    HTTP_502_BAD_GATEWAY,
+    HTTP_503_SERVICE_UNAVAILABLE,
+    HTTP_504_GATEWAY_TIMEOUT,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -37,7 +46,16 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_JOB_RESULTS_FILENAME = "job-results.json"
 MAX_RETRIES_PER_RANGE = 3
-RETRIABLE_STATUSCODES = [408, 429, 500, 501, 502, 503, 504]
+RETRIABLE_STATUSCODES = [
+    HTTP_408_REQUEST_TIMEOUT,
+    HTTP_429_TOO_MANY_REQUESTS,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_501_NOT_IMPLEMENTED,
+    HTTP_502_BAD_GATEWAY,
+    HTTP_503_SERVICE_UNAVAILABLE,
+    HTTP_504_GATEWAY_TIMEOUT,
+]
+
 
 class BatchJob:
     """
@@ -313,7 +331,7 @@ class BatchJob:
                 soft_error("Connection error while polling job status: {e}".format(e=e))
                 continue
             except OpenEoApiPlainError as e:
-                if e.http_status_code in [502, 503]:
+                if e.http_status_code in [HTTP_502_BAD_GATEWAY, HTTP_503_SERVICE_UNAVAILABLE]:
                     soft_error("Service availability error while polling job status: {e}".format(e=e))
                     continue
                 else:

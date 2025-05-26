@@ -29,7 +29,8 @@ import requests
 import shapely.errors
 import shapely.geometry.base
 import shapely.wkt
-from requests.adapters import HTTPAdapter, Retry
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from openeo import BatchJob, Connection
 from openeo.extra.job_management._thread_worker import (
@@ -292,7 +293,7 @@ class MultiBackendJobManager:
         503 Service Unavailable
         504 Gateway Timeout
         """
-        # TODO: refactor this helper out of this class and unify with `openeo_driver.util.http.requests_with_retry`
+        # TODO: migrate this to now built-in retry configuration of `Connection` or `openeo.util.http.retry_adapter`?
         status_forcelist = [500, 502, 503, 504]
         retries = Retry(
             total=MAX_RETRIES,

@@ -1,4 +1,4 @@
-.. _job-manager
+.. _job-manager:
 
 ====================================
 Multi Backend Job Manager

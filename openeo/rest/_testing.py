@@ -17,6 +17,7 @@ from typing import (
 
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
+from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
 
 OPENEO_BACKEND = "https://openeo.test/"
 
@@ -212,7 +213,7 @@ class DummyBackend:
         for field in self.extra_job_metadata_fields:
             job_data[field] = post_data.get(field)
         self.batch_jobs[job_id] = job_data
-        context.status_code = 201
+        context.status_code = HTTP_201_CREATED
         context.headers["openeo-identifier"] = job_id
 
     def _get_job_id(self, request) -> str:
@@ -259,7 +260,7 @@ class DummyBackend:
             self.batch_jobs[job_id]["status"] = self._get_job_status(
                 job_id=job_id, current_status=self.batch_jobs[job_id]["status"]
             )
-            context.status_code = 202
+            context.status_code = HTTP_202_ACCEPTED
         else:
             self._set_job_status(job_id=job_id, status="error")
             context.status_code = failure["status_code"]
@@ -300,7 +301,7 @@ class DummyBackend:
         """Handler of `DELETE /job/{job_id}/results` (cancel job)."""
         job_id = self._get_job_id(request)
         self._set_job_status(job_id=job_id, status="canceled")
-        context.status_code = 204
+        context.status_code = HTTP_204_NO_CONTENT
 
     def _handle_get_job_result_asset(self, request, context):
         """Handler of `GET /job/{job_id}/results/result.data` (get batch job result asset)."""
