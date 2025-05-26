@@ -200,7 +200,7 @@ def _compare_xarray_dataarray(
     name: str = None,
 ) -> List[str]:
     """
-    Compare two xarray DataArrays either with tolerance or with allowable pixels and report mismatch issues (as strings)
+    Compare two xarray DataArrays with tolerance and report mismatch issues (as strings)
 
     Checks that are done (with tolerance):
     - (optional) Check fraction of mismatching pixels (difference exceeding some tolerance).
@@ -497,7 +497,7 @@ def assert_job_results_allclose(
         :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
-    :param pixel_tolerance: maximum fracton of pixels (in percent) that is allowed to be different (considering ``atol`` and ``rtol``)
+    :param pixel_tolerance: maximum fraction of pixels (in percent) that is allowed to be different (considering ``atol`` and ``rtol``)
     :param tmp_path: root temp path to download results if needed.
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance
