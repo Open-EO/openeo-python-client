@@ -23,4 +23,5 @@ pythonPipeline {
     "PYTEST_DEBUG_TEMPROOT=pytest-tmp",
   ]
   pre_test_script = 'pre_test.sh'
+  enable_uv = true
 }

@@ -1011,7 +1011,7 @@ def test_apply_dimension_unspecified_dimension(s2cube, dummy_backend, recwarn):
         },
     }
     assert str(recwarn.pop()) == dirty_equals.IsStr(
-        regex=".*UserDeprecationWarning.*apply_dimension.*without explicit.*dimension.*argument.*is deprecated.*filename.*/test_datacube.py.*"
+        regex=r".*UserDeprecationWarning.*apply_dimension.*without explicit.*dimension.*argument.*is deprecated.*filename.*[\\/]test_datacube.py.*"
     )
 
 

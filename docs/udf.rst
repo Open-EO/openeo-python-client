@@ -374,11 +374,10 @@ the datacube.
 
 
 .. warning::
-
-The ``apply_neighborhood`` is the most versatile, but also most complex process. Make sure to keep an eye on the dimensions
-and the shape of the DataArray returned by your UDF. For instance, a very common error is to somehow 'flip' the spatial dimensions.
-Debugging the UDF locally can help, but then you will want to try and reproduce the input that you get also on the backend.
-This can typically be achieved by using logging to inspect the DataArrays passed into your UDF backend side.
+    The ``apply_neighborhood`` is the most versatile, but also most complex process. Make sure to keep an eye on the dimensions
+    and the shape of the DataArray returned by your UDF. For instance, a very common error is to somehow 'flip' the spatial dimensions.
+    Debugging the UDF locally can help, but then you will want to try and reproduce the input that you get also on the backend.
+    This can typically be achieved by using logging to inspect the DataArrays passed into your UDF backend side.
 
 
 
