@@ -72,7 +72,7 @@ setup(
     test_suite="tests",
     install_requires=[
         "requests>=2.26.0",
-        "urllib3>=2.0.0",
+        "urllib3>=1.9.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
         "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
