@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.42.1] - 2025-06-06
+
+### Changed
+
+- Relax `urllib3` dependency constraint below 2.0.0 to unblock dependency resolution issues in some old (Python 3.8) build contexts
+
 
 ## [0.42.0] - 2025-05-28
 
