@@ -697,9 +697,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             bands = list(_StacMetadataParser().get_bands_from_item_assets(collection.ext.item_assets))
 
     elif isinstance(stac_object, pystac.Catalog):
-        # TODO #699: migrate to _StacMetadataParser
-        catalog = stac_object
-        bands = get_band_metadata(catalog.extra_fields.get("summaries", {}))
+        bands = _StacMetadataParser().bands_from_stac_catalog(catalog=stac_object)
     else:
         raise ValueError(stac_object)
 
