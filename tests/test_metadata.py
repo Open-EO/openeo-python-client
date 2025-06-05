@@ -4,6 +4,7 @@ import json
 import re
 from typing import List, Optional, Union
 
+import pystac
 import pytest
 
 from openeo.metadata import (
@@ -17,6 +18,7 @@ from openeo.metadata import (
     MetadataException,
     SpatialDimension,
     TemporalDimension,
+    _StacMetadataParser,
     metadata_from_stac,
 )
 from openeo.testing.stac import StacDummyBuilder
@@ -1154,3 +1156,156 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert result31.spatial_dimensions == xy1
     assert result31.band_dimension == b3
     assert not result31.has_temporal_dimension()
+
+
+class TestStacMetadataParser:
+    def test_band_from_eo_bands_metadata(self):
+        assert _StacMetadataParser()._band_from_eo_bands_metadata(
+            {"name": "B04"},
+        ) == Band(name="B04")
+        assert _StacMetadataParser()._band_from_eo_bands_metadata(
+            {"name": "B04", "common_name": "red", "center_wavelength": 0.665}
+        ) == Band(name="B04", common_name="red", wavelength_um=0.665)
+
+    def test_band_from_common_bands_metadata(self):
+        assert _StacMetadataParser()._band_from_common_bands_metadata(
+            {"name": "B04"},
+        ) == Band(name="B04")
+        assert _StacMetadataParser()._band_from_common_bands_metadata(
+            {"name": "B04", "eo:common_name": "red", "eo:center_wavelength": 0.665}
+        ) == Band(name="B04", common_name="red", wavelength_um=0.665)
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.0.0",
+                    "stac_extensions": ["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    "summaries": {
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                    "links": [],
+                },
+                ["B04", "B03"],
+            ),
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.1.0",
+                    "summaries": {
+                        "bands": [
+                            {"name": "B04"},
+                            {"name": "B03"},
+                        ],
+                    },
+                    "links": [],
+                },
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_catatlog(self, data, expected):
+        catalog = pystac.Catalog.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_catalog(catalog=catalog).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    summaries={
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                ),
+                ["B04", "B03"],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    summaries={
+                        "bands": [
+                            {"name": "B04"},
+                            {"name": "B03"},
+                        ],
+                    },
+                ),
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_collection(self, data, expected):
+        collection = pystac.Collection.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_collection(collection=collection).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "datetime": "2023-10-01T00:00:00Z",
+                        "eo:bands": [{"name": "B04"}, {"name": "B03"}],
+                    },
+                ),
+                ["B04", "B03"],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.1.0",
+                    properties={
+                        "datetime": "2023-10-01T00:00:00Z",
+                        "bands": [{"name": "B04"}, {"name": "B03"}],
+                    },
+                ),
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_item(self, data, expected):
+        item = pystac.Item.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_item(item=item).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {
+                    "href": "https://stac.test/asset.tif",
+                    "eo:bands": [
+                        {"name": "B04"},
+                        {"name": "B03"},
+                    ],
+                },
+                ["B04", "B03"],
+            ),
+            (
+                {
+                    "href": "https://stac.test/asset.tif",
+                    "bands": [
+                        {"name": "B04"},
+                        {"name": "B03"},
+                    ],
+                },
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_asset(self, data, expected):
+        asset = pystac.Asset.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_asset(asset=asset).band_names() == expected
