@@ -273,11 +273,13 @@ class BatchJob:
 
     def start_and_wait(
         self,
+        *,
         print=print,
         max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
         connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
         soft_error_max: int = DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX,
         show_error_logs: bool = True,
+        require_success: bool = True,
     ) -> BatchJob:
         """
         Start the batch job, poll its status and wait till it finishes (or fails)
@@ -287,11 +289,19 @@ class BatchJob:
         :param connection_retry_interval: how long to wait when status poll failed due to connection issue
         :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
         :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param require_success: whether to raise an exception if the job did not finish successfully.
 
         :return: Handle to the job created at the backend.
 
         .. versionchanged:: 0.37.0
             Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.42.0
+            All arguments must be specified as keyword arguments,
+            to eliminate the risk of positional mix-ups between heterogeneous arguments and flags.
+
+        .. versionchanged:: 0.42.0
+            Added argument ``require_success``.
         """
         # TODO rename `connection_retry_interval` to something more generic?
         start_time = time.time()
@@ -354,7 +364,7 @@ class BatchJob:
             time.sleep(poll_interval)
             poll_interval = min(1.25 * poll_interval, max_poll_interval)
 
-        if status != "finished":
+        if require_success and status != "finished":
             # TODO: render logs jupyter-aware in a notebook context?
             if show_error_logs:
                 print(f"Your batch job {self.job_id!r} failed. Error logs:")

@@ -20,10 +20,12 @@ _log = logging.getLogger(__name__)
 
 _DEFAULT_RTOL = 1e-6
 _DEFAULT_ATOL = 1e-6
+_DEFAULT_PIXELTOL = 0.0
 
 # https://paulbourke.net/dataformats/asciiart
 DEFAULT_GRAYSCALE_70_CHARACTERS = r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
 DEFAULT_GRAYSCALE_10_CHARACTERS = " .:-=+*#%@"
+
 
 def _load_xarray_netcdf(path: Union[str, Path], **kwargs) -> xarray.Dataset:
     """
@@ -194,6 +196,7 @@ def _compare_xarray_dataarray(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     name: str = None,
 ) -> List[str]:
     """
@@ -230,9 +233,19 @@ def _compare_xarray_dataarray(
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
     try:
-        xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
+        if pixel_tolerance and compatible:
+            threshold = abs(expected * rtol) + atol
+            bad_pixels = abs(actual * 1.0 - expected * 1.0) > threshold
+            percentage_bad_pixels = bad_pixels.mean().item() * 100
+            assert (
+                percentage_bad_pixels <= pixel_tolerance
+            ), f"Fraction significantly differing pixels: {percentage_bad_pixels}% > {pixel_tolerance}%"
+            xarray.testing.assert_allclose(
+                a=actual.where(~bad_pixels), b=expected.where(~bad_pixels), rtol=rtol, atol=atol
+            )
+        else:
+            xarray.testing.assert_allclose(a=actual, b=expected, rtol=rtol, atol=atol)
     except AssertionError as e:
-        # TODO: message of `assert_allclose` is typically multiline, split it again or make it one line?
         issues.append(str(e).strip())
         if compatible and {"x", "y"} <= set(expected.dims):
             issues.extend(
@@ -266,12 +279,14 @@ def assert_xarray_dataarray_allclose(
     if issues:
         raise AssertionError("\n".join(issues))
 
+
 def _compare_xarray_datasets(
     actual: Union[xarray.Dataset, str, Path],
     expected: Union[xarray.Dataset, str, Path],
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
 ) -> List[str]:
     """
     Compare two xarray ``DataSet``s with tolerance and report mismatch issues (as strings)
@@ -290,7 +305,9 @@ def _compare_xarray_datasets(
         all_issues.append(f"Xarray DataSet variables mismatch: {actual_vars} != {expected_vars}")
     for var in expected_vars.intersection(actual_vars):
         _log.debug(f"_compare_xarray_datasets: comparing variable {var!r}")
-        issues = _compare_xarray_dataarray(actual[var], expected[var], rtol=rtol, atol=atol, name=var)
+        issues = _compare_xarray_dataarray(
+            actual[var], expected[var], rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance, name=var
+        )
         if issues:
             all_issues.append(f"Issues for variable {var!r}:")
             all_issues.extend(issues)
@@ -387,6 +404,7 @@ def _compare_job_results(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     tmp_path: Optional[Path] = None,
 ) -> List[str]:
     """
@@ -415,12 +433,16 @@ def _compare_job_results(
                 all_issues.append(f"Issues for metadata file {filename!r}:")
                 all_issues.extend(issues)
         elif expected_path.suffix.lower() in {".nc", ".netcdf"}:
-            issues = _compare_xarray_datasets(actual=actual_path, expected=expected_path, rtol=rtol, atol=atol)
+            issues = _compare_xarray_datasets(
+                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
+            )
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
                 all_issues.extend(issues)
         elif expected_path.suffix.lower() in {".tif", ".tiff", ".gtiff", ".geotiff"}:
-            issues = _compare_xarray_dataarray(actual=actual_path, expected=expected_path, rtol=rtol, atol=atol)
+            issues = _compare_xarray_dataarray(
+                actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
+            )
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
                 all_issues.extend(issues)
@@ -463,6 +485,7 @@ def assert_job_results_allclose(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
     tmp_path: Optional[Path] = None,
 ):
     """
@@ -474,6 +497,8 @@ def assert_job_results_allclose(
         :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.
     :param rtol: relative tolerance
     :param atol: absolute tolerance
+    :param pixel_tolerance: maximum fraction of pixels (in percent)
+        that is allowed to be significantly different (considering ``atol`` and ``rtol``)
     :param tmp_path: root temp path to download results if needed.
         It's recommended to pass pytest's `tmp_path` fixture here
     :raises AssertionError: if not equal within the given tolerance
@@ -483,6 +508,8 @@ def assert_job_results_allclose(
     .. warning::
         This function is experimental and subject to change.
     """
-    issues = _compare_job_results(actual, expected, rtol=rtol, atol=atol, tmp_path=tmp_path)
+    issues = _compare_job_results(
+        actual, expected, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance, tmp_path=tmp_path
+    )
     if issues:
         raise AssertionError("\n".join(issues))

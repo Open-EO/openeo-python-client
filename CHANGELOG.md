@@ -9,16 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `openeo.testing.io.TestDataLoader`: unit test utility to compactly load (and optionally preprocess) tests data (text/JSON/...)
-- `openeo.Connection`: automatically retry API requests on `429 Too Many Requests` HTTP errors, with appropriate delay if possible ([#441](https://github.com/Open-EO/openeo-python-client/issues/441))
-
 ### Changed
-
-- `DataCube.apply_dimension()`: not explicitly specifying the `dimension` argument is deprecated and will trigger warnings ([#774](https://github.com/Open-EO/openeo-python-client/issues/774))
 
 ### Removed
 
 ### Fixed
+
+## [0.42.1] - 2025-06-06
+
+### Changed
+
+- Relax `urllib3` dependency constraint below 2.0.0 to unblock dependency resolution issues in some old (Python 3.8) build contexts
+
+
+## [0.42.0] - 2025-05-28
+
+### Added
+
+- `openeo.testing.io.TestDataLoader`: unit test utility to compactly load (and optionally preprocess) tests data (text/JSON/...)
+- `openeo.Connection`: automatically retry API requests on `429 Too Many Requests` HTTP errors, with appropriate delay if possible ([#441](https://github.com/Open-EO/openeo-python-client/issues/441))
+- Introduced `pixel_tolerance` argument in `openeo.testing.results` helpers to specify the ignorable fraction of significantly differing pixels. ([#776](https://github.com/Open-EO/openeo-python-client/issues/776))
+- `BatchJob.start_and_wait()`: add `require_success` argument (on by default) to control whether an exception should be raised automatically on job failure.
+
+### Changed
+
+- `DataCube.apply_dimension()`: not explicitly specifying the `dimension` argument is deprecated and will trigger warnings ([#774](https://github.com/Open-EO/openeo-python-client/issues/774))
+- `BatchJob.start_and_wait()`: all arguments must be specified as keyword arguments to eliminate the risk of positional mix-ups between all its heterogeneous arguments and flags.
 
 
 ## [0.41.0] - 2025-05-14

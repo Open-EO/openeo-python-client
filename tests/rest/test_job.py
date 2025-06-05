@@ -3,6 +3,7 @@ import itertools
 import json
 import logging
 import re
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 from unittest import mock
@@ -319,6 +320,23 @@ def test_execute_batch_with_excessive_soft_errors(con100, requests_mock, tmpdir,
         "0:00:20 Job 'f00ba5': " + expected,
         "0:00:33 Job 'f00ba5': " + expected,
     ]
+
+
+@pytest.mark.parametrize(
+    ["require_success", "expectation"],
+    [
+        (True, pytest.raises(JobFailedException, match="'job-000' didn't finish successfully")),
+        (False, contextlib.nullcontext()),
+    ],
+)
+def test_start_and_wait_with_error_require_success(dummy_backend, require_success, expectation):
+    dummy_backend.setup_simple_job_status_flow(queued=0, running=1, final="error")
+    cube = dummy_backend.connection.load_collection("S2").save_result(format="GTiff")
+    job = cube.create_job()
+    assert job.status() == "created"
+    with expectation, fake_time():
+        job.start_and_wait(require_success=require_success)
+    assert job.status() == "error"
 
 
 @httpretty.activate(allow_net_connect=False)

@@ -151,6 +151,38 @@ class TestCompareXarray:
         expected = xarray.DataArray([1, 2, 3])
         assert _compare_xarray_dataarray(actual=actual, expected=expected, rtol=0, atol=atol) == expected_issues
 
+    @pytest.mark.parametrize(
+        ["actual", "atol", "pixel_tolerance", "expected_issues"],
+        [
+            (xarray.DataArray([1, 2, 300, 4, 5]), 1e-4, 21.0, []),
+            (xarray.DataArray([1, 2, 3.00001, 4.1, 5]), 1e-4, 21, []),
+            (
+                xarray.DataArray([1, 2, 3.001, 4.1, 5]),
+                1e-4,
+                21,
+                [
+                    dirty_equals.IsStr(
+                        regex=r"Fraction significantly differing pixels: 40.0% > 21%",
+                    )
+                ],
+            ),
+            (
+                xarray.DataArray([1, 2, 3.001, 4, 5]),
+                1e-4,
+                0,
+                [dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL)],
+            ),
+        ],
+    )
+    def test_simple_pixel_tolerance(self, actual, atol, pixel_tolerance, expected_issues):
+        expected = xarray.DataArray([1, 2, 3, 4, 5])
+        assert (
+            _compare_xarray_dataarray(
+                actual=actual, expected=expected, atol=atol, rtol=0, pixel_tolerance=pixel_tolerance
+            )
+            == expected_issues
+        )
+
 
     def test_nan_handling(self):
         expected = xarray.DataArray([1, 2, numpy.nan, 4, float("nan")])
