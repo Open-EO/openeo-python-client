@@ -1,6 +1,8 @@
+from typing import Iterable
+
 import pytest
 
-from openeo.utils.normalize import normalize_resample_resolution
+from openeo.utils.normalize import normalize_resample_resolution, unique
 
 
 @pytest.mark.parametrize(
@@ -27,3 +29,24 @@ def test_normalize_resample_resolution(resolution, expected):
 def test_normalize_resample_resolution(resolution):
     with pytest.raises(ValueError, match="Invalid resolution"):
         normalize_resample_resolution(resolution)
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ([], []),
+        (["foo"], ["foo"]),
+        ("foo", ["f", "o"]),
+        ([1, 2, 2, 3, 1, 2, 3, 1, 4], [1, 2, 3, 4]),
+        (["a", "b", "a", "c"], ["a", "b", "c"]),
+        ([(1, 2), (1, 2), (2, 3)], [(1, 2), (2, 3)]),
+        ([1, "a", "1", "a"], [1, "a", "1"]),
+        ((x for x in [1, 2, 2, 3]), [1, 2, 3]),
+        (range(5), [0, 1, 2, 3, 4]),
+        (iter("hello"), ["h", "e", "l", "o"]),
+    ],
+)
+def test_unique(input, expected):
+    actual = unique(input)
+    assert isinstance(actual, Iterable)
+    assert list(actual) == expected

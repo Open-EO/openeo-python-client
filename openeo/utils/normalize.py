@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Iterable, Tuple, Union
 
 
 def normalize_resample_resolution(
@@ -14,3 +14,13 @@ def normalize_resample_resolution(
     ):
         return tuple(resolution)
     raise ValueError(f"Invalid resolution {resolution!r}")
+
+
+def unique(iterable, key=lambda x: x) -> Iterable:
+    """Deduplicate an iterable based on a key function."""
+    seen = set()
+    for x in iterable:
+        k = key(x)
+        if k not in seen:
+            seen.add(k)
+            yield x
