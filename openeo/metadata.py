@@ -652,23 +652,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     """
 
-    # TODO move these nested functions and other logic to _StacMetadataParser
-
-    def get_band_metadata(eo_bands_location: dict) -> List[Band]:
-        # TODO #699 eliminate or migrate to _StacMetadataParser
-        # TODO: return None iso empty list when no metadata?
-        return [
-            Band(name=band["name"], common_name=band.get("common_name"), wavelength_um=band.get("center_wavelength"))
-            for band in eo_bands_location.get("eo:bands", [])
-        ]
-
-    def get_band_names(bands: List[Band]) -> List[str]:
-        # TODO #699 eliminate or migrate to _StacMetadataParser
-        return [band.name for band in bands]
-
-    def is_band_asset(asset: pystac.Asset) -> bool:
-        # TODO #699 eliminate or migrate to _StacMetadataParser
-        return "eo:bands" in asset.extra_fields
 
     stac_object = pystac.read_file(href=url)
 
@@ -679,7 +662,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         # TODO #699: migrate to _StacMetadataParser
         collection = stac_object
         bands = _StacMetadataParser().bands_from_stac_collection(collection=stac_object)
-
 
         if _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets"):
             # TODO #575 support unordered band names and avoid conversion to a list.
