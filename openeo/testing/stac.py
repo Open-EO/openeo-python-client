@@ -108,3 +108,19 @@ class StacDummyBuilder:
         if stac_extensions is not None:
             d["stac_extensions"] = stac_extensions
         return d
+
+    @classmethod
+    def asset(
+        cls,
+        href: str = "https://stac.test/asset.tiff",
+        type: str = "image/tiff; application=geotiff",
+        roles: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        d = {"href": href, **kwargs}
+        if type:
+            d["type"] = type
+        if roles is not None:
+            d["roles"] = roles
+
+        return d

@@ -883,7 +883,7 @@ class _StacMetadataParser:
             return _BandList(self._band_from_common_bands_metadata(b) for b in collection.summaries.lists["bands"])
         elif consult_items:
             bands = _BandList.merge(
-                self.bands_from_stac_item(item=i, consult_parent=False, consult_assets=consult_assets)
+                self.bands_from_stac_item(item=i, consult_collection=False, consult_assets=consult_assets)
                 for i in collection.get_items()
             )
             if bands:
@@ -894,7 +894,7 @@ class _StacMetadataParser:
         return _BandList([])
 
     def bands_from_stac_item(
-        self, item: pystac.Item, *, consult_parent: bool = True, consult_assets: bool = True
+        self, item: pystac.Item, *, consult_collection: bool = True, consult_assets: bool = True
     ) -> _BandList:
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         self._log(f"bands_from_stac_item with {item.properties.keys()=}")
@@ -902,9 +902,10 @@ class _StacMetadataParser:
             return _BandList(self._band_from_eo_bands_metadata(b) for b in item.properties["eo:bands"])
         elif "bands" in item.properties:
             return _BandList(self._band_from_common_bands_metadata(b) for b in item.properties["bands"])
-        elif consult_parent and (parent_collection := item.get_collection()) is not None:
+        elif consult_collection and (parent_collection := item.get_collection()) is not None:
             return self.bands_from_stac_collection(collection=parent_collection)
         elif consult_assets:
+            # TODO: filter on asset roles?
             bands = _BandList.merge(self.bands_from_stac_asset(asset=a) for a in item.get_assets().values())
             if bands:
                 return bands
