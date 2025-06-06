@@ -3114,19 +3114,22 @@ class TestLoadStac:
         }
 
     @pytest.mark.parametrize(
-        ["bands", "has_band_dimension", "expected_pg_args", "expected_warning"],
+        ["bands", "has_band_dimension", "expected_pg_args", "expected_warnings"],
         [
-            (None, False, {}, None),
+            (None, False, {}, ["bands_from_stac_collection: no band name source found"]),
             (
                 ["B02", "B03"],
                 True,
                 {"bands": ["B02", "B03"]},
-                "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+                [
+                    "bands_from_stac_collection: no band name source found",
+                    "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+                ],
             ),
         ],
     )
     def test_load_stac_band_filtering_no_band_dimension(
-        self, dummy_backend, build_stac_ref, bands, has_band_dimension, expected_pg_args, expected_warning, caplog
+        self, dummy_backend, build_stac_ref, bands, has_band_dimension, expected_pg_args, expected_warnings, caplog
     ):
         stac_ref = build_stac_ref(StacDummyBuilder.collection())
 
@@ -3152,10 +3155,7 @@ class TestLoadStac:
             "url": stac_ref,
         }
 
-        if expected_warning:
-            assert expected_warning in caplog.text
-        else:
-            assert not caplog.text
+        assert caplog.messages == expected_warnings
 
     def test_load_stac_band_filtering_no_band_metadata(self, dummy_backend, build_stac_ref, caplog):
         caplog.set_level(logging.WARNING)
