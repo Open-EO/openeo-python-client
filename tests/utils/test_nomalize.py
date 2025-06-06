@@ -50,3 +50,19 @@ def test_unique(input, expected):
     actual = unique(input)
     assert isinstance(actual, Iterable)
     assert list(actual) == expected
+
+
+@pytest.mark.parametrize(
+    ["input", "key", "expected"],
+    [
+        (["apple", "banana", "Apple", "Banana"], None, ["apple", "banana", "Apple", "Banana"]),
+        (["apple", "banana", "Apple", "Banana"], lambda x: x.lower(), ["apple", "banana"]),
+        ([(1, 2), (2, 1), (2, 3)], sum, [(1, 2), (2, 3)]),
+        ([(1, 2), (2, 1), (2, 3)], lambda x: x[0], [(1, 2), (2, 1)]),
+        ([(1, 2), (2, 1), (2, 3)], lambda x: x[1], [(1, 2), (2, 1), (2, 3)]),
+    ],
+)
+def test_unique_with_key(input, key, expected):
+    actual = unique(input, key=key)
+    assert isinstance(actual, Iterable)
+    assert list(actual) == expected
