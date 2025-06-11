@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import pathlib
 import re
+import textwrap
 import typing
 import uuid
 import warnings
@@ -142,6 +143,10 @@ class UDF:
         Specifying the ``data`` argument is not necessary anymore, and actually deprecated.
         Added :py:meth:`from_file` to simplify loading UDF code from a file.
         See :ref:`old_udf_api` for more background about the changes.
+
+    .. versionchanged:: 0.43.0
+        Automatically un-indent given UDF code,
+        to simplify writing valid and properly formatted inline UDF code.
     """
 
     # TODO: eliminate dependency on `openeo.rest.connection` and move to somewhere under `openeo.internal`?
@@ -155,7 +160,9 @@ class UDF:
         data=None,  # TODO #181 remove `data` argument
         version: Optional[str] = None,
         context: Optional[dict] = None,
+        *,
         _source=None,
+        auto_dedent: bool = True,
     ):
         """
         Construct a UDF object from given code string and other argument related to the ``run_udf`` process.
@@ -167,7 +174,8 @@ class UDF:
         :param context: optional additional UDF context data
         :param _source: (for internal use) source identifier
         """
-        # TODO: automatically dedent code (when literal string) ?
+        if auto_dedent:
+            code = textwrap.dedent(code)
         self.code = code
         self._runtime = runtime
         self.version = version
