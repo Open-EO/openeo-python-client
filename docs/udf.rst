@@ -29,13 +29,13 @@ using the openEO Python Client library:
 
     # Build a UDF object from an inline string with Python source code.
     udf = openeo.UDF(
-        """
-        import xarray
+    """
+    import xarray
 
-        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-            cube.values = 0.0001 * cube.values
-            return cube
-        """
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values
+        return cube
+    """
     )
 
     # Or load the UDF code from a separate file.
@@ -252,13 +252,13 @@ The UDF-specific part is highlighted.
 
     # Create a UDF object from inline source code.
     udf = openeo.UDF(
-        """
-        import xarray
+    """
+    import xarray
 
-        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
-            cube.values = 0.0001 * cube.values
-            return cube
-        """
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        cube.values = 0.0001 * cube.values
+        return cube
+    """
     )
 
     # Pass UDF object as child process to `apply`.

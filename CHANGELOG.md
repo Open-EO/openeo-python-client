@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `openeo.UDF()`: automatically un-indent given UDF code ([#782](https://github.com/Open-EO/openeo-python-client/issues/782))
+
 ### Removed
 
 ### Fixed

@@ -3841,6 +3841,46 @@ class TestUDF:
             },
         }
 
+    def test_apply_udf_auto_dedent(self, con100):
+        udf = openeo.UDF(
+            """
+            import xarray
+
+            def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+                cube.values = 0.0001 * cube.values
+                return cube
+            """
+        )
+        cube = con100.load_collection("S2")
+        res = cube.apply(udf)
+
+        assert res.flat_graph()["apply1"]["arguments"] == {
+            "data": {"from_node": "loadcollection1"},
+            "process": {
+                "process_graph": {
+                    "runudf1": {
+                        "process_id": "run_udf",
+                        "arguments": {
+                            "data": {"from_parameter": "x"},
+                            "runtime": "Python",
+                            "udf": "\n".join(
+                                [
+                                    "",
+                                    "import xarray",
+                                    "",
+                                    "def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:",
+                                    "    cube.values = 0.0001 * cube.values",
+                                    "    return cube",
+                                    "",
+                                ]
+                            ),
+                        },
+                        "result": True,
+                    }
+                },
+            },
+        }
+
     def test_apply_udf_runtime_detection(self, con100, requests_mock):
         udf = UDF("def foo(x):\n    return x\n")
         cube = con100.load_collection("S2")
