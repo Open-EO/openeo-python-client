@@ -4,6 +4,7 @@ import json
 import re
 from typing import List, Optional, Union
 
+import dirty_equals
 import pytest
 
 from openeo.metadata import (
@@ -1154,3 +1155,9 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert result31.spatial_dimensions == xy1
     assert result31.band_dimension == b3
     assert not result31.has_temporal_dimension()
+
+
+def test_cube_metadata_repr():
+    assert repr(CUBE_METADATA_XYTB) == dirty_equals.IsStr(
+        regex="CubeMetadata.*dimensions=.*SpatialDimension.*x.*SpatialDimension.*y.*TemporalDimension.*t.*BandDimension.*bands.*B2.*B3.*"
+    )

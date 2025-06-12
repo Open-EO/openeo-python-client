@@ -272,6 +272,9 @@ class CubeMetadata:
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(dimensions={self._dimensions!r})"
+
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
         return f"CubeMetadata({bands} - {self.dimension_names()})"
