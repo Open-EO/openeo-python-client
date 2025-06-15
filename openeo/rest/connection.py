@@ -881,7 +881,8 @@ class Connection(RestApiConnection):
 
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
-        return CollectionMetadata(metadata=self.describe_collection(name), connection=self)
+        federation = self.capabilities().ext_federation_backend_details()
+        return CollectionMetadata(metadata=self.describe_collection(name), federation=federation)
 
     def list_processes(self, namespace: Optional[str] = None) -> ProcessListingResponse:
         """
