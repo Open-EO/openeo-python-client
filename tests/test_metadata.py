@@ -980,8 +980,22 @@ def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
 
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
-@pytest.mark.parametrize("eo_extension_is_declared", [False, True])
-def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_path, eo_extension_is_declared, caplog):
+@pytest.mark.parametrize(
+    ["eo_extension_is_declared", "expected_warnings"],
+    [
+        (
+            False,
+            [
+                "Deriving band listing from unordered `item_assets`",
+                "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+            ],
+        ),
+        (True, ["Deriving band listing from unordered `item_assets`"]),
+    ],
+)
+def test_metadata_from_stac_collection_bands_from_item_assets(
+    test_data, tmp_path, eo_extension_is_declared, caplog, expected_warnings
+):
     stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
     stac_data["stac_extensions"] = [
         ext
@@ -1003,11 +1017,7 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
         "vapour_pressure",
     ]
 
-    warn_count = sum(
-        "Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared." in m
-        for m in caplog.messages
-    )
-    assert warn_count == (0 if eo_extension_is_declared else 1)
+    assert caplog.messages == expected_warnings
 
 
 @pytest.mark.skipif(
@@ -1705,3 +1715,73 @@ class TestStacMetadataParser:
     def test_bands_from_stac_asset(self, data, expected):
         asset = pystac.Asset.from_dict(data)
         assert _StacMetadataParser().bands_from_stac_asset(asset=asset).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["stac_data", "expected_bands", "expected_warnings"],
+        [
+            (
+                # Legacy use case: STAC 1.0 Collection with "eo" and "item_assets" extensions
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                        "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+                    ],
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+            (
+                # STAC 1.0, with "eo" extension is used for band metadata, but not declared
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                [
+                    "Deriving band listing from unordered `item_assets`",
+                    "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+                ],
+            ),
+            (
+                # STAC 1.1 Collection with common/core "bands" metadata and item_assets
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    item_assets={
+                        "asset1": {"bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+            (
+                # STAC 1.1 Collection with "eo" extension
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    ],
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_collection_with_item_assets(
+        self, test_data, tmp_path, caplog, stac_data, expected_bands, expected_warnings
+    ):
+        collection = pystac.Collection.from_dict(stac_data)
+        assert _StacMetadataParser().bands_from_stac_collection(collection).band_names() == expected_bands
+        assert caplog.messages == expected_warnings

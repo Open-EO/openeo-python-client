@@ -66,6 +66,7 @@ class StacDummyBuilder:
         cube_dimensions: Optional[dict] = None,
         summaries: Optional[dict] = None,
         links: Optional[List[dict]] = None,
+        **kwargs,
     ) -> dict:
         """Create a STAC Collection represented as dictionary."""
         if extent is None:
@@ -79,6 +80,7 @@ class StacDummyBuilder:
             "license": license,
             "extent": extent,
             "links": links or [],
+            **kwargs,
         }
         if cube_dimensions is not None:
             d["cube:dimensions"] = cube_dimensions
