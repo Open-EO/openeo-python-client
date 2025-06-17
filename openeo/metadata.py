@@ -768,6 +768,7 @@ class _StacMetadataParser:
 
     def _band_from_common_bands_metadata(self, data: dict) -> Band:
         """Construct band from metadata dict in STAC 1.1 + eo v2 style metadata"""
+        # TODO: also support pystac wrapper when available (pystac v2?)
         return Band(
             name=data["name"],
             common_name=data.get("eo:common_name"),
@@ -819,6 +820,13 @@ class _StacMetadataParser:
             return self._bands_from_item_assets(collection.item_assets)
         elif _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets") and collection.ext.item_assets:
             return self._bands_from_item_assets(collection.ext.item_assets)
+        elif "item_assets" in collection.extra_fields:
+            # Workaround for lack of support for STAC 1.1 core item_assets with pystac < 1.12
+            item_assets = {
+                k: pystac.extensions.item_assets.AssetDefinition(properties=v, owner=collection)
+                for k, v in collection.extra_fields["item_assets"].items()
+            }
+            return self._bands_from_item_assets(item_assets)
         # If no band metadata so far: traverse items in collection
         elif consult_items:
             bands = _BandList.merge(
@@ -894,6 +902,8 @@ class _StacMetadataParser:
                 if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
                     self._warn_undeclared_metadata(field="eo:bands", ext="eo")
                 return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
+        else:
+            self._warn(f"_bands_from_item_asset_definition: unsupported {type(asset)=}")
         return _BandList([])
 
     def _bands_from_item_assets(

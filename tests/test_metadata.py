@@ -1736,9 +1736,12 @@ class TestStacMetadataParser:
                 ["Deriving band listing from unordered `item_assets`"],
             ),
             (
-                # STAC 1.0, with "eo" extension is used for band metadata, but not declared
+                # STAC 1.0, with "eo" extension used for band metadata, but not declared
                 StacDummyBuilder.collection(
                     stac_version="1.0.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+                    ],
                     item_assets={
                         "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
                         "asset2": {"eo:bands": [{"name": "B04"}]},
@@ -1763,7 +1766,7 @@ class TestStacMetadataParser:
                 ["Deriving band listing from unordered `item_assets`"],
             ),
             (
-                # STAC 1.1 Collection with "eo" extension
+                # STAC 1.1 Collection with "eo" extension based band metadata
                 StacDummyBuilder.collection(
                     stac_version="1.1.0",
                     stac_extensions=[
@@ -1784,7 +1787,9 @@ class TestStacMetadataParser:
     ):
         collection = pystac.Collection.from_dict(stac_data)
         assert _StacMetadataParser().bands_from_stac_collection(collection).band_names() == expected_bands
-        assert caplog.messages == expected_warnings
+
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
         ["path", "expected"],
