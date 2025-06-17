@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- More extensive band detection for `load_stac` use cases, including the common `bands` metadata from STAC 1.1 ([#699](https://github.com/Open-EO/openeo-python-client/issues/699), [#692](https://github.com/Open-EO/openeo-python-client/issues/692))
+
 ### Changed
 
 - `openeo.UDF()`: automatically un-indent given UDF code ([#782](https://github.com/Open-EO/openeo-python-client/issues/782))
