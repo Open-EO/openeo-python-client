@@ -1785,3 +1785,22 @@ class TestStacMetadataParser:
         collection = pystac.Collection.from_dict(stac_data)
         assert _StacMetadataParser().bands_from_stac_collection(collection).band_names() == expected_bands
         assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["path", "expected"],
+        [
+            (
+                "stac/collections/terrascope-sentinel-2-l2a.json",
+                ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
+            ),
+            (
+                "stac/collections/cdse-sentinel-2-l2a.json",
+                ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
+            ),
+        ],
+    )
+    def test_bands_from_collection_examples(self, test_data, path, expected):
+        data = test_data.load_json(path)
+        collection = pystac.Collection.from_dict(data)
+        bands = _StacMetadataParser().bands_from_stac_collection(collection)
+        assert bands.band_names() == expected

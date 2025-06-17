@@ -810,6 +810,10 @@ class _StacMetadataParser:
             return _BandList(self._band_from_eo_bands_metadata(b) for b in collection.summaries.lists["eo:bands"])
         elif "bands" in collection.summaries.lists:
             return _BandList(self._band_from_common_bands_metadata(b) for b in collection.summaries.lists["bands"])
+        elif "bands" in collection.extra_fields:
+            # TODO: is this actually valid and necessary to support? https://github.com/radiantearth/stac-spec/issues/1346
+            # TODO: avoid `extra_fields`, but built-in "bands" support seems to be scheduled for pystac V2
+            return _BandList(self._band_from_common_bands_metadata(b) for b in collection.extra_fields["bands"])
         # Check item assets if available
         elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
             return self._bands_from_item_assets(collection.item_assets)
@@ -862,7 +866,7 @@ class _StacMetadataParser:
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.extra_fields["eo:bands"])
         elif "bands" in asset.extra_fields:
-            # TODO: avoid extra_fields, but built-in "bands" support seems to be scheduled for pystac V2
+            # TODO: avoid `extra_fields`, but built-in "bands" support seems to be scheduled for pystac V2
             return _BandList(self._band_from_common_bands_metadata(b) for b in asset.extra_fields["bands"])
 
         # TODO: instead of warning: exception, or return None?
