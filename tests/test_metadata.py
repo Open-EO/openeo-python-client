@@ -1354,9 +1354,10 @@ class TestStacMetadataParser:
             assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
-        ["entities", "kwargs", "expected"],
+        ["entities", "kwargs", "expected", "expected_warnings"],
         [
             (
+                # Basic: Collection with one item with eo:bands
                 {
                     "collection.json": StacDummyBuilder.collection(
                         stac_version="1.0.0",
@@ -1374,8 +1375,10 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
+                [],
             ),
             (
+                # Collection with two items with different bands (eo:bands metadata)
                 {
                     "collection.json": StacDummyBuilder.collection(
                         stac_version="1.0.0",
@@ -1401,8 +1404,10 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
+                [],
             ),
             (
+                # Collection with two items with different bands in different metadata format
                 {
                     "collection.json": StacDummyBuilder.collection(
                         stac_version="1.0.0",
@@ -1427,8 +1432,10 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
+                [],
             ),
             (
+                # Collection with one item, with band metadata in asset
                 {
                     "collection.json": StacDummyBuilder.collection(
                         stac_version="1.0.0",
@@ -1450,14 +1457,50 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02")],
+                [],
+            ),
+            (
+                # Collection with multiple items and assets, only partially with band metadata
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item1.json"},
+                            {"rel": "item", "href": "item2.json"},
+                        ],
+                    ),
+                    "item1.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        assets={
+                            "asset11": {
+                                "href": "https://stac.test/asset11.tif",
+                                "roles": ["data"],
+                                "eo:bands": [{"name": "B02"}],
+                            },
+                            "asset12": {
+                                "href": "https://stac.test/asset12.tif",
+                                "roles": ["data"],
+                            },
+                        },
+                    ),
+                    "item2.json": StacDummyBuilder.item(),
+                },
+                {},
+                [Band("B02")],
+                [],
             ),
         ],
     )
-    def test_bands_from_stac_collection_consult_items(self, tmp_path, entities, kwargs, expected):
+    def test_bands_from_stac_collection_consult_items(
+        self, tmp_path, entities, kwargs, expected, caplog, expected_warnings
+    ):
         for name, content in entities.items():
             (tmp_path / name).write_text(json.dumps(content))
         collection = pystac.Collection.from_file(tmp_path / "collection.json")
         assert _StacMetadataParser().bands_from_stac_collection(collection=collection) == expected
+
+        assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
         ["data", "expected"],
