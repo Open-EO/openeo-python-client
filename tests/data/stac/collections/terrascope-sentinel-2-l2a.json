@@ -1,0 +1,677 @@
+{
+  "type": "Collection",
+  "id": "sentinel-2-l2a",
+  "title": "Sentinel-2 Level-2A",
+  "description": "Based on snapshot of https://stac.terrascope.be/collections/sentinel-2-l2a at 2025-06-17",
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json"
+  ],
+  "links": [
+    {
+      "rel": "items",
+      "type": "application/geo+json",
+      "href": "https://stac.test/collections/sentinel-2-l2a/items"
+    },
+    {
+      "rel": "parent",
+      "type": "application/json",
+      "href": "https://stac.test/"
+    },
+    {
+      "rel": "root",
+      "type": "application/json",
+      "href": "https://stac.test"
+    },
+    {
+      "rel": "self",
+      "type": "application/json",
+      "href": "https://stac.test/collections/sentinel-2-l2a"
+    }
+  ],
+  "assets": {
+    "thumbnail": {
+      "href": "https://data.test/SENTINEL2_TOC_V2_QL.JPG",
+      "type": "image/jpeg",
+      "title": "sentinel-2-l2a",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  },
+  "license": "proprietary",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180,
+          -84,
+          180,
+          84
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2015-06-23T00:00:00Z",
+          null
+        ]
+      ]
+    }
+  },
+  "keywords": [
+    "sentinel-2",
+    "msi",
+    "level-2a"
+  ],
+  "summaries": {
+    "constellation": [
+      "sentinel-2"
+    ],
+    "instruments": [
+      "msi"
+    ],
+    "gsd": [
+      10,
+      20,
+      60
+    ],
+    "platform": [
+      "sentinel-2a",
+      "sentinel-2b",
+      "sentinel-2c"
+    ]
+  },
+  "item_assets": {
+    "B01_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B01",
+          "common_name": "coastal",
+          "center_wavelength": 0.443,
+          "full_width_half_max": 0.027
+        }
+      ],
+      "title": "B01_20m",
+      "description": "Coastal - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B01_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B01",
+          "common_name": "coastal",
+          "center_wavelength": 0.443,
+          "full_width_half_max": 0.027
+        }
+      ],
+      "title": "B01_60m",
+      "description": "Coastal - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B02_10m": {
+      "gsd": 10,
+      "eo:bands": [
+        {
+          "name": "B02",
+          "common_name": "blue",
+          "center_wavelength": 0.49,
+          "full_width_half_max": 0.098
+        }
+      ],
+      "title": "B02_10m",
+      "description": "Blue - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B02_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B02",
+          "common_name": "blue",
+          "center_wavelength": 0.49,
+          "full_width_half_max": 0.098
+        }
+      ],
+      "title": "B02_20m",
+      "description": "Blue - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B02_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B02",
+          "common_name": "blue",
+          "center_wavelength": 0.49,
+          "full_width_half_max": 0.098
+        }
+      ],
+      "title": "B02_60m",
+      "description": "Blue - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B03_10m": {
+      "gsd": 10,
+      "eo:bands": [
+        {
+          "name": "B03",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.045
+        }
+      ],
+      "title": "B03_10m",
+      "description": "Green - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B03_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B03",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.045
+        }
+      ],
+      "title": "B03_20m",
+      "description": "Green - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B03_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B03",
+          "common_name": "green",
+          "center_wavelength": 0.56,
+          "full_width_half_max": 0.045
+        }
+      ],
+      "title": "B03_60m",
+      "description": "Green - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B04_10m": {
+      "gsd": 10,
+      "eo:bands": [
+        {
+          "name": "B04",
+          "common_name": "red",
+          "center_wavelength": 0.665,
+          "full_width_half_max": 0.038
+        }
+      ],
+      "title": "B04_10m",
+      "description": "Red - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B04_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B04",
+          "common_name": "red",
+          "center_wavelength": 0.665,
+          "full_width_half_max": 0.038
+        }
+      ],
+      "title": "B04_20m",
+      "description": "Red - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B04_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B04",
+          "common_name": "red",
+          "center_wavelength": 0.665,
+          "full_width_half_max": 0.038
+        }
+      ],
+      "title": "B04_60m",
+      "description": "Red - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B05_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B05",
+          "common_name": "rededge",
+          "center_wavelength": 0.704,
+          "full_width_half_max": 0.019
+        }
+      ],
+      "title": "B05_20m",
+      "description": "Red Edge 1 - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B05_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B05",
+          "common_name": "rededge",
+          "center_wavelength": 0.704,
+          "full_width_half_max": 0.019
+        }
+      ],
+      "title": "B05_60m",
+      "description": "Red Edge 1 - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B06_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B06",
+          "common_name": "rededge",
+          "center_wavelength": 0.74,
+          "full_width_half_max": 0.018
+        }
+      ],
+      "title": "B06_20m",
+      "description": "Red Edge 2 - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B06_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B06",
+          "common_name": "rededge",
+          "center_wavelength": 0.74,
+          "full_width_half_max": 0.018
+        }
+      ],
+      "title": "B06_60m",
+      "description": "Red Edge 2 - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B07_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B07",
+          "common_name": "rededge",
+          "center_wavelength": 0.783,
+          "full_width_half_max": 0.028
+        }
+      ],
+      "title": "B07_20m",
+      "description": "Red Edge 3 - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B07_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B07",
+          "common_name": "rededge",
+          "center_wavelength": 0.783,
+          "full_width_half_max": 0.028
+        }
+      ],
+      "title": "B07_60m",
+      "description": "Red Edge 3 - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B08_10m": {
+      "gsd": 10,
+      "eo:bands": [
+        {
+          "name": "B08",
+          "common_name": "nir",
+          "center_wavelength": 0.842,
+          "full_width_half_max": 0.145
+        }
+      ],
+      "title": "B08_10m",
+      "description": "NIR 1 - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B8A_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B8A",
+          "common_name": "nir08",
+          "center_wavelength": 0.865,
+          "full_width_half_max": 0.033
+        }
+      ],
+      "title": "B8A_20m",
+      "description": "NIR 2 - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B8A_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B8A",
+          "common_name": "nir08",
+          "center_wavelength": 0.865,
+          "full_width_half_max": 0.033
+        }
+      ],
+      "title": "B8A_60m",
+      "description": "NIR 2 - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B09_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B09",
+          "common_name": "nir09",
+          "center_wavelength": 0.945,
+          "full_width_half_max": 0.026
+        }
+      ],
+      "title": "B09_60m",
+      "description": "NIR 3 - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B11_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B11",
+          "common_name": "swir16",
+          "center_wavelength": 1.61,
+          "full_width_half_max": 0.143
+        }
+      ],
+      "title": "B11_20m",
+      "description": "SWIR 1.6μm - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B11_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B11",
+          "common_name": "swir16",
+          "center_wavelength": 1.61,
+          "full_width_half_max": 0.143
+        }
+      ],
+      "title": "B11_60m",
+      "description": "SWIR 1.6μm - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B12_20m": {
+      "gsd": 20,
+      "eo:bands": [
+        {
+          "name": "B12",
+          "common_name": "swir22",
+          "center_wavelength": 2.19,
+          "full_width_half_max": 0.242
+        }
+      ],
+      "title": "B12_20m",
+      "description": "SWIR 2.2μm - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "B12_60m": {
+      "gsd": 60,
+      "eo:bands": [
+        {
+          "name": "B12",
+          "common_name": "swir22",
+          "center_wavelength": 2.19,
+          "full_width_half_max": 0.242
+        }
+      ],
+      "title": "B12_60m",
+      "description": "SWIR 2.2μm - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "AOT_10m": {
+      "gsd": 10,
+      "title": "AOT_10m",
+      "description": "Aerosol optical thickness (AOT) - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "AOT_20m": {
+      "gsd": 20,
+      "title": "AOT_20m",
+      "description": "Aerosol optical thickness (AOT) - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "AOT_60m": {
+      "gsd": 60,
+      "title": "AOT_60m",
+      "description": "Aerosol optical thickness (AOT) - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "WVP_10m": {
+      "gsd": 10,
+      "title": "WVP_10m",
+      "description": "Water Vapour (WVP) - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "WVP_20m": {
+      "gsd": 20,
+      "title": "WVP_20m",
+      "description": "Water Vapour (WVP) - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "WVP_60m": {
+      "gsd": 60,
+      "title": "WVP_60m",
+      "description": "Water Vapour (WVP) - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "SCL_20m": {
+      "gsd": 20,
+      "title": "SCL_20m",
+      "description": "Scene classification map (SCL) - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "SCL_60m": {
+      "gsd": 60,
+      "title": "SCL_60m",
+      "description": "Scene classification map (SCL) - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "data"
+      ]
+    },
+    "TCI_10m": {
+      "gsd": 10,
+      "title": "TCI_10m",
+      "description": "True color image - 10m",
+      "type": "image/jp2",
+      "roles": [
+        "visual"
+      ]
+    },
+    "TCI_20m": {
+      "gsd": 20,
+      "title": "TCI_20m",
+      "description": "True color image - 20m",
+      "type": "image/jp2",
+      "roles": [
+        "visual"
+      ]
+    },
+    "TCI_60m": {
+      "gsd": 60,
+      "title": "TCI_60m",
+      "description": "True color image - 60m",
+      "type": "image/jp2",
+      "roles": [
+        "visual"
+      ]
+    },
+    "PVI": {
+      "title": "PVI",
+      "description": "Preview",
+      "type": "image/jp2",
+      "roles": [
+        "overview"
+      ]
+    },
+    "safe_manifest": {
+      "title": "safe_manifest",
+      "description": "SAFE manifest",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    },
+    "product_metadata": {
+      "title": "product_metadata",
+      "description": "Product metadata",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    },
+    "granule_metadata": {
+      "title": "granule_metadata",
+      "description": "Granule metadata",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    },
+    "inspire_metadata": {
+      "title": "inspire_metadata",
+      "description": "INSPIRE metadata",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    },
+    "datastrip_metadata": {
+      "title": "datastrip_metadata",
+      "description": "Datastrip metadata",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    },
+    "quicklook": {
+      "title": "quicklook",
+      "description": "Quicklook",
+      "type": "image/jpeg",
+      "roles": [
+        "thumbnail"
+      ]
+    },
+    "metadata": {
+      "title": "metadata",
+      "description": "INSPIRE metadata",
+      "type": "application/xml",
+      "roles": [
+        "metadata"
+      ]
+    }
+  }
+}

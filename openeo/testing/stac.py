@@ -65,6 +65,8 @@ class StacDummyBuilder:
         extent: Optional[dict] = None,
         cube_dimensions: Optional[dict] = None,
         summaries: Optional[dict] = None,
+        links: Optional[List[dict]] = None,
+        **kwargs,
     ) -> dict:
         """Create a STAC Collection represented as dictionary."""
         if extent is None:
@@ -77,7 +79,8 @@ class StacDummyBuilder:
             "description": description,
             "license": license,
             "extent": extent,
-            "links": [],
+            "links": links or [],
+            **kwargs,
         }
         if cube_dimensions is not None:
             d["cube:dimensions"] = cube_dimensions
@@ -107,4 +110,20 @@ class StacDummyBuilder:
         }
         if stac_extensions is not None:
             d["stac_extensions"] = stac_extensions
+        return d
+
+    @classmethod
+    def asset(
+        cls,
+        href: str = "https://stac.test/asset.tiff",
+        type: str = "image/tiff; application=geotiff",
+        roles: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        d = {"href": href, **kwargs}
+        if type:
+            d["type"] = type
+        if roles is not None:
+            d["roles"] = roles
+
         return d

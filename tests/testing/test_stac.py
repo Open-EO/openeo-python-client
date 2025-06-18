@@ -81,3 +81,12 @@ class TestDummyStacDictBuilder:
         }
         # Check if the default catalog validates
         pystac.Catalog.from_dict(catalog)
+
+    def test_asset_default(self):
+        asset = StacDummyBuilder.asset()
+        assert asset == {
+            "href": "https://stac.test/asset.tiff",
+            "type": "image/tiff; application=geotiff",
+        }
+        # Check if the default asset validates
+        pystac.Asset.from_dict(asset)
