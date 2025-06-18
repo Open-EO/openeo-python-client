@@ -686,7 +686,13 @@ _PYSTAC_1_12_ITEM_ASSETS = hasattr(pystac.Collection, "item_assets")
 
 
 class _BandList(list):
-    """Internal wrapper for list of ``Band`` objects"""
+    """
+    Internal wrapper for list of ``Band`` objects.
+
+    .. warning::
+        This is an internal, experimental helper, with an API that is subject to change.
+        Do not use/expose it directly in user (facing) code
+    """
 
     def __init__(self, bands: Iterable[Band]):
         super().__init__(bands)
@@ -707,10 +713,15 @@ _ON_EMPTY_IGNORE = "ignore"
 
 class _StacMetadataParser:
     """
-    Helper to extract openEO metadata from STAC metadata resource
+    Helper to extract openEO metadata from STAC metadata resources (Collection, Item, Asset, etc.).
+
+    .. warning::
+        This is an internal, experimental helper, with an API that is subject to change.
+        Do not use/expose it directly in user (facing) code
     """
 
     def __init__(self, *, logger=_log, log_level=logging.DEBUG, supress_duplicate_warnings: bool = True):
+        # TODO: argument to set some kind of reference to a root document to improve logging messages?
         self._logger = logger
         self._log_level = log_level
         self._log = lambda msg, **kwargs: self._logger.log(msg=msg, level=self._log_level, **kwargs)
@@ -781,7 +792,7 @@ class _StacMetadataParser:
 
     def bands_from_stac_object(self, obj: Union[pystac.STACObject, pystac.Asset]) -> _BandList:
         """
-        Extract band metadata from a STAC object (Collection, Catalog, Item or Asset).
+        Extract band listing from a STAC object (Collection, Catalog, Item or Asset).
         """
         # Note: first check for Collection, as it is a subclass of Catalog
         if isinstance(obj, pystac.Collection):
@@ -793,9 +804,13 @@ class _StacMetadataParser:
         elif isinstance(obj, pystac.Asset):
             return self.bands_from_stac_asset(asset=obj)
         else:
+            # TODO: also support dictionary with raw STAC metadata?
             raise ValueError(f"Unsupported STAC object: {obj!r}")
 
     def bands_from_stac_catalog(self, catalog: pystac.Catalog, *, on_empty: str = _ON_EMPTY_WARN) -> _BandList:
+        """
+        Extract band listing from a STAC Catalog.
+        """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         summaries = catalog.extra_fields.get("summaries", {})
         if "eo:bands" in summaries:
@@ -817,6 +832,9 @@ class _StacMetadataParser:
         consult_assets: bool = True,
         on_empty: str = _ON_EMPTY_WARN,
     ) -> _BandList:
+        """
+        Extract band listing from a STAC Collection.
+        """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         self._log(f"bands_from_stac_collection with {collection.summaries.lists.keys()=}")
         # Look for band metadata in collection summaries
@@ -865,6 +883,9 @@ class _StacMetadataParser:
         consult_assets: bool = True,
         on_empty: str = _ON_EMPTY_WARN,
     ) -> _BandList:
+        """
+        Extract band listing from a STAC Item.
+        """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         self._log(f"bands_from_stac_item with {item.properties.keys()=}")
         if "eo:bands" in item.properties:
@@ -890,7 +911,11 @@ class _StacMetadataParser:
         self._warn(f"Using {field!r} metadata, but STAC extension {ext} was not declared.")
 
     def bands_from_stac_asset(self, asset: pystac.Asset, *, on_empty: str = _ON_EMPTY_WARN) -> _BandList:
+        """
+        Extract band listing from a STAC Asset.
+        """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
+        # TODO: filter on asset roles?
         if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.ext.eo.bands)
         elif "eo:bands" in asset.extra_fields:
@@ -912,6 +937,10 @@ class _StacMetadataParser:
             "pystac.ItemAssetDefinition",  # TODO: non-string type hint once pystac dependency is bumped to at least 1.12
         ],
     ) -> _BandList:
+        """
+        Extract band listing from a STAC Asset definition
+        (as used in the item-assets extension, or STAC 1.1 item-assets).
+        """
         if isinstance(asset, pystac.extensions.item_assets.AssetDefinition):
             if "eo:bands" in asset.properties:
                 if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):

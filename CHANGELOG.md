@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- More extensive band detection for `load_stac` use cases, including the common `bands` metadata from STAC 1.1 ([#699](https://github.com/Open-EO/openeo-python-client/issues/699), [#692](https://github.com/Open-EO/openeo-python-client/issues/692))
+- More extensive band detection for `load_stac` use cases, including the common `bands` metadata introduced with STAC 1.1 ([#699](https://github.com/Open-EO/openeo-python-client/issues/699), [#692](https://github.com/Open-EO/openeo-python-client/issues/692), [#586](https://github.com/Open-EO/openeo-python-client/issues/586)).
 
 ### Changed
 
