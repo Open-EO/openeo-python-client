@@ -750,7 +750,7 @@ class _StacMetadataParser:
                 return TemporalDimension(name=name, extent=extent)
 
     def _band_from_eo_bands_metadata(self, band: Union[dict, pystac.extensions.eo.Band]) -> Band:
-        """Construct band from metadata dict in eo v1.1 style"""
+        """Construct band from metadata in eo v1.1 style"""
         if isinstance(band, pystac.extensions.eo.Band):
             return Band(
                 name=band.name,
@@ -776,6 +776,9 @@ class _StacMetadataParser:
         )
 
     def bands_from_stac_object(self, obj: Union[pystac.STACObject, pystac.Asset]) -> _BandList:
+        """
+        Extract band metadata from a STAC object (Collection, Catalog, Item or Asset).
+        """
         # Note: first check for Collection, as it is a subclass of Catalog
         if isinstance(obj, pystac.Collection):
             return self.bands_from_stac_collection(collection=obj)
@@ -791,8 +794,9 @@ class _StacMetadataParser:
     def bands_from_stac_catalog(self, catalog: pystac.Catalog) -> _BandList:
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         summaries = catalog.extra_fields.get("summaries", {})
-        self._warn(f"bands_from_stac_catalog with {summaries.keys()=} (which is non-standard)")
         if "eo:bands" in summaries:
+            if _PYSTAC_1_9_EXTENSION_INTERFACE and not catalog.ext.has("eo"):
+                self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in summaries["eo:bands"])
         elif "bands" in summaries:
             return _BandList(self._band_from_common_bands_metadata(b) for b in summaries["bands"])
@@ -808,6 +812,8 @@ class _StacMetadataParser:
         self._log(f"bands_from_stac_collection with {collection.summaries.lists.keys()=}")
         # Look for band metadata in collection summaries
         if "eo:bands" in collection.summaries.lists:
+            if _PYSTAC_1_9_EXTENSION_INTERFACE and not collection.ext.has("eo"):
+                self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in collection.summaries.lists["eo:bands"])
         elif "bands" in collection.summaries.lists:
             return _BandList(self._band_from_common_bands_metadata(b) for b in collection.summaries.lists["bands"])

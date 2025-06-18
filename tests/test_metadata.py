@@ -1193,7 +1193,7 @@ class TestStacMetadataParser:
         ) == Band(name="B04", common_name="red", wavelength_um=0.665)
 
     @pytest.mark.parametrize(
-        ["data", "expected"],
+        ["data", "expected", "expected_warnings"],
         [
             (
                 {
@@ -1214,6 +1214,27 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
+                [],
+            ),
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.0.0",
+                    "summaries": {
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                    "links": [],
+                },
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                ["Using 'eo:bands' metadata, but STAC extension eo was not declared."],
             ),
             (
                 {
@@ -1230,6 +1251,7 @@ class TestStacMetadataParser:
                     "links": [],
                 },
                 [Band("B04"), Band("B03")],
+                [],
             ),
             (
                 {
@@ -1249,15 +1271,19 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
+                [],
             ),
         ],
     )
-    def test_bands_from_stac_catalog(self, data, expected):
+    def test_bands_from_stac_catalog(self, data, expected, expected_warnings, caplog):
         catalog = pystac.Catalog.from_dict(data)
         assert _StacMetadataParser().bands_from_stac_catalog(catalog=catalog) == expected
 
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
+
     @pytest.mark.parametrize(
-        ["data", "expected"],
+        ["data", "expected", "expected_warnings"],
         [
             (
                 StacDummyBuilder.collection(
@@ -1266,6 +1292,7 @@ class TestStacMetadataParser:
                     summaries={"eo:bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
                 ),
                 [Band("B02"), Band("B03"), Band("B04")],
+                [],
             ),
             (
                 StacDummyBuilder.collection(
@@ -1282,6 +1309,15 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
+                [],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    summaries={"eo:bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
+                ),
+                [Band("B02"), Band("B03"), Band("B04")],
+                ["Using 'eo:bands' metadata, but STAC extension eo was not declared."],
             ),
             (
                 StacDummyBuilder.collection(
@@ -1289,6 +1325,7 @@ class TestStacMetadataParser:
                     summaries={"bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
                 ),
                 [Band("B02"), Band("B03"), Band("B04")],
+                [],
             ),
             (
                 StacDummyBuilder.collection(
@@ -1305,12 +1342,16 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
+                [],
             ),
         ],
     )
-    def test_bands_from_stac_collection(self, data, expected):
+    def test_bands_from_stac_collection(self, data, expected, caplog, expected_warnings):
         collection = pystac.Collection.from_dict(data)
         assert _StacMetadataParser().bands_from_stac_collection(collection=collection) == expected
+
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
         ["entities", "kwargs", "expected"],

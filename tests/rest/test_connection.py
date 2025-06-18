@@ -3047,13 +3047,22 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
 
-    def test_load_stac_default_band_handling(self, dummy_backend, build_stac_ref):
-        stac_ref = build_stac_ref(
+    @pytest.mark.parametrize(
+        "stac_collection",
+        [
             StacDummyBuilder.collection(
-                # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
-            )
-        )
+                stac_version="1.0.0",
+                stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+            StacDummyBuilder.collection(
+                stac_version="1.1.0",
+                summaries={"bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+        ],
+    )
+    def test_load_stac_default_band_handling(self, dummy_backend, build_stac_ref, stac_collection):
+        stac_ref = build_stac_ref(stac_collection)
 
         cube = dummy_backend.connection.load_stac(stac_ref)
         assert cube.metadata.band_names == ["B01", "B02", "B03"]
@@ -3078,13 +3087,24 @@ class TestLoadStac:
             (["B01", "B02", "B03"], None),
         ],
     )
-    def test_load_stac_band_filtering(self, dummy_backend, build_stac_ref, caplog, bands, expected_warning):
-        stac_ref = build_stac_ref(
+    @pytest.mark.parametrize(
+        "stac_collection",
+        [
             StacDummyBuilder.collection(
-                # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
-            )
-        )
+                stac_version="1.0.0",
+                stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+            StacDummyBuilder.collection(
+                stac_version="1.1.0",
+                summaries={"bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+        ],
+    )
+    def test_load_stac_band_filtering(
+        self, dummy_backend, build_stac_ref, caplog, bands, expected_warning, stac_collection
+    ):
+        stac_ref = build_stac_ref(stac_collection)
 
         caplog.set_level(logging.WARNING)
         # Test with non-existing bands in the collection metadata
