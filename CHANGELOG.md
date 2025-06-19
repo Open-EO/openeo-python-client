@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- fix compatibility with PySTAC 1.12 ([#715](https://github.com/Open-EO/openeo-python-client/issues/715))
+
+
 ## [0.42.1] - 2025-06-06
 
 ### Changed
