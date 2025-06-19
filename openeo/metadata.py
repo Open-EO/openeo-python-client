@@ -853,7 +853,7 @@ class _StacMetadataParser:
             return self._bands_from_item_assets(collection.item_assets)
         elif _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets") and collection.ext.item_assets:
             return self._bands_from_item_assets(collection.ext.item_assets)
-        elif "item_assets" in collection.extra_fields:
+        elif collection.extra_fields.get("item_assets"):
             # Workaround for lack of support for STAC 1.1 core item_assets with pystac < 1.12
             item_assets = {
                 k: pystac.extensions.item_assets.AssetDefinition(properties=v, owner=collection)
