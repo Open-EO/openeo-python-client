@@ -73,6 +73,7 @@ from openeo.rest.models.general import (
     JobListingResponse,
     ProcessListingResponse,
     ValidationResponse,
+    federation_extension,
 )
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
@@ -776,11 +777,12 @@ class Connection(RestApiConnection):
             key="file_formats",
             load=lambda: self.get('/file_formats', expected_status=200).json()
         )
+        federation_missing = federation_extension.get_federation_missing(data=formats, resource_name="file_formats")
         federation = self.capabilities().ext_federation_backend_details()
         return VisualDict(
             "file-formats",
             data=formats,
-            parameters={"missing": formats.get("federation:missing", None), "federation": federation},
+            parameters={"missing": federation_missing, "federation": federation},
         )
 
     def list_service_types(self) -> dict:
@@ -808,7 +810,7 @@ class Connection(RestApiConnection):
         federation = self.capabilities().ext_federation_backend_details()
         return VisualDict("udf-runtimes", data=runtimes, parameters={"federation": federation})
 
-    def list_services(self) -> dict:
+    def list_services(self) -> list:
         """
         Loads all available services of the authenticated user.
 
@@ -816,15 +818,12 @@ class Connection(RestApiConnection):
         """
         # TODO return parsed service objects
         services = self.get('/services', expected_status=200).json()["services"]
+        federation_missing = federation_extension.get_federation_missing(data=services, resource_name="services")
         federation = self.capabilities().ext_federation_backend_details()
         return VisualList(
             "data-table",
             data=services,
-            parameters={
-                "columns": "services",
-                "missing": services.get("federation:missing", None),
-                "federation": federation,
-            },
+            parameters={"columns": "services", "missing": federation_missing, "federation": federation},
         )
 
     def describe_collection(self, collection_id: str) -> dict:
@@ -896,7 +895,7 @@ class Connection(RestApiConnection):
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
         federation = self.capabilities().ext_federation_backend_details()
-        return CollectionMetadata(metadata=self.describe_collection(name), federation=federation)
+        return CollectionMetadata(metadata=self.describe_collection(name), _federation=federation)
 
     def list_processes(self, namespace: Optional[str] = None) -> ProcessListingResponse:
         """
@@ -1530,15 +1529,12 @@ class Connection(RestApiConnection):
         """
         data = self.get("/files", expected_status=200).json()
         files = [UserFile.from_metadata(metadata=f, connection=self) for f in data.get("files", [])]
+        federation_missing = federation_extension.get_federation_missing(data=data, resource_name="files")
         federation = self.capabilities().ext_federation_backend_details()
         return VisualList(
             "data-table",
             data=files,
-            parameters={
-                "columns": "files",
-                "missing": data.get("federation:missing", None),
-                "federation": federation,
-            },
+            parameters={"columns": "files", "missing": federation_missing, "federation": federation},
         )
 
     def get_file(

@@ -519,13 +519,13 @@ class CollectionMetadata(CubeMetadata):
 
     """
 
-    def __init__(self, metadata: dict, dimensions: List[Dimension] = None, federation=None):
+    def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
         self._orig_metadata = metadata
-        self._federation = federation
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
-
         super().__init__(dimensions=dimensions)
+
+        self._federation = _federation
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from openeo.internal.jupyter import render_component
 from openeo.rest.models import federation_extension
 from openeo.rest.models.logs import LogEntry, normalize_log_level
 
+if TYPE_CHECKING:
+    from openeo.rest.connection import Connection
 
 @dataclass(frozen=True)
 class Link:
@@ -52,12 +54,12 @@ class CollectionListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection=None):
+    def __init__(self, response_data: dict, connection: Optional[Connection] = None):
         self._data = response_data
-        self._connection = connection
         # Mimic original list of collection metadata dictionaries
         super().__init__(response_data["collections"])
 
+        self._connection = connection
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
@@ -113,12 +115,12 @@ class ProcessListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection=None):
+    def __init__(self, response_data: dict, connection: Optional[Connection] = None):
         self._data = response_data
-        self._connection = connection
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["processes"])
 
+        self._connection = connection
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
@@ -177,12 +179,12 @@ class JobListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection=None):
+    def __init__(self, response_data: dict, connection: Optional[Connection] = None):
         self._data = response_data
-        self._connection = connection
         # Mimic original list of process metadata dictionaries
         super().__init__(response_data["jobs"])
 
+        self._connection = connection
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
@@ -243,9 +245,10 @@ class LogsResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, *, log_level: Optional[str] = None, connection=None):
+    def __init__(
+        self, response_data: dict, *, log_level: Optional[str] = None, connection: Optional[Connection] = None
+    ):
         self._data = response_data
-        self._connection = connection
 
         logs = response_data.get("logs", [])
         # Extra client-side level filtering (in case the back-end does not support that)
@@ -267,6 +270,7 @@ class LogsResponse(list):
         # Mimic original list of process metadata dictionaries
         super().__init__(logs)
 
+        self._connection = connection
         self.ext_federation_missing(auto_warn=True)
 
     def _repr_html_(self):
