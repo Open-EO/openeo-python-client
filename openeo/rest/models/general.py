@@ -52,7 +52,7 @@ class CollectionListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection = None):
+    def __init__(self, response_data: dict, connection=None):
         self._data = response_data
         self._connection = connection
         # Mimic original list of collection metadata dictionaries
@@ -68,7 +68,7 @@ class CollectionListingResponse(list):
             parameters={
                 "missing": self.ext_federation_missing(),
                 "federation": federation,
-            }
+            },
         )
 
     @property
@@ -113,7 +113,7 @@ class ProcessListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection = None):
+    def __init__(self, response_data: dict, connection=None):
         self._data = response_data
         self._connection = connection
         # Mimic original list of process metadata dictionaries
@@ -131,7 +131,7 @@ class ProcessListingResponse(list):
                 "provide-download": False,
                 "missing": self.ext_federation_missing(),
                 "federation": federation,
-            }
+            },
         )
 
     @property
@@ -177,7 +177,7 @@ class JobListingResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, connection = None):
+    def __init__(self, response_data: dict, connection=None):
         self._data = response_data
         self._connection = connection
         # Mimic original list of process metadata dictionaries
@@ -194,7 +194,7 @@ class JobListingResponse(list):
                 "columns": "jobs",
                 "missing": self.ext_federation_missing(),
                 "federation": federation,
-            }
+            },
         )
 
     @property
@@ -243,7 +243,7 @@ class LogsResponse(list):
 
     __slots__ = ["_data", "_connection"]
 
-    def __init__(self, response_data: dict, *, log_level: Optional[str] = None, connection = None):
+    def __init__(self, response_data: dict, *, log_level: Optional[str] = None, connection=None):
         self._data = response_data
         self._connection = connection
 
@@ -277,7 +277,7 @@ class LogsResponse(list):
             parameters={
                 "missing": self.ext_federation_missing(),
                 "federation": federation,
-            }
+            },
         )
 
     @property

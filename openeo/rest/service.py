@@ -26,10 +26,14 @@ class Service:
     def _repr_html_(self):
         data = self.describe_service()
         capabilities = self.connection.capabilities()
-        return VisualDict('service', data = data, parameters = {
-            'currency': capabilities.currency(),
-            'federation': capabilities.ext_federation_backend_details(),
-        })
+        return VisualDict(
+            "service",
+            data=data,
+            parameters={
+                "currency": capabilities.currency(),
+                "federation": capabilities.ext_federation_backend_details(),
+            },
+        )
 
     def describe_service(self):
         """ Get all information about a secondary web service."""

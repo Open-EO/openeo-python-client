@@ -777,10 +777,11 @@ class Connection(RestApiConnection):
             load=lambda: self.get('/file_formats', expected_status=200).json()
         )
         federation = self.capabilities().ext_federation_backend_details()
-        return VisualDict("file-formats", data=formats, parameters={
-            'missing': formats.get("federation:missing", None),
-            'federation': federation
-        })
+        return VisualDict(
+            "file-formats",
+            data=formats,
+            parameters={"missing": formats.get("federation:missing", None), "federation": federation},
+        )
 
     def list_service_types(self) -> dict:
         """
@@ -805,7 +806,7 @@ class Connection(RestApiConnection):
             load=lambda: self.get('/udf_runtimes', expected_status=200).json()
         )
         federation = self.capabilities().ext_federation_backend_details()
-        return VisualDict("udf-runtimes", data=runtimes, parameters={'federation': federation})
+        return VisualDict("udf-runtimes", data=runtimes, parameters={"federation": federation})
 
     def list_services(self) -> dict:
         """
@@ -816,11 +817,15 @@ class Connection(RestApiConnection):
         # TODO return parsed service objects
         services = self.get('/services', expected_status=200).json()["services"]
         federation = self.capabilities().ext_federation_backend_details()
-        return VisualList("data-table", data=services, parameters={
-            'columns': 'services',
-            'missing': services.get("federation:missing", None),
-            'federation': federation
-        })
+        return VisualList(
+            "data-table",
+            data=services,
+            parameters={
+                "columns": "services",
+                "missing": services.get("federation:missing", None),
+                "federation": federation,
+            },
+        )
 
     def describe_collection(self, collection_id: str) -> dict:
         """
@@ -838,7 +843,7 @@ class Connection(RestApiConnection):
         # TODO: add caching #383
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
         federation = self.capabilities().ext_federation_backend_details()
-        return VisualDict("collection", data=data, parameters={'federation': federation})
+        return VisualDict("collection", data=data, parameters={"federation": federation})
 
     def collection_items(
         self,
@@ -877,7 +882,16 @@ class Connection(RestApiConnection):
             params['limit'] = limit
 
         federation = self.capabilities().ext_federation_backend_details()
-        return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page), 'federation': federation}))
+        return paginate(
+            self,
+            url,
+            params,
+            lambda response, page: VisualDict(
+                "items",
+                data=response,
+                parameters={"show-map": True, "heading": "Page {} - Items".format(page), "federation": federation},
+            ),
+        )
 
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
@@ -920,11 +934,11 @@ class Connection(RestApiConnection):
         federation = self.capabilities().ext_federation_backend_details()
         for process in processes:
             if process["id"] == id:
-                return VisualDict("process", data=process, parameters={
-                    'show-graph': True,
-                    'provide-download': False,
-                    'federation': federation
-                })
+                return VisualDict(
+                    "process",
+                    data=process,
+                    parameters={"show-graph": True, "provide-download": False, "federation": federation},
+                )
 
         raise OpenEoClientException("Process does not exist.")
 
@@ -1514,14 +1528,18 @@ class Connection(RestApiConnection):
 
         :return: List of the user-uploaded files.
         """
-        data = self.get('/files', expected_status=200).json()
-        files = [UserFile.from_metadata(metadata=f, connection=self) for f in data.get('files', [])]
+        data = self.get("/files", expected_status=200).json()
+        files = [UserFile.from_metadata(metadata=f, connection=self) for f in data.get("files", [])]
         federation = self.capabilities().ext_federation_backend_details()
-        return VisualList("data-table", data=files, parameters={
-            'columns': 'files',
-            'missing': data.get('federation:missing', None),
-            'federation': federation,
-        })
+        return VisualList(
+            "data-table",
+            data=files,
+            parameters={
+                "columns": "files",
+                "missing": data.get("federation:missing", None),
+                "federation": federation,
+            },
+        )
 
     def get_file(
         self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None

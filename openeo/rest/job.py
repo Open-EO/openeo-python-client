@@ -82,10 +82,14 @@ class BatchJob:
     def _repr_html_(self):
         data = self.describe()
         capabilities = self.connection.capabilities()
-        return render_component('job', data=data, parameters={
-            'currency': capabilities.currency(),
-            'federation': capabilities.ext_federation_backend_details(),
-        })
+        return render_component(
+            "job",
+            data=data,
+            parameters={
+                "currency": capabilities.currency(),
+                "federation": capabilities.ext_federation_backend_details(),
+            },
+        )
 
     @openeo_endpoint("GET /jobs/{job_id}")
     def describe(self) -> dict:
