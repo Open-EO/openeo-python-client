@@ -10,6 +10,7 @@ import zlib
 from contextlib import nullcontext
 from pathlib import Path
 
+import dirty_equals
 import pytest
 import requests
 import requests_mock
@@ -3599,6 +3600,29 @@ def test_list_collections_extra_metadata(requests_mock, caplog):
     assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
     assert collections.ext_federation_missing() == ["oeob"]
     assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
+
+
+def test_collection_metadata_repr_html(requests_mock):
+    requests_mock.get(
+        API_URL,
+        json={
+            "api_version": "1.0.0",
+            "federation": {"b1": {"url": "https://b1.test/"}, "b2": {"url": "https://b2.test/"}},
+        },
+    )
+    requests_mock.get(
+        API_URL + "collections/S2",
+        json={"id": "S2", "federation:backends": ["b2"]},
+    )
+    con = Connection(API_URL)
+    metadata = con.describe_collection("S2")
+    result = metadata._repr_html_()
+    assert result == dirty_equals.IsStr(
+        regex=r'.*<openeo-collection>.*"federation":.*"https://b1.test/".*', regex_flags=re.DOTALL
+    )
+    assert result == dirty_equals.IsStr(
+        regex=r'.*<openeo-collection>.*"federation:backends":\s*\["b2"\].*', regex_flags=re.DOTALL
+    )
 
 
 def test_describe_collection(requests_mock):

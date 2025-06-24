@@ -43,6 +43,15 @@ CUBE_METADATA_TBXY = CubeMetadata(
 )
 
 
+class TestCollectionMetadata:
+
+    def test_repr_html_basic(self):
+        metadata = CollectionMetadata({"hello": "world"})
+        assert metadata._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-collection>.*"hello":\s*"world".*</openeo-collection>.*', regex_flags=re.DOTALL
+        )
+
+
 def test_metadata_get():
     metadata = CollectionMetadata({"foo": "bar", "very": {"deeply": {"nested": {"path": {"to": "somewhere"}}}}})
     assert metadata.get("foo") == "bar"
