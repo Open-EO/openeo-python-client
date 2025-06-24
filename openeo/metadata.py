@@ -519,12 +519,13 @@ class CollectionMetadata(CubeMetadata):
 
     """
 
-    def __init__(self, metadata: dict, dimensions: List[Dimension] = None):
+    def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
         self._orig_metadata = metadata
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
-
         super().__init__(dimensions=dimensions)
+
+        self._federation = _federation
 
     @classmethod
     def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
@@ -640,7 +641,7 @@ class CollectionMetadata(CubeMetadata):
         return self._orig_metadata.get("extent")
 
     def _repr_html_(self):
-        return render_component("collection", data=self._orig_metadata)
+        return render_component("collection", data=self._orig_metadata, parameters={"federation": self._federation})
 
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"

@@ -25,8 +25,15 @@ class Service:
 
     def _repr_html_(self):
         data = self.describe_service()
-        currency = self.connection.capabilities().currency()
-        return VisualDict('service', data = data, parameters = {'currency': currency})
+        capabilities = self.connection.capabilities()
+        return VisualDict(
+            "service",
+            data=data,
+            parameters={
+                "currency": capabilities.currency(),
+                "federation": capabilities.ext_federation_backend_details(),
+            },
+        )
 
     def describe_service(self):
         """ Get all information about a secondary web service."""
@@ -52,4 +59,4 @@ class Service:
         if level is not None:
             params["level"] = log_level_name(level)
         response_data = self.connection.get(url, params=params, expected_status=200).json()
-        return LogsResponse(response_data=response_data, log_level=level)
+        return LogsResponse(response_data=response_data, log_level=level, connection=self.connection)

@@ -1,5 +1,7 @@
+import re
 import warnings
 
+import dirty_equals
 import pytest
 
 import openeo
@@ -25,6 +27,14 @@ def test_describe(con100, requests_mock, test_data):
     details = udp.describe()
 
     assert details == expected_details
+
+
+def test_repr_html(con100, requests_mock):
+    requests_mock.get(API_URL + "/process_graphs/add1", json={"id": "add1"})
+    udp = con100.user_defined_process("add1")
+    assert udp._repr_html_() == dirty_equals.IsStr(
+        regex=r'.*<openeo-process>.*"process":\s*{"id":\s*"add1".*', regex_flags=re.DOTALL
+    )
 
 
 def test_store_simple(con100, requests_mock):

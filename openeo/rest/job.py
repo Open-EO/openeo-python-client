@@ -81,8 +81,15 @@ class BatchJob:
 
     def _repr_html_(self):
         data = self.describe()
-        currency = self.connection.capabilities().currency()
-        return render_component('job', data=data, parameters={'currency': currency})
+        capabilities = self.connection.capabilities()
+        return render_component(
+            "job",
+            data=data,
+            parameters={
+                "currency": capabilities.currency(),
+                "federation": capabilities.ext_federation_backend_details(),
+            },
+        )
 
     @openeo_endpoint("GET /jobs/{job_id}")
     def describe(self) -> dict:
@@ -235,7 +242,7 @@ class BatchJob:
         if level is not None:
             params["level"] = log_level_name(level)
         response_data = self.connection.get(url, params=params, expected_status=200).json()
-        return LogsResponse(response_data=response_data, log_level=level)
+        return LogsResponse(response_data=response_data, log_level=level, connection=self.connection)
 
     @deprecated("Use start_and_wait instead", version="0.39.0")
     def run_synchronous(
