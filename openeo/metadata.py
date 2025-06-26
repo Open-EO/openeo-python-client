@@ -894,7 +894,7 @@ class _StacMetadataParser:
         elif "bands" in item.properties:
             return _BandList(self._band_from_common_bands_metadata(b) for b in item.properties["bands"])
         elif consult_collection and (parent_collection := item.get_collection()) is not None:
-            return self.bands_from_stac_collection(collection=parent_collection)
+            return self.bands_from_stac_collection(collection=parent_collection, consult_items=False)
         elif consult_assets:
             # TODO: filter on asset roles?
             bands = _BandList.merge(
