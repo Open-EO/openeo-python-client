@@ -282,6 +282,22 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
+    def test_is_job_thread_running(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
+        """Test the is_job_thread_running method."""
+        df = pd.DataFrame({"year": [2018, 2019, 2020]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+        
+        # Initially thread should not be running
+        assert not job_manager.is_job_thread_running()
+        
+        # Start thread and verify it's running
+        job_manager.start_job_thread(start_job=self._create_year_job, job_db=job_db)
+        assert job_manager.is_job_thread_running()
+        
+        # Stop thread and verify it's not running
+        job_manager.stop_job_thread()
+        assert not job_manager.is_job_thread_running()
+
     def test_normalize_df(self):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
         df_normalized = MultiBackendJobManager._normalize_df(df)

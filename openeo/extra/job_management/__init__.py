@@ -382,6 +382,17 @@ class MultiBackendJobManager:
         self._thread = Thread(target=run_loop)
         self._thread.start()
 
+    def is_job_thread_running(self) -> bool:
+        """
+        Check if the job manager thread is still running.
+        
+        Returns:
+            bool: True if the thread is running, False otherwise
+            
+        .. versionadded:: 0.32.0
+        """
+        return self._thread is not None and not self._stop_thread and self._thread.is_alive()
+
     def stop_job_thread(self, timeout_seconds: Optional[float] = _UNSET):
         """
         Stop the job polling thread.
