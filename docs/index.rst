@@ -61,6 +61,7 @@ Table of contents
    cookbook/index
    api
    api-processes
+   api-artifacts
    process_mapping
    development
    best_practices
