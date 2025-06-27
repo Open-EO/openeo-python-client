@@ -13,16 +13,18 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import datetime
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
 import sys
-import datetime
 
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath("_ext"))
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath("../"))
 
 import openeo
 
@@ -36,15 +38,16 @@ import openeo
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx_autodoc_typehints',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.doctest',
-    'myst_parser',
-    "sphinx.ext.intersphinx",
+    "sphinx.ext.autodoc",
+    "sphinx_autodoc_typehints",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.doctest",
+    "myst_parser",
+    "jsonlexer",
 ]
 
 import sphinx_autodoc_typehints
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -195,13 +198,3 @@ texinfo_documents = [
      author, 'openeo', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-# Mapping for external documentation
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "xarray": ("https://docs.xarray.dev/en/stable/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
-    "urllib3": ("https://urllib3.readthedocs.io/en/stable/", None),
-}
