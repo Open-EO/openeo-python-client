@@ -34,6 +34,7 @@ tests_require = [
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
+    "moto",
 ]
 
 docs_require = [
@@ -41,6 +42,7 @@ docs_require = [
     "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints>=2.2.3",
     "myst-parser",
+    "pygments",  # Indirect dependency but we call it explicitly for JSON lexer
 ]
 
 localprocessing_require = [
@@ -54,6 +56,10 @@ jupyter_require = [
     "ipyleaflet>=0.17.0",
     "ipython",
 ]
+
+artifacts_require = ["boto3", "botocore"]
+
+typing_requires = ["types-boto3-s3", "types-boto3-sts"]
 
 name = "openeo"
 setup(
@@ -72,26 +78,27 @@ setup(
     test_suite="tests",
     install_requires=[
         "requests>=2.26.0",
-        "urllib3>=1.9.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
         "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
-        "pystac>=1.5.0",
+        # TODO #715 compatibility with pystac 1.12
+        "pystac>=1.5.0,<1.12",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
     ],
     extras_require={
-        "tests": tests_require,
-        "dev": tests_require + docs_require,
+        "tests": tests_require + artifacts_require,
+        "dev": tests_require + docs_require + typing_requires + artifacts_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"
         ],
         "localprocessing": localprocessing_require,
         "jupyter": jupyter_require,
+        "artifacts": artifacts_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
