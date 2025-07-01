@@ -154,7 +154,7 @@ class Connection(RestApiConnection):
         self._orig_url = url
         self._capabilities_cache = LazyLoadCache()
         super().__init__(
-            root_url=self.version_discovery(url, session=session, timeout=default_timeout),
+            root_url=self.version_discovery(url, session=session, timeout=default_timeout, retry=retry),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
             retry=retry,
@@ -170,7 +170,11 @@ class Connection(RestApiConnection):
 
     @classmethod
     def version_discovery(
-        cls, url: str, session: Optional[requests.Session] = None, timeout: Optional[int] = None
+        cls,
+        url: str,
+        session: Optional[requests.Session] = None,
+        timeout: Optional[int] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ) -> str:
         """
         Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
@@ -179,7 +183,7 @@ class Connection(RestApiConnection):
         :return: root url of highest supported backend version
         """
         try:
-            connection = RestApiConnection(url, session=session)
+            connection = RestApiConnection(url, session=session, retry=retry)
             well_known_url_response = connection.get("/.well-known/openeo", timeout=timeout)
             assert well_known_url_response.status_code == 200
             versions = well_known_url_response.json()["versions"]
