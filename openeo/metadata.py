@@ -721,6 +721,8 @@ class _StacMetadataParser:
         Do not use/expose it directly in user (facing) code
     """
 
+    # TODO: better, more compact name: StacMetadata is a bit redundant, technically we're also not "parsing" here either
+
     def __init__(self, *, logger=_log, log_level=logging.DEBUG, supress_duplicate_warnings: bool = True):
         # TODO: argument to set some kind of reference to a root document to improve logging messages?
         self._logger = logger
@@ -814,6 +816,7 @@ class _StacMetadataParser:
         """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         summaries = catalog.extra_fields.get("summaries", {})
+        self._warn(f"bands_from_stac_catalog with {summaries.keys()=} (which is non-standard)")
         if "eo:bands" in summaries:
             if _PYSTAC_1_9_EXTENSION_INTERFACE and not catalog.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
@@ -863,6 +866,7 @@ class _StacMetadataParser:
             return self._bands_from_item_assets(item_assets)
         # If no band metadata so far: traverse items in collection
         elif consult_items:
+            self._warn("bands_from_stac_collection: consulting items for band metadata")
             bands = _BandList.merge(
                 self.bands_from_stac_item(
                     item=i, consult_collection=False, consult_assets=consult_assets, on_empty=_ON_EMPTY_IGNORE
