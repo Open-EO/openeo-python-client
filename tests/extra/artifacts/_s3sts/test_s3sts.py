@@ -6,7 +6,7 @@ import logging
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Iterator, Optional
 from unittest.mock import Mock
 
 import boto3
@@ -80,12 +80,17 @@ def advertised_s3sts_config() -> Iterator[dict]:
 
 
 @pytest.fixture
+def extra_api_capabilities(advertised_s3sts_config: Optional[dict]) -> Iterator[dict]:
+    if advertised_s3sts_config is None:
+        yield {}
+    else:
+        yield {"artifacts": {"providers": [{"config": advertised_s3sts_config, "id": "s3", "type": "S3STSConfig"}]}}
+
+
+@pytest.fixture
 def conn_with_s3sts_capabilities(
     requests_mock, extra_api_capabilities, advertised_s3sts_config
 ) -> Iterator[Connection]:
-    extra_api_capabilities = {
-        "artifacts": {"providers": [{"config": advertised_s3sts_config, "id": "s3", "type": "S3STSConfig"}]}
-    }
     requests_mock.get(API_URL, json={"api_version": "1.0.0", **extra_api_capabilities})
     conn = Connection(API_URL)
     conn.auth = BearerAuth("oidc/fake/token")
@@ -120,19 +125,38 @@ def get_s3sts_config_default_field_values() -> dict:
 
 
 @pytest.mark.parametrize(
-    "overrides",
     [
-        {
-            "s3_endpoint": test_c_s3_endpoint,
-            "sts_endpoint": test_c_sts_endpoint,
-            "role": test_c_role_arn,
-            "bucket": test_c_bucket_name,
-            "feature_flags": {"X-Proxy-Head-As-Get": True},
-        }
+        "description",
+        "overrides",
+        "advertised_s3sts_config",
+    ],
+    [
+        [
+            "When there is advertised configurations the explicit values must take precedence",
+            {
+                "s3_endpoint": test_c_s3_endpoint,
+                "sts_endpoint": test_c_sts_endpoint,
+                "role": test_c_role_arn,
+                "bucket": test_c_bucket_name,
+                "feature_flags": {"X-Proxy-Head-As-Get": True},
+            },
+            deepcopy(test_p_config),
+        ],
+        [
+            "When there is no advertised configurations the explicit values should still be used.",
+            {
+                "s3_endpoint": test_c_s3_endpoint,
+                "sts_endpoint": test_c_sts_endpoint,
+                "role": test_c_role_arn,
+                "bucket": test_c_bucket_name,
+                "feature_flags": {"X-Proxy-Head-As-Get": True},
+            },
+            None,  # No actual config
+        ],
     ],
 )
 def test_config_overrides_take_precedence(
-    clean_capabilities_cache, conn_with_s3sts_capabilities, mocked_sts, overrides: dict
+    clean_capabilities_cache, conn_with_s3sts_capabilities, mocked_sts, overrides: dict, description: str
 ):
     defaults = get_s3sts_config_default_field_values()
     expected_values = {**defaults, **test_p_config, **overrides}
