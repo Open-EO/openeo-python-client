@@ -55,13 +55,15 @@ class ProviderConfig:
     def raise_if_needed(self, operation: str):
         """Check if operation can be done if not raise an exception"""
         if self.exc is not None:
-            _log.error(f"Trying to {operation} for backend config which was not available")
+            _log.warning(f"Trying to {operation} for backend config which was not available")
             raise self.exc
 
     def get_key(self, key: str) -> Any:
-        self.raise_if_needed(f"get key {key}")
         try:
+            self.raise_if_needed(f"get key {key}")
             return self.config[key]
+        except ArtifactsException as ae:
+            raise NoDefaultConfig(key) from ae
         except KeyError as ke:
             raise NoDefaultConfig(key) from ke
 
