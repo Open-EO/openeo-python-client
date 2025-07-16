@@ -1223,7 +1223,9 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
-                [],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['eo:bands']) (which is non-standard)",
+                ],
             ),
             (
                 {
@@ -1243,7 +1245,10 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
-                ["Using 'eo:bands' metadata, but STAC extension eo was not declared."],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['eo:bands']) (which is non-standard)",
+                    "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+                ],
             ),
             (
                 {
@@ -1260,7 +1265,9 @@ class TestStacMetadataParser:
                     "links": [],
                 },
                 [Band("B04"), Band("B03")],
-                [],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['bands']) (which is non-standard)",
+                ],
             ),
             (
                 {
@@ -1280,7 +1287,9 @@ class TestStacMetadataParser:
                     Band("B04", common_name="red", wavelength_um=0.665),
                     Band("B03", common_name="green", wavelength_um=0.560),
                 ],
-                [],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['bands']) (which is non-standard)",
+                ],
             ),
         ],
     )
@@ -1384,7 +1393,9 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
-                [],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
             ),
             (
                 # Collection with two items with different bands (eo:bands metadata)
@@ -1413,7 +1424,9 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
-                [],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
             ),
             (
                 # Collection with two items with different bands in different metadata format
@@ -1441,7 +1454,9 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02"), Band("B03")],
-                [],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
             ),
             (
                 # Collection with one item, with band metadata in asset
@@ -1466,7 +1481,9 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02")],
-                [],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
             ),
             (
                 # Collection with multiple items and assets, only partially with band metadata
@@ -1497,7 +1514,9 @@ class TestStacMetadataParser:
                 },
                 {},
                 [Band("B02")],
-                [],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
             ),
         ],
     )

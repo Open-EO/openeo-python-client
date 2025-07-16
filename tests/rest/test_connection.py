@@ -3137,12 +3137,21 @@ class TestLoadStac:
     @pytest.mark.parametrize(
         ["bands", "has_band_dimension", "expected_pg_args", "expected_warnings"],
         [
-            (None, False, {}, ["bands_from_stac_collection: no band name source found"]),
+            (
+                None,
+                False,
+                {},
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                    "bands_from_stac_collection: no band name source found",
+                ],
+            ),
             (
                 ["B02", "B03"],
                 True,
                 {"bands": ["B02", "B03"]},
                 [
+                    "bands_from_stac_collection: consulting items for band metadata",
                     "bands_from_stac_collection: no band name source found",
                     "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
                 ],
