@@ -34,7 +34,7 @@ tests_require = [
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
-    "moto",
+    "moto>=5.0.0",
 ]
 
 docs_require = [
