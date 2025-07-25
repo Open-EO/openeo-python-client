@@ -51,8 +51,9 @@ consisting of two simple mathematical operations
 
 We can represent this in openEO's JSON based format as follows
 (don't worry too much about the syntax details of this representation,
-the openEO Python client will hide this usually)::
+the openEO Python client will hide this usually):
 
+.. code-block:: json
 
     {
         "subtract32": {
@@ -69,11 +70,13 @@ the openEO Python client will hide this usually)::
 
 The important point here is the parameter reference ``{"from_parameter": "fahrenheit"}`` in the subtraction.
 When we call this user-defined process we will have to provide a Fahrenheit value.
-For example with 70 degrees Fahrenheit (again in openEO JSON format here)::
+For example with 70 degrees Fahrenheit (again in openEO JSON format here):
+
+.. code-block:: json
 
     {
         "process_id": "fahrenheit_to_celsius",
-        "arguments" {"fahrenheit": 70}
+        "arguments": {"fahrenheit": 70}
     }
 
 
@@ -90,7 +93,9 @@ The openEO Python client lets you define parameters as
 :class:`~openeo.api.process.Parameter` instances.
 In general you have to specify at least the parameter name,
 a description and a schema (to declare the expected parameter type).
-The "fahrenheit" parameter from the example above can be defined like this::
+The "fahrenheit" parameter from the example above can be defined like this:
+
+.. code-block:: python
 
     from openeo.api.process import Parameter
 
@@ -103,7 +108,9 @@ The "fahrenheit" parameter from the example above can be defined like this::
 To simplify working with parameter schemas, the :class:`~openeo.api.process.Parameter` class
 provides a couple of helpers to create common types of parameters.
 In the example above, the "fahrenheit" parameter (a number) can also be created more compactly
-with the :py:meth:`Parameter.number() <openeo.api.process.Parameter.number>` helper::
+with the :py:meth:`Parameter.number() <openeo.api.process.Parameter.number>` helper:
+
+.. code-block:: python
 
     fahrenheit_param = Parameter.number(
         name="fahrenheit", description="Degrees Fahrenheit"
@@ -139,7 +146,9 @@ Some useful parameter helpers (class methods of the :py:class:`~openeo.api.proce
 
 
 Consult the documentation of these helper class methods for additional features.
-For example, declaring a default value for an integer parameter::
+For example, declaring a default value for an integer parameter:
+
+.. code-block:: python
 
     size_param = Parameter.integer(
         name="size", description="Kernel size", default=4
@@ -163,7 +172,9 @@ Basic primitives can be declared through a (required) "type" field, for example:
 
 Likewise, arrays can be defined with a minimal ``{"type": "array"}``.
 In addition, the expected type of the array items can also be specified,
-e.g. an array of integers::
+e.g. an array of integers:
+
+.. code-block:: json
 
     {
         "type": "array",
@@ -173,7 +184,9 @@ e.g. an array of integers::
 Another, more complex type is ``{"type": "object"}`` for parameters
 that are like Python dictionaries (or mappings).
 For example, to define a bounding box parameter
-that should contain certain fields with certain type::
+that should contain certain fields with certain type:
+
+.. code-block:: json
 
     {
         "type": "object",
@@ -192,7 +205,9 @@ for even more features.
 On top of these generic types, the openEO API also defines a couple of custom (sub)types
 in the `openeo-processes project <https://github.com/Open-EO/openeo-processes>`_
 (see the ``meta/subtype-schemas.json`` listing).
-For example, the schema of an openEO data cube is::
+For example, the schema of an openEO data cube is:
+
+.. code-block:: json
 
     {
         "type": "object",
@@ -221,7 +236,9 @@ Through "process functions"
 
 The openEO Python Client Library defines the
 official processes in the :py:mod:`openeo.processes` module,
-which can be used to build a process graph as follows::
+which can be used to build a process graph as follows:
+
+.. code-block:: python
 
     from openeo.processes import subtract, divide
     from openeo.api.process import Parameter
@@ -246,7 +263,9 @@ We can pass it directly to :py:meth:`~openeo.rest.connection.Connection.save_use
 
 If you want to inspect its openEO-style process graph representation,
 use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
-or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method:
+
+.. code-block:: pycon
 
     >>> fahrenheit_to_celsius.print_json()
     {
@@ -283,7 +302,9 @@ It's also possible to work with a :class:`~openeo.rest.datacube.DataCube` direct
 and parameterize it.
 Let's create, as a simple but functional example, a custom ``load_collection``
 with hardcoded collection id and band name
-and a parameterized spatial extent (with default)::
+and a parameterized spatial extent (with default):
+
+.. code-block:: python
 
     spatial_extent = Parameter(
         name="bbox",
@@ -306,7 +327,9 @@ while building a :class:`~openeo.rest.datacube.DataCube`.
     :class:`~openeo.api.process.Parameter` arguments.
     Please submit a bug report when you encounter missing or wrong parameterization support.
 
-We can now store this as a user-defined process called "fancy_load_collection" on the back-end::
+We can now store this as a user-defined process called "fancy_load_collection" on the back-end:
+
+.. code-block:: python
 
     connection.save_user_defined_process(
         "fancy_load_collection",
@@ -316,7 +339,9 @@ We can now store this as a user-defined process called "fancy_load_collection" o
 
 If you want to inspect its openEO-style process graph representation,
 use the :meth:`~openeo.rest.datacube.DataCube.to_json()`
-or :meth:`~openeo.rest.datacube.DataCube.print_json()` method::
+or :meth:`~openeo.rest.datacube.DataCube.print_json()` method:
+
+.. code-block:: pycon
 
     >>> cube.print_json()
     {
@@ -351,7 +376,9 @@ or you prefer to fine-tune process graphs in a JSON editor.
 It is very straightforward to submit this as a user-defined process.
 
 Say we start from the following Python dictionary,
-representing the Fahrenheit to Celsius conversion we discussed before::
+representing the Fahrenheit to Celsius conversion we discussed before:
+
+.. code-block:: python
 
     fahrenheit_to_celsius = {
         "subtract1": {
@@ -366,7 +393,9 @@ representing the Fahrenheit to Celsius conversion we discussed before::
 
 We can store this directly, taking into account that we have to define
 a parameter named ``f`` corresponding with the ``{"from_parameter": "f"}`` argument
-from the dictionary above::
+from the dictionary above:
+
+.. code-block:: python
 
     connection.save_user_defined_process(
         user_defined_process_id="fahrenheit_to_celsius",
@@ -382,7 +411,9 @@ Some use cases might require storing the user-defined process in,
 for example, a JSON file instead of storing it directly on a back-end.
 Use :py:func:`~openeo.rest.udp.build_process_dict` to build a dictionary
 compatible with the "process graph with metadata" format of the openEO API
-and dump it in JSON format to a file::
+and dump it in JSON format to a file:
+
+.. code-block:: python
 
     import json
     from openeo.rest.udp import build_process_dict
@@ -401,7 +432,9 @@ and dump it in JSON format to a file::
     with open("fahrenheit_to_celsius.json", "w") as f:
         json.dump(spec, f, indent=2)
 
-This results in a JSON file like this::
+This results in a JSON file like this:
+
+.. code-block:: json
 
     {
       "id": "fahrenheit_to_celsius",
@@ -425,7 +458,9 @@ Let's evaluate the user-defined processes we defined.
 Because there is no pre-defined
 wrapper function for our user-defined process, we use the
 generic :func:`openeo.processes.process` function to build a simple
-process graph that calls our ``fahrenheit_to_celsius`` process::
+process graph that calls our ``fahrenheit_to_celsius`` process:
+
+.. code-block:: pycon
 
     >>> pg = openeo.processes.process("fahrenheit_to_celsius", f=70)
     >>> pg.print_json(indent=None)
@@ -441,7 +476,9 @@ we only have to specify a temporal extent,
 and let the predefined and default values do their work.
 We will use :func:`~openeo.rest.connection.Connection.datacube_from_process`
 to construct a :class:`~openeo.rest.datacube.DataCube` object
-which we can process further and download::
+which we can process further and download:
+
+.. code-block:: python
 
     cube = connection.datacube_from_process("fancy_load_collection")
     cube = cube.filter_temporal("2020-09-01", "2020-09-10")
