@@ -14,13 +14,13 @@ API: openeo.extra.artifacts
      pip install "openeo[artifacts]" --upgrade
 
 
-When running OpenEO jobs it is not uncommon to require artifacts that should be accessible during job execution. This
-requires the artifacts to be accessible from within the OpenEO processing environment. :py:mod:`openeo.extra.artifacts` tries
+When running openEO jobs it is not uncommon to require artifacts that should be accessible during job execution. This
+requires the artifacts to be accessible from within the openEO processing environment. :py:mod:`openeo.extra.artifacts` tries
 to perform the heavy lifting for this use case by allowing staging artifacts to a secure but temporary location using 3
 simple steps:
 
-1. Connect to your OpenEO backend
-2. Create an artifact helper from your OpenEO connection
+1. Connect to your openEO backend
+2. Create an artifact helper from your openEO connection
 3. Upload your file using the artifact helper and optionally get a presigned URI
 
 So in code this looks like:
@@ -33,10 +33,10 @@ So in code this looks like:
     connection = openeo.connect("my-openeo.prod.example").authenticate_oidc()
 
     artifact_helper = ArtifactHelper.from_openeo_connection(connection)
-    storage_uri = artifact_helper.upload_file(object_name, src_file_path)
+    storage_uri = artifact_helper.upload_file(path, object_name)
     presigned_uri = artifact_helper.get_presigned_url(storage_uri)
 
-Note that the storage_uri can be used from regular execution steps of your OpenEO job. The presigned uri could be used
+Note that the storage_uri can be used from regular execution steps of your openEO job. The presigned uri could be used
 from environments where credentials are not injected (e.g. UDFs) as the presigned URL. A presigned URL has the
 authentication details embedded so if your data is sensitive you must make sure to keep this URL secret.
 
@@ -57,8 +57,8 @@ How does it work ?
 ==================
 
 1) :py:meth:`openeo.extra.artifacts.artifact_helper.ArtifactHelper.from_openeo_connection` is a factory method that
-   will create an artifact helper where the type is defined by the config type. The OpenEO connection object is used to
-   see if the OpenEO backend advertises a preferred config.
+   will create an artifact helper where the type is defined by the config type. The openEO connection object is used to
+   see if the openEO backend advertises a preferred config.
 2) :py:meth:`openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.upload_file` and
    :py:meth:`openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.get_presigned_url` do the heavy lifting to
    store your artifact in provider managed storage and to return references that can be used. In case the backend uses
@@ -77,7 +77,7 @@ How does it work ?
 Documentation for backend providers
 ===================================
 
-This section and its subsection is for engineers who operate an OpenEO backend. If you are a user of an OpenEO platform
+This section and its subsection is for engineers who operate an openEO backend. If you are a user of an openEO platform
 this is unlikely to be of value to you.
 
 Advertising capabilities from the backend
