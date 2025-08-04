@@ -28,11 +28,11 @@ So in code this looks like:
 .. code-block:: python
 
     import openeo
-    from openeo.extra.artifacts import ArtifactHelper
+    from openeo.extra.artifacts import build_artifact_helper
 
     connection = openeo.connect("my-openeo.prod.example").authenticate_oidc()
 
-    artifact_helper = ArtifactHelper.from_openeo_connection(connection)
+    artifact_helper = build_artifact_helper(connection)
     storage_uri = artifact_helper.upload_file(path, object_name)
     presigned_uri = artifact_helper.get_presigned_url(storage_uri)
 
@@ -44,8 +44,7 @@ User facing API
 ===============
 
 
-.. autoclass:: openeo.extra.artifacts.artifact_helper.ArtifactHelper
-    :members:
+.. autofunction:: openeo.extra.artifacts.build_artifact_helper
 
 
 .. autoclass:: openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC

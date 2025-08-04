@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from types_boto3_sts.type_defs import AssumeRoleWithWebIdentityResponseTypeDef
 
 from openeo import Connection
-from openeo.extra.artifacts import ArtifactHelper
+from openeo.extra.artifacts import build_artifact_helper
 
 # noinspection PyProtectedMember
 from openeo.extra.artifacts._s3sts.artifact_helper import S3STSArtifactHelper
@@ -100,7 +100,7 @@ def conn_with_s3sts_capabilities(
 def test_backend_provided_settings_s3sts(clean_capabilities_cache, conn_with_s3sts_capabilities, mocked_sts):
     # Given a backend that exposes s3sts capabilities (fixture)
     # When creating an artifacthelper without specifying config
-    ah = ArtifactHelper.from_openeo_connection(conn_with_s3sts_capabilities, None)
+    ah = build_artifact_helper(conn_with_s3sts_capabilities, None)
     # Then the artifact helper is of the expected instance
     assert isinstance(ah, S3STSArtifactHelper)
     # Then the config is of the expected type
@@ -163,7 +163,7 @@ def test_config_overrides_take_precedence(
 
     # Given a backend that exposes s3sts capabilities (fixture)
     # When creating an artifacthelper without specifying config
-    ah = ArtifactHelper.from_openeo_connection(conn_with_s3sts_capabilities, S3STSConfig(**overrides))
+    ah = build_artifact_helper(conn_with_s3sts_capabilities, S3STSConfig(**overrides))
     # Then the artifact helper is of the expected instance
     assert isinstance(ah, S3STSArtifactHelper)
     # Then the config is of the expected type
@@ -204,7 +204,7 @@ def test_unknown_feature_flag_must_emit_warning(
     caplog.set_level(logging.INFO)
     # Given a backend that exposes s3sts capabilities but with a feature flag unknown to the client (fixture)
     # When creating an artifacthelper without specifying config
-    ah = ArtifactHelper.from_openeo_connection(conn_with_s3sts_capabilities, S3STSConfig(**overrides))
+    ah = build_artifact_helper(conn_with_s3sts_capabilities, S3STSConfig(**overrides))
     # Then the artifact helper is of the expected instance
     assert isinstance(ah, S3STSArtifactHelper)
     # Then the config is of the expected type
@@ -282,7 +282,7 @@ def test_feature_flag_x_proxy_head_as_get(
     # Given mocked S3 interaction and default bucket (fixture)
     # Given a backend that exposes s3sts capabilities
     # When creating an artifacthelper without specifying config
-    ah = ArtifactHelper.from_openeo_connection(conn_with_s3sts_capabilities)
+    ah = build_artifact_helper(conn_with_s3sts_capabilities)
     # When uploading a file and getting a presigned url
     s3_uri = ah.upload_file(test_file)
     presigned = ah.get_presigned_url(s3_uri)
@@ -339,7 +339,7 @@ def test_feature_flag_checksum_via_trailers(
 ):
     # Given a backend that exposes s3sts capabilities
     # When creating an artifacthelper without specifying config
-    ah = ArtifactHelper.from_openeo_connection(conn_with_s3sts_capabilities)
+    ah = build_artifact_helper(conn_with_s3sts_capabilities)
 
     assert isinstance(ah, S3STSArtifactHelper)
     # Then the config is of the expected type

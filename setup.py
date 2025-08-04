@@ -42,7 +42,6 @@ docs_require = [
     "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints>=2.2.3",
     "myst-parser",
-    "pygments",  # Indirect dependency but we call it explicitly for JSON lexer
 ]
 
 localprocessing_require = [
@@ -78,13 +77,13 @@ setup(
     test_suite="tests",
     install_requires=[
         "requests>=2.26.0",
+        "urllib3>=1.9.0",
         "shapely>=1.6.4",
         "numpy>=1.17.0",
         "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
         "pandas>0.20.0",
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
-        # TODO #715 compatibility with pystac 1.12
-        "pystac>=1.5.0,<1.12",
+        "pystac>=1.5.0",
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",

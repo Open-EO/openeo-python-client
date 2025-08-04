@@ -2,7 +2,7 @@ from typing import Type
 
 import pytest
 
-from openeo.extra.artifacts import ArtifactHelper
+from openeo.extra.artifacts import build_artifact_helper
 from openeo.extra.artifacts.exceptions import (
     NoAdvertisedProviders,
     ProviderSpecificException,
@@ -107,4 +107,4 @@ def test_artifacts_raising_exceptions_when_required(
     # Given no provided config then the client should raise exceptions when there is no appropriate way of
     # configuring an Artifact helper
     with pytest.raises(expected_ex):
-        ArtifactHelper.from_openeo_connection(conn_with_extra_capabilities, None)
+        build_artifact_helper(conn_with_extra_capabilities, None)

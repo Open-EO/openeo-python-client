@@ -10,18 +10,6 @@ from openeo.extra.artifacts._uri import StorageURI
 from openeo.rest.connection import Connection
 
 
-class ArtifactHelperBuilderABC(ABC):
-    @classmethod
-    @abstractmethod
-    def from_openeo_connection(
-        cls, connection: Connection, config: Optional[ArtifactsStorageConfigABC] = None
-    ) -> ArtifactHelperABC:
-        """
-        Builder pattern, only used for implementing support for other Artifact stores.
-        """
-        raise NotImplementedError("ArtifactHelperBuilders must have their own implementation")
-
-
 class ArtifactHelperABC(ABC):
     """
     This class defines the *interface* that an artifact helper should implement and support. This is used by OpenEO users
