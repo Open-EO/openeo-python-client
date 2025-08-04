@@ -84,17 +84,17 @@ class TArtifactsCapabilty(TypedDict):
 
 
 class ArtifactCapabilities:
-    def __init__(self, conn: Connection):
-        self.conn = conn
+    def __init__(self, connection: Connection):
+        self._connection = connection
 
     def _get_artifacts_capabilities(self) -> ProvidersConfig:
         """
         Get the artifacts capabilities corresponding to the OpenEO connection
         """
-        url = self.conn.root_url
+        url = self._connection.root_url
         if url not in _capabilities_cache:
             try:
-                _capabilities_cache[url] = self.conn.get("/").json()["artifacts"]
+                _capabilities_cache[url] = self._connection.get("/").json()["artifacts"]
             except KeyError:
                 raise NoAdvertisedProviders()
         return _capabilities_cache[url]

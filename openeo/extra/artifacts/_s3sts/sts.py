@@ -17,11 +17,11 @@ class OpenEOSTSClient:
     def __init__(self, config: S3STSConfig):
         self.config = config
 
-    def assume_from_openeo_connection(self, conn: Connection) -> AWSSTSCredentials:
+    def assume_from_openeo_connection(self, connection: Connection) -> AWSSTSCredentials:
         """
         Takes an OpenEO connection object and returns temporary credentials to interact with S3
         """
-        auth = conn.auth
+        auth = connection.auth
         assert auth is not None
         if not isinstance(auth, BearerAuth):
             raise ProviderSpecificException("Only connections that have BearerAuth can be used.")

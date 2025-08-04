@@ -19,20 +19,20 @@ class S3STSArtifactHelper(ArtifactHelperABC):
     # From what size will we switch to multi-part-upload
     MULTIPART_THRESHOLD_IN_MB = 50
 
-    def __init__(self, conn: Connection, config: S3STSConfig):
+    def __init__(self, connection: Connection, config: S3STSConfig):
         super().__init__(config)
-        self.conn = conn
+        self._connection = connection
         self.config = config
         self._creds = self.get_new_creds()
         self._s3: Optional[S3Client] = None
 
     @classmethod
-    def _from_openeo_connection(cls, conn: Connection, config: S3STSConfig) -> S3STSArtifactHelper:
-        return S3STSArtifactHelper(conn, config=config)
+    def _from_openeo_connection(cls, connection: Connection, config: S3STSConfig) -> S3STSArtifactHelper:
+        return S3STSArtifactHelper(connection, config=config)
 
     def get_new_creds(self) -> AWSSTSCredentials:
         sts = OpenEOSTSClient(config=self.config)
-        return sts.assume_from_openeo_connection(self.conn)
+        return sts.assume_from_openeo_connection(self._connection)
 
     def _user_prefix(self) -> str:
         """Each user has its own prefix retrieve it"""

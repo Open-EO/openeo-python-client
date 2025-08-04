@@ -14,7 +14,7 @@ class ArtifactHelperBuilderABC(ABC):
     @classmethod
     @abstractmethod
     def from_openeo_connection(
-        cls, conn: Connection, config: Optional[ArtifactsStorageConfigABC] = None
+        cls, connection: Connection, config: Optional[ArtifactsStorageConfigABC] = None
     ) -> ArtifactHelperABC:
         """
         Builder pattern, only used for implementing support for other Artifact stores.
@@ -32,7 +32,11 @@ class ArtifactHelperABC(ABC):
 
     @classmethod
     def from_openeo_connection(
-        cls, conn: Connection, provider_config: ProviderConfig, *, config: Optional[ArtifactsStorageConfigABC] = None
+        cls,
+        connection: Connection,
+        provider_config: ProviderConfig,
+        *,
+        config: Optional[ArtifactsStorageConfigABC] = None,
     ) -> ArtifactHelperABC:
         """
         Create a new Artifact helper from the OpenEO connection. This is the starting point to upload artifacts.
@@ -41,7 +45,7 @@ class ArtifactHelperABC(ABC):
         if config is None:
             config = cls._get_default_storage_config()
         config.load_connection_provided_config(provider_config)
-        return cls._from_openeo_connection(conn, config)
+        return cls._from_openeo_connection(connection, config)
 
     @abstractmethod
     def upload_file(self, path: str | Path, object_name: str = "") -> StorageURI:
@@ -91,13 +95,13 @@ class ArtifactHelperABC(ABC):
 
     @classmethod
     @abstractmethod
-    def _from_openeo_connection(cls, conn: Connection, config: ArtifactsStorageConfigABC) -> ArtifactHelperABC:
+    def _from_openeo_connection(cls, connection: Connection, config: ArtifactsStorageConfigABC) -> ArtifactHelperABC:
         """
         The implementation that creates an artifact helper. This method takes a config which has already been
         initialized from the metadata of the OpenEO connection.
 
         This method is internal as it is always called via `ArtifactHelperABC.from_openeo_connection`
 
-        :param conn: A valid instance of a connection object to an OpenEOBackend
+        :param connection: A valid instance of a connection object to an OpenEOBackend
         :param config: object that specifies configuration for Artifact storage.
         """
