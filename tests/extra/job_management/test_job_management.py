@@ -739,7 +739,7 @@ class TestMultiBackendJobManager:
         # Mock sleep() to skip one hour at a time instead of actually sleeping
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
-    
+
         final_df = CsvJobDatabase(job_db_path).read()
 
         # Validate running_start_time is a valid datetime object
@@ -796,7 +796,7 @@ class TestMultiBackendJobManager:
         job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
-        mgr._process_threadworker_updates(pool, job_db, stats)
+        mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
 
         df_final = job_db.read()
         assert df_final.loc[0, "status"] == "created"
@@ -824,7 +824,7 @@ class TestMultiBackendJobManager:
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
         with caplog.at_level(logging.ERROR):
-            mgr._process_threadworker_updates(pool, job_db, stats)
+            mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
 
         # DB should remain unchanged
         df_final = job_db.read()

@@ -56,14 +56,14 @@ class Task(ABC):
 
     :param job_id:
         Identifier of the job to start on the backend.
-    
+
     :param df_idx:
         Index of the row of the job in the dataframe.
 
     """
 
     job_id: str
-    df_idx: int 
+    df_idx: int
 
     @abstractmethod
     def execute(self) -> _TaskResult:
@@ -88,7 +88,7 @@ class ConnectedTask(Task):
     """
 
     root_url: str
-    bearer_token: Optional[str]
+    bearer_token: Optional[str] = field(default=None, repr=False)
 
     def get_connection(self) -> openeo.Connection:
         connection = openeo.connect(self.root_url)
@@ -188,7 +188,7 @@ class _JobManagerWorkerThreadPool:
                     _log.exception(f"Threaded task {task!r} failed: {e!r}")
                     result = _TaskResult(
                         job_id=task.job_id,
-                        df_idx = task.df_idx,
+                        df_idx=task.df_idx,
                         db_update={"status": "threaded task failed"},
                         stats_update={"threaded task failed": 1},
                     )

@@ -68,6 +68,14 @@ class TestJobStartTask:
             "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting " "for you, buddy')"
         ]
 
+    @pytest.mark.parametrize("serializer", [repr, str])
+    def test_hide_token(self, serializer):
+        secret = "Secret!"
+        task = _JobStartTask(job_id="job-123", df_idx=0, root_url="https://example.com", bearer_token=secret)
+        serialized = serializer(task)
+        assert "job-123" in serialized
+        assert secret not in serialized
+
 
 
 
