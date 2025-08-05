@@ -94,15 +94,14 @@ class DummyTask(Task):
     """
 
     def __init__(self, job_id, df_idx, db_update, stats_update):
-        super().__init__(job_id=job_id, df_idx = df_idx)
+        super().__init__(job_id=job_id, df_idx=df_idx)
         self._db_update = db_update or {}
         self._stats_update = stats_update or {}
 
     def execute(self) -> _TaskResult:
-
         return _TaskResult(
             job_id=self.job_id,
-            df_idx = self.df_idx,
+            df_idx=self.df_idx,
             db_update=self._db_update,
             stats_update=self._stats_update,
         )
@@ -759,10 +758,12 @@ class TestMultiBackendJobManager:
         # Invalid index (not in DB)
         pool.submit_task(DummyTask("j-missing", df_idx=4, db_update={"status": "created"}, stats_update=None))
 
-        df_initial = pd.DataFrame({
-            "id": ["j-0", "j-1", "j-2", "j-3"],
-            "status": ["created", "created", "created", "created"],
-        })
+        df_initial = pd.DataFrame(
+            {
+                "id": ["j-0", "j-1", "j-2", "j-3"],
+                "status": ["created", "created", "created", "created"],
+            }
+        )
         job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
 
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
@@ -786,7 +787,7 @@ class TestMultiBackendJobManager:
         assert stats["job_db persist"] == 1
 
         # Assert error log for invalid index
-        assert any("Skipping non-existing dataframe indiches" in msg for msg in caplog.messages)
+        assert any("Skipping non-existing dataframe indices" in msg for msg in caplog.messages)
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
@@ -801,7 +802,6 @@ class TestMultiBackendJobManager:
         df_final = job_db.read()
         assert df_final.loc[0, "status"] == "created"
         assert stats == {}
-
 
     def test_logs_on_invalid_update(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)

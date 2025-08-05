@@ -35,7 +35,7 @@ class _TaskResult:
     """
 
     job_id: str  # Mandatory
-    df_idx: int # Mandatory
+    df_idx: int  # Mandatory
     db_update: Dict[str, Any] = field(default_factory=dict)  # Optional
     stats_update: Dict[str, int] = field(default_factory=dict)  # Optional
 
@@ -118,7 +118,7 @@ class _JobStartTask(ConnectedTask):
             _log.info(f"Job {self.job_id!r} started successfully")
             return _TaskResult(
                 job_id=self.job_id,
-                df_idx = self.df_idx,
+                df_idx=self.df_idx,
                 db_update={"status": "queued"},
                 stats_update={"job start": 1},
             )
@@ -127,9 +127,9 @@ class _JobStartTask(ConnectedTask):
             # TODO: more insights about the failure (e.g. the exception) are just logged, but lost from the result
             return _TaskResult(
                 job_id=self.job_id,
-                df_idx = self.df_idx,
+                df_idx=self.df_idx,
                 db_update={"status": "start_failed"},
-                stats_update={"start_job error": 1}
+                stats_update={"start_job error": 1},
             )
 
 
