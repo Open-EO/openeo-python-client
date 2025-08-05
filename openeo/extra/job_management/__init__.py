@@ -553,6 +553,7 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs running at each backend
+            # TODO: should "created" be included in here? Calling this "running" is quite misleading then.
             running = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"])
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
@@ -570,7 +571,7 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-        self._process_threadworker_updates(self._worker_pool, job_db, stats)
+        self._process_threadworker_updates(self._worker_pool, job_db=job_db, stats=stats)
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -641,7 +642,7 @@ class MultiBackendJobManager:
                                 root_url=job_con.root_url,
                                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                                 job_id=job.job_id,
-                                df_idx = i
+                                df_idx=i,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
                             self._worker_pool.submit_task(task)
@@ -659,8 +660,9 @@ class MultiBackendJobManager:
 
     def _process_threadworker_updates(
         self,
-        worker_pool: '_JobManagerWorkerThreadPool',
-        job_db: 'JobDatabaseInterface',
+        worker_pool: _JobManagerWorkerThreadPool,
+        *,
+        job_db: JobDatabaseInterface,
         stats: Dict[str, int],
     ) -> None:
         """
@@ -668,8 +670,6 @@ class MultiBackendJobManager:
         their db_update and stats_updates. Only existing DataFrame rows
         (matched by df_idx) are upserted via job_db.persist(). Any results
         targeting unknown df_idx indices are logged as errors but not persisted.
-
-
 
         :param worker_pool: Thread-pool managing asynchronous Task executes
         :param job_db:      Interface to append/upsert to the job database
@@ -684,14 +684,16 @@ class MultiBackendJobManager:
             # Process database updates
             if res.db_update:
                 try:
-                    updates.append({
-                        'id': res.job_id,
-                        'df_idx': res.df_idx,
-                        **res.db_update,
-                    })
+                    updates.append(
+                        {
+                            "id": res.job_id,
+                            "df_idx": res.df_idx,
+                            **res.db_update,
+                        }
+                    )
                 except Exception as e:
-                    _log.error(f"Skipping invalid db_update '{res.db_update}' for job '{res.job_id}': {e}", )
-                    
+                    _log.error(f"Skipping invalid db_update {res.db_update!r} for job {res.job_id!r}: {e}")
+
             # Process stats updates
             if res.stats_update:
                 try:
@@ -699,29 +701,26 @@ class MultiBackendJobManager:
                         count = int(val)
                         stats[key] = stats.get(key, 0) + count
                 except Exception as e:
-                    _log.error(
-                        f"Skipping invalid stats_update {res.stats_update} for job '{res.job_id}': {e}"
-                    )
+                    _log.error(f"Skipping invalid stats_update {res.stats_update!r} for job {res.job_id!r}: {e}")
 
         # No valid updates: nothing to persist
         if not updates:
             return
 
         # Build DataFrame of updates indexed by df_idx
-        df_updates = pd.DataFrame(updates).set_index('df_idx', drop=True)
+        df_updates = pd.DataFrame(updates).set_index("df_idx", drop=True)
 
         # Determine which rows to upsert
         existing_indices = set(df_updates.index).intersection(job_db.read().index)
         if existing_indices:
             df_upsert = df_updates.loc[sorted(existing_indices)]
             job_db.persist(df_upsert)
-            stats['job_db persist'] = stats.get('job_db persist', 0) + 1
+            stats["job_db persist"] = stats.get("job_db persist", 0) + 1
 
         # Any df_idx not in original index are errors
         missing = set(df_updates.index) - existing_indices
         if missing:
-            _log.error(f"Skipping non-existing dataframe indiches: {sorted(missing)}")
-
+            _log.error(f"Skipping non-existing dataframe indices: {sorted(missing)}")
 
     def on_job_done(self, job: BatchJob, row):
         """
@@ -977,10 +976,9 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
     def _merge_into_df(self, df: pd.DataFrame):
         if self._df is not None:
-            self._df.update(df, overwrite=True) 
+            self._df.update(df, overwrite=True)
         else:
             self._df = df
-
 
 
 class CsvJobDatabase(FullDataFrameJobDatabase):

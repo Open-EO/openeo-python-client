@@ -25,9 +25,9 @@ def dummy_backend(requests_mock) -> DummyBackend:
 
 class TestTaskResult:
     def test_default(self):
-        result = _TaskResult(job_id="j-123", df_idx = 0)
+        result = _TaskResult(job_id="j-123", df_idx=0)
         assert result.job_id == "j-123"
-        assert result.df_idx ==0
+        assert result.df_idx == 0
         assert result.db_update == {}
         assert result.stats_update == {}
 
@@ -37,12 +37,14 @@ class TestJobStartTask:
         caplog.set_level(logging.WARNING)
         job = dummy_backend.connection.create_job(process_graph={})
 
-        task = _JobStartTask(job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        task = _JobStartTask(
+            job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0"
+        )
         result = task.execute()
 
         assert result == _TaskResult(
             job_id="job-000",
-            df_idx = 0,
+            df_idx=0,
             db_update={"status": "queued"},
             stats_update={"job start": 1},
         )
@@ -54,7 +56,9 @@ class TestJobStartTask:
         job = dummy_backend.connection.create_job(process_graph={})
         dummy_backend.setup_job_start_failure()
 
-        task = _JobStartTask(job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0")
+        task = _JobStartTask(
+            job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token="h4ll0"
+        )
         result = task.execute()
 
         assert result == _TaskResult(
@@ -68,7 +72,13 @@ class TestJobStartTask:
             "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting " "for you, buddy')"
         ]
 
-
+    @pytest.mark.parametrize("serializer", [repr, str])
+    def test_hide_token(self, serializer):
+        secret = "Secret!"
+        task = _JobStartTask(job_id="job-123", df_idx=0, root_url="https://example.com", bearer_token=secret)
+        serialized = serializer(task)
+        assert "job-123" in serialized
+        assert secret not in serialized
 
 
 class NopTask(Task):
@@ -105,8 +115,6 @@ class BlockingTask(Task):
         if not self.success:
             raise ValueError("Oh no!")
         return _TaskResult(job_id=self.job_id, df_idx=self.df_idx, db_update={"status": "all fine"})
-
-
 
 
 class TestJobManagerWorkerThreadPool:
@@ -146,7 +154,7 @@ class TestJobManagerWorkerThreadPool:
         assert results == [
             _TaskResult(
                 job_id="j-666",
-                df_idx = 0,
+                df_idx=0,
                 db_update={"status": "threaded task failed"},
                 stats_update={"threaded task failed": 1},
             ),
@@ -163,7 +171,7 @@ class TestJobManagerWorkerThreadPool:
         worker_pool.submit_task(NopTask(job_id="j-22", df_idx=22))
         worker_pool.submit_task(NopTask(job_id="j-222", df_idx=222))
         results, remaining = worker_pool.process_futures(timeout=1)
-        assert results == [_TaskResult(job_id="j-22", df_idx=22), _TaskResult(job_id="j-222",  df_idx=222)]
+        assert results == [_TaskResult(job_id="j-22", df_idx=22), _TaskResult(job_id="j-222", df_idx=222)]
         assert remaining == 0
 
     def test_submit_multiple_simple(self, worker_pool):
@@ -204,7 +212,7 @@ class TestJobManagerWorkerThreadPool:
         events[0].set()
         results, remaining = worker_pool.process_futures(timeout=0.1)
         assert results == [
-            _TaskResult(job_id="j-0", df_idx = 0, db_update={"status": "all fine"}),
+            _TaskResult(job_id="j-0", df_idx=0, db_update={"status": "all fine"}),
         ]
         assert remaining == n - 1
 
@@ -213,10 +221,13 @@ class TestJobManagerWorkerThreadPool:
             events[j].set()
         results, remaining = worker_pool.process_futures(timeout=0.1)
         assert results == [
-            _TaskResult(job_id="j-1", df_idx = 1, db_update={"status": "all fine"}),
-            _TaskResult(job_id="j-2", df_idx = 2, db_update={"status": "all fine"}),
+            _TaskResult(job_id="j-1", df_idx=1, db_update={"status": "all fine"}),
+            _TaskResult(job_id="j-2", df_idx=2, db_update={"status": "all fine"}),
             _TaskResult(
-                job_id="j-3", df_idx = 3, db_update={"status": "threaded task failed"}, stats_update={"threaded task failed": 1}
+                job_id="j-3",
+                df_idx=3,
+                db_update={"status": "threaded task failed"},
+                stats_update={"threaded task failed": 1},
             ),
         ]
         assert remaining == 1
@@ -226,7 +237,7 @@ class TestJobManagerWorkerThreadPool:
             events[j].set()
         results, remaining = worker_pool.process_futures(timeout=0.1)
         assert results == [
-            _TaskResult(job_id="j-4", df_idx = 4, db_update={"status": "all fine"}),
+            _TaskResult(job_id="j-4", df_idx=4, db_update={"status": "all fine"}),
         ]
         assert remaining == 0
 
@@ -252,7 +263,7 @@ class TestJobManagerWorkerThreadPool:
         assert results == [
             _TaskResult(
                 job_id="job-000",
-                df_idx = 0,
+                df_idx=0,
                 db_update={"status": "queued"},
                 stats_update={"job start": 1},
             )
@@ -270,7 +281,9 @@ class TestJobManagerWorkerThreadPool:
 
         results, remaining = worker_pool.process_futures(timeout=1)
         assert results == [
-            _TaskResult(job_id="job-000", df_idx=0, db_update={"status": "start_failed"}, stats_update={"start_job error": 1})
+            _TaskResult(
+                job_id="job-000", df_idx=0, db_update={"status": "start_failed"}, stats_update={"start_job error": 1}
+            )
         ]
         assert remaining == 0
         assert caplog.messages == [

@@ -94,15 +94,14 @@ class DummyTask(Task):
     """
 
     def __init__(self, job_id, df_idx, db_update, stats_update):
-        super().__init__(job_id=job_id, df_idx = df_idx)
+        super().__init__(job_id=job_id, df_idx=df_idx)
         self._db_update = db_update or {}
         self._stats_update = stats_update or {}
 
     def execute(self) -> _TaskResult:
-
         return _TaskResult(
             job_id=self.job_id,
-            df_idx = self.df_idx,
+            df_idx=self.df_idx,
             db_update=self._db_update,
             stats_update=self._stats_update,
         )
@@ -739,7 +738,7 @@ class TestMultiBackendJobManager:
         # Mock sleep() to skip one hour at a time instead of actually sleeping
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
-    
+
         final_df = CsvJobDatabase(job_db_path).read()
 
         # Validate running_start_time is a valid datetime object
@@ -759,10 +758,12 @@ class TestMultiBackendJobManager:
         # Invalid index (not in DB)
         pool.submit_task(DummyTask("j-missing", df_idx=4, db_update={"status": "created"}, stats_update=None))
 
-        df_initial = pd.DataFrame({
-            "id": ["j-0", "j-1", "j-2", "j-3"],
-            "status": ["created", "created", "created", "created"],
-        })
+        df_initial = pd.DataFrame(
+            {
+                "id": ["j-0", "j-1", "j-2", "j-3"],
+                "status": ["created", "created", "created", "created"],
+            }
+        )
         job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
 
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
@@ -786,7 +787,7 @@ class TestMultiBackendJobManager:
         assert stats["job_db persist"] == 1
 
         # Assert error log for invalid index
-        assert any("Skipping non-existing dataframe indiches" in msg for msg in caplog.messages)
+        assert any("Skipping non-existing dataframe indices" in msg for msg in caplog.messages)
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
@@ -796,12 +797,11 @@ class TestMultiBackendJobManager:
         job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
-        mgr._process_threadworker_updates(pool, job_db, stats)
+        mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
 
         df_final = job_db.read()
         assert df_final.loc[0, "status"] == "created"
         assert stats == {}
-
 
     def test_logs_on_invalid_update(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
@@ -824,7 +824,7 @@ class TestMultiBackendJobManager:
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
         with caplog.at_level(logging.ERROR):
-            mgr._process_threadworker_updates(pool, job_db, stats)
+            mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
 
         # DB should remain unchanged
         df_final = job_db.read()
