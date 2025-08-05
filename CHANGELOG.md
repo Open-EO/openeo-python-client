@@ -11,11 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `openeo.UDF()`: automatically un-indent given UDF code ([#782](https://github.com/Open-EO/openeo-python-client/issues/782))
-
 ### Removed
 
 ### Fixed
+
+
+## [0.43.0] - 2025-07-02
+
+### Added
+
+- More extensive band detection for `load_stac` use cases, including the common `bands` metadata introduced with STAC 1.1 ([#699](https://github.com/Open-EO/openeo-python-client/issues/699), [#692](https://github.com/Open-EO/openeo-python-client/issues/692), [#586](https://github.com/Open-EO/openeo-python-client/issues/586)).
+- Improved support for Federation Extension in Jupyter notebook context ([#668](https://github.com/Open-EO/openeo-python-client/issues/668))
+
+### Changed
+
+- `openeo.UDF()`: automatically un-indent given UDF code ([#782](https://github.com/Open-EO/openeo-python-client/issues/782))
+
+### Fixed
+
+- Fix compatibility with PySTAC 1.12 ([#715](https://github.com/Open-EO/openeo-python-client/issues/715))
+
 
 ## [0.42.1] - 2025-06-06
 

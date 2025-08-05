@@ -10,6 +10,7 @@ import zlib
 from contextlib import nullcontext
 from pathlib import Path
 
+import dirty_equals
 import pytest
 import requests
 import requests_mock
@@ -3047,13 +3048,22 @@ class TestLoadStac:
         cube = con120.load_stac(str(stac_path))
         assert cube.metadata.temporal_dimension == TemporalDimension(name="t", extent=dim_extent)
 
-    def test_load_stac_default_band_handling(self, dummy_backend, build_stac_ref):
-        stac_ref = build_stac_ref(
+    @pytest.mark.parametrize(
+        "stac_collection",
+        [
             StacDummyBuilder.collection(
-                # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
-            )
-        )
+                stac_version="1.0.0",
+                stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+            StacDummyBuilder.collection(
+                stac_version="1.1.0",
+                summaries={"bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+        ],
+    )
+    def test_load_stac_default_band_handling(self, dummy_backend, build_stac_ref, stac_collection):
+        stac_ref = build_stac_ref(stac_collection)
 
         cube = dummy_backend.connection.load_stac(stac_ref)
         assert cube.metadata.band_names == ["B01", "B02", "B03"]
@@ -3078,13 +3088,24 @@ class TestLoadStac:
             (["B01", "B02", "B03"], None),
         ],
     )
-    def test_load_stac_band_filtering(self, dummy_backend, build_stac_ref, caplog, bands, expected_warning):
-        stac_ref = build_stac_ref(
+    @pytest.mark.parametrize(
+        "stac_collection",
+        [
             StacDummyBuilder.collection(
-                # TODO #586 also cover STAC 1.1 style "bands"
-                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]}
-            )
-        )
+                stac_version="1.0.0",
+                stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+            StacDummyBuilder.collection(
+                stac_version="1.1.0",
+                summaries={"bands": [{"name": "B01"}, {"name": "B02"}, {"name": "B03"}]},
+            ),
+        ],
+    )
+    def test_load_stac_band_filtering(
+        self, dummy_backend, build_stac_ref, caplog, bands, expected_warning, stac_collection
+    ):
+        stac_ref = build_stac_ref(stac_collection)
 
         caplog.set_level(logging.WARNING)
         # Test with non-existing bands in the collection metadata
@@ -3114,19 +3135,31 @@ class TestLoadStac:
         }
 
     @pytest.mark.parametrize(
-        ["bands", "has_band_dimension", "expected_pg_args", "expected_warning"],
+        ["bands", "has_band_dimension", "expected_pg_args", "expected_warnings"],
         [
-            (None, False, {}, None),
+            (
+                None,
+                False,
+                {},
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                    "bands_from_stac_collection: no band name source found",
+                ],
+            ),
             (
                 ["B02", "B03"],
                 True,
                 {"bands": ["B02", "B03"]},
-                "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                    "bands_from_stac_collection: no band name source found",
+                    "Bands ['B02', 'B03'] were specified in `load_stac`, but no band dimension was detected in the STAC metadata. Working with band dimension and specified bands.",
+                ],
             ),
         ],
     )
     def test_load_stac_band_filtering_no_band_dimension(
-        self, dummy_backend, build_stac_ref, bands, has_band_dimension, expected_pg_args, expected_warning, caplog
+        self, dummy_backend, build_stac_ref, bands, has_band_dimension, expected_pg_args, expected_warnings, caplog
     ):
         stac_ref = build_stac_ref(StacDummyBuilder.collection())
 
@@ -3152,10 +3185,7 @@ class TestLoadStac:
             "url": stac_ref,
         }
 
-        if expected_warning:
-            assert expected_warning in caplog.text
-        else:
-            assert not caplog.text
+        assert caplog.messages == expected_warnings
 
     def test_load_stac_band_filtering_no_band_metadata(self, dummy_backend, build_stac_ref, caplog):
         caplog.set_level(logging.WARNING)
@@ -3579,6 +3609,29 @@ def test_list_collections_extra_metadata(requests_mock, caplog):
     assert collections.links == [Link(rel="next", href="https://oeo.test/collections?page=2", type=None, title=None)]
     assert collections.ext_federation_missing() == ["oeob"]
     assert "Partial collection listing: missing federation components: ['oeob']." in caplog.text
+
+
+def test_collection_metadata_repr_html(requests_mock):
+    requests_mock.get(
+        API_URL,
+        json={
+            "api_version": "1.0.0",
+            "federation": {"b1": {"url": "https://b1.test/"}, "b2": {"url": "https://b2.test/"}},
+        },
+    )
+    requests_mock.get(
+        API_URL + "collections/S2",
+        json={"id": "S2", "federation:backends": ["b2"]},
+    )
+    con = Connection(API_URL)
+    metadata = con.describe_collection("S2")
+    result = metadata._repr_html_()
+    assert result == dirty_equals.IsStr(
+        regex=r'.*<openeo-collection>.*"federation":.*"https://b1.test/".*', regex_flags=re.DOTALL
+    )
+    assert result == dirty_equals.IsStr(
+        regex=r'.*<openeo-collection>.*"federation:backends":\s*\["b2"\].*', regex_flags=re.DOTALL
+    )
 
 
 def test_describe_collection(requests_mock):

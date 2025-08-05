@@ -4,6 +4,8 @@ import json
 import re
 from typing import List, Optional, Union
 
+import dirty_equals
+import pystac
 import pytest
 
 from openeo.metadata import (
@@ -17,6 +19,7 @@ from openeo.metadata import (
     MetadataException,
     SpatialDimension,
     TemporalDimension,
+    _StacMetadataParser,
     metadata_from_stac,
 )
 from openeo.testing.stac import StacDummyBuilder
@@ -38,6 +41,15 @@ CUBE_METADATA_TBXY = CubeMetadata(
         SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.1),
     ]
 )
+
+
+class TestCollectionMetadata:
+
+    def test_repr_html_basic(self):
+        metadata = CollectionMetadata({"hello": "world"})
+        assert metadata._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-collection>.*"hello":\s*"world".*</openeo-collection>.*', regex_flags=re.DOTALL
+        )
 
 
 def test_metadata_get():
@@ -977,8 +989,22 @@ def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
 
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
-@pytest.mark.parametrize("eo_extension_is_declared", [False, True])
-def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_path, eo_extension_is_declared, caplog):
+@pytest.mark.parametrize(
+    ["eo_extension_is_declared", "expected_warnings"],
+    [
+        (
+            False,
+            [
+                "Deriving band listing from unordered `item_assets`",
+                "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+            ],
+        ),
+        (True, ["Deriving band listing from unordered `item_assets`"]),
+    ],
+)
+def test_metadata_from_stac_collection_bands_from_item_assets(
+    test_data, tmp_path, eo_extension_is_declared, caplog, expected_warnings
+):
     stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
     stac_data["stac_extensions"] = [
         ext
@@ -1000,11 +1026,7 @@ def test_metadata_from_stac_collection_bands_from_item_assets(test_data, tmp_pat
         "vapour_pressure",
     ]
 
-    warn_count = sum(
-        "Extracting band info from 'eo:bands' metadata, but 'eo' STAC extension was not declared." in m
-        for m in caplog.messages
-    )
-    assert warn_count == (0 if eo_extension_is_declared else 1)
+    assert caplog.messages == expected_warnings
 
 
 @pytest.mark.skipif(
@@ -1154,3 +1176,748 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert result31.spatial_dimensions == xy1
     assert result31.band_dimension == b3
     assert not result31.has_temporal_dimension()
+
+
+def test_cube_metadata_repr():
+    assert repr(CUBE_METADATA_XYTB) == dirty_equals.IsStr(
+        regex="CubeMetadata.*dimensions=.*SpatialDimension.*x.*SpatialDimension.*y.*TemporalDimension.*t.*BandDimension.*bands.*B2.*B3.*"
+    )
+
+
+class TestStacMetadataParser:
+    def test_band_from_eo_bands_metadata(self):
+        assert _StacMetadataParser()._band_from_eo_bands_metadata(
+            {"name": "B04"},
+        ) == Band(name="B04")
+        assert _StacMetadataParser()._band_from_eo_bands_metadata(
+            {"name": "B04", "common_name": "red", "center_wavelength": 0.665}
+        ) == Band(name="B04", common_name="red", wavelength_um=0.665)
+
+    def test_band_from_common_bands_metadata(self):
+        assert _StacMetadataParser()._band_from_common_bands_metadata(
+            {"name": "B04"},
+        ) == Band(name="B04")
+        assert _StacMetadataParser()._band_from_common_bands_metadata(
+            {"name": "B04", "eo:common_name": "red", "eo:center_wavelength": 0.665}
+        ) == Band(name="B04", common_name="red", wavelength_um=0.665)
+
+    @pytest.mark.parametrize(
+        ["data", "expected", "expected_warnings"],
+        [
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.0.0",
+                    "stac_extensions": ["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    "summaries": {
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                    "links": [],
+                },
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['eo:bands']) (which is non-standard)",
+                ],
+            ),
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.0.0",
+                    "summaries": {
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                    "links": [],
+                },
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['eo:bands']) (which is non-standard)",
+                    "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+                ],
+            ),
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.1.0",
+                    "summaries": {
+                        "bands": [
+                            {"name": "B04"},
+                            {"name": "B03"},
+                        ],
+                    },
+                    "links": [],
+                },
+                [Band("B04"), Band("B03")],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['bands']) (which is non-standard)",
+                ],
+            ),
+            (
+                {
+                    "type": "Catalog",
+                    "id": "catalog123",
+                    "description": "Catalog 123",
+                    "stac_version": "1.1.0",
+                    "summaries": {
+                        "bands": [
+                            {"name": "B04", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+                            {"name": "B03", "eo:common_name": "green", "eo:center_wavelength": 0.560},
+                        ],
+                    },
+                    "links": [],
+                },
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                [
+                    "bands_from_stac_catalog with summaries.keys()=dict_keys(['bands']) (which is non-standard)",
+                ],
+            ),
+        ],
+    )
+    def test_bands_from_stac_catalog(self, data, expected, expected_warnings, caplog):
+        catalog = pystac.Catalog.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_catalog(catalog=catalog) == expected
+
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["data", "expected", "expected_warnings"],
+        [
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    summaries={"eo:bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
+                ),
+                [Band("B02"), Band("B03"), Band("B04")],
+                [],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    summaries={
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                ),
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                [],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    summaries={"eo:bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
+                ),
+                [Band("B02"), Band("B03"), Band("B04")],
+                ["Using 'eo:bands' metadata, but STAC extension eo was not declared."],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    summaries={"bands": [{"name": "B02"}, {"name": "B03"}, {"name": "B04"}]},
+                ),
+                [Band("B02"), Band("B03"), Band("B04")],
+                [],
+            ),
+            (
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    summaries={
+                        "bands": [
+                            {"name": "B04", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+                            {"name": "B03", "eo:common_name": "green", "eo:center_wavelength": 0.560},
+                        ],
+                    },
+                ),
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+                [],
+            ),
+        ],
+    )
+    def test_bands_from_stac_collection(self, data, expected, caplog, expected_warnings):
+        collection = pystac.Collection.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_collection(collection=collection) == expected
+
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["entities", "kwargs", "expected", "expected_warnings"],
+        [
+            (
+                # Basic: Collection with one item with eo:bands
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item.json"},
+                        ],
+                    ),
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        properties={
+                            "eo:bands": [{"name": "B02"}, {"name": "B03"}],
+                        },
+                    ),
+                },
+                {},
+                [Band("B02"), Band("B03")],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
+            ),
+            (
+                # Collection with two items with different bands (eo:bands metadata)
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item1.json"},
+                            {"rel": "item", "href": "item2.json"},
+                        ],
+                    ),
+                    "item1.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        properties={
+                            "eo:bands": [{"name": "B02"}],
+                        },
+                    ),
+                    "item2.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        properties={
+                            "eo:bands": [{"name": "B03"}],
+                        },
+                    ),
+                },
+                {},
+                [Band("B02"), Band("B03")],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
+            ),
+            (
+                # Collection with two items with different bands in different metadata format
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item10.json"},
+                            {"rel": "item", "href": "item11.json"},
+                        ],
+                    ),
+                    "item10.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        properties={
+                            "eo:bands": [{"name": "B02"}],
+                        },
+                    ),
+                    "item11.json": StacDummyBuilder.item(
+                        stac_version="1.1.0",
+                        properties={
+                            "bands": [{"name": "B03"}],
+                        },
+                    ),
+                },
+                {},
+                [Band("B02"), Band("B03")],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
+            ),
+            (
+                # Collection with one item, with band metadata in asset
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item.json"},
+                        ],
+                    ),
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        assets={
+                            "asset1": {
+                                "href": "https://stac.test/asset.tif",
+                                "roles": ["data"],
+                                "eo:bands": [{"name": "B02"}],
+                            }
+                        },
+                    ),
+                },
+                {},
+                [Band("B02")],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
+            ),
+            (
+                # Collection with multiple items and assets, only partially with band metadata
+                {
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        links=[
+                            {"rel": "item", "href": "item1.json"},
+                            {"rel": "item", "href": "item2.json"},
+                        ],
+                    ),
+                    "item1.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        assets={
+                            "asset11": {
+                                "href": "https://stac.test/asset11.tif",
+                                "roles": ["data"],
+                                "eo:bands": [{"name": "B02"}],
+                            },
+                            "asset12": {
+                                "href": "https://stac.test/asset12.tif",
+                                "roles": ["data"],
+                            },
+                        },
+                    ),
+                    "item2.json": StacDummyBuilder.item(),
+                },
+                {},
+                [Band("B02")],
+                [
+                    "bands_from_stac_collection: consulting items for band metadata",
+                ],
+            ),
+        ],
+    )
+    def test_bands_from_stac_collection_consult_items(
+        self, tmp_path, entities, kwargs, expected, caplog, expected_warnings
+    ):
+        for name, content in entities.items():
+            (tmp_path / name).write_text(json.dumps(content))
+        collection = pystac.Collection.from_file(tmp_path / "collection.json")
+        assert _StacMetadataParser().bands_from_stac_collection(collection=collection) == expected
+
+        assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "eo:bands": [{"name": "B04"}, {"name": "B03"}],
+                    },
+                ),
+                [Band("B04"), Band("B03")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "eo:bands": [
+                            {"name": "B04", "common_name": "red", "center_wavelength": 0.665},
+                            {"name": "B03", "common_name": "green", "center_wavelength": 0.560},
+                        ],
+                    },
+                ),
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.1.0",
+                    properties={
+                        "bands": [{"name": "B04"}, {"name": "B03"}],
+                    },
+                ),
+                [Band("B04"), Band("B03")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.1.0",
+                    properties={
+                        "bands": [
+                            {"name": "B04", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+                            {"name": "B03", "eo:common_name": "green", "eo:center_wavelength": 0.560},
+                        ],
+                    },
+                ),
+                [
+                    Band("B04", common_name="red", wavelength_um=0.665),
+                    Band("B03", common_name="green", wavelength_um=0.560),
+                ],
+            ),
+        ],
+    )
+    def test_bands_from_stac_item(self, data, expected):
+        item = pystac.Item.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_item(item=item) == expected
+
+    def test_bands_from_stac_item_no_bands(self):
+        item = pystac.Item.from_dict(StacDummyBuilder.item())
+        assert _StacMetadataParser().bands_from_stac_item(item=item) == []
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "eo:bands": [{"name": "B04"}, {"name": "B03"}, {"name": "B02"}],
+                    },
+                ),
+                ["B04", "B03", "B02"],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.1.0",
+                    properties={
+                        "bands": [{"name": "B04"}, {"name": "B03"}],
+                    },
+                ),
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_item_band_names(self, data, expected):
+        item = pystac.Item.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_item(item=item).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["entities", "kwargs", "expected"],
+        [
+            (
+                {
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.0.0",
+                        links=[{"rel": "collection", "href": "collection.json"}],
+                    ),
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.0.0",
+                        stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                        summaries={"eo:bands": [{"name": "B02"}, {"name": "B03"}]},
+                    ),
+                },
+                {},
+                [Band("B02"), Band("B03")],
+            ),
+            (
+                {
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.1.0",
+                        links=[{"rel": "collection", "href": "collection.json"}],
+                    ),
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.1.0",
+                        summaries={"bands": [{"name": "B02"}, {"name": "B03"}]},
+                    ),
+                },
+                {},
+                [Band("B02"), Band("B03")],
+            ),
+            (
+                {
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.1.0",
+                        links=[{"rel": "collection", "href": "collection.json"}],
+                    ),
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.1.0",
+                        summaries={"bands": [{"name": "B02"}, {"name": "B03"}]},
+                    ),
+                },
+                {"consult_collection": False},
+                [],
+            ),
+            (
+                {
+                    "item.json": StacDummyBuilder.item(
+                        stac_version="1.1.0",
+                        properties={"bands": [{"name": "B03"}]},
+                        links=[{"rel": "collection", "href": "collection.json"}],
+                    ),
+                    "collection.json": StacDummyBuilder.collection(
+                        stac_version="1.1.0",
+                        summaries={"bands": [{"name": "B02"}, {"name": "B03"}]},
+                    ),
+                },
+                {},
+                [Band("B03")],
+            ),
+        ],
+    )
+    def test_bands_from_stac_item_consult_collection(self, tmp_path, entities, kwargs, expected):
+        for name, content in entities.items():
+            (tmp_path / name).write_text(json.dumps(content))
+        item = pystac.Item.from_file(tmp_path / "item.json")
+        assert _StacMetadataParser().bands_from_stac_item(item=item, **kwargs) == expected
+
+    @pytest.mark.parametrize(
+        ["data", "kwargs", "expected"],
+        [
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "eo:bands": [{"name": "B03"}, {"name": "B04"}],
+                    },
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                        }
+                    },
+                ),
+                {},
+                [Band("B03"), Band("B04")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    properties={
+                        "eo:bands": [{"name": "B03"}, {"name": "B04"}],
+                    },
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "eo:bands": [{"name": "B02"}],
+                        }
+                    },
+                ),
+                {},
+                [Band("B03"), Band("B04")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "eo:bands": [{"name": "B02"}],
+                        }
+                    },
+                ),
+                {},
+                [Band("B02")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "eo:bands": [{"name": "B02"}],
+                        },
+                        "asset2": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "eo:bands": [{"name": "B05"}],
+                        },
+                    },
+                ),
+                {},
+                [Band("B02"), Band("B05")],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "eo:bands": [{"name": "B02"}],
+                        }
+                    },
+                ),
+                {"consult_assets": False},
+                [],
+            ),
+            (
+                StacDummyBuilder.item(
+                    stac_version="1.0.0",
+                    stac_extensions=["https://stac-extensions.github.io/eo/v1.1.0/schema.json"],
+                    assets={
+                        "asset1": {
+                            "href": "https://stac.test/asset.tif",
+                            "roles": ["data"],
+                            "bands": [{"name": "B02", "eo:common_name": "red", "eo:center_wavelength": 0.665}],
+                        }
+                    },
+                ),
+                {},
+                [Band("B02", common_name="red", wavelength_um=0.665)],
+            ),
+        ],
+    )
+    def test_bands_from_stac_item_consult_assets(self, data, expected, kwargs):
+        item = pystac.Item.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_item(item=item, **kwargs) == expected
+
+    @pytest.mark.parametrize(
+        ["data", "expected"],
+        [
+            (
+                {
+                    "href": "https://stac.test/asset.tif",
+                    "eo:bands": [
+                        {"name": "B04"},
+                        {"name": "B03"},
+                    ],
+                },
+                ["B04", "B03"],
+            ),
+            (
+                {
+                    "href": "https://stac.test/asset.tif",
+                    "bands": [
+                        {"name": "B04"},
+                        {"name": "B03"},
+                    ],
+                },
+                ["B04", "B03"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_asset(self, data, expected):
+        asset = pystac.Asset.from_dict(data)
+        assert _StacMetadataParser().bands_from_stac_asset(asset=asset).band_names() == expected
+
+    @pytest.mark.parametrize(
+        ["stac_data", "expected_bands", "expected_warnings"],
+        [
+            (
+                # Legacy use case: STAC 1.0 Collection with "eo" and "item_assets" extensions
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                        "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+                    ],
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+            (
+                # STAC 1.0, with "eo" extension used for band metadata, but not declared
+                StacDummyBuilder.collection(
+                    stac_version="1.0.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+                    ],
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                [
+                    "Deriving band listing from unordered `item_assets`",
+                    "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+                ],
+            ),
+            (
+                # STAC 1.1 Collection with common/core "bands" metadata and item_assets
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    item_assets={
+                        "asset1": {"bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+            (
+                # STAC 1.1 Collection with "eo" extension based band metadata
+                StacDummyBuilder.collection(
+                    stac_version="1.1.0",
+                    stac_extensions=[
+                        "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                    ],
+                    item_assets={
+                        "asset1": {"eo:bands": [{"name": "B03"}, {"name": "B02"}]},
+                        "asset2": {"eo:bands": [{"name": "B04"}]},
+                    },
+                ),
+                ["B03", "B02", "B04"],
+                ["Deriving band listing from unordered `item_assets`"],
+            ),
+        ],
+    )
+    def test_bands_from_stac_collection_with_item_assets(
+        self, test_data, tmp_path, caplog, stac_data, expected_bands, expected_warnings
+    ):
+        collection = pystac.Collection.from_dict(stac_data)
+        assert _StacMetadataParser().bands_from_stac_collection(collection).band_names() == expected_bands
+
+        if _PYSTAC_1_9_EXTENSION_INTERFACE:
+            assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["path", "expected"],
+        [
+            (
+                "stac/collections/terrascope-sentinel-2-l2a.json",
+                ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
+            ),
+            (
+                "stac/collections/cdse-sentinel-2-l2a.json",
+                ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
+            ),
+        ],
+    )
+    def test_bands_from_collection_examples(self, test_data, path, expected):
+        data = test_data.load_json(path)
+        collection = pystac.Collection.from_dict(data)
+        bands = _StacMetadataParser().bands_from_stac_collection(collection)
+        assert bands.band_names() == expected

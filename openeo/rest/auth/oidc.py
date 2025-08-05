@@ -853,7 +853,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
             "scope": self._client_info.provider.get_scopes_string(request_refresh_token=request_refresh_token),
         }
         if self._pkce:
-            post_data["code_challenge"] = (self._pkce.code_challenge,)
+            post_data["code_challenge"] = self._pkce.code_challenge
             post_data["code_challenge_method"] = self._pkce.code_challenge_method
         resp = self._requests.post(url=self._device_code_url, data=post_data)
         if resp.status_code != 200:

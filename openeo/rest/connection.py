@@ -73,6 +73,7 @@ from openeo.rest.models.general import (
     JobListingResponse,
     ProcessListingResponse,
     ValidationResponse,
+    federation_extension,
 )
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
@@ -153,7 +154,7 @@ class Connection(RestApiConnection):
         self._orig_url = url
         self._capabilities_cache = LazyLoadCache()
         super().__init__(
-            root_url=self.version_discovery(url, session=session, timeout=default_timeout),
+            root_url=self.version_discovery(url, session=session, timeout=default_timeout, retry=retry),
             auth=auth, session=session, default_timeout=default_timeout,
             slow_response_threshold=slow_response_threshold,
             retry=retry,
@@ -169,7 +170,11 @@ class Connection(RestApiConnection):
 
     @classmethod
     def version_discovery(
-        cls, url: str, session: Optional[requests.Session] = None, timeout: Optional[int] = None
+        cls,
+        url: str,
+        session: Optional[requests.Session] = None,
+        timeout: Optional[int] = None,
+        retry: Union[urllib3.util.Retry, dict, bool, None] = None,
     ) -> str:
         """
         Do automatic openEO API version discovery from given url, using a "well-known URI" strategy.
@@ -178,7 +183,7 @@ class Connection(RestApiConnection):
         :return: root url of highest supported backend version
         """
         try:
-            connection = RestApiConnection(url, session=session)
+            connection = RestApiConnection(url, session=session, retry=retry)
             well_known_url_response = connection.get("/.well-known/openeo", timeout=timeout)
             assert well_known_url_response.status_code == 200
             versions = well_known_url_response.json()["versions"]
@@ -734,7 +739,7 @@ class Connection(RestApiConnection):
         # TODO: add caching #383, but reset cache on auth change #254
         # TODO #677 add pagination support?
         data = self.get("/collections", expected_status=200).json()
-        return CollectionListingResponse(response_data=data)
+        return CollectionListingResponse(response_data=data, connection=self)
 
     def list_collection_ids(self) -> List[str]:
         """
@@ -776,7 +781,13 @@ class Connection(RestApiConnection):
             key="file_formats",
             load=lambda: self.get('/file_formats', expected_status=200).json()
         )
-        return VisualDict("file-formats", data=formats)
+        federation_missing = federation_extension.get_federation_missing(data=formats, resource_name="file_formats")
+        federation = self.capabilities().ext_federation_backend_details()
+        return VisualDict(
+            "file-formats",
+            data=formats,
+            parameters={"missing": federation_missing, "federation": federation},
+        )
 
     def list_service_types(self) -> dict:
         """
@@ -800,9 +811,10 @@ class Connection(RestApiConnection):
             key="udf_runtimes",
             load=lambda: self.get('/udf_runtimes', expected_status=200).json()
         )
-        return VisualDict("udf-runtimes", data=runtimes)
+        federation = self.capabilities().ext_federation_backend_details()
+        return VisualDict("udf-runtimes", data=runtimes, parameters={"federation": federation})
 
-    def list_services(self) -> dict:
+    def list_services(self) -> list:
         """
         Loads all available services of the authenticated user.
 
@@ -810,7 +822,13 @@ class Connection(RestApiConnection):
         """
         # TODO return parsed service objects
         services = self.get('/services', expected_status=200).json()["services"]
-        return VisualList("data-table", data=services, parameters={'columns': 'services'})
+        federation_missing = federation_extension.get_federation_missing(data=services, resource_name="services")
+        federation = self.capabilities().ext_federation_backend_details()
+        return VisualList(
+            "data-table",
+            data=services,
+            parameters={"columns": "services", "missing": federation_missing, "federation": federation},
+        )
 
     def describe_collection(self, collection_id: str) -> dict:
         """
@@ -827,7 +845,8 @@ class Connection(RestApiConnection):
         # TODO: duplication with `Connection.collection_metadata`: deprecate one or the other?
         # TODO: add caching #383
         data = self.get(f"/collections/{collection_id}", expected_status=200).json()
-        return VisualDict("collection", data=data)
+        federation = self.capabilities().ext_federation_backend_details()
+        return VisualDict("collection", data=data, parameters={"federation": federation})
 
     def collection_items(
         self,
@@ -865,11 +884,22 @@ class Connection(RestApiConnection):
         if limit is not None and limit > 0:
             params['limit'] = limit
 
-        return paginate(self, url, params, lambda response, page: VisualDict("items", data = response, parameters = {'show-map': True, 'heading': 'Page {} - Items'.format(page)}))
+        federation = self.capabilities().ext_federation_backend_details()
+        return paginate(
+            self,
+            url,
+            params,
+            lambda response, page: VisualDict(
+                "items",
+                data=response,
+                parameters={"show-map": True, "heading": "Page {} - Items".format(page), "federation": federation},
+            ),
+        )
 
     def collection_metadata(self, name) -> CollectionMetadata:
         # TODO: duplication with `Connection.describe_collection`: deprecate one or the other?
-        return CollectionMetadata(metadata=self.describe_collection(name))
+        federation = self.capabilities().ext_federation_backend_details()
+        return CollectionMetadata(metadata=self.describe_collection(name), _federation=federation)
 
     def list_processes(self, namespace: Optional[str] = None) -> ProcessListingResponse:
         """
@@ -891,7 +921,7 @@ class Connection(RestApiConnection):
             )
         else:
             response = self.get("/processes/" + namespace, expected_status=200).json()
-        return ProcessListingResponse(response_data=response)
+        return ProcessListingResponse(response_data=response, connection=self)
 
     def describe_process(self, id: str, namespace: Optional[str] = None) -> dict:
         """
@@ -904,9 +934,14 @@ class Connection(RestApiConnection):
         """
 
         processes = self.list_processes(namespace)
+        federation = self.capabilities().ext_federation_backend_details()
         for process in processes:
             if process["id"] == id:
-                return VisualDict("process", data=process, parameters={'show-graph': True, 'provide-download': False})
+                return VisualDict(
+                    "process",
+                    data=process,
+                    parameters={"show-graph": True, "provide-download": False, "federation": federation},
+                )
 
         raise OpenEoClientException("Process does not exist.")
 
@@ -933,7 +968,7 @@ class Connection(RestApiConnection):
         # TODO: Parse the result so that Job classes returned?
         # TODO: when pagination is enabled: how to expose link to next page?
         resp = self.get("/jobs", params={"limit": limit}, expected_status=200).json()
-        return JobListingResponse(response_data=resp)
+        return JobListingResponse(response_data=resp, connection=self)
 
     def assert_user_defined_process_support(self):
         """
@@ -996,7 +1031,7 @@ class Connection(RestApiConnection):
         # TODO #677 add pagination support?
         self.assert_user_defined_process_support()
         data = self.get("/process_graphs", expected_status=200).json()
-        return ProcessListingResponse(response_data=data)
+        return ProcessListingResponse(response_data=data, connection=self)
 
     def user_defined_process(self, user_defined_process_id: str) -> RESTUserDefinedProcess:
         """
@@ -1496,9 +1531,15 @@ class Connection(RestApiConnection):
 
         :return: List of the user-uploaded files.
         """
-        files = self.get('/files', expected_status=200).json()['files']
-        files = [UserFile.from_metadata(metadata=f, connection=self) for f in files]
-        return VisualList("data-table", data=files, parameters={'columns': 'files'})
+        data = self.get("/files", expected_status=200).json()
+        files = [UserFile.from_metadata(metadata=f, connection=self) for f in data.get("files", [])]
+        federation_missing = federation_extension.get_federation_missing(data=data, resource_name="files")
+        federation = self.capabilities().ext_federation_backend_details()
+        return VisualList(
+            "data-table",
+            data=files,
+            parameters={"columns": "files", "missing": federation_missing, "federation": federation},
+        )
 
     def get_file(
         self, path: Union[str, PurePosixPath], metadata: Optional[dict] = None

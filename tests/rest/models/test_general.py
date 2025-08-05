@@ -1,3 +1,6 @@
+import re
+
+import dirty_equals
 import pytest
 
 from openeo.rest.models.general import (
@@ -68,6 +71,13 @@ class TestCollectionListingResponse:
         collections = CollectionListingResponse(data)
         assert collections.ext_federation_missing() == expected
 
+    def test_repr_html_basic(self):
+        data = {"collections": [{"id": "S2"}]}
+        collections = CollectionListingResponse(data)
+        assert collections._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-collections>.*"collections":\s*\[{"id":\s*"S2".*', regex_flags=re.DOTALL
+        )
+
 
 class TestProcessListingResponse:
     def test_basic(self):
@@ -108,6 +118,14 @@ class TestProcessListingResponse:
         assert processes.ext_federation_missing() == expected
 
 
+    def test_repr_html_basic(self):
+        data = {"processes": [{"id": "ndvi"}, {"id": "s2mask"}]}
+        processes = ProcessListingResponse(data)
+        assert processes._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-processes>.*"processes":\s*\[{"id":\s*"ndvi".*', regex_flags=re.DOTALL
+        )
+
+
 class TestJobListingResponse:
     def test_basic(self):
         data = {"jobs": [{"id": "job-01"}, {"id": "job-02"}]}
@@ -145,6 +163,13 @@ class TestJobListingResponse:
     def test_federation_missing(self, data, expected):
         jobs = JobListingResponse(data)
         assert jobs.ext_federation_missing() == expected
+
+    def test_repr_html_basic(self):
+        data = {"jobs": [{"id": "job-01"}, {"id": "job-02"}]}
+        jobs = JobListingResponse(data)
+        assert jobs._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-data-table>.*"data":\s*\[{"id":\s*"job-01".*', regex_flags=re.DOTALL
+        )
 
 
 class TestLogsResponse:
@@ -187,3 +212,10 @@ class TestLogsResponse:
     def test_federation_missing(self, data, expected):
         logs = LogsResponse(data)
         assert logs.ext_federation_missing() == expected
+
+    def test_repr_html_basic(self):
+        data = {"logs": [{"id": "log-01", "level": "info", "message": "hello"}]}
+        logs = LogsResponse(data)
+        assert logs._repr_html_() == dirty_equals.IsStr(
+            regex=r'.*<openeo-logs>.*"logs":\s*\[{"id":\s*"log-01".*', regex_flags=re.DOTALL
+        )

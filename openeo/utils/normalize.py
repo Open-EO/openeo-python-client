@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Callable, Iterable, Optional, Tuple, Union
 
 
 def normalize_resample_resolution(
@@ -14,3 +14,15 @@ def normalize_resample_resolution(
     ):
         return tuple(resolution)
     raise ValueError(f"Invalid resolution {resolution!r}")
+
+
+def unique(iterable, key: Optional[Callable] = None) -> Iterable:
+    """Deduplicate an iterable based on a key function."""
+    # TODO: also support non-hashable items?
+    seen = set()
+    key = key or (lambda x: x)
+    for x in iterable:
+        k = key(x)
+        if k not in seen:
+            seen.add(k)
+            yield x

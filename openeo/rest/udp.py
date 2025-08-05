@@ -89,7 +89,16 @@ class RESTUserDefinedProcess:
 
     def _repr_html_(self):
         process = self.describe()
-        return render_component('process', data=process, parameters = {'show-graph': True, 'provide-download': False})
+        federation = self._connection.capabilities().ext_federation_backend_details()
+        return render_component(
+            "process",
+            data=process,
+            parameters={
+                "show-graph": True,
+                "provide-download": False,
+                "federation": federation,
+            },
+        )
 
     def store(
         self,
