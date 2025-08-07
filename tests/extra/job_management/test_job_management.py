@@ -786,9 +786,6 @@ class TestMultiBackendJobManager:
         assert stats.get("queued", 0) == 2
         assert stats["job_db persist"] == 1
 
-        # Assert error log for invalid index
-        assert any("Skipping non-existing dataframe indices" in msg for msg in caplog.messages)
-
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
         stats = collections.defaultdict(int)

@@ -709,17 +709,9 @@ class MultiBackendJobManager:
         # Build DataFrame of updates indexed by df_idx
         df_updates = pd.DataFrame(updates).set_index("df_idx", drop=True)
 
-        # Determine which rows to upsert
-        existing_indices = set(df_updates.index).intersection(job_db.read().index)
-        if existing_indices:
-            df_upsert = df_updates.loc[sorted(existing_indices)]
-            job_db.persist(df_upsert)
-            stats["job_db persist"] = stats.get("job_db persist", 0) + 1
+        job_db.persist(df_updates)
+        stats["job_db persist"] = stats.get("job_db persist", 0) + 1
 
-        # Any df_idx not in original index are errors
-        missing = set(df_updates.index) - existing_indices
-        if missing:
-            _log.error(f"Skipping non-existing dataframe indices: {sorted(missing)}")
 
     def on_job_done(self, job: BatchJob, row):
         """
