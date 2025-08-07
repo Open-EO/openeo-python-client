@@ -1,6 +1,10 @@
 import datetime
+import re
+from typing import Any, Dict
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import dirty_equals
 import geopandas as gpd
 import pandas as pd
 import pandas.testing as pdt
@@ -12,6 +16,7 @@ from shapely.geometry import Point
 
 from openeo.extra.job_management import MultiBackendJobManager
 from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
+from openeo.rest._testing import DummyBackend
 
 
 @pytest.fixture
@@ -399,3 +404,164 @@ class TestSTACAPIJobDatabase:
                 "json": {"method": "upsert", "items": {item.id: item.to_dict() for item in items[9:]}},
             },
         ]
+
+
+@pytest.fixture
+def dummy_backend_foo(requests_mock) -> DummyBackend:
+    dummy = DummyBackend.at_url("https://foo.test", requests_mock=requests_mock)
+    dummy.setup_simple_job_status_flow(queued=1, running=2)
+    return dummy
+
+
+@pytest.fixture
+def sleep_mock():
+    with mock.patch("time.sleep") as sleep:
+        yield sleep
+
+
+class DummyStacApi:
+    """Minimal dummy implementation of a STAC API for testing purposes."""
+
+    def __init__(self, root_url: str, requests_mock):
+        self.root_url = root_url.rstrip("/")
+        self._requests_mock = requests_mock
+
+        requests_mock.get(f"{self.root_url}/", json=self._get_root())
+        self.collections = []
+        requests_mock.get(f"{self.root_url}/collections", json=self._get_collections)
+        requests_mock.post(f"{self.root_url}/collections", json=self._post_collections)
+
+        self.items: Dict[str, Dict[str, Any]] = {}
+        requests_mock.post(
+            re.compile(rf"{self.root_url}/collections/[^/]+/bulk_items"), json=self._post_collections_bulk_items
+        )
+
+        requests_mock.get(f"{self.root_url}/search?", json=self._get_search)
+
+    def _get_root(self) -> dict:
+        """Handler of `GET /` requests."""
+        return {
+            "stac_version": "1.0.0",
+            "id": "dummy-stac-api",
+            "title": "Dummy",
+            "description": "Dummy STAC API",
+            "type": "Catalog",
+            "conformsTo": [
+                "https://api.stacspec.org/v1.0.0/core",
+                "https://api.stacspec.org/v1.0.0/collections",
+                "https://api.stacspec.org/v1.0.0/item-search",
+            ],
+            "links": [],
+        }
+
+    def _get_collections(self, request, context):
+        """Handler of `GET /collections` requests."""
+        return {"collections": self.collections}
+
+    def _post_collections(self, request, context):
+        """Handler of `POST /collections` requests."""
+        post_data = request.json()
+        self.collections.append(post_data)
+        return {}
+
+    def _post_collections_bulk_items(self, request, context):
+        """Handler of `POST /collections/{collection_id}/bulk_items` requests."""
+        # extract the collection_id from the URL
+        collection_id = re.search("/collections/([^/]+)/bulk_items", request.url).group(1)
+        post_data = request.json()
+        # TODO handle insert/upsert method?
+        for item_id, item in post_data["items"].items():
+            if collection_id not in self.items:
+                self.items[collection_id] = {}
+            self.items[collection_id][item_id] = item
+        return {}
+
+    def _get_search(self, request, context):
+        """Handler of `GET /search` requests."""
+        collections = request.qs["collections"][0].split(",")
+        filter = request.qs["filter"][0] if "filter" in request.qs else None
+
+        if filter:
+            # TODO: use a more robust CQL2-text parser?
+            assert re.match(r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", filter)
+            statuses = re.findall(r"\"properties\.status\"='(\w+)'", filter)
+        else:
+            statuses = None
+
+        items = [
+            item
+            for cid in collections
+            for item in self.items.get(cid, {}).values()
+            if statuses is None or item.get("properties", {}).get("status") in statuses
+        ]
+        return {
+            "type": "FeatureCollection",
+            "features": items,
+            "links": [],
+        }
+
+
+def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
+    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
+    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+    stac_api_url = "http://stacapi.test"
+    dummy_stac_api = DummyStacApi(root_url=stac_api_url, requests_mock=requests_mock)
+
+    job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url=stac_api_url)
+    df = pd.DataFrame(
+        {
+            "item_id": ["item-2024", "item-2025"],
+            "year": [2024, 2025],
+        }
+    )
+    job_db.initialize_from_df(df=df)
+
+    def create_job(row, connection, **kwargs):
+        year = int(row["year"])
+        pg = {"dummy1": {"process_id": "dummy", "arguments": {"year": year}, "result": True}}
+        job = connection.create_job(pg)
+        return job
+
+    run_stats = job_manager.run_jobs(job_db=job_db, start_job=create_job)
+
+    assert run_stats == dirty_equals.IsPartialDict(
+        {
+            "job finished": 2,
+            "job launch": 2,
+            "job start": 2,
+            "start_job call": 2,
+        }
+    )
+    assert dummy_stac_api.items == {
+        "collection-123": {
+            "item-2024": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2024",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2024,
+                            "id": "job-000",
+                            "status": "finished",
+                            "backend_name": "foo",
+                        }
+                    ),
+                }
+            ),
+            "item-2025": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2025",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2025,
+                            "id": "job-001",
+                            "status": "finished",
+                            "backend_name": "foo",
+                        }
+                    ),
+                }
+            ),
+        }
+    }
