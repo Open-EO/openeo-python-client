@@ -29,7 +29,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self,
         collection_id: str,
         stac_root_url: str,
-        auth: requests.auth.AuthBase,
+        auth: Optional[requests.auth.AuthBase] = None,
         has_geometry: bool = False,
         geometry_column: str = "geometry",
     ):
@@ -53,7 +53,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def exists(self) -> bool:
         return any(c.id == self.collection_id for c in self.client.get_collections())
-    
+
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
@@ -221,6 +221,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if not all(i.collection_id == collection_id for i in items):
             raise Exception("All collection IDs should be identical for bulk ingests")
 
+        # TODO: this "bulk_items" endpoint is from obscure "bulk transactions" extension?
         url_path = f"collections/{collection_id}/bulk_items"
         data = {"method": "upsert", "items": {item.id: item.to_dict() for item in items}}
         response = requests.post(url=self.join_url(url_path), auth=self._auth, json=data)
