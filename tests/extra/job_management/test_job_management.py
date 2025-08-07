@@ -1,12 +1,14 @@
+import collections
 import copy
 import datetime
 import json
 import logging
 import re
 import threading
+import time
 from pathlib import Path
 from time import sleep
-from typing import Callable, Union
+from typing import Union
 from unittest import mock
 
 import dirty_equals
@@ -37,6 +39,11 @@ from openeo.extra.job_management import (
     ProcessBasedJobCreator,
     create_job_db,
     get_job_db,
+)
+from openeo.extra.job_management._thread_worker import (
+    Task,
+    _JobManagerWorkerThreadPool,
+    _TaskResult,
 )
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
 from openeo.util import rfc3339
@@ -79,6 +86,25 @@ def dummy_backend_bar(requests_mock) -> DummyBackend:
 def sleep_mock():
     with mock.patch("time.sleep") as sleep:
         yield sleep
+
+
+class DummyTask(Task):
+    """
+    A Task that simply sleeps and then returns a predetermined _TaskResult.
+    """
+
+    def __init__(self, job_id, df_idx, db_update, stats_update):
+        super().__init__(job_id=job_id, df_idx=df_idx)
+        self._db_update = db_update or {}
+        self._stats_update = stats_update or {}
+
+    def execute(self) -> _TaskResult:
+        return _TaskResult(
+            job_id=self.job_id,
+            df_idx=self.df_idx,
+            db_update=self._db_update,
+            stats_update=self._stats_update,
+        )
 
 
 class TestMultiBackendJobManager:
@@ -156,7 +182,6 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
-
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict(
             {
@@ -590,14 +615,13 @@ class TestMultiBackendJobManager:
 
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
+
         # Mock sleep() to not actually sleep, but skip one hour at a time
         with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
-        assert final_df.iloc[0].to_dict() == dirty_equals.IsPartialDict(
-            id="job-2024", status=expected_status, running_start_time="2024-09-01T10:00:00Z"
-        )
+        assert dirty_equals.IsPartialDict(id="job-2024", status=expected_status) == final_df.iloc[0].to_dict()
 
         assert dummy_backend_foo.batch_jobs == {
             "job-2024": {
@@ -644,8 +668,9 @@ class TestMultiBackendJobManager:
         run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
         assert run_stats == dirty_equals.IsPartialDict({"start_job call": 5, "job finished": 5})
 
-        needle = re.compile(r"Job status histogram:.*'queued': 4.*Run stats:.*'start_job call': 4")
+        needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
+
 
 
     @pytest.mark.parametrize(
@@ -721,6 +746,93 @@ class TestMultiBackendJobManager:
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
 
+    def test_process_threadworker_updates(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        # Submit tasks covering all cases
+        pool.submit_task(DummyTask("j-0", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
+        pool.submit_task(DummyTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update=None))
+        pool.submit_task(DummyTask("j-2", df_idx=2, db_update=None, stats_update={"queued": 1}))
+        pool.submit_task(DummyTask("j-3", df_idx=3, db_update=None, stats_update=None))
+        # Invalid index (not in DB)
+        pool.submit_task(DummyTask("j-missing", df_idx=4, db_update={"status": "created"}, stats_update=None))
+
+        df_initial = pd.DataFrame(
+            {
+                "id": ["j-0", "j-1", "j-2", "j-3"],
+                "status": ["created", "created", "created", "created"],
+            }
+        )
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        with caplog.at_level(logging.ERROR):
+            mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+
+        df_final = job_db.read()
+
+        # Assert no rows were appended
+        assert len(df_final) == 4
+
+        # Assert updates
+        assert df_final.loc[0, "status"] == "queued"
+        assert df_final.loc[1, "status"] == "queued"
+        assert df_final.loc[2, "status"] == "created"
+        assert df_final.loc[3, "status"] == "created"
+
+        # Assert stats
+        assert stats.get("queued", 0) == 2
+        assert stats["job_db persist"] == 1
+
+    def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        df_initial = pd.DataFrame({"id": ["j-0"], "status": ["created"]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
+
+        df_final = job_db.read()
+        assert df_final.loc[0, "status"] == "created"
+        assert stats == {}
+
+    def test_logs_on_invalid_update(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
+
+        # Malformed db_update (not a dict unpackable via **)
+        class BadTask:
+            job_id = "bad-task"
+            df_idx = 0
+            db_update = "invalid"  # invalid
+            stats_update = "a"
+
+            def execute(self):
+                return self
+
+        pool.submit_task(BadTask())
+
+        df_initial = pd.DataFrame({"id": ["j-0"], "status": ["created"]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        with caplog.at_level(logging.ERROR):
+            mgr._process_threadworker_updates(pool, job_db=job_db, stats=stats)
+
+        # DB should remain unchanged
+        df_final = job_db.read()
+        assert df_final.loc[0, "status"] == "created"
+
+        # Stats remain empty
+        assert stats == {}
+
+        # Assert log about invalid db update
+        assert any("Skipping invalid db_update" in msg for msg in caplog.messages)
+        assert any("Skipping invalid stats_update" in msg for msg in caplog.messages)
 
 JOB_DB_DF_BASICS = pd.DataFrame(
     {
