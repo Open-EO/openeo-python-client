@@ -15,7 +15,7 @@ class ArtifactHelperABC(ABC):
     This class defines the *interface* that an artifact helper should implement and support. This is used by OpenEO users
     willing to manage artifacts.
 
-    Instances that implement it get created by the `openeo.extra.artifacts.artifact_helper.ArtifactHelper` factory
+    Instances that implement it get created by the `openeo.extra.artifacts.build_artifact_helper` factory
     """
 
     @classmethod

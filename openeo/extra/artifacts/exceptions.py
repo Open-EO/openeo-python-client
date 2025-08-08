@@ -10,10 +10,8 @@ class NoAdvertisedProviders(ArtifactsException):
     capabilities.
     """
 
-    def __str__(self):
-        return """
-The OpenEO backend used does not advertise providers for managing artifacts.
-""".lstrip()
+    def __init__(self):
+        super().__init__("The OpenEO backend used does not advertise providers for managing artifacts.")
 
 
 class UnsupportedArtifactsType(ArtifactsException):
@@ -25,10 +23,8 @@ class UnsupportedArtifactsType(ArtifactsException):
     """
 
     def __init__(self, type_id: str):
+        super().__init__(f"The OpenEO backend does not support {type_id}")
         self.type_id = type_id
-
-    def __str__(self):
-        return f"The OpenEO backend does not support {self.type_id}"
 
 
 class NoDefaultConfig(ArtifactsException):
@@ -41,10 +37,8 @@ class NoDefaultConfig(ArtifactsException):
     """
 
     def __init__(self, key: str):
+        super().__init__(f"There was no default config provided by backend for {key}")
         self.key = key
-
-    def __str__(self):
-        return f"There was no default config provided by backend for {self.key}"
 
 
 class InvalidProviderConfig(ArtifactsException):

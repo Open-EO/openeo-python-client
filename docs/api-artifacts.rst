@@ -7,6 +7,8 @@ API: openeo.extra.artifacts
 .. warning::
     This is a new experimental API, subject to change.
 
+
+.. important::
     The artifacts functionality relies on extra Python packages. They can be installed using:
 
     .. code-block:: shell
@@ -36,9 +38,16 @@ So in code this looks like:
     storage_uri = artifact_helper.upload_file(path, object_name)
     presigned_uri = artifact_helper.get_presigned_url(storage_uri)
 
-Note that the storage_uri can be used from regular execution steps of your openEO job. The presigned uri could be used
-from environments where credentials are not injected (e.g. UDFs) as the presigned URL. A presigned URL has the
-authentication details embedded so if your data is sensitive you must make sure to keep this URL secret.
+Note:
+
+* The presigned_uri should be used for accessing the objects. It has authentication details embedded so if your data is
+  sensitive you must make sure to keep this URL secret. You can lower expires_in_seconds in
+  :py:meth:`openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.get_presigned_url`
+  to limit the time window in which the URI can be used.
+
+* The openEO backend must expose additional metadata in its capabilities doc to make this possible. Implementers of a
+  backend can check the extra documentation :ref:`advertising-capabilities`.
+
 
 User facing API
 ===============
@@ -55,7 +64,7 @@ User facing API
 How does it work ?
 ==================
 
-1) :py:meth:`openeo.extra.artifacts.artifact_helper.ArtifactHelper.from_openeo_connection` is a factory method that
+1) :py:meth:`openeo.extra.artifacts.build_artifact_helper` is a factory method that
    will create an artifact helper where the type is defined by the config type. The openEO connection object is used to
    see if the openEO backend advertises a preferred config.
 2) :py:meth:`openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.upload_file` and
@@ -70,14 +79,13 @@ How does it work ?
       support handling of internal references. presigned URLs should work in any tool).
 
 
-.. _artifacts-exceptions:
-
-
 Documentation for backend providers
 ===================================
 
 This section and its subsection is for engineers who operate an openEO backend. If you are a user of an openEO platform
 this is unlikely to be of value to you.
+
+.. _advertising-capabilities:
 
 Advertising capabilities from the backend
 -----------------------------------------
@@ -92,14 +100,21 @@ for the S3STSConfig (of the :py:mod:`openeo.extra.artifacts._s3sts` package).
        "artifacts": {
          "providers": [
            {
-             "config": {  // The config block its keys can differ for other config types
-               "bucket": "openeo-artifacts",                      // The bucket where the artifacts will be stored
-               "role": "arn:aws:iam::000000000000:role/S3Access", // The role that will be assumed via STS
-               "s3_endpoint": "https://my.s3.test",               // Where S3 API calls are sent
-               "sts_endpoint": "https://my.sts.test"              // Where STS API calls are sent
+             // This id is a logical name
+             "id": "s3",
+             // The config type of the ArtifactHelper
+             "type": "S3STSConfig"
+             // The config block its keys can differ for other config types
+             "config": {
+               // The bucket where the artifacts will be stored
+               "bucket": "openeo-artifacts",
+               // The role that will be assumed via STS
+               "role": "arn:aws:iam::000000000000:role/S3Access",
+               // Where S3 API calls are sent
+               "s3_endpoint": "https://my.s3.test",
+              // Where STS API calls are sent
+               "sts_endpoint": "https://my.sts.test"
              },
-             "id": "s3",                                          // This id is a logical name
-             "type": "S3STSConfig"                                // The config type of the ArtifactHelper
            }
          ]
        },

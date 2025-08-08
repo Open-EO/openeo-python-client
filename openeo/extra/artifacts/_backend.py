@@ -109,6 +109,6 @@ class ArtifactCapabilities:
         try:
             return ProviderConfig.from_typed_dict(self._get_artifacts_providers()[0])
         except IndexError:
-            return ProviderConfig("id", "type", {}, exc=NoAdvertisedProviders())
+            return ProviderConfig("n/a", "n/a", {}, exc=NoAdvertisedProviders())
         except ArtifactsException as e:
-            return ProviderConfig("id", "type", {}, exc=e)
+            return ProviderConfig("n/a", "n/a", {}, exc=e)
