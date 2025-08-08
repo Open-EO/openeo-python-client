@@ -538,7 +538,7 @@ class MultiBackendJobManager:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
 
-                        job_db.persist(not_started.loc[i : i + 1])
+                        job_db.persist(not_started.loc[[i]])
                         stats["job_db persist"] += 1
                         total_added += 1
 

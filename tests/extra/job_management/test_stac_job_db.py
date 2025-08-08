@@ -547,27 +547,59 @@ class DummyStacApi:
 
 
 def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
-    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
-    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
-
     stac_api_url = "http://stacapi.test"
     dummy_stac_api = DummyStacApi(root_url=stac_api_url, requests_mock=requests_mock)
 
+    # Initialize job db
     job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url=stac_api_url)
     df = pd.DataFrame(
-        {
-            "item_id": ["item-2024", "item-2025"],
-            "year": [2024, 2025],
-        }
+        {"year": [2024, 2025]},
+        index=["item-2024", "item-2025"],
     )
     job_db.initialize_from_df(df=df)
+    assert dummy_stac_api.items == {
+        "collection-123": {
+            "item-2024": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2024",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2024,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+            "item-2025": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2025",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2025,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+        }
+    }
 
+    # Set up job manager
+    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
+    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+    # Run job manager loop
     def create_job(row, connection, **kwargs):
         year = int(row["year"])
         pg = {"dummy1": {"process_id": "dummy", "arguments": {"year": year}, "result": True}}
         job = connection.create_job(pg)
         return job
-
     run_stats = job_manager.run_jobs(job_db=job_db, start_job=create_job)
 
     assert run_stats == dirty_equals.IsPartialDict(

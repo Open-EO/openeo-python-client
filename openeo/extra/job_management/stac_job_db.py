@@ -57,12 +57,16 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
-        by adding the default columns and setting the index.
+        by adding the default columns and using the STAC item ids as index values.
         """
         df = MultiBackendJobManager._normalize_df(df)
-        # If the user doesn't specify the item_id column, we will use the index.
-        if "item_id" not in df.columns:
-            df = df.reset_index(names=["item_id"])
+
+        if isinstance(df.index, pd.RangeIndex) and "item_id" in df.columns:
+            # Support legacy usage: default (autoincrement) index and an "item_id" column -> copy over as index
+            df.index = df["item_id"]
+
+        # Make sure the index (of item ids) are strings, to play well with (py)STAC schemas
+        df.index = df.index.astype(str)
         return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
@@ -128,7 +132,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         :return: pystac.Item
         """
         series_dict = series.to_dict()
-        item_id = series_dict.pop("item_id")
+        item_id = str(series.name)
         item_dict = {}
         item_dict.setdefault("stac_version", pystac.get_stac_version())
         item_dict.setdefault("type", "Feature")
@@ -165,6 +169,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         else:
             return items["status"].value_counts().to_dict()
 
+    def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
+        series = [self.series_from(item) for item in search_result.items()]
+        # Note: `series_from` sets the item id as the series "name",
+        # which ends up in the index of the dataframe
+        df = pd.DataFrame(series)
+        return df
+
     def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
         if isinstance(statuses, str):
             statuses = {statuses}
@@ -177,11 +188,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             filter=status_filter,
             max_items=max,
         )
+        df = self._search_result_to_df(search_results)
 
-        series = [self.series_from(item) for item in search_results.items()]
-
-        df = pd.DataFrame(series).reset_index(names=["item_id"])
-        if len(series) == 0:
+        if df.shape[0] == 0:
             # TODO: What if default columns are overwritten by the user?
             df = self._normalize_df(
                 df
@@ -189,6 +198,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         return df
 
     def persist(self, df: pd.DataFrame):
+        if df.empty:
+            _log.warning("No data to persist in STAC API job database, skipping.")
+            return
+
         if not self.exists():
             spatial_extent = pystac.SpatialExtent([[-180, -90, 180, 90]])
             temporal_extent = pystac.TemporalExtent([[None, None]])
@@ -196,16 +209,24 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             c = pystac.Collection(id=self.collection_id, description="STAC API job database collection.", extent=extent)
             self._create_collection(c)
 
-        all_items = []
-        if not df.empty:
+        # Merge updates with existing items (if any)
+        existing_items = self.client.search(
+            method="GET",
+            collections=[self.collection_id],
+            ids=[str(i) for i in df.index.tolist()],
+        )
+        existing_df = self._search_result_to_df(existing_items)
 
-            def handle_row(series):
-                item = self.item_from(series)
-                all_items.append(item)
+        if existing_df.empty:
+            df_to_persist = df
+        else:
+            # Merge data on item_id (in the index)
+            df_to_persist = existing_df
+            df_to_persist.update(df, overwrite=True)
 
-            df.apply(handle_row, axis=1)
-
-        self._upload_items_bulk(self.collection_id, all_items)
+        items_to_persist = [self.item_from(s) for _, s in df_to_persist.iterrows()]
+        _log.info(f"Bulk upload of {len(items_to_persist)} items to STAC API collection {self.collection_id!r}")
+        self._upload_items_bulk(self.collection_id, items_to_persist)
 
     def _prepare_item(self, item: pystac.Item, collection_id: str):
         item.collection_id = collection_id
