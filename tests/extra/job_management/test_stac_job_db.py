@@ -479,21 +479,25 @@ class DummyStacApi:
     def _get_search(self, request, context):
         """Handler of `GET /search` requests."""
         collections = request.qs["collections"][0].split(",")
-        filter = request.qs["filter"][0] if "filter" in request.qs else None
-
-        if filter:
-            # TODO: use a more robust CQL2-text parser?
-            assert re.match(r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", filter)
-            statuses = re.findall(r"\"properties\.status\"='(\w+)'", filter)
-        else:
-            statuses = None
-
         items = [
             item
             for cid in collections
             for item in self.items.get(cid, {}).values()
-            if statuses is None or item.get("properties", {}).get("status") in statuses
         ]
+        if "ids" in request.qs:
+            [ids] = request.qs["ids"]
+            ids = set(ids.split(","))
+            items = [i for i in items if i.get("id") in ids]
+        if "filter" in request.qs:
+            [property_filter] = request.qs["filter"]
+            # TODO: use a more robust CQL2-text parser?
+            assert request.qs["filter-lang"] == ["cql2-text"]
+            assert re.match(
+                r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", property_filter
+            )
+            statuses = set(re.findall(r"\"properties\.status\"='(\w+)'", property_filter))
+            items = [i for i in items if i.get("properties", {}).get("status") in statuses]
+
         return {
             "type": "FeatureCollection",
             "features": items,
@@ -502,27 +506,59 @@ class DummyStacApi:
 
 
 def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
-    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
-    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
-
     stac_api_url = "http://stacapi.test"
     dummy_stac_api = DummyStacApi(root_url=stac_api_url, requests_mock=requests_mock)
 
+    # Initialize job db
     job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url=stac_api_url)
     df = pd.DataFrame(
-        {
-            "item_id": ["item-2024", "item-2025"],
-            "year": [2024, 2025],
-        }
+        {"year": [2024, 2025]},
+        index=["item-2024", "item-2025"],
     )
     job_db.initialize_from_df(df=df)
+    assert dummy_stac_api.items == {
+        "collection-123": {
+            "item-2024": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2024",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2024,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+            "item-2025": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2025",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2025,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+        }
+    }
 
+    # Set up job manager
+    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
+    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+    # Run job manager loop
     def create_job(row, connection, **kwargs):
         year = int(row["year"])
         pg = {"dummy1": {"process_id": "dummy", "arguments": {"year": year}, "result": True}}
         job = connection.create_job(pg)
         return job
-
     run_stats = job_manager.run_jobs(job_db=job_db, start_job=create_job)
 
     assert run_stats == dirty_equals.IsPartialDict(
