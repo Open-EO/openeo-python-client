@@ -105,7 +105,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             elif on_exists == "append":
                 existing_df = self.get_by_status([])
                 df = self._normalize_df(df)
-                df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
+                df = pd.concat([existing_df, df])  
+                df = self._normalize_df(df)        # normalize again after concat to fix index
+                df = df.replace({np.nan: None})
                 self.persist(df)
                 return self
 
