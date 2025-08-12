@@ -72,9 +72,9 @@ def dummy_dataframe() -> pd.DataFrame:
 
 @pytest.fixture
 def normalized_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
-            "item_id": [0],
+            "item_id": ["0"],
             "no": [1],
             "geometry": [2],
             "here": [3],
@@ -89,18 +89,26 @@ def normalized_dummy_dataframe() -> pd.DataFrame:
             "costs": None,
         },
     )
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"].astype(str)
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
 def another_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"item_id": [1], "no": [4], "geometry": [5], "here": [6]})
+    df =  pd.DataFrame({"item_id": ["1"], "no": [4], "geometry": [5], "here": [6]})
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"].astype(str)
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
 def normalized_merged_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
-            "item_id": [0, 1],
+            "item_id": ["0", "1"],
             "no": [1, 4],
             "geometry": [2, 5],
             "here": [3, 6],
@@ -115,6 +123,12 @@ def normalized_merged_dummy_dataframe() -> pd.DataFrame:
             "costs": None,
         }
     )
+
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+
+    df.index = df["item_id"].astype(str)
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
@@ -131,7 +145,7 @@ def dummy_geodataframe() -> gpd.GeoDataFrame:
 
 @pytest.fixture
 def normalized_dummy_geodataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
             "item_id": [0],
             "there": [1],
@@ -148,7 +162,10 @@ def normalized_dummy_geodataframe() -> pd.DataFrame:
             "costs": None,
         }
     )
-
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"].astype(str)
+    df.index.name = "item_id"
+    return df
 
 FAKE_NOW = datetime.datetime(2020, 5, 22)
 

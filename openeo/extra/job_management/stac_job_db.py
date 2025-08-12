@@ -61,12 +61,16 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         df = MultiBackendJobManager._normalize_df(df)
 
-        if isinstance(df.index, pd.RangeIndex) and "item_id" in df.columns:
-            # Support legacy usage: default (autoincrement) index and an "item_id" column -> copy over as index
+        # Support legacy usage: default (autoincrement) index and an "item_id" column -> copy over as index
+        if "item_id" not in df.columns:
+            df = df.reset_index(names=["item_id"])
             df.index = df["item_id"]
 
         # Make sure the index (of item ids) are strings, to play well with (py)STAC schemas
         df.index = df.index.astype(str)
+        
+        # Ensure the index is set as a column named "item_id" for backward compatibility
+        df["item_id"] = df.index
         return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
