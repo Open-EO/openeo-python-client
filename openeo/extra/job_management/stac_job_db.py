@@ -139,6 +139,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         series_dict = series.to_dict()
         item_id = str(series.name)
+        series_dict.pop("item_id", None)
         item_dict = {}
         item_dict.setdefault("stac_version", pystac.get_stac_version())
         item_dict.setdefault("type", "Feature")

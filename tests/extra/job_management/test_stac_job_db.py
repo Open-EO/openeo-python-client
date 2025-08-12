@@ -90,7 +90,7 @@ def normalized_dummy_dataframe() -> pd.DataFrame:
         },
     )
     # Match new normalize_df behavior: set index to item_id (string) and name it
-    df.index = df["item_id"].astype(str)
+    df.index = df["item_id"]
     df.index.name = "item_id"
     return df
 
@@ -99,7 +99,7 @@ def normalized_dummy_dataframe() -> pd.DataFrame:
 def another_dummy_dataframe() -> pd.DataFrame:
     df =  pd.DataFrame({"item_id": ["1"], "no": [4], "geometry": [5], "here": [6]})
     # Match new normalize_df behavior: set index to item_id (string) and name it
-    df.index = df["item_id"].astype(str)
+    df.index = df["item_id"]
     df.index.name = "item_id"
     return df
 
@@ -126,7 +126,7 @@ def normalized_merged_dummy_dataframe() -> pd.DataFrame:
 
     # Match new normalize_df behavior: set index to item_id (string) and name it
 
-    df.index = df["item_id"].astype(str)
+    df.index = df["item_id"]
     df.index.name = "item_id"
     return df
 
@@ -147,7 +147,7 @@ def dummy_geodataframe() -> gpd.GeoDataFrame:
 def normalized_dummy_geodataframe() -> pd.DataFrame:
     df =  pd.DataFrame(
         {
-            "item_id": [0],
+            "item_id": ["0"],
             "there": [1],
             "is": [2],
             "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
@@ -163,7 +163,7 @@ def normalized_dummy_geodataframe() -> pd.DataFrame:
         }
     )
     # Match new normalize_df behavior: set index to item_id (string) and name it
-    df.index = df["item_id"].astype(str)
+    df.index = df["item_id"]
     df.index.name = "item_id"
     return df
 
