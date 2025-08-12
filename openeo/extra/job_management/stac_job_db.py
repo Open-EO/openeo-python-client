@@ -129,47 +129,46 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         item_dict = item.to_dict()
         item_id = item_dict["id"]
 
-        return pd.Series(item_dict["properties"], name=item_id)
+        props = dict(item_dict["properties"])
 
+        if "item_id" in props:
+            props["item_id"] = item_id
+
+        return pd.Series(props, name=item_id)
+    
     def item_from(self, series: pd.Series) -> pystac.Item:
         """
         Convert a pandas.Series to a STAC Item.
-
+        
         :param series: pandas.Series to be converted.
-        :param geometry_name: Name of the geometry column in the series.
         :return: pystac.Item
         """
         series_dict = series.to_dict()
         item_id = str(series.name)
+        
+        # Handle legacy item_id in properties
         series_dict.pop("item_id", None)
-        item_dict = {}
-        item_dict.setdefault("stac_version", pystac.get_stac_version())
-        item_dict.setdefault("type", "Feature")
-        item_dict.setdefault("assets", {})
-        item_dict.setdefault("links", [])
-        item_dict.setdefault("properties", series_dict)
-
-        dt = series_dict.get("datetime", None)
-        if dt and item_dict["properties"].get("datetime", None) is None:
-            dt_str = pystac.utils.datetime_to_str(dt) if isinstance(dt, datetime.datetime) else dt
-            item_dict["properties"]["datetime"] = dt_str
-
-        else:
+        
+        item_dict = {
+            "type": "Feature",
+            "stac_version": pystac.get_stac_version(),
+            "id": item_id,
+            "properties": series_dict,
+            "geometry": series[self.geometry_column] if self.has_geometry else None,
+            "links": [],
+            "assets": {}
+        }
+        
+        # Handle datetime
+        dt = series_dict.get("datetime")
+        if not dt:
             item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.datetime.now())
-
-        if self.has_geometry:
-            item_dict["geometry"] = series[self.geometry_column]
-        else:
-            item_dict["geometry"] = None
-
-        # from_dict handles associating any Links and Assets with the Item
-        item_dict["id"] = item_id
+            
         item = pystac.Item.from_dict(item_dict)
         if self.has_geometry:
             item.bbox = shape(series[self.geometry_column]).bounds
-        else:
-            item.bbox = None
         return item
+    
 
     def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
         if isinstance(statuses, str):

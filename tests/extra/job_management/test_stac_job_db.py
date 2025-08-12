@@ -292,6 +292,7 @@ class TestSTACAPIJobDatabase:
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
+
     def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
         pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
 
@@ -331,11 +332,10 @@ class TestSTACAPIJobDatabase:
             df,
             pd.DataFrame(
                 {
-                    "item_id": ["test"],
                     "datetime": [pystac.utils.datetime_to_str(FAKE_NOW)],
                     "some_property": ["value"],
                 },
-                index=[0],
+                index=["test"],
             ),
         )
 
