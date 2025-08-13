@@ -2,7 +2,10 @@ import datetime
 import re
 from typing import Any, Dict
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
+import requests_mock
+import json
+import threading
 
 import dirty_equals
 import geopandas as gpd
@@ -13,6 +16,7 @@ import pystac_client
 import pytest
 from requests.auth import AuthBase
 from shapely.geometry import Point
+import requests
 
 from openeo.extra.job_management import MultiBackendJobManager
 from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
@@ -22,11 +26,6 @@ from openeo.rest._testing import DummyBackend
 @pytest.fixture
 def mock_auth():
     return MagicMock(spec=AuthBase)
-
-
-@pytest.fixture
-def mock_stac_api_job_database(mock_auth) -> STACAPIJobDatabase:
-    return STACAPIJobDatabase(collection_id="test_id", stac_root_url="http://fake-stac-api.test", auth=mock_auth)
 
 
 @pytest.fixture
@@ -45,6 +44,14 @@ def mock_pystac_client(dummy_stac_item):
     with patch("pystac_client.Client.open", return_value=mock_client):
         yield mock_client
 
+@pytest.fixture
+def mock_stac_api_job_database(mock_pystac_client, mock_auth) -> STACAPIJobDatabase:
+    # Now STACAPIJobDatabase will use the mocked pystac_client.Client
+    return STACAPIJobDatabase(
+        collection_id="test_id",
+        stac_root_url="http://fake-stac-api.test",
+        auth=mock_auth
+    )
 
 @pytest.fixture
 def job_db_exists(mock_pystac_client) -> STACAPIJobDatabase:
@@ -244,6 +251,93 @@ class TestSTACAPIJobDatabase:
 
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
+
+    def test_persist_http_error(self, mock_stac_api_job_database, bulk_dataframe):
+        """Test error handling during STAC item persistence"""
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
+            with pytest.raises(requests.HTTPError):
+                mock_stac_api_job_database.persist(bulk_dataframe)
+
+    #TODO consider if redundant given test_run_jobs_basic
+    def test_persist_posts_item_payload_to_stac_api(self, mock_stac_api_job_database, mock_auth):
+        job_db = mock_stac_api_job_database
+
+        df = pd.DataFrame({
+            "item_id": ["test"],
+            "geometry": [None],
+            "datetime": ["2020-05-22T00:00:00Z"],
+            "some_property": ["value"],
+        }).set_index("item_id")
+
+        with requests_mock.Mocker() as m:
+            # declaratively register responses
+            m.post("http://fake-stac-api.test/collections", json={"id":"test_id"}, status_code=201)
+            m.post("http://fake-stac-api.test/collections/test_id/bulk_items", json={"inserted":1}, status_code=201)
+            # also register a fallback items endpoint if some implementations use /items
+            m.post("http://fake-stac-api.test/collections/test_id/items", json={"inserted":1}, status_code=201)
+
+            job_db.persist(df)
+
+            # ensure the create-collection call happened
+            assert any(req.url.endswith("/collections") and req.method == "POST" for req in m.request_history)
+
+            # find the collection-specific POST request (either vendor bulk or standard items)
+            coll_req = next((req for req in m.request_history if "collections/test_id" in req.url), None)
+            assert coll_req is not None, "No collection-specific POST recorded"
+
+            # assert the payload contains the expected item id
+            body_text = coll_req.text or coll_req.body or "{}"
+            payload = json.loads(body_text)
+            # payload might be {"items": {...}} or vendor structure; assert the item id exists somewhere
+            assert "items" in payload or any("test" in k for k in payload.keys()), "payload has no items"
+
+            # assert that the item is present in the payload items (if present)
+            if "items" in payload and isinstance(payload["items"], dict):
+                assert "test" in payload["items"]
+
+    def test_complex_geometry_handling(self, mock_stac_api_job_database):
+        """Test with complex geometry types"""
+        complex_geom = {
+            "type": "MultiPolygon", 
+            "coordinates": [[[[0,0],[10,0],[10,10],[0,10],[0,0]]]]
+        }
+        series = pd.Series({
+            "item_id": "geo_test",
+            "geometry": complex_geom,
+            "status": "test"
+        }, name="geo_test")
+        
+        mock_stac_api_job_database.has_geometry = True
+        item = mock_stac_api_job_database.item_from(series)
+        
+        assert item.geometry == complex_geom
+        assert item.bbox == (0, 0, 10, 10)
+
+
+    def test_create_collection_with_custom_metadata(self, mock_stac_api_job_database):
+        """Test collection creation with custom metadata"""
+        custom_collection = pystac.Collection(
+            id="custom-collection",
+            description="Test collection",
+            extent=pystac.Extent(
+                spatial=pystac.SpatialExtent([[-180, -90, 180, 90]]),
+                temporal=pystac.TemporalExtent([[None, None]])
+            ),
+            extra_fields={
+                "custom_field": "custom_value",
+                "license": "proprietary"
+            }
+        )
+        
+        with patch("requests.post") as mock_post:
+            mock_stac_api_job_database._create_collection(custom_collection)
+            posted_data = mock_post.call_args[1]["json"]
+            
+            assert posted_data["id"] == "custom-collection"
+            assert posted_data["custom_field"] == "custom_value"
+            assert "_auth" in posted_data  # Verify default auth added
+
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     def test_initialize_from_df_non_existing(
@@ -529,6 +623,49 @@ class DummyStacApi:
             "links": [],
         }
 
+def test_upload_items_bulk_thread_behavior(requests_mock, mock_stac_api_job_database):
+    """Test thread pool behavior during bulk upload."""
+    # Configure test
+    db = mock_stac_api_job_database
+    db.collection_id = "test"
+    db.stac_root_url = "http://fake-stac-api.test"
+    db.bulk_size = 2  # Small chunk size to force multiple chunks
+    
+    # Track thread activity
+    thread_counts = []
+    
+    # Mock the ingest endpoint with a simpler handler
+    def request_handler(request, context):
+        # Record thread count when request is made
+        thread_counts.append(
+            sum(1 for t in threading.enumerate() if "ThreadPoolExecutor" in t.name)
+        )
+        return {"inserted": 1}
+    
+    requests_mock.post(
+        f"{db.stac_root_url}/collections/test/bulk_items",
+        json=request_handler,
+        status_code=201
+    )
+    
+    # Create test items (5 items with bulk_size=2 → 3 chunks)
+    items = [pystac.Item(id=f"id-{i}", geometry=None, bbox=None,
+                        datetime=FAKE_NOW, properties={})
+             for i in range(5)]
+    
+    # Execute
+    db._upload_items_bulk(db.collection_id, items)
+    
+    # 1. Verify all chunks were processed
+    assert requests_mock.call_count == 3
+    
+    # 2. Verify multiple workers were used (at least 2 threads active at some point)
+    assert max(thread_counts) > 1, "Should have used multiple workers concurrently"
+    
+    # 3. Verify all threads cleaned up
+    final_workers = sum(1 for t in threading.enumerate() if "ThreadPoolExecutor" in t.name)
+    assert final_workers == 0, "All worker threads should be cleaned up"
+
 
 def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
     stac_api_url = "http://stacapi.test"
@@ -626,3 +763,5 @@ def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
             ),
         }
     }
+
+
