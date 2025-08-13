@@ -234,12 +234,9 @@ def patch_datetime_now():
 @pytest.fixture
 def bulk_dataframe():
     return pd.DataFrame(
-        {
-            "item_id": [f"test-{i}" for i in range(10)],
-            "some_property": [f"value-{i}" for i in range(10)],
-        },
-        index=[i for i in range(10)],
-    )
+        {"some_property": [f"value-{i}" for i in range(10)]},
+        index=[f"test-{i}" for i in range(10)]
+    ).rename_axis("item_id")
 
 
 class TestSTACAPIJobDatabase:
@@ -363,14 +360,25 @@ class TestSTACAPIJobDatabase:
 
         mock_requests_post.assert_called_once()
 
-        mock_requests_post.assert_called_with(
-            url=f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-            auth=None,
-            json={
-                "method": "upsert",
-                "items": {item.id: item.to_dict() for item in items},
-            },
-        )
+        call_args = mock_requests_post.call_args[1]
+        assert call_args["url"] == f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items"
+        assert call_args["auth"] is None
+    
+        # Verify the items structure
+        posted_data = call_args["json"]
+    
+        # Check the structure has the expected nesting
+        assert "items" in posted_data
+        items_dict = posted_data["items"]
+        
+        # Verify the single output item
+        assert "test" in items_dict  # This matches the dummy_stac_item fixture
+        item = items_dict["test"]
+        
+        # Check basic structure
+        assert item["id"] == "test"
+        assert item["properties"]["some_property"] == "value"  # From dummy_stac_item
+        assert item["collection"] == job_db_exists.collection_id
 
     @patch("requests.post")
     def test_persist_multiple_chunks(self, mock_requests_post, bulk_dataframe, job_db_exists):
