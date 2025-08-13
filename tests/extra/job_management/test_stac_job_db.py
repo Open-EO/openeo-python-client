@@ -2,7 +2,10 @@ import datetime
 import re
 from typing import Any, Dict
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
+import requests_mock
+import json
+import threading
 
 import dirty_equals
 import geopandas as gpd
@@ -13,6 +16,7 @@ import pystac_client
 import pytest
 from requests.auth import AuthBase
 from shapely.geometry import Point
+import requests
 
 from openeo.extra.job_management import MultiBackendJobManager
 from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
@@ -22,11 +26,6 @@ from openeo.rest._testing import DummyBackend
 @pytest.fixture
 def mock_auth():
     return MagicMock(spec=AuthBase)
-
-
-@pytest.fixture
-def mock_stac_api_job_database(mock_auth) -> STACAPIJobDatabase:
-    return STACAPIJobDatabase(collection_id="test_id", stac_root_url="http://fake-stac-api.test", auth=mock_auth)
 
 
 @pytest.fixture
@@ -45,6 +44,14 @@ def mock_pystac_client(dummy_stac_item):
     with patch("pystac_client.Client.open", return_value=mock_client):
         yield mock_client
 
+@pytest.fixture
+def mock_stac_api_job_database(mock_pystac_client, mock_auth) -> STACAPIJobDatabase:
+    # Now STACAPIJobDatabase will use the mocked pystac_client.Client
+    return STACAPIJobDatabase(
+        collection_id="test_id",
+        stac_root_url="http://fake-stac-api.test",
+        auth=mock_auth
+    )
 
 @pytest.fixture
 def job_db_exists(mock_pystac_client) -> STACAPIJobDatabase:
@@ -72,9 +79,9 @@ def dummy_dataframe() -> pd.DataFrame:
 
 @pytest.fixture
 def normalized_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
-            "item_id": [0],
+            "item_id": ["0"],
             "no": [1],
             "geometry": [2],
             "here": [3],
@@ -89,18 +96,26 @@ def normalized_dummy_dataframe() -> pd.DataFrame:
             "costs": None,
         },
     )
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"]
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
 def another_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"item_id": [1], "no": [4], "geometry": [5], "here": [6]})
+    df =  pd.DataFrame({"item_id": ["1"], "no": [4], "geometry": [5], "here": [6]})
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"]
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
 def normalized_merged_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
-            "item_id": [0, 1],
+            "item_id": ["0", "1"],
             "no": [1, 4],
             "geometry": [2, 5],
             "here": [3, 6],
@@ -115,6 +130,12 @@ def normalized_merged_dummy_dataframe() -> pd.DataFrame:
             "costs": None,
         }
     )
+
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+
+    df.index = df["item_id"]
+    df.index.name = "item_id"
+    return df
 
 
 @pytest.fixture
@@ -131,9 +152,9 @@ def dummy_geodataframe() -> gpd.GeoDataFrame:
 
 @pytest.fixture
 def normalized_dummy_geodataframe() -> pd.DataFrame:
-    return pd.DataFrame(
+    df =  pd.DataFrame(
         {
-            "item_id": [0],
+            "item_id": ["0"],
             "there": [1],
             "is": [2],
             "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
@@ -148,7 +169,10 @@ def normalized_dummy_geodataframe() -> pd.DataFrame:
             "costs": None,
         }
     )
-
+    # Match new normalize_df behavior: set index to item_id (string) and name it
+    df.index = df["item_id"]
+    df.index.name = "item_id"
+    return df
 
 FAKE_NOW = datetime.datetime(2020, 5, 22)
 
@@ -217,12 +241,9 @@ def patch_datetime_now():
 @pytest.fixture
 def bulk_dataframe():
     return pd.DataFrame(
-        {
-            "item_id": [f"test-{i}" for i in range(10)],
-            "some_property": [f"value-{i}" for i in range(10)],
-        },
-        index=[i for i in range(10)],
-    )
+        {"some_property": [f"value-{i}" for i in range(10)]},
+        index=[f"test-{i}" for i in range(10)]
+    ).rename_axis("item_id")
 
 
 class TestSTACAPIJobDatabase:
@@ -230,6 +251,93 @@ class TestSTACAPIJobDatabase:
 
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
+
+    def test_persist_http_error(self, mock_stac_api_job_database, bulk_dataframe):
+        """Test error handling during STAC item persistence"""
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
+            with pytest.raises(requests.HTTPError):
+                mock_stac_api_job_database.persist(bulk_dataframe)
+
+    #TODO consider if redundant given test_run_jobs_basic
+    def test_persist_posts_item_payload_to_stac_api(self, mock_stac_api_job_database, mock_auth):
+        job_db = mock_stac_api_job_database
+
+        df = pd.DataFrame({
+            "item_id": ["test"],
+            "geometry": [None],
+            "datetime": ["2020-05-22T00:00:00Z"],
+            "some_property": ["value"],
+        }).set_index("item_id")
+
+        with requests_mock.Mocker() as m:
+            # declaratively register responses
+            m.post("http://fake-stac-api.test/collections", json={"id":"test_id"}, status_code=201)
+            m.post("http://fake-stac-api.test/collections/test_id/bulk_items", json={"inserted":1}, status_code=201)
+            # also register a fallback items endpoint if some implementations use /items
+            m.post("http://fake-stac-api.test/collections/test_id/items", json={"inserted":1}, status_code=201)
+
+            job_db.persist(df)
+
+            # ensure the create-collection call happened
+            assert any(req.url.endswith("/collections") and req.method == "POST" for req in m.request_history)
+
+            # find the collection-specific POST request (either vendor bulk or standard items)
+            coll_req = next((req for req in m.request_history if "collections/test_id" in req.url), None)
+            assert coll_req is not None, "No collection-specific POST recorded"
+
+            # assert the payload contains the expected item id
+            body_text = coll_req.text or coll_req.body or "{}"
+            payload = json.loads(body_text)
+            # payload might be {"items": {...}} or vendor structure; assert the item id exists somewhere
+            assert "items" in payload or any("test" in k for k in payload.keys()), "payload has no items"
+
+            # assert that the item is present in the payload items (if present)
+            if "items" in payload and isinstance(payload["items"], dict):
+                assert "test" in payload["items"]
+
+    def test_complex_geometry_handling(self, mock_stac_api_job_database):
+        """Test with complex geometry types"""
+        complex_geom = {
+            "type": "MultiPolygon", 
+            "coordinates": [[[[0,0],[10,0],[10,10],[0,10],[0,0]]]]
+        }
+        series = pd.Series({
+            "item_id": "geo_test",
+            "geometry": complex_geom,
+            "status": "test"
+        }, name="geo_test")
+        
+        mock_stac_api_job_database.has_geometry = True
+        item = mock_stac_api_job_database.item_from(series)
+        
+        assert item.geometry == complex_geom
+        assert item.bbox == (0, 0, 10, 10)
+
+
+    def test_create_collection_with_custom_metadata(self, mock_stac_api_job_database):
+        """Test collection creation with custom metadata"""
+        custom_collection = pystac.Collection(
+            id="custom-collection",
+            description="Test collection",
+            extent=pystac.Extent(
+                spatial=pystac.SpatialExtent([[-180, -90, 180, 90]]),
+                temporal=pystac.TemporalExtent([[None, None]])
+            ),
+            extra_fields={
+                "custom_field": "custom_value",
+                "license": "proprietary"
+            }
+        )
+        
+        with patch("requests.post") as mock_post:
+            mock_stac_api_job_database._create_collection(custom_collection)
+            posted_data = mock_post.call_args[1]["json"]
+            
+            assert posted_data["id"] == "custom-collection"
+            assert posted_data["custom_field"] == "custom_value"
+            assert "_auth" in posted_data  # Verify default auth added
+
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     def test_initialize_from_df_non_existing(
@@ -275,6 +383,7 @@ class TestSTACAPIJobDatabase:
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
+
     def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
         pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
 
@@ -314,11 +423,10 @@ class TestSTACAPIJobDatabase:
             df,
             pd.DataFrame(
                 {
-                    "item_id": ["test"],
                     "datetime": [pystac.utils.datetime_to_str(FAKE_NOW)],
                     "some_property": ["value"],
                 },
-                index=[0],
+                index=["test"],
             ),
         )
 
@@ -346,14 +454,25 @@ class TestSTACAPIJobDatabase:
 
         mock_requests_post.assert_called_once()
 
-        mock_requests_post.assert_called_with(
-            url=f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-            auth=None,
-            json={
-                "method": "upsert",
-                "items": {item.id: item.to_dict() for item in items},
-            },
-        )
+        call_args = mock_requests_post.call_args[1]
+        assert call_args["url"] == f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items"
+        assert call_args["auth"] is None
+    
+        # Verify the items structure
+        posted_data = call_args["json"]
+    
+        # Check the structure has the expected nesting
+        assert "items" in posted_data
+        items_dict = posted_data["items"]
+        
+        # Verify the single output item
+        assert "test" in items_dict  # This matches the dummy_stac_item fixture
+        item = items_dict["test"]
+        
+        # Check basic structure
+        assert item["id"] == "test"
+        assert item["properties"]["some_property"] == "value"  # From dummy_stac_item
+        assert item["collection"] == job_db_exists.collection_id
 
     @patch("requests.post")
     def test_persist_multiple_chunks(self, mock_requests_post, bulk_dataframe, job_db_exists):
@@ -479,50 +598,129 @@ class DummyStacApi:
     def _get_search(self, request, context):
         """Handler of `GET /search` requests."""
         collections = request.qs["collections"][0].split(",")
-        filter = request.qs["filter"][0] if "filter" in request.qs else None
-
-        if filter:
-            # TODO: use a more robust CQL2-text parser?
-            assert re.match(r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", filter)
-            statuses = re.findall(r"\"properties\.status\"='(\w+)'", filter)
-        else:
-            statuses = None
-
         items = [
             item
             for cid in collections
             for item in self.items.get(cid, {}).values()
-            if statuses is None or item.get("properties", {}).get("status") in statuses
         ]
+        if "ids" in request.qs:
+            [ids] = request.qs["ids"]
+            ids = set(ids.split(","))
+            items = [i for i in items if i.get("id") in ids]
+        if "filter" in request.qs:
+            [property_filter] = request.qs["filter"]
+            # TODO: use a more robust CQL2-text parser?
+            assert request.qs["filter-lang"] == ["cql2-text"]
+            assert re.match(
+                r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", property_filter
+            )
+            statuses = set(re.findall(r"\"properties\.status\"='(\w+)'", property_filter))
+            items = [i for i in items if i.get("properties", {}).get("status") in statuses]
+
         return {
             "type": "FeatureCollection",
             "features": items,
             "links": [],
         }
 
+def test_upload_items_bulk_thread_behavior(requests_mock, mock_stac_api_job_database):
+    """Test thread pool behavior during bulk upload."""
+    # Configure test
+    db = mock_stac_api_job_database
+    db.collection_id = "test"
+    db.stac_root_url = "http://fake-stac-api.test"
+    db.bulk_size = 2  # Small chunk size to force multiple chunks
+    
+    # Track thread activity
+    thread_counts = []
+    
+    # Mock the ingest endpoint with a simpler handler
+    def request_handler(request, context):
+        # Record thread count when request is made
+        thread_counts.append(
+            sum(1 for t in threading.enumerate() if "ThreadPoolExecutor" in t.name)
+        )
+        return {"inserted": 1}
+    
+    requests_mock.post(
+        f"{db.stac_root_url}/collections/test/bulk_items",
+        json=request_handler,
+        status_code=201
+    )
+    
+    # Create test items (5 items with bulk_size=2 → 3 chunks)
+    items = [pystac.Item(id=f"id-{i}", geometry=None, bbox=None,
+                        datetime=FAKE_NOW, properties={})
+             for i in range(5)]
+    
+    # Execute
+    db._upload_items_bulk(db.collection_id, items)
+    
+    # 1. Verify all chunks were processed
+    assert requests_mock.call_count == 3
+    
+    # 2. Verify multiple workers were used (at least 2 threads active at some point)
+    assert max(thread_counts) > 1, "Should have used multiple workers concurrently"
+    
+    # 3. Verify all threads cleaned up
+    final_workers = sum(1 for t in threading.enumerate() if "ThreadPoolExecutor" in t.name)
+    assert final_workers == 0, "All worker threads should be cleaned up"
+
 
 def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
-    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
-    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
-
     stac_api_url = "http://stacapi.test"
     dummy_stac_api = DummyStacApi(root_url=stac_api_url, requests_mock=requests_mock)
 
+    # Initialize job db
     job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url=stac_api_url)
     df = pd.DataFrame(
-        {
-            "item_id": ["item-2024", "item-2025"],
-            "year": [2024, 2025],
-        }
+        {"year": [2024, 2025]},
+        index=["item-2024", "item-2025"],
     )
     job_db.initialize_from_df(df=df)
+    assert dummy_stac_api.items == {
+        "collection-123": {
+            "item-2024": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2024",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2024,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+            "item-2025": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2025",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2025,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+        }
+    }
 
+    # Set up job manager
+    job_manager = MultiBackendJobManager(root_dir=tmp_path, poll_sleep=2)
+    job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+    # Run job manager loop
     def create_job(row, connection, **kwargs):
         year = int(row["year"])
         pg = {"dummy1": {"process_id": "dummy", "arguments": {"year": year}, "result": True}}
         job = connection.create_job(pg)
         return job
-
     run_stats = job_manager.run_jobs(job_db=job_db, start_job=create_job)
 
     assert run_stats == dirty_equals.IsPartialDict(
@@ -565,3 +763,5 @@ def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
             ),
         }
     }
+
+

@@ -57,12 +57,22 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
-        by adding the default columns and setting the index.
+        by adding the default columns and using the STAC item ids as index values.
         """
         df = MultiBackendJobManager._normalize_df(df)
-        # If the user doesn't specify the item_id column, we will use the index.
+
+        # Legacy support: default (autoincrement) index and an "item_id" column
+        if isinstance(df.index, pd.RangeIndex) and "item_id" in df.columns:
+            df.index = df["item_id"]
+
+        # If no "item_id" column, create one from the index
         if "item_id" not in df.columns:
             df = df.reset_index(names=["item_id"])
+
+        # Make sure both the index and column are strings
+        df["item_id"] = df["item_id"].astype(str)
+        df.index = df["item_id"]
+
         return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
@@ -95,7 +105,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             elif on_exists == "append":
                 existing_df = self.get_by_status([])
                 df = self._normalize_df(df)
-                df = pd.concat([existing_df, df], ignore_index=True).replace({np.nan: None})
+                df = pd.concat([existing_df, df])  
+                df = self._normalize_df(df)        # normalize again after concat to fix index
+                df = df.replace({np.nan: None})
                 self.persist(df)
                 return self
 
@@ -117,46 +129,46 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         item_dict = item.to_dict()
         item_id = item_dict["id"]
 
-        return pd.Series(item_dict["properties"], name=item_id)
+        props = dict(item_dict["properties"])
 
+        if "item_id" in props:
+            props["item_id"] = item_id
+
+        return pd.Series(props, name=item_id)
+    
     def item_from(self, series: pd.Series) -> pystac.Item:
         """
         Convert a pandas.Series to a STAC Item.
-
+        
         :param series: pandas.Series to be converted.
-        :param geometry_name: Name of the geometry column in the series.
         :return: pystac.Item
         """
         series_dict = series.to_dict()
-        item_id = series_dict.pop("item_id")
-        item_dict = {}
-        item_dict.setdefault("stac_version", pystac.get_stac_version())
-        item_dict.setdefault("type", "Feature")
-        item_dict.setdefault("assets", {})
-        item_dict.setdefault("links", [])
-        item_dict.setdefault("properties", series_dict)
-
-        dt = series_dict.get("datetime", None)
-        if dt and item_dict["properties"].get("datetime", None) is None:
-            dt_str = pystac.utils.datetime_to_str(dt) if isinstance(dt, datetime.datetime) else dt
-            item_dict["properties"]["datetime"] = dt_str
-
-        else:
+        item_id = str(series.name)
+        
+        # Handle legacy item_id in properties
+        series_dict.pop("item_id", None)
+        
+        item_dict = {
+            "type": "Feature",
+            "stac_version": pystac.get_stac_version(),
+            "id": item_id,
+            "properties": series_dict,
+            "geometry": series[self.geometry_column] if self.has_geometry else None,
+            "links": [],
+            "assets": {}
+        }
+        
+        # Handle datetime
+        dt = series_dict.get("datetime")
+        if not dt:
             item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.datetime.now())
-
-        if self.has_geometry:
-            item_dict["geometry"] = series[self.geometry_column]
-        else:
-            item_dict["geometry"] = None
-
-        # from_dict handles associating any Links and Assets with the Item
-        item_dict["id"] = item_id
+            
         item = pystac.Item.from_dict(item_dict)
         if self.has_geometry:
             item.bbox = shape(series[self.geometry_column]).bounds
-        else:
-            item.bbox = None
         return item
+    
 
     def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
         if isinstance(statuses, str):
@@ -167,6 +179,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
+
+    def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
+        series = [self.series_from(item) for item in search_result.items()]
+        # Note: `series_from` sets the item id as the series "name",
+        # which ends up in the index of the dataframe
+        df = pd.DataFrame(series)
+        return df
 
     def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
         if isinstance(statuses, str):
@@ -180,11 +199,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             filter=status_filter,
             max_items=max,
         )
+        df = self._search_result_to_df(search_results)
 
-        series = [self.series_from(item) for item in search_results.items()]
-
-        df = pd.DataFrame(series).reset_index(names=["item_id"])
-        if len(series) == 0:
+        if df.shape[0] == 0:
             # TODO: What if default columns are overwritten by the user?
             df = self._normalize_df(
                 df
@@ -192,6 +209,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         return df
 
     def persist(self, df: pd.DataFrame):
+        if df.empty:
+            _log.warning("No data to persist in STAC API job database, skipping.")
+            return
+
         if not self.exists():
             spatial_extent = pystac.SpatialExtent([[-180, -90, 180, 90]])
             temporal_extent = pystac.TemporalExtent([[None, None]])
@@ -199,16 +220,24 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             c = pystac.Collection(id=self.collection_id, description="STAC API job database collection.", extent=extent)
             self._create_collection(c)
 
-        all_items = []
-        if not df.empty:
+        # Merge updates with existing items (if any)
+        existing_items = self.client.search(
+            method="GET",
+            collections=[self.collection_id],
+            ids=[str(i) for i in df.index.tolist()],
+        )
+        existing_df = self._search_result_to_df(existing_items)
 
-            def handle_row(series):
-                item = self.item_from(series)
-                all_items.append(item)
+        if existing_df.empty:
+            df_to_persist = df
+        else:
+            # Merge data on item_id (in the index)
+            df_to_persist = existing_df
+            df_to_persist.update(df, overwrite=True)
 
-            df.apply(handle_row, axis=1)
-
-        self._upload_items_bulk(self.collection_id, all_items)
+        items_to_persist = [self.item_from(s) for _, s in df_to_persist.iterrows()]
+        _log.info(f"Bulk upload of {len(items_to_persist)} items to STAC API collection {self.collection_id!r}")
+        self._upload_items_bulk(self.collection_id, items_to_persist)
 
     def _prepare_item(self, item: pystac.Item, collection_id: str):
         item.collection_id = collection_id
