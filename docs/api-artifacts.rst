@@ -3,6 +3,7 @@
 ====================================
 API: openeo.extra.artifacts
 ====================================
+.. versionadded:: 0.44.0
 
 .. warning::
     This is a new experimental API, subject to change.
