@@ -51,6 +51,9 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.base_url = stac_root_url
         self.bulk_size = 500
 
+        # TODO: is the "item_id" column a feature we can/should deprecate?
+        self._ensure_item_id_column = True
+
     def exists(self) -> bool:
         return any(c.id == self.collection_id for c in self.client.get_collections())
 
@@ -61,9 +64,19 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         df = MultiBackendJobManager._normalize_df(df)
 
-        if isinstance(df.index, pd.RangeIndex) and "item_id" in df.columns:
-            # Support legacy usage: default (autoincrement) index and an "item_id" column -> copy over as index
-            df.index = df["item_id"]
+        if isinstance(df.index, pd.RangeIndex):
+            # Index is supposed to contain meaningful STAC item ids,
+            # not some default RangeIndex.
+            if "item_id" in df.columns:
+                # Leverage legacy usage pattern with an "item_id" column: copy that over as index.
+                df.index = df["item_id"]
+            elif df.shape[0] > 0:
+                _log.warning(
+                    "STAC API oriented dataframe normalization: no meaningful index. This might cause consistency issues."
+                )
+
+        if self._ensure_item_id_column and "item_id" not in df.columns:
+            df["item_id"] = df.index
 
         # Make sure the index (of item ids) are strings, to play well with (py)STAC schemas
         df.index = df.index.astype(str)

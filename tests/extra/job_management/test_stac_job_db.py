@@ -65,10 +65,6 @@ def job_db_not_exists(mock_pystac_client) -> STACAPIJobDatabase:
     )
 
 
-@pytest.fixture
-def dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"no": [1], "geometry": [2], "here": [3]})
-
 
 @pytest.fixture
 def normalized_dummy_dataframe() -> pd.DataFrame:
@@ -117,37 +113,23 @@ def normalized_merged_dummy_dataframe() -> pd.DataFrame:
     )
 
 
-@pytest.fixture
-def dummy_geodataframe() -> gpd.GeoDataFrame:
-    return gpd.GeoDataFrame(
-        {
-            "there": [1],
-            "is": [2],
-            "geometry": [Point(1, 1)],
-        },
-        geometry="geometry",
-    )
-
-
-@pytest.fixture
-def normalized_dummy_geodataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "item_id": [0],
-            "there": [1],
-            "is": [2],
-            "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
-            "id": None,
-            "backend_name": None,
-            "status": ["not_started"],
-            "start_time": None,
-            "running_start_time": None,
-            "cpu": None,
-            "memory": None,
-            "duration": None,
-            "costs": None,
-        }
-    )
+def _common_normalized_df_data(rows: int = 1) -> dict:
+    """
+    Helper to build a dict (to be passed to `pd.DataFrame`)
+    with common columns that are the result of normalization,
+    but mainly boilerplate data that is not relevant to these tests.
+    """
+    return {
+        "id": None,
+        "backend_name": None,
+        "status": ["not_started"] * rows,
+        "start_time": None,
+        "running_start_time": None,
+        "cpu": None,
+        "memory": None,
+        "duration": None,
+        "costs": None,
+    }
 
 
 def _pystac_item(
@@ -184,21 +166,15 @@ def dummy_stac_item() -> pystac.Item:
     )
 
 
-@pytest.fixture
-def dummy_series_no_item_id() -> pd.Series:
-    return pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
-
-
 
 @pytest.fixture
 def bulk_dataframe():
     return pd.DataFrame(
-        {
-            "item_id": [f"test-{i}" for i in range(10)],
+        index=[f"item-{i}" for i in range(10)],
+        data={
+            "datetime": [f"2020-{i + 1:02d}-01" for i in range(10)],
             "some_property": [f"value-{i}" for i in range(10)],
-            "datetime": [f"2020-{i+1:02d}-01" for i in range(10)],
         },
-        index=[i for i in range(10)],
     )
 
 
@@ -208,20 +184,60 @@ class TestSTACAPIJobDatabase:
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
 
+    @pytest.mark.parametrize(
+        ["df", "expected"],
+        [
+            (
+                pd.DataFrame({"no": [1], "geometry": [2], "here": [3]}),
+                pd.DataFrame(
+                    index=["0"],
+                    data={
+                        "no": [1],
+                        "geometry": [2],
+                        "here": [3],
+                        "item_id": [0],
+                        **_common_normalized_df_data(),
+                    },
+                ),
+            ),
+            # Item id used as index
+            (
+                pd.DataFrame(index=["item-123", "item-456"], data={"hello": ["world", "earth"]}),
+                pd.DataFrame(
+                    index=["item-123", "item-456"],
+                    data={
+                        "item_id": ["item-123", "item-456"],
+                        "hello": ["world", "earth"],
+                        **_common_normalized_df_data(rows=2),
+                    },
+                ),
+            ),
+            # Legacy: item_id column
+            (
+                pd.DataFrame({"item_id": ["item-123", "item-456"], "hello": ["world", "earth"]}),
+                pd.DataFrame(
+                    index=pd.Index(["item-123", "item-456"], name="item_id"),
+                    data={
+                        "item_id": ["item-123", "item-456"],
+                        "hello": ["world", "earth"],
+                        **_common_normalized_df_data(rows=2),
+                    },
+                ),
+            ),
+        ],
+    )
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_non_existing(
-        self, mock_persist, job_db_not_exists, dummy_dataframe, normalized_dummy_dataframe
-    ):
-
-        job_db_not_exists.initialize_from_df(dummy_dataframe)
+    def test_initialize_from_df_non_existing(self, mock_persist, job_db_not_exists, df, expected):
+        job_db_not_exists.initialize_from_df(df)
 
         mock_persist.assert_called_once()
-        pdt.assert_frame_equal(mock_persist.call_args[0][0], normalized_dummy_dataframe)
+        pdt.assert_frame_equal(mock_persist.call_args[0][0], expected, check_like=True)
         assert job_db_not_exists.has_geometry == False
 
-    def test_initialize_from_df_existing_error(self, job_db_exists, dummy_dataframe):
+    def test_initialize_from_df_existing_error(self, job_db_exists):
+        df = pd.DataFrame({"hello": ["world"]})
         with pytest.raises(FileExistsError):
-            job_db_exists.initialize_from_df(dummy_dataframe)
+            job_db_exists.initialize_from_df(df)
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
@@ -241,36 +257,75 @@ class TestSTACAPIJobDatabase:
         pdt.assert_frame_equal(mock_persist.call_args[0][0], normalized_merged_dummy_dataframe)
         assert job_db_exists.has_geometry == False
 
+    @pytest.mark.parametrize(
+        ["df", "expected"],
+        [
+            (
+                gpd.GeoDataFrame(
+                    index=["item-123", "item-456"],
+                    data={"hello": ["world", "earth"]},
+                    geometry=[Point(1, 1), Point(2, 2)],
+                ),
+                pd.DataFrame(
+                    index=["item-123", "item-456"],
+                    data={
+                        "item_id": ["item-123", "item-456"],
+                        "hello": ["world", "earth"],
+                        "geometry": [
+                            {"type": "Point", "coordinates": (1.0, 1.0)},
+                            {"type": "Point", "coordinates": (2.0, 2.0)},
+                        ],
+                        **_common_normalized_df_data(),
+                    },
+                ),
+            )
+        ],
+    )
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_with_geometry(
-        self, mock_persists, job_db_not_exists, dummy_geodataframe, normalized_dummy_geodataframe
-    ):
-        job_db_not_exists.initialize_from_df(dummy_geodataframe)
+    def test_initialize_from_df_with_geometry(self, mock_persists, job_db_not_exists, df, expected):
+        job_db_not_exists.initialize_from_df(df)
 
         mock_persists.assert_called_once()
-        pdt.assert_frame_equal(mock_persists.call_args[0][0], normalized_dummy_geodataframe)
+        pdt.assert_frame_equal(mock_persists.call_args[0][0], expected, check_like=True)
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
-    def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
-        pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
+    @pytest.mark.parametrize(
+        ["item", "expected"],
+        [
+            (
+                _pystac_item(
+                    id="item-123",
+                    properties={"some_property": "value"},
+                    datetime_=datetime.datetime(2020, 5, 22),
+                ),
+                pd.Series(
+                    name="item-123",
+                    data={"some_property": "value", "datetime": "2020-05-22T00:00:00Z"},
+                ),
+            ),
+        ],
+    )
+    def test_series_from(self, job_db_exists, item, expected):
+        actual = job_db_exists.series_from(item)
+        pdt.assert_series_equal(actual, expected)
 
     @pytest.mark.parametrize(
         ["series", "expected"],
         [
             # Minimal (using current time as datetime)
             (
-                pd.Series({"item_id": "item-123"}),
+                pd.Series({}, name="item-123"),
                 _pystac_item(id="item-123", datetime_="2022-02-02"),
             ),
             # With explicit datetime, and some other properties
             (
                 pd.Series(
-                    {
-                        "item_id": "item-123",
+                    name="item-123",
+                    data={
                         "datetime": "2023-04-05",
                         "hello": "world",
-                    }
+                    },
                 ),
                 _pystac_item(
                     id="item-123",
@@ -280,16 +335,21 @@ class TestSTACAPIJobDatabase:
             ),
             (
                 pd.Series(
-                    {
-                        "item_id": "item-123",
-                        "datetime": datetime.datetime(2023, 4, 5, 12, 34),
+                    name="item-123",
+                    data={
+                        "datetime": "2023-04-05",
                         "hello": "world",
-                    }
+                    },
                 ),
-                _pystac_item(
+                pystac.Item(
                     id="item-123",
-                    properties={"hello": "world"},
-                    datetime_="2023-04-05T12:34:00Z",
+                    geometry=None,
+                    bbox=None,
+                    properties={
+                        "datetime": "2023-04-05",
+                        "hello": "world",
+                    },
+                    datetime=datetime.datetime(2023, 4, 5),
                 ),
             ),
         ],
@@ -305,8 +365,8 @@ class TestSTACAPIJobDatabase:
         [
             (
                 pd.Series(
-                    {
-                        "item_id": "item-123",
+                    name="item-123",
+                    data={
                         "datetime": "2023-04-05",
                         "geometry": {"type": "Polygon", "coordinates": (((1, 2), (3, 4), (0, 5), (1, 2)),)},
                     },
@@ -354,12 +414,11 @@ class TestSTACAPIJobDatabase:
         pdt.assert_frame_equal(
             df,
             pd.DataFrame(
-                {
-                    "item_id": ["test"],
+                index=["test"],
+                data={
                     "datetime": ["2020-05-22T00:00:00Z"],
                     "some_property": ["value"],
                 },
-                index=[0],
             ),
         )
 
