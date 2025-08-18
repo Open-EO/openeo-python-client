@@ -1,6 +1,6 @@
 import datetime
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -150,68 +150,44 @@ def normalized_dummy_geodataframe() -> pd.DataFrame:
     )
 
 
-FAKE_NOW = datetime.datetime(2020, 5, 22)
+def _pystac_item(
+    *,
+    id: str,
+    properties: Optional[dict] = None,
+    geometry: Optional = None,
+    bbox: Optional = None,
+    datetime_: Union[None, str, datetime.date, datetime.date] = "2025-06-07",
+) -> pystac.Item:
+    """Helper to easily construct a dummy but valid pystac.Item"""
+    if isinstance(datetime_, str):
+        datetime_ = pystac.utils.str_to_datetime(datetime_)
+    elif isinstance(datetime_, datetime.date):
+        datetime_ = datetime.datetime.combine(datetime_, datetime.time.min, tzinfo=datetime.timezone.utc)
+
+    return pystac.Item(
+        id=id,
+        geometry=geometry,
+        bbox=bbox,
+        properties=properties or {},
+        datetime=datetime_,
+    )
 
 
 @pytest.fixture
 def dummy_stac_item() -> pystac.Item:
     properties = {
-        "datetime": pystac.utils.datetime_to_str(FAKE_NOW),
+        "datetime": "2020-05-22T00:00:00Z",
         "some_property": "value",
     }
-
-    return pystac.Item(id="test", geometry=None, bbox=None, properties=properties, datetime=FAKE_NOW)
-
-
-@pytest.fixture
-def dummy_stac_item_geometry() -> pystac.Item:
-    properties = {
-        "datetime": pystac.utils.datetime_to_str(FAKE_NOW),
-        "some_property": "value",
-        "geometry": {"type": "Polygon", "coordinates": (((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)),)},
-    }
-
     return pystac.Item(
-        id="test",
-        geometry={"type": "Polygon", "coordinates": (((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)),)},
-        bbox=(0.0, 0.0, 1.0, 1.0),
-        properties=properties,
-        datetime=FAKE_NOW,
-    )
-
-
-@pytest.fixture
-def dummy_series() -> pd.Series:
-    return pd.Series(
-        {"item_id": "test", "datetime": pystac.utils.datetime_to_str(FAKE_NOW), "some_property": "value"}, name="test"
+        id="test", geometry=None, bbox=None, properties=properties, datetime=datetime.datetime(2020, 5, 22)
     )
 
 
 @pytest.fixture
 def dummy_series_no_item_id() -> pd.Series:
-    return pd.Series({"datetime": pystac.utils.datetime_to_str(FAKE_NOW), "some_property": "value"}, name="test")
+    return pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
 
-@pytest.fixture
-def dummy_series_geometry() -> pd.Series:
-    return pd.Series(
-        {
-            "item_id": "test",
-            "datetime": pystac.utils.datetime_to_str(FAKE_NOW),
-            "some_property": "value",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": (((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0)),),
-            },
-        },
-        name="test",
-    )
-
-
-@pytest.fixture
-def patch_datetime_now():
-    with patch("datetime.datetime") as mock_datetime:
-        mock_datetime.now.return_value = FAKE_NOW
-        yield mock_datetime
 
 
 @pytest.fixture
@@ -220,6 +196,7 @@ def bulk_dataframe():
         {
             "item_id": [f"test-{i}" for i in range(10)],
             "some_property": [f"value-{i}" for i in range(10)],
+            "datetime": [f"2020-{i+1:02d}-01" for i in range(10)],
         },
         index=[i for i in range(10)],
     )
@@ -278,16 +255,80 @@ class TestSTACAPIJobDatabase:
     def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
         pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
 
-    def test_item_from(self, patch_datetime_now, job_db_exists, dummy_series, dummy_stac_item):
-        item = job_db_exists.item_from(dummy_series)
-        assert item.to_dict() == dummy_stac_item.to_dict()
+    @pytest.mark.parametrize(
+        ["series", "expected"],
+        [
+            # Minimal (using current time as datetime)
+            (
+                pd.Series({"item_id": "item-123"}),
+                _pystac_item(id="item-123", datetime_="2022-02-02"),
+            ),
+            # With explicit datetime, and some other properties
+            (
+                pd.Series(
+                    {
+                        "item_id": "item-123",
+                        "datetime": "2023-04-05",
+                        "hello": "world",
+                    }
+                ),
+                _pystac_item(
+                    id="item-123",
+                    properties={"hello": "world"},
+                    datetime_="2023-04-05",
+                ),
+            ),
+            (
+                pd.Series(
+                    {
+                        "item_id": "item-123",
+                        "datetime": datetime.datetime(2023, 4, 5, 12, 34),
+                        "hello": "world",
+                    }
+                ),
+                _pystac_item(
+                    id="item-123",
+                    properties={"hello": "world"},
+                    datetime_="2023-04-05T12:34:00Z",
+                ),
+            ),
+        ],
+    )
+    def test_item_from(self, job_db_exists, series, expected, time_machine):
+        time_machine.move_to("2022-02-02T00:00:00Z")
+        item = job_db_exists.item_from(series)
+        assert isinstance(item, pystac.Item)
+        assert item.to_dict() == expected.to_dict()
 
-    def test_item_from_geometry(
-        self, patch_datetime_now, job_db_exists, dummy_series_geometry, dummy_stac_item_geometry
-    ):
+    @pytest.mark.parametrize(
+        ["series", "expected"],
+        [
+            (
+                pd.Series(
+                    {
+                        "item_id": "item-123",
+                        "datetime": "2023-04-05",
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 2), (3, 4), (0, 5), (1, 2)),)},
+                    },
+                ),
+                _pystac_item(
+                    id="item-123",
+                    datetime_="2023-04-05",
+                    geometry={"type": "Polygon", "coordinates": (((1, 2), (3, 4), (0, 5), (1, 2)),)},
+                    bbox=(0.0, 2.0, 3.0, 5.0),
+                    properties={
+                        "geometry": {"type": "Polygon", "coordinates": (((1, 2), (3, 4), (0, 5), (1, 2)),)},
+                    },
+                ),
+            ),
+        ],
+    )
+    def test_item_from_geometry(self, job_db_exists, series, expected):
+        # TODO avoid this `has_geometry` hack?
         job_db_exists.has_geometry = True
-        item = job_db_exists.item_from(dummy_series_geometry)
-        assert item.to_dict() == dummy_stac_item_geometry.to_dict()
+        item = job_db_exists.item_from(series)
+        assert isinstance(item, pystac.Item)
+        assert item.to_dict() == expected.to_dict()
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
     def test_count_by_status(self, mock_get_by_status, normalized_dummy_dataframe, job_db_exists):
@@ -315,7 +356,7 @@ class TestSTACAPIJobDatabase:
             pd.DataFrame(
                 {
                     "item_id": ["test"],
-                    "datetime": [pystac.utils.datetime_to_str(FAKE_NOW)],
+                    "datetime": ["2020-05-22T00:00:00Z"],
                     "some_property": ["value"],
                 },
                 index=[0],
@@ -323,7 +364,7 @@ class TestSTACAPIJobDatabase:
         )
 
     @patch("requests.post")
-    def test_persist_single_chunk(self, mock_requests_post, bulk_dataframe, job_db_exists, patch_datetime_now):
+    def test_persist_single_chunk(self, mock_requests_post, bulk_dataframe, job_db_exists):
         def bulk_items(df):
             all_items = []
             if not df.empty:

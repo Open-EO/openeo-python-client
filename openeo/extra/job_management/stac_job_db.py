@@ -136,13 +136,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         item_dict.setdefault("links", [])
         item_dict.setdefault("properties", series_dict)
 
-        dt = series_dict.get("datetime", None)
-        if dt and item_dict["properties"].get("datetime", None) is None:
-            dt_str = pystac.utils.datetime_to_str(dt) if isinstance(dt, datetime.datetime) else dt
-            item_dict["properties"]["datetime"] = dt_str
-
-        else:
-            item_dict["properties"]["datetime"] = pystac.utils.datetime_to_str(datetime.datetime.now())
+        dt = item_dict["properties"].get("datetime", datetime.datetime.now(tz=datetime.timezone.utc))
+        if isinstance(dt, datetime.datetime):
+            dt = pystac.utils.datetime_to_str(dt)
+        item_dict["properties"]["datetime"] = dt
 
         if self.has_geometry:
             item_dict["geometry"] = series[self.geometry_column]
