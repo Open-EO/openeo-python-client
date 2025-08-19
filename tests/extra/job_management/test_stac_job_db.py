@@ -520,21 +520,25 @@ class DummyStacApi:
     def _get_search(self, request, context):
         """Handler of `GET /search` requests."""
         collections = request.qs["collections"][0].split(",")
-        filter = request.qs["filter"][0] if "filter" in request.qs else None
-
-        if filter:
-            # TODO: use a more robust CQL2-text parser?
-            assert re.match(r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", filter)
-            statuses = re.findall(r"\"properties\.status\"='(\w+)'", filter)
-        else:
-            statuses = None
-
         items = [
             item
             for cid in collections
             for item in self.items.get(cid, {}).values()
-            if statuses is None or item.get("properties", {}).get("status") in statuses
         ]
+        if "ids" in request.qs:
+            [ids] = request.qs["ids"]
+            ids = set(ids.split(","))
+            items = [i for i in items if i.get("id") in ids]
+        if "filter" in request.qs:
+            [property_filter] = request.qs["filter"]
+            # TODO: use a more robust CQL2-text parser?
+            assert request.qs["filter-lang"] == ["cql2-text"]
+            assert re.match(
+                r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", property_filter
+            )
+            statuses = set(re.findall(r"\"properties\.status\"='(\w+)'", property_filter))
+            items = [i for i in items if i.get("properties", {}).get("status") in statuses]
+
         return {
             "type": "FeatureCollection",
             "features": items,
