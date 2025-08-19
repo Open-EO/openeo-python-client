@@ -26,6 +26,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
         # Additional special cases (see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-adding-configurations)
         include:
           - os: "windows-latest"
