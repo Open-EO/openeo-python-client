@@ -1,6 +1,6 @@
 import datetime
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -139,6 +139,8 @@ def _pystac_item(
     geometry: Optional = None,
     bbox: Optional = None,
     datetime_: Union[None, str, datetime.date, datetime.date] = "2025-06-07",
+    links: Optional[List[Union[pystac.Link, dict]]] = None,
+    **kwargs,
 ) -> pystac.Item:
     """Helper to easily construct a dummy but valid pystac.Item"""
     if isinstance(datetime_, str):
@@ -146,13 +148,18 @@ def _pystac_item(
     elif isinstance(datetime_, datetime.date):
         datetime_ = datetime.datetime.combine(datetime_, datetime.time.min, tzinfo=datetime.timezone.utc)
 
-    return pystac.Item(
+    item = pystac.Item(
         id=id,
         geometry=geometry,
         bbox=bbox,
         properties=properties or {},
         datetime=datetime_,
+        **kwargs,
     )
+    if links:
+        for link in links:
+            item.add_link(pystac.Link.from_dict(link) if isinstance(link, dict) else link)
+    return item
 
 
 @pytest.fixture
@@ -422,38 +429,40 @@ class TestSTACAPIJobDatabase:
             ),
         )
 
-    @patch("requests.post")
-    def test_persist_single_chunk(self, mock_requests_post, bulk_dataframe, job_db_exists):
-        def bulk_items(df):
-            all_items = []
-            if not df.empty:
-
-                def handle_row(series):
-                    item = job_db_exists.item_from(series)
-                    job_db_exists._prepare_item(item, job_db_exists.collection_id)
-                    all_items.append(item)
-
-                df.apply(handle_row, axis=1)
-            return all_items
-
-        items = bulk_items(bulk_dataframe)
-
-        mock_requests_post.return_value.status_code = 200
-        mock_requests_post.return_value.json.return_value = {"status": "success"}
-        mock_requests_post.reason = "OK"
-
-        job_db_exists.persist(bulk_dataframe)
-
-        mock_requests_post.assert_called_once()
-
-        mock_requests_post.assert_called_with(
-            url=f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-            auth=None,
-            json={
-                "method": "upsert",
-                "items": {item.id: item.to_dict() for item in items},
+    def test_persist_single_chunk(self, requests_mock, job_db_exists, mock_pystac_client):
+        rows = 5
+        bulk_dataframe = pd.DataFrame(
+            index=[f"item-{i}" for i in range(rows)],
+            data={
+                "datetime": [f"2020-{i + 1:02d}-01" for i in range(rows)],
+                "some_property": [f"value-{i}" for i in range(rows)],
             },
         )
+        mock_pystac_client.search.return_value.items.return_value = []
+
+        expected_items = [
+            _pystac_item(
+                id=f"item-{i}",
+                properties={"some_property": f"value-{i}"},
+                datetime_=f"2020-{i + 1:02d}-01",
+                collection="collection-1",
+                links=[{"rel": "collection", "href": "collection-1"}],
+            )
+            for i in range(rows)
+        ]
+        expected_items = {item.id: item.to_dict() for item in expected_items}
+
+        def post_bulk_items(request, context):
+            post_data = request.json()
+            assert post_data == {"method": "upsert", "items": expected_items}
+            return {"status": "success"}
+
+        post_bulk_items_mock = requests_mock.post(
+            re.compile(r"http://fake-stac-api/collections/.*/bulk_items"), json=post_bulk_items
+        )
+
+        job_db_exists.persist(bulk_dataframe)
+        assert post_bulk_items_mock.called
 
     @patch("requests.post")
     def test_persist_multiple_chunks(self, mock_requests_post, bulk_dataframe, job_db_exists):

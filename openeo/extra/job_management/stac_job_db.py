@@ -235,6 +235,8 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         else:
             # Merge data on item_id (in the index)
             df_to_persist = existing_df
+            # TODO: better way to do update without risk for data update loss?
+            assert set(df.index).issubset(df_to_persist.index)
             df_to_persist.update(df, overwrite=True)
 
         items_to_persist = [self.item_from(s) for _, s in df_to_persist.iterrows()]
