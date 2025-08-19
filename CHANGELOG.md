@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Start running unit tests in GitHub Actions against Python 3.13 too ([#653](https://github.com/Open-EO/openeo-python-client/issues/653))
+- Official support for Python 3.13 (include Python 3.13 in unit test matrix on GitHub Actions) ([#653](https://github.com/Open-EO/openeo-python-client/issues/653))
 
 ### Changed
 
