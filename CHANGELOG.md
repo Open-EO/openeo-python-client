@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `STACAPIJobDatabase.item_from()` use "datetime" from series instead of always taking "now" ([#797](https://github.com/Open-EO/openeo-python-client/issues/797))
+- Fix Python 3.13 compatibility issue in `openeo.extra.spectral_indices` ([#799](https://github.com/Open-EO/openeo-python-client/issues/799))
 
 
 ## [0.43.0] - 2025-07-02
