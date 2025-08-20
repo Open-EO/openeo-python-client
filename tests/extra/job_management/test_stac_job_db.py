@@ -446,7 +446,6 @@ class TestSTACAPIJobDatabase:
         chunks = []
 
         def post_bulk_items(request, context):
-            nonlocal chunks
             post_data = request.json()
             chunks.append(post_data)
             return {"status": "success"}
