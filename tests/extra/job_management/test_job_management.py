@@ -24,6 +24,7 @@ import httpretty
 import numpy as np
 import pandas
 import pandas as pd
+import pandas.testing
 import pytest
 import requests
 import shapely.geometry
@@ -745,7 +746,6 @@ class TestMultiBackendJobManager:
         filled_running_start_time = final_df.iloc[0]["running_start_time"]
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
-
     def test_process_threadworker_updates(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
         stats = collections.defaultdict(int)
@@ -755,8 +755,6 @@ class TestMultiBackendJobManager:
         pool.submit_task(DummyTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update=None))
         pool.submit_task(DummyTask("j-2", df_idx=2, db_update=None, stats_update={"queued": 1}))
         pool.submit_task(DummyTask("j-3", df_idx=3, db_update=None, stats_update=None))
-        # Invalid index (not in DB)
-        pool.submit_task(DummyTask("j-missing", df_idx=4, db_update={"status": "created"}, stats_update=None))
 
         df_initial = pd.DataFrame(
             {
@@ -768,23 +766,62 @@ class TestMultiBackendJobManager:
 
         mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
 
-        with caplog.at_level(logging.ERROR):
-            mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
 
         df_final = job_db.read()
+        pandas.testing.assert_frame_equal(
+            df_final[["id", "status"]],
+            pandas.DataFrame(
+                {
+                    "id": ["j-0", "j-1", "j-2", "j-3"],
+                    "status": ["queued", "queued", "created", "created"],
+                }
+            ),
+        )
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "queued": 2,
+                "job_db persist": 1,
+            }
+        )
+        assert caplog.messages == []
 
-        # Assert no rows were appended
-        assert len(df_final) == 4
+    def test_process_threadworker_updates_unknown(self, tmp_path, caplog):
+        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        stats = collections.defaultdict(int)
 
-        # Assert updates
-        assert df_final.loc[0, "status"] == "queued"
-        assert df_final.loc[1, "status"] == "queued"
-        assert df_final.loc[2, "status"] == "created"
-        assert df_final.loc[3, "status"] == "created"
+        pool.submit_task(DummyTask("j-123", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
+        pool.submit_task(DummyTask("j-unknown", df_idx=4, db_update={"status": "created"}, stats_update=None))
 
-        # Assert stats
-        assert stats.get("queued", 0) == 2
-        assert stats["job_db persist"] == 1
+        df_initial = pd.DataFrame(
+            {
+                "id": ["j-123", "j-456"],
+                "status": ["created", "created"],
+            }
+        )
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+
+        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+
+        df_final = job_db.read()
+        pandas.testing.assert_frame_equal(
+            df_final[["id", "status"]],
+            pandas.DataFrame(
+                {
+                    "id": ["j-123", "j-456"],
+                    "status": ["queued", "created"],
+                }
+            ),
+        )
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "queued": 1,
+                "job_db persist": 1,
+            }
+        )
+        assert caplog.messages == [dirty_equals.IsStr(regex=".*Ignoring unknown.*indices.*4.*")]
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool(max_workers=2)
