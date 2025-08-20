@@ -1,5 +1,6 @@
 import collections
 import copy
+import dataclasses
 import datetime
 import json
 import logging
@@ -89,22 +90,21 @@ def sleep_mock():
         yield sleep
 
 
-class DummyTask(Task):
+@dataclasses.dataclass(frozen=True)
+class DummyResultTask(Task):
     """
-    A Task that simply sleeps and then returns a predetermined _TaskResult.
+    A dummy task to directly define a _TaskResult.
     """
 
-    def __init__(self, job_id, df_idx, db_update, stats_update):
-        super().__init__(job_id=job_id, df_idx=df_idx)
-        self._db_update = db_update or {}
-        self._stats_update = stats_update or {}
+    db_update: dict = dataclasses.field(default_factory=dict)
+    stats_update: dict = dataclasses.field(default_factory=dict)
 
     def execute(self) -> _TaskResult:
         return _TaskResult(
             job_id=self.job_id,
             df_idx=self.df_idx,
-            db_update=self._db_update,
-            stats_update=self._stats_update,
+            db_update=self.db_update,
+            stats_update=self.stats_update,
         )
 
 
@@ -751,10 +751,10 @@ class TestMultiBackendJobManager:
         stats = collections.defaultdict(int)
 
         # Submit tasks covering all cases
-        pool.submit_task(DummyTask("j-0", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
-        pool.submit_task(DummyTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update=None))
-        pool.submit_task(DummyTask("j-2", df_idx=2, db_update=None, stats_update={"queued": 1}))
-        pool.submit_task(DummyTask("j-3", df_idx=3, db_update=None, stats_update=None))
+        pool.submit_task(DummyResultTask("j-0", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
+        pool.submit_task(DummyResultTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update={}))
+        pool.submit_task(DummyResultTask("j-2", df_idx=2, db_update={}, stats_update={"queued": 1}))
+        pool.submit_task(DummyResultTask("j-3", df_idx=3, db_update={}, stats_update={}))
 
         df_initial = pd.DataFrame(
             {
@@ -790,8 +790,8 @@ class TestMultiBackendJobManager:
         pool = _JobManagerWorkerThreadPool(max_workers=2)
         stats = collections.defaultdict(int)
 
-        pool.submit_task(DummyTask("j-123", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
-        pool.submit_task(DummyTask("j-unknown", df_idx=4, db_update={"status": "created"}, stats_update=None))
+        pool.submit_task(DummyResultTask("j-123", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
+        pool.submit_task(DummyResultTask("j-unknown", df_idx=4, db_update={"status": "created"}, stats_update={}))
 
         df_initial = pd.DataFrame(
             {
