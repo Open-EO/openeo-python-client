@@ -78,6 +78,8 @@ def _pystac_item(
     geometry: Optional = None,
     bbox: Optional = None,
     datetime_: Union[None, str, datetime.date, datetime.date] = "2025-06-07",
+    links: Optional[List[Union[pystac.Link, dict]]] = None,
+    **kwargs,
 ) -> pystac.Item:
     """Helper to easily construct a dummy but valid pystac.Item"""
     if isinstance(datetime_, str):
@@ -85,25 +87,20 @@ def _pystac_item(
     elif isinstance(datetime_, datetime.date):
         datetime_ = datetime.datetime.combine(datetime_, datetime.time.min, tzinfo=datetime.timezone.utc)
 
-    return pystac.Item(
+    item = pystac.Item(
         id=id,
         geometry=geometry,
         bbox=bbox,
         properties=properties or {},
         datetime=datetime_,
+        **kwargs,
     )
 
+    if links:
+        for link in links:
+            item.add_link(pystac.Link.from_dict(link) if isinstance(link, dict) else link)
 
-@pytest.fixture
-def bulk_dataframe():
-    return pd.DataFrame(
-        {
-            "item_id": [f"test-{i}" for i in range(10)],
-            "some_property": [f"value-{i}" for i in range(10)],
-            "datetime": [f"2020-{i+1:02d}-01" for i in range(10)],
-        },
-        index=[i for i in range(10)],
-    )
+    return item
 
 
 class TestSTACAPIJobDatabase:
@@ -112,27 +109,38 @@ class TestSTACAPIJobDatabase:
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
 
+    @pytest.mark.parametrize(
+        ["df", "expected"],
+        [
+            (
+                pd.DataFrame({"no": [1], "geometry": [2], "here": [3]}),
+                pd.DataFrame(
+                    data={
+                        "item_id": [0],
+                        "no": [1],
+                        "geometry": [2],
+                        "here": [3],
+                        **_common_normalized_df_data(),
+                    },
+                ),
+            ),
+            (
+                pd.DataFrame({"item_id": ["item-123", "item-456"], "hello": ["world", "earth"]}),
+                pd.DataFrame(
+                    data={
+                        "item_id": ["item-123", "item-456"],
+                        "hello": ["world", "earth"],
+                        **_common_normalized_df_data(rows=2),
+                    },
+                ),
+            ),
+        ],
+    )
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_non_existing(self, mock_persist, job_db_not_exists):
-        df = pd.DataFrame(
-            {
-                "no": [1],
-                "geometry": [2],
-                "here": [3],
-            }
-        )
+    def test_initialize_from_df_non_existing(self, mock_persist, job_db_not_exists, df, expected):
         job_db_not_exists.initialize_from_df(df)
 
         mock_persist.assert_called_once()
-        expected = pd.DataFrame(
-            {
-                "item_id": [0],
-                "no": [1],
-                "geometry": [2],
-                "here": [3],
-                **_common_normalized_df_data(),
-            },
-        )
         pdt.assert_frame_equal(mock_persist.call_args[0][0], expected)
         assert job_db_not_exists.has_geometry == False
 
@@ -182,44 +190,73 @@ class TestSTACAPIJobDatabase:
         pdt.assert_frame_equal(mock_persist.call_args[0][0], expected_df)
         assert job_db_exists.has_geometry == False
 
+    @pytest.mark.parametrize(
+        ["df", "expected"],
+        [
+            (
+                gpd.GeoDataFrame(
+                    {
+                        "there": [1],
+                        "is": [2],
+                        "geometry": [Point(1, 1)],
+                    },
+                    geometry="geometry",
+                ),
+                pd.DataFrame(
+                    {
+                        "item_id": [0],
+                        "there": [1],
+                        "is": [2],
+                        "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
+                        **_common_normalized_df_data(),
+                    }
+                ),
+            ),
+            (
+                gpd.GeoDataFrame(
+                    data={"item_id": ["item-123", "item-456"], "hello": ["world", "earth"]},
+                    geometry=[Point(1, 1), Point(2, 2)],
+                ),
+                pd.DataFrame(
+                    data={
+                        "item_id": ["item-123", "item-456"],
+                        "hello": ["world", "earth"],
+                        "geometry": [
+                            {"type": "Point", "coordinates": (1.0, 1.0)},
+                            {"type": "Point", "coordinates": (2.0, 2.0)},
+                        ],
+                        **_common_normalized_df_data(rows=2),
+                    },
+                ),
+            ),
+        ],
+    )
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_with_geometry(self, mock_persists, job_db_not_exists):
-        df = gpd.GeoDataFrame(
-            {
-                "there": [1],
-                "is": [2],
-                "geometry": [Point(1, 1)],
-            },
-            geometry="geometry",
-        )
+    def test_initialize_from_df_with_geometry(self, mock_persists, job_db_not_exists, df, expected):
         job_db_not_exists.initialize_from_df(df)
 
         mock_persists.assert_called_once()
-        expected = pd.DataFrame(
-            {
-                "item_id": [0],
-                "there": [1],
-                "is": [2],
-                "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
-                **_common_normalized_df_data(),
-            }
-        )
         pdt.assert_frame_equal(mock_persists.call_args[0][0], expected)
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
-    def test_series_from(self, job_db_exists):
-        item = pystac.Item(
-            id="test",
-            geometry=None,
-            bbox=None,
-            properties={
-                "datetime": "2020-05-22T00:00:00Z",
-                "some_property": "value",
-            },
-            datetime=datetime.datetime(2020, 5, 22),
-        )
-        expected = pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
+    @pytest.mark.parametrize(
+        ["item", "expected"],
+        [
+            (
+                _pystac_item(
+                    id="item-123",
+                    properties={"some_property": "value"},
+                    datetime_=datetime.datetime(2020, 5, 22),
+                ),
+                pd.Series(
+                    name="item-123",
+                    data={"some_property": "value", "datetime": "2020-05-22T00:00:00Z"},
+                ),
+            ),
+        ],
+    )
+    def test_series_from(self, job_db_exists, item, expected):
         pdt.assert_series_equal(job_db_exists.series_from(item), expected)
 
     @pytest.mark.parametrize(
@@ -360,88 +397,89 @@ class TestSTACAPIJobDatabase:
             ),
         )
 
-    @patch("requests.post")
-    def test_persist_single_chunk(self, mock_requests_post, bulk_dataframe, job_db_exists):
-        def bulk_items(df):
-            all_items = []
-            if not df.empty:
-
-                def handle_row(series):
-                    item = job_db_exists.item_from(series)
-                    job_db_exists._prepare_item(item, job_db_exists.collection_id)
-                    all_items.append(item)
-
-                df.apply(handle_row, axis=1)
-            return all_items
-
-        items = bulk_items(bulk_dataframe)
-
-        mock_requests_post.return_value.status_code = 200
-        mock_requests_post.return_value.json.return_value = {"status": "success"}
-        mock_requests_post.reason = "OK"
-
-        job_db_exists.persist(bulk_dataframe)
-
-        mock_requests_post.assert_called_once()
-
-        mock_requests_post.assert_called_with(
-            url=f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-            auth=None,
-            json={
-                "method": "upsert",
-                "items": {item.id: item.to_dict() for item in items},
+    def test_persist_single_chunk(self, requests_mock, job_db_exists):
+        rows = 5
+        bulk_dataframe = pd.DataFrame(
+            data={
+                "item_id": [f"item-{i}" for i in range(rows)],
+                "datetime": [f"2020-{i + 1:02d}-01" for i in range(rows)],
+                "some_property": [f"value-{i}" for i in range(rows)],
             },
         )
 
-    @patch("requests.post")
-    def test_persist_multiple_chunks(self, mock_requests_post, bulk_dataframe, job_db_exists):
-        def bulk_items(df):
-            all_items = []
-            if not df.empty:
-
-                def handle_row(series):
-                    item = job_db_exists.item_from(series)
-                    job_db_exists._prepare_item(item, job_db_exists.collection_id)
-                    all_items.append(item)
-
-                df.apply(handle_row, axis=1)
-            return all_items
-
-        items = bulk_items(bulk_dataframe)
-
-        mock_requests_post.return_value.status_code = 200
-        mock_requests_post.return_value.json.return_value = {"status": "success"}
-        mock_requests_post.reason = "OK"
-
-        job_db_exists.bulk_size = 3
-        job_db_exists._upload_items_bulk(collection_id=job_db_exists.collection_id, items=items)
-
-        # 10 items in total, 3 items per chunk, should result in 4 calls
-        assert sorted(
-            (c.kwargs for c in mock_requests_post.call_args_list),
-            key=lambda d: sorted(d["json"]["items"].keys()),
-        ) == [
-            {
-                "url": f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-                "auth": None,
-                "json": {"method": "upsert", "items": {item.id: item.to_dict() for item in items[:3]}},
-            },
-            {
-                "url": f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-                "auth": None,
-                "json": {"method": "upsert", "items": {item.id: item.to_dict() for item in items[3:6]}},
-            },
-            {
-                "url": f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-                "auth": None,
-                "json": {"method": "upsert", "items": {item.id: item.to_dict() for item in items[6:9]}},
-            },
-            {
-                "url": f"http://fake-stac-api/collections/{job_db_exists.collection_id}/bulk_items",
-                "auth": None,
-                "json": {"method": "upsert", "items": {item.id: item.to_dict() for item in items[9:]}},
-            },
+        expected_items = [
+            _pystac_item(
+                id=f"item-{i}",
+                properties={"some_property": f"value-{i}"},
+                datetime_=f"2020-{i + 1:02d}-01",
+                collection="collection-1",
+                links=[{"rel": "collection", "href": "collection-1"}],
+            )
+            for i in range(rows)
         ]
+        expected_items = {item.id: item.to_dict() for item in expected_items}
+
+        def post_bulk_items(request, context):
+            post_data = request.json()
+            assert post_data == {"method": "upsert", "items": expected_items}
+            return {"status": "success"}
+
+        post_bulk_items_mock = requests_mock.post(
+            re.compile(r"http://fake-stac-api/collections/.*/bulk_items"), json=post_bulk_items
+        )
+
+        job_db_exists.persist(bulk_dataframe)
+        assert post_bulk_items_mock.called
+
+
+
+    def test_persist_multiple_chunks(self, requests_mock, job_db_exists):
+        rows = 12
+        bulk_dataframe = pd.DataFrame(
+            data={
+                "item_id": [f"item-{i}" for i in range(rows)],
+                "datetime": [f"2020-{i + 1:02d}-01" for i in range(rows)],
+                "some_property": [f"value-{i}" for i in range(rows)],
+            },
+        )
+
+        chunks = []
+
+        def post_bulk_items(request, context):
+            nonlocal chunks
+            post_data = request.json()
+            chunks.append(post_data)
+            return {"status": "success"}
+
+        post_bulk_items_mock = requests_mock.post(
+            re.compile(r"http://fake-stac-api/collections/.*/bulk_items"), json=post_bulk_items
+        )
+
+        job_db_exists.bulk_size = 5
+        job_db_exists.persist(bulk_dataframe)
+
+        assert post_bulk_items_mock.call_count == 3
+        expected = [
+            {
+                "method": "upsert",
+                "items": {
+                    f"item-{i}": _pystac_item(
+                        id=f"item-{i}",
+                        properties={"some_property": f"value-{i}"},
+                        datetime_=f"2020-{i + 1:02d}-01",
+                        collection="collection-1",
+                        links=[{"rel": "collection", "href": "collection-1"}],
+                    ).to_dict()
+                    for i in range(start, end)
+                },
+            }
+            for (start, end) in [(0, 5), (5, 10), (10, 12)]
+        ]
+
+        def normalize(data):
+            return sorted(data, key=lambda d: min(d["items"].keys()))
+
+        assert normalize(chunks) == normalize(expected)
 
 
 @pytest.fixture
@@ -576,6 +614,38 @@ def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
         }
     )
     job_db.initialize_from_df(df=df)
+    assert dummy_stac_api.items == {
+        "collection-123": {
+            "item-2024": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2024",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2024,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+            "item-2025": dirty_equals.IsPartialDict(
+                {
+                    "type": "Feature",
+                    "id": "item-2025",
+                    "properties": dirty_equals.IsPartialDict(
+                        {
+                            "year": 2025,
+                            "id": None,
+                            "status": "not_started",
+                            "backend_name": None,
+                        }
+                    ),
+                }
+            ),
+        }
+    }
 
     def create_job(row, connection, **kwargs):
         year = int(row["year"])
