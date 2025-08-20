@@ -81,8 +81,10 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def persist(self, df: pd.DataFrame):
         """
-        Store job data to the database.
-        The provided dataframe may contain partial information, which is merged into the larger database.
+        Store (now or updated) job data to the database.
+
+        The provided dataframe may only cover a subset of all the jobs ("rows") of the whole database,
+        so it should be merged with the existing data (if any) instead of overwriting it completely.
 
         :param df: job data to store.
         """
@@ -108,6 +110,17 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         :param max: Maximum number of jobs to return.
 
         :return: DataFrame with jobs filtered by status.
+        """
+        ...
+
+    @abc.abstractmethod
+    def get_by_indices(self, indices: Iterable[Union[int, str]]) -> pd.DataFrame:
+        """
+        Returns a dataframe with jobs based on their (dataframe) index
+
+        :param indices: List of indices to include.
+
+        :return: DataFrame with jobs filtered by indices.
         """
         ...
 
@@ -706,9 +719,9 @@ class MultiBackendJobManager:
         if not updates:
             return
 
-        # Build DataFrame of updates indexed by df_idx
-        df_updates = pd.DataFrame(updates).set_index("df_idx", drop=True)
-
+        # Build update DataFrame and persist
+        df_updates = job_db.get_by_indices(indices=set(u["df_idx"] for u in updates))
+        df_updates.update(pd.DataFrame(updates).set_index("df_idx", drop=True), overwrite=True)
         job_db.persist(df_updates)
         stats["job_db persist"] = stats.get("job_db persist", 0) + 1
 
@@ -967,9 +980,20 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
     def _merge_into_df(self, df: pd.DataFrame):
         if self._df is not None:
+            unknown_indices = set(df.index).difference(df.index)
+            if unknown_indices:
+                _log.warning(f"Merging DataFrame with {unknown_indices=} which will be lost.")
             self._df.update(df, overwrite=True)
         else:
             self._df = df
+
+    def get_by_indices(self, indices: Iterable[Union[int, str]]) -> pd.DataFrame:
+        indices = set(indices)
+        known = indices.intersection(self.df.index)
+        unknown = indices.difference(self.df.index)
+        if unknown:
+            _log.warning(f"Ignoring unknown DataFrame indices {unknown}")
+        return self._df.loc[list(known)]
 
 
 class CsvJobDatabase(FullDataFrameJobDatabase):

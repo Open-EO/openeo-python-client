@@ -1,7 +1,7 @@
 import concurrent.futures
 import datetime
 import logging
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Union, override
 
 import geopandas as gpd
 import numpy as np
@@ -165,6 +165,12 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         else:
             return items["status"].value_counts().to_dict()
 
+    def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
+        """Build a DataFrame from a STAC ItemSearch result."""
+        series = [self.series_from(item) for item in search_result.items()]
+        df = pd.DataFrame(series).reset_index(names=["item_id"])
+        return df
+
     def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
         if isinstance(statuses, str):
             statuses = {statuses}
@@ -178,14 +184,22 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             max_items=max,
         )
 
-        series = [self.series_from(item) for item in search_results.items()]
+        df = self._search_result_to_df(search_results)
 
-        df = pd.DataFrame(series).reset_index(names=["item_id"])
-        if len(series) == 0:
+        if df.shape[0] == 0:
             # TODO: What if default columns are overwritten by the user?
             df = self._normalize_df(
                 df
             )  # Even for an empty dataframe the default columns are required
+        return df
+
+    def get_by_indices(self, indices: Iterable[Union[int, str]]) -> pd.DataFrame:
+        search_results = self.client.search(
+            method="GET",
+            collections=[self.collection_id],
+            ids=[str(i) for i in indices],
+        )
+        df = self._search_result_to_df(search_results)
         return df
 
     def persist(self, df: pd.DataFrame):
