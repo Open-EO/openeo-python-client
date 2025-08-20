@@ -1,6 +1,7 @@
+import collections
 import datetime
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -19,17 +20,13 @@ from openeo.rest._testing import DummyBackend
 
 
 @pytest.fixture
-def mock_pystac_client(dummy_stac_item):
+def mock_pystac_client():
     mock_client = MagicMock(spec=pystac_client.Client)
 
     mock_client.get_collections.return_value = [
         MagicMock(id="collection-1"),
         MagicMock(id="collection-2"),
     ]
-
-    mock_item_search = MagicMock(spec=pystac_client.ItemSearch)
-    mock_item_search.items.return_value = [dummy_stac_item]
-    mock_client.search.return_value = mock_item_search
 
     with patch("pystac_client.Client.open", return_value=mock_client):
         yield mock_client
@@ -95,22 +92,6 @@ def _pystac_item(
         properties=properties or {},
         datetime=datetime_,
     )
-
-
-@pytest.fixture
-def dummy_stac_item() -> pystac.Item:
-    properties = {
-        "datetime": "2020-05-22T00:00:00Z",
-        "some_property": "value",
-    }
-    return pystac.Item(
-        id="test", geometry=None, bbox=None, properties=properties, datetime=datetime.datetime(2020, 5, 22)
-    )
-
-
-@pytest.fixture
-def dummy_series_no_item_id() -> pd.Series:
-    return pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
 
 
 @pytest.fixture
@@ -227,8 +208,19 @@ class TestSTACAPIJobDatabase:
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
-    def test_series_from(self, job_db_exists, dummy_series_no_item_id, dummy_stac_item):
-        pdt.assert_series_equal(job_db_exists.series_from(dummy_stac_item), dummy_series_no_item_id)
+    def test_series_from(self, job_db_exists):
+        item = pystac.Item(
+            id="test",
+            geometry=None,
+            bbox=None,
+            properties={
+                "datetime": "2020-05-22T00:00:00Z",
+                "some_property": "value",
+            },
+            datetime=datetime.datetime(2020, 5, 22),
+        )
+        expected = pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
+        pdt.assert_series_equal(job_db_exists.series_from(item), expected)
 
     @pytest.mark.parametrize(
         ["series", "expected"],
@@ -328,18 +320,43 @@ class TestSTACAPIJobDatabase:
             method="GET", collections=["collection-1"], filter="\"properties.status\"='not_started'", max_items=None
         )
 
-    def test_get_by_status_result(self, job_db_exists):
-        df = job_db_exists.get_by_status(["not_started"])
+    def test_get_by_status_result(self, requests_mock):
+        stac_api_url = "http://stacapi.test"
+        dummy_stac_api = DummyStacApi(root_url=stac_api_url, requests_mock=requests_mock)
+        dummy_stac_api.predefine_collection("collection-123")
+        dummy_stac_api.predefine_item(
+            collection_id="collection-123",
+            item=_pystac_item(id="item-123", properties={"status": "not_started"}),
+        )
+        dummy_stac_api.predefine_item(
+            collection_id="collection-123",
+            item=_pystac_item(id="item-456", properties={"status": "running"}),
+        )
+        dummy_stac_api.predefine_item(
+            collection_id="collection-123",
+            item=_pystac_item(id="item-789", properties={"status": "not_started"}),
+        )
+
+        job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url=stac_api_url)
 
         pdt.assert_frame_equal(
-            df,
+            job_db.get_by_status(["not_started"]),
             pd.DataFrame(
                 {
-                    "item_id": ["test"],
-                    "datetime": ["2020-05-22T00:00:00Z"],
-                    "some_property": ["value"],
+                    "item_id": ["item-123", "item-789"],
+                    "status": ["not_started", "not_started"],
+                    "datetime": ["2025-06-07T00:00:00Z", "2025-06-07T00:00:00Z"],
                 },
-                index=[0],
+            ),
+        )
+        pdt.assert_frame_equal(
+            job_db.get_by_status(["running"]),
+            pd.DataFrame(
+                {
+                    "item_id": ["item-456"],
+                    "status": ["running"],
+                    "datetime": ["2025-06-07T00:00:00Z"],
+                },
             ),
         )
 
@@ -443,16 +460,16 @@ def sleep_mock():
 class DummyStacApi:
     """Minimal dummy implementation of a STAC API for testing purposes."""
 
-    def __init__(self, root_url: str, requests_mock):
+    def __init__(self, *, root_url: str = "http://stacapi.test", requests_mock):
         self.root_url = root_url.rstrip("/")
         self._requests_mock = requests_mock
 
         requests_mock.get(f"{self.root_url}/", json=self._get_root())
-        self.collections = []
+        self.collections: List[dict] = []
         requests_mock.get(f"{self.root_url}/collections", json=self._get_collections)
         requests_mock.post(f"{self.root_url}/collections", json=self._post_collections)
 
-        self.items: Dict[str, Dict[str, Any]] = {}
+        self.items: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
         requests_mock.post(
             re.compile(rf"{self.root_url}/collections/[^/]+/bulk_items"), json=self._post_collections_bulk_items
         )
@@ -485,6 +502,26 @@ class DummyStacApi:
         self.collections.append(post_data)
         return {}
 
+    def predefine_collection(self, collection_id: str):
+        """Pre-define a collection with the given ID."""
+        assert collection_id not in [c["id"] for c in self.collections]
+        self.collections.append(
+            pystac.Collection(
+                id=collection_id,
+                description=collection_id,
+                extent=pystac.Extent(
+                    spatial=pystac.SpatialExtent([-180, -90, 180, 90]),
+                    temporal=pystac.TemporalExtent([None, None]),
+                ),
+                title=collection_id,
+            ).to_dict()
+        )
+
+    def predefine_item(self, *, collection_id: str, item: pystac.Item):
+        if collection_id not in [c["id"] for c in self.collections]:
+            self.predefine_collection(collection_id)
+        self.items[collection_id][item.id] = item.to_dict()
+
     def _post_collections_bulk_items(self, request, context):
         """Handler of `POST /collections/{collection_id}/bulk_items` requests."""
         # extract the collection_id from the URL
@@ -492,8 +529,6 @@ class DummyStacApi:
         post_data = request.json()
         # TODO handle insert/upsert method?
         for item_id, item in post_data["items"].items():
-            if collection_id not in self.items:
-                self.items[collection_id] = {}
             self.items[collection_id][item_id] = item
         return {}
 
