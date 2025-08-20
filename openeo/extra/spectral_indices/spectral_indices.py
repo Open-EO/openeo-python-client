@@ -26,12 +26,12 @@ def load_indices() -> Dict[str, dict]:
         #      and provide an alternative mechanism to work with custom indices
         "resources/extra-indices-dict.json",
     ]:
-        with importlib_resources.files("openeo.extra.spectral_indices") / path as resource_path:
-            data = json.loads(resource_path.read_text(encoding="utf8"))
-            overwrites = set(specs.keys()).intersection(data["SpectralIndices"].keys())
-            if overwrites:
-                raise RuntimeError(f"Duplicate spectral indices: {overwrites} from {path}")
-            specs.update(data["SpectralIndices"])
+        resource = importlib_resources.files("openeo.extra.spectral_indices") / path
+        data = json.loads(resource.read_text(encoding="utf8"))
+        overwrites = set(specs.keys()).intersection(data["SpectralIndices"].keys())
+        if overwrites:
+            raise RuntimeError(f"Duplicate spectral indices: {overwrites} from {path}")
+        specs.update(data["SpectralIndices"])
 
     return specs
 
@@ -40,10 +40,10 @@ def load_indices() -> Dict[str, dict]:
 def load_constants() -> Dict[str, float]:
     """Load constants defined by Awesome Spectral Indices."""
     # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
-    with importlib_resources.files(
-        "openeo.extra.spectral_indices"
-    ) / "resources/awesome-spectral-indices/constants.json" as resource_path:
-        data = json.loads(resource_path.read_text(encoding="utf8"))
+    resource = (
+        importlib_resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/constants.json"
+    )
+    data = json.loads(resource.read_text(encoding="utf8"))
 
     return {k: v["default"] for k, v in data.items() if isinstance(v["default"], (int, float))}
 
@@ -52,10 +52,10 @@ def load_constants() -> Dict[str, float]:
 def _load_bands() -> Dict[str, dict]:
     """Load band name mapping defined by Awesome Spectral Indices."""
     # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
-    with importlib_resources.files(
-        "openeo.extra.spectral_indices"
-    ) / "resources/awesome-spectral-indices/bands.json" as resource_path:
-        data = json.loads(resource_path.read_text(encoding="utf8"))
+    resource = (
+        importlib_resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/bands.json"
+    )
+    data = json.loads(resource.read_text(encoding="utf8"))
     return data
 
 

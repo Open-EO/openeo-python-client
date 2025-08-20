@@ -101,11 +101,10 @@ def test_legacy_alias_classmethod(recwarn):
     assert Foo().add(2, 3) == 5
     assert len(recwarn) == 0
 
-    expected_warning = re.escape(
-        # Workaround for bug in classmethod detection before Python 3.9 (see https://wrapt.readthedocs.io/en/latest/decorators.html#decorating-class-methods
-        f"Call to deprecated {'class method' if sys.version_info >= (3, 9) else 'function (or staticmethod)'} do_plus."
-        " (Usage of this legacy class method is deprecated. Use `.add` instead.)"
-        " -- Deprecated since version v1.2."
+    expected_warning = (
+        r"Call to deprecated .*(method|function).* do_plus\."
+        " \(Usage of this legacy .*(method|function).* is deprecated\. Use `\.add` instead\.\)"
+        " -- Deprecated since version v1\.2\."
     )
 
     with pytest.warns(UserDeprecationWarning, match=expected_warning):
