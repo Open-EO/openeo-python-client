@@ -1,7 +1,7 @@
 import concurrent.futures
 import datetime
 import logging
-from typing import Iterable, List, Optional, Union, override
+from typing import Iterable, List, Optional, Union
 
 import geopandas as gpd
 import numpy as np
