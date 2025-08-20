@@ -11,22 +11,11 @@ import pandas.testing as pdt
 import pystac
 import pystac_client
 import pytest
-from requests.auth import AuthBase
 from shapely.geometry import Point
 
 from openeo.extra.job_management import MultiBackendJobManager
 from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
 from openeo.rest._testing import DummyBackend
-
-
-@pytest.fixture
-def mock_auth():
-    return MagicMock(spec=AuthBase)
-
-
-@pytest.fixture
-def mock_stac_api_job_database(mock_auth) -> STACAPIJobDatabase:
-    return STACAPIJobDatabase(collection_id="test_id", stac_root_url="http://fake-stac-api.test", auth=mock_auth)
 
 
 @pytest.fixture
@@ -65,89 +54,24 @@ def job_db_not_exists(mock_pystac_client) -> STACAPIJobDatabase:
     )
 
 
-@pytest.fixture
-def dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"no": [1], "geometry": [2], "here": [3]})
-
-
-@pytest.fixture
-def normalized_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "item_id": [0],
-            "no": [1],
-            "geometry": [2],
-            "here": [3],
-            "id": None,
-            "backend_name": None,
-            "status": ["not_started"],
-            "start_time": None,
-            "running_start_time": None,
-            "cpu": None,
-            "memory": None,
-            "duration": None,
-            "costs": None,
-        },
-    )
-
-
-@pytest.fixture
-def another_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame({"item_id": [1], "no": [4], "geometry": [5], "here": [6]})
-
-
-@pytest.fixture
-def normalized_merged_dummy_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "item_id": [0, 1],
-            "no": [1, 4],
-            "geometry": [2, 5],
-            "here": [3, 6],
-            "id": None,
-            "backend_name": None,
-            "status": ["not_started", "not_started"],
-            "start_time": None,
-            "running_start_time": None,
-            "cpu": None,
-            "memory": None,
-            "duration": None,
-            "costs": None,
-        }
-    )
-
-
-@pytest.fixture
-def dummy_geodataframe() -> gpd.GeoDataFrame:
-    return gpd.GeoDataFrame(
-        {
-            "there": [1],
-            "is": [2],
-            "geometry": [Point(1, 1)],
-        },
-        geometry="geometry",
-    )
-
-
-@pytest.fixture
-def normalized_dummy_geodataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "item_id": [0],
-            "there": [1],
-            "is": [2],
-            "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
-            "id": None,
-            "backend_name": None,
-            "status": ["not_started"],
-            "start_time": None,
-            "running_start_time": None,
-            "cpu": None,
-            "memory": None,
-            "duration": None,
-            "costs": None,
-        }
-    )
+def _common_normalized_df_data(rows: int = 1) -> dict:
+    """
+    Helper to build a dict (to be passed to `pd.DataFrame`)
+    with common columns that are the result of normalization.
+    In the context of these tests however, they are
+    mainly irrelevant boilerplate data that is tedious to repeat.
+    """
+    return {
+        "id": None,
+        "backend_name": None,
+        "status": ["not_started"] * rows,
+        "start_time": None,
+        "running_start_time": None,
+        "cpu": None,
+        "memory": None,
+        "duration": None,
+        "costs": None,
+    }
 
 
 def _pystac_item(
@@ -189,7 +113,6 @@ def dummy_series_no_item_id() -> pd.Series:
     return pd.Series({"datetime": "2020-05-22T00:00:00Z", "some_property": "value"}, name="test")
 
 
-
 @pytest.fixture
 def bulk_dataframe():
     return pd.DataFrame(
@@ -209,19 +132,33 @@ class TestSTACAPIJobDatabase:
         assert job_db_not_exists.exists() == False
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_non_existing(
-        self, mock_persist, job_db_not_exists, dummy_dataframe, normalized_dummy_dataframe
-    ):
-
-        job_db_not_exists.initialize_from_df(dummy_dataframe)
+    def test_initialize_from_df_non_existing(self, mock_persist, job_db_not_exists):
+        df = pd.DataFrame(
+            {
+                "no": [1],
+                "geometry": [2],
+                "here": [3],
+            }
+        )
+        job_db_not_exists.initialize_from_df(df)
 
         mock_persist.assert_called_once()
-        pdt.assert_frame_equal(mock_persist.call_args[0][0], normalized_dummy_dataframe)
+        expected = pd.DataFrame(
+            {
+                "item_id": [0],
+                "no": [1],
+                "geometry": [2],
+                "here": [3],
+                **_common_normalized_df_data(),
+            },
+        )
+        pdt.assert_frame_equal(mock_persist.call_args[0][0], expected)
         assert job_db_not_exists.has_geometry == False
 
-    def test_initialize_from_df_existing_error(self, job_db_exists, dummy_dataframe):
+    def test_initialize_from_df_existing_error(self, job_db_exists):
+        df = pd.DataFrame({"hello": ["world"]})
         with pytest.raises(FileExistsError):
-            job_db_exists.initialize_from_df(dummy_dataframe)
+            job_db_exists.initialize_from_df(df)
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
@@ -230,25 +167,63 @@ class TestSTACAPIJobDatabase:
         mock_get_by_status,
         mock_persist,
         job_db_exists,
-        normalized_dummy_dataframe,
-        another_dummy_dataframe,
-        normalized_merged_dummy_dataframe,
     ):
-        mock_get_by_status.return_value = normalized_dummy_dataframe
-        job_db_exists.initialize_from_df(another_dummy_dataframe, on_exists="append")
+        mock_get_by_status.return_value = pd.DataFrame(
+            {
+                "item_id": [0],
+                "no": [1],
+                "geometry": [2],
+                "here": [3],
+                **_common_normalized_df_data(),
+            },
+        )
+
+        df = pd.DataFrame(
+            {
+                "item_id": [1],
+                "no": [4],
+                "geometry": [5],
+                "here": [6],
+            }
+        )
+        job_db_exists.initialize_from_df(df, on_exists="append")
 
         mock_persist.assert_called_once()
-        pdt.assert_frame_equal(mock_persist.call_args[0][0], normalized_merged_dummy_dataframe)
+        expected_df = pd.DataFrame(
+            {
+                "item_id": [0, 1],
+                "no": [1, 4],
+                "geometry": [2, 5],
+                "here": [3, 6],
+                **_common_normalized_df_data(rows=2),
+            }
+        )
+        pdt.assert_frame_equal(mock_persist.call_args[0][0], expected_df)
         assert job_db_exists.has_geometry == False
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
-    def test_initialize_from_df_with_geometry(
-        self, mock_persists, job_db_not_exists, dummy_geodataframe, normalized_dummy_geodataframe
-    ):
-        job_db_not_exists.initialize_from_df(dummy_geodataframe)
+    def test_initialize_from_df_with_geometry(self, mock_persists, job_db_not_exists):
+        df = gpd.GeoDataFrame(
+            {
+                "there": [1],
+                "is": [2],
+                "geometry": [Point(1, 1)],
+            },
+            geometry="geometry",
+        )
+        job_db_not_exists.initialize_from_df(df)
 
         mock_persists.assert_called_once()
-        pdt.assert_frame_equal(mock_persists.call_args[0][0], normalized_dummy_geodataframe)
+        expected = pd.DataFrame(
+            {
+                "item_id": [0],
+                "there": [1],
+                "is": [2],
+                "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
+                **_common_normalized_df_data(),
+            }
+        )
+        pdt.assert_frame_equal(mock_persists.call_args[0][0], expected)
         assert job_db_not_exists.has_geometry == True
         assert job_db_not_exists.geometry_column == "geometry"
 
@@ -331,8 +306,13 @@ class TestSTACAPIJobDatabase:
         assert item.to_dict() == expected.to_dict()
 
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.get_by_status")
-    def test_count_by_status(self, mock_get_by_status, normalized_dummy_dataframe, job_db_exists):
-        mock_get_by_status.return_value = normalized_dummy_dataframe
+    def test_count_by_status(self, mock_get_by_status, job_db_exists):
+        mock_get_by_status.return_value = pd.DataFrame(
+            {
+                "item_id": [0],
+                "status": ["not_started"],
+            },
+        )
         assert job_db_exists.count_by_status() == {"not_started": 1}
 
     def test_get_by_status_no_filter(self, job_db_exists):
