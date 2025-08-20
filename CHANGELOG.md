@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Official support for Python 3.13 (include Python 3.13 in unit test matrix on GitHub Actions) ([#653](https://github.com/Open-EO/openeo-python-client/issues/653))
-
 ### Changed
 
 ### Removed
+
+### Fixed
+
+
+## [0.44.0] - 2025-08-20
+
+### Added
+
+- Official support for Python 3.13 (include Python 3.13 in unit test matrix on GitHub Actions) ([#653](https://github.com/Open-EO/openeo-python-client/issues/653))
 
 ### Fixed
 
