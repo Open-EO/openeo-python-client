@@ -511,7 +511,7 @@ class DummyStacApi:
                 description=collection_id,
                 extent=pystac.Extent(
                     spatial=pystac.SpatialExtent([-180, -90, 180, 90]),
-                    temporal=pystac.TemporalExtent([None, None]),
+                    temporal=pystac.TemporalExtent([[None, None]]),
                 ),
                 title=collection_id,
             ).to_dict()
