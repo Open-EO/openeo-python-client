@@ -3,6 +3,7 @@
 ====================================
 API: openeo.extra.artifacts
 ====================================
+.. versionadded:: 0.45.0
 
 .. warning::
     This is a new experimental API, subject to change.
@@ -46,7 +47,7 @@ Note:
   to limit the time window in which the URI can be used.
 
 * The openEO backend must expose additional metadata in its capabilities doc to make this possible. Implementers of a
-  backend can check the extra documentation :ref:`advertising-capabilities`.
+  backend can check the extra documentation :ref:`for-backend-providers`.
 
 
 User facing API
@@ -79,101 +80,16 @@ How does it work ?
       support handling of internal references. presigned URLs should work in any tool).
 
 
-Documentation for backend providers
-===================================
+.. _for-backend-providers:
 
-This section and its subsection is for engineers who operate an openEO backend. If you are a user of an openEO platform
-this is unlikely to be of value to you.
-
-.. _advertising-capabilities:
-
-Advertising capabilities from the backend
------------------------------------------
-
-It is expected that the backend advertises in its capabilities a section on artifacts. The following is an example
-for the S3STSConfig (of the :py:mod:`openeo.extra.artifacts._s3sts` package).
-
-.. code-block:: json
-
-    {
-       // ...
-       "artifacts": {
-         "providers": [
-           {
-             // This id is a logical name
-             "id": "s3",
-             // The config type of the ArtifactHelper
-             "type": "S3STSConfig"
-             // The config block its keys can differ for other config types
-             "config": {
-               // The bucket where the artifacts will be stored
-               "bucket": "openeo-artifacts",
-               // The role that will be assumed via STS
-               "role": "arn:aws:iam::000000000000:role/S3Access",
-               // Where S3 API calls are sent
-               "s3_endpoint": "https://my.s3.test",
-              // Where STS API calls are sent
-               "sts_endpoint": "https://my.sts.test"
-             },
-           }
-         ]
-       },
-       // ...
-    }
-
-
-Extending support for other types of artifacts
-----------------------------------------------
+For backend providers
+=====================
 
 .. warning::
-    This is a section for developers of the `openeo-python-client` Python package. If you want to walk this road it is
-    best to create an issue on github and detail what support you are planning to add to get input on feasibility and
-    whether it will be mergeable early on.
+    Investigation is ongoing whether this would be a good fit for the workspace extension
+    https://github.com/Open-EO/openeo-api/issues/566 which would mean a big overhaul for backend implementations. If you
+    are a backend provider and interested in this feature please create an issue to allow collaboration.
 
-Ideally the user-interface is simple and stable. Unfortunately implementations themselves come with more complexity.
-This section explains what is needed to provide support for additional types of artifacts. Below the steps we show
-the API that is involved.
-
-1. Create another internal package for the implementation. The following steps should be done inside that package.
-   This package resides under :py:mod:`openeo.extra.artifacts`
-2. Create a config implementation which extends :py:class:`openeo.extra.artifacts._config.ArtifactsStorageConfigABC`
-   and should be a frozen dataclass. This class implements the logic to determine the configuration used by the
-   implementation `_load_connection_provided_config(self, provider_config: ProviderConfig) -> None` is used for that.
-
-   When this method is called explicit config is already put in place and if not provided default config is put in
-   place.
-   Because frozen dataclasses are used for config `object.__setattr__(self, ...)` must be used to manipulate the
-   values.
-
-   So per attribute the same pattern is used. For example an attribute `foo` which has a default `bar` that can be kept
-   constant would be:
-
-    .. code-block:: python
-
-        if self.foo is None:
-            try:
-                object.__setattr__(self, "foo", provider_config["foo"])
-            except NoDefaultConfig:
-                object.__setattr__(self, "foo", "bar")
-
-   Here we use :py:exc:`openeo.extra.artifacts.exceptions.NoDefaultConfig`
-
-3. Create an implementation of :py:class:`openeo.extra.artifacts._uri.StorageURI` to model the internal URIs to the
-   stored artifact
-4. Create an ArtifactHelper implementation which extends :py:class:`openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC`
-5. Add a key value pair to the :py:obj:`openeo.extra.artifacts.artifact_helper.config_to_helper` dictionary. The key is
-   the class created in 2 and the value is the class created in step 3
-
-.. autoclass:: openeo.extra.artifacts._config.ArtifactsStorageConfigABC
-    :members:
-    :private-members: _load_connection_provided_config
-
-.. autoclass:: openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC
-    :members:
-    :private-members: _get_default_storage_config, _from_openeo_connection
-
-.. autoclass:: openeo.extra.artifacts._uri.StorageURI
-    :members:
 
 
 Artifacts exceptions

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Initial/experimental implementation of artifact upload helper ([Open-EO/openeo-api#566](https://github.com/Open-EO/openeo-api/issues/566))
+
 ### Changed
 
 ### Removed
