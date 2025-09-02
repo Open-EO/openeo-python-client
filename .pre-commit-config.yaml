@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -11,11 +11,11 @@ repos:
       - id: check-yaml
       - id: check-toml
   - repo: https://github.com/akaihola/darker
-    rev: v2.1.0
+    rev: v2.1.1
     hooks:
       - id: darker
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
         name: isort (python)
