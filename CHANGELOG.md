@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Initial/experimental implementation of artifact upload helper ([Open-EO/openeo-api#566](https://github.com/Open-EO/openeo-api/issues/566))
+
 ### Changed
 
 - `MultiBackendJobManager`: starting of jobs (which can take long in some situations) is now done in side-threads to avoid blocking of the main job management thread, improving its responsiveness and allowing better overall throughput. To make this possible, a new method `get_by_indices()` was added to the `JobDatabaseInterface` API. Make sure to implement this method if you have a custom `JobDatabaseInterface` implementation that does not provide this yet. ([#719](https://github.com/Open-EO/openeo-python-client/issues/719))

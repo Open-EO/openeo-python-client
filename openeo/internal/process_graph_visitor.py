@@ -12,6 +12,12 @@ class ProcessGraphVisitException(OpenEoClientException):
     pass
 
 
+# TODO: this key is non-standard and mainly specific to a particular openeo-python-driver use case,
+#       which probably should be refactored out from this more generic implementation.
+#       Making it a named constant at least makes this more visible and trackable.
+DEREFERENCED_NODE_KEY = "node"
+
+
 class ProcessGraphVisitor(ABC):
     """
     Hierarchical Visitor for (nested) process graphs structures.
@@ -26,7 +32,7 @@ class ProcessGraphVisitor(ABC):
         Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
 
-        :param process_graph: process graph dictionary to be manipulated in-place
+        :param process_graph: process graph dictionary (flat representation) to be manipulated in-place
         :return: name of the "result" node of the graph
         """
 
@@ -34,32 +40,32 @@ class ProcessGraphVisitor(ABC):
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
         # TODO implement this through `ProcessGraphUnflattener` ?
 
-        def resolve_from_node(process_graph, node, from_node):
+        def resolve_from_node(process_graph: dict, node_id: str, from_node: str):
             if from_node not in process_graph:
                 raise ProcessGraphVisitException(
-                    "from_node {f!r} (referenced by {n!r}) not in process graph.".format(f=from_node, n=node)
+                    f"from_node {from_node!r} (referenced by {node_id!r}) not in process graph."
                 )
             return process_graph[from_node]
 
         result_node = None
-        for node, node_dict in process_graph.items():
-            if node_dict.get("result", False):
+        for node_id, node_data in process_graph.items():
+            if node_data.get("result", False):
                 if result_node:
-                    raise ProcessGraphVisitException("Multiple result nodes: {a}, {b}".format(a=result_node, b=node))
-                result_node = node
-            arguments = node_dict.get("arguments", {})
+                    raise ProcessGraphVisitException(f"Multiple result nodes: {result_node!r}, {node_id!r}")
+                result_node = node_id
+            arguments = node_data.get("arguments", {})
             for arg in arguments.values():
                 if isinstance(arg, dict):
                     if "from_node" in arg:
-                        arg["node"] = resolve_from_node(process_graph, node, arg["from_node"])
+                        arg[DEREFERENCED_NODE_KEY] = resolve_from_node(process_graph, node_id, arg["from_node"])
                     else:
                         for k, v in arg.items():
                             if isinstance(v, dict) and "from_node" in v:
-                                v["node"] = resolve_from_node(process_graph, node, v["from_node"])
+                                v[DEREFERENCED_NODE_KEY] = resolve_from_node(process_graph, node_id, v["from_node"])
                 elif isinstance(arg, list):
                     for i, element in enumerate(arg):
                         if isinstance(element, dict) and "from_node" in element:
-                            arg[i] = resolve_from_node(process_graph, node, element["from_node"])
+                            arg[i] = resolve_from_node(process_graph, node_id, element["from_node"])
 
         if result_node is None:
             dump = json.dumps(process_graph, indent=2)
@@ -114,9 +120,9 @@ class ProcessGraphVisitor(ABC):
                 self.constantArrayElement(element)
 
     def _accept_argument_dict(self, value: dict):
-        if "node" in value and "from_node" in value:
+        if DEREFERENCED_NODE_KEY in value and "from_node" in value:
             # TODO: this looks bit weird (or at least very specific).
-            self.accept_node(value["node"])
+            self.accept_node(value[DEREFERENCED_NODE_KEY])
         elif value.get("from_node"):
             self.accept_node(value["from_node"])
         elif "process_id" in value:
@@ -230,7 +236,7 @@ class ProcessGraphUnflattener:
         """
         # Default/original implementation: keep "from_node" key and add resolved node under "node" key.
         # TODO: just return `self.get_node(key=key)`
-        return {"from_node": key, "node": self.get_node(key=key)}
+        return {"from_node": key, DEREFERENCED_NODE_KEY: self.get_node(key=key)}
 
     def _process_from_parameter(self, name: str) -> Any:
         """

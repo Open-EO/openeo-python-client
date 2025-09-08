@@ -34,6 +34,7 @@ tests_require = [
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
+    "moto>=5.0.0",
 ]
 
 docs_require = [
@@ -54,6 +55,10 @@ jupyter_require = [
     "ipyleaflet>=0.17.0",
     "ipython",
 ]
+
+artifacts_require = ["boto3", "botocore"]
+
+typing_requires = ["types-boto3-s3", "types-boto3-sts"]
 
 name = "openeo"
 setup(
@@ -84,14 +89,15 @@ setup(
         "importlib_resources; python_version<'3.9'",
     ],
     extras_require={
-        "tests": tests_require,
-        "dev": tests_require + docs_require,
+        "tests": tests_require + artifacts_require,
+        "dev": tests_require + docs_require + typing_requires + artifacts_require,
         "docs": docs_require,
         "oschmod": [  # install oschmod even when platform is not Windows, e.g. for testing in CI.
             "oschmod>=0.3.12"
         ],
         "localprocessing": localprocessing_require,
         "jupyter": jupyter_require,
+        "artifacts": artifacts_require,
     },
     entry_points={
         "console_scripts": ["openeo-auth=openeo.rest.auth.cli:main"],
