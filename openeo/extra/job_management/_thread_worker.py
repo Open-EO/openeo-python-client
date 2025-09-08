@@ -8,7 +8,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import urllib3.util
+
 import openeo
+from openeo.utils.http import HTTP_429_TOO_MANY_REQUESTS, retry_configuration
 
 _log = logging.getLogger(__name__)
 
@@ -90,8 +93,8 @@ class ConnectedTask(Task):
     root_url: str
     bearer_token: Optional[str] = field(default=None, repr=False)
 
-    def get_connection(self) -> openeo.Connection:
-        connection = openeo.connect(self.root_url)
+    def get_connection(self, retry: Union[urllib3.util.Retry, dict, bool, None] = None) -> openeo.Connection:
+        connection = openeo.connect(self.root_url, retry=retry)
         if self.bearer_token:
             connection.authenticate_bearer_token(self.bearer_token)
         return connection
@@ -112,7 +115,12 @@ class _JobStartTask(ConnectedTask):
         """
         # TODO: move main try-except block to base class?
         try:
-            job = self.get_connection().job(self.job_id)
+            # Make sure to retry job start attempt (POST request) with "429 Too Many Requests" response
+            retry = retry_configuration(
+                allowed_methods=urllib3.util.Retry.DEFAULT_ALLOWED_METHODS.union({"POST"}),
+                status_forcelist=[HTTP_429_TOO_MANY_REQUESTS],
+            )
+            job = self.get_connection(retry=retry).job(self.job_id)
             # TODO: only start when status is "queued"?
             job.start()
             _log.info(f"Job {self.job_id!r} started successfully")
