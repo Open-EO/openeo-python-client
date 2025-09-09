@@ -35,6 +35,8 @@ class OpenEOSTSClient:
         auth_token = auth.bearer.split("/")
 
         try:
+            # Do an API call with OpenEO to trigger a refresh of our token if it were stale.
+            connection.describe_account()
             return AWSSTSCredentials.from_assume_role_response(
                 self._get_sts_client().assume_role_with_web_identity(
                     RoleArn=self._get_aws_access_role(),
@@ -53,8 +55,6 @@ class OpenEOSTSClient:
                 _log.info(f"Retrying STS access in {sleep_ms} ms")
                 time.sleep(sleep_ms / 1000.0)
                 attempt += 1
-                # Do an API call with OpenEO to trigger a refresh of our token.
-                connection.describe_account()
                 _log.info(f"Retrying to get credentials for STS access {attempt}/{self._MAX_STS_ATTEMPTS}")
                 return self.assume_from_openeo_connection(connection, attempt)
             else:
