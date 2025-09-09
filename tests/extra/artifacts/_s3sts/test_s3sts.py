@@ -92,6 +92,7 @@ def conn_with_s3sts_capabilities(
     requests_mock, extra_api_capabilities, advertised_s3sts_config
 ) -> Iterator[Connection]:
     requests_mock.get(API_URL, json={"api_version": "1.0.0", **extra_api_capabilities})
+    requests_mock.get(f"{API_URL}me", json={})
     conn = Connection(API_URL)
     conn.auth = BearerAuth("oidc/fake/token")
     yield conn
