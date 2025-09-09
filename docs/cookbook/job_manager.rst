@@ -13,7 +13,7 @@ API
 .. autoclass:: openeo.extra.job_management.MultiBackendJobManager
     :members:
 
-.. autoclass:: openeo.extra.job_management.JobDatabaseInterface
+.. autoclass:: openeo.extra.job_management.job_db.JobDatabaseInterface
     :members:
 
 .. autoclass:: openeo.extra.job_management.CsvJobDatabase

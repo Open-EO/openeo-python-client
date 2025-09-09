@@ -11,7 +11,8 @@ import pystac_client
 import requests
 from shapely.geometry import mapping, shape
 
-from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobManager
+from openeo.extra.job_management import MultiBackendJobManager
+from openeo.extra.job_management.job_db import JobDatabaseInterface
 
 _log = logging.getLogger(__name__)
 
