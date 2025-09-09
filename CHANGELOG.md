@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In bounding box `spatial_extent`s of `load_collection`, `load_stac`, ...: normalize non-standard "EPSG:123"-style CRS strings to proper integer value ([#259](https://github.com/Open-EO/openeo-python-client/issues/259), [Open-EO/openeo-processes#391](https://github.com/Open-EO/openeo-processes/issues/391))
+
 ### Removed
 
 ### Fixed
