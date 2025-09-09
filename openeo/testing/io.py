@@ -9,6 +9,7 @@ from openeo.util import repr_truncate
 class PreprocessError(ValueError):
     pass
 
+
 class TestDataLoader:
     """
     Test data helper: easily resolve paths to test data files,
@@ -30,6 +31,9 @@ class TestDataLoader:
         Added ``load_bytes()`` and ``load_text()``.
         Improved ``preprocess``: can now be a replacement dict (with regex support).
     """
+
+    # Avoid pytest collecting this class as a test case (as it starts with "Test" prefix)
+    __test__ = False
 
     def __init__(self, root: Union[str, Path]):
         self.data_root = Path(root)
