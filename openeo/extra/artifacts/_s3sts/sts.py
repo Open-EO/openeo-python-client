@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
+import time
 from random import randint
-from time import sleep
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,19 +46,18 @@ class OpenEOSTSClient:
         except Exception as e:
             _log.warning("Failed to get credentials for STS access")
 
-            if attempt < 3:
+            if attempt < self._MAX_STS_ATTEMPTS:
                 # backoff with jitter
                 max_sleep_ms = 500 * (2**attempt)
                 sleep_ms = randint(0, max_sleep_ms)
                 _log.info(f"Retrying STS access in {sleep_ms} ms")
-                sleep(sleep_ms / 1000.0)
+                time.sleep(sleep_ms / 1000.0)
                 attempt += 1
                 # Do an API call with OpenEO to trigger a refresh of our token.
                 connection.describe_account()
-                _log.info("Retrying to get credentials for STS access")
+                _log.info(f"Retrying to get credentials for STS access {attempt}/{self._MAX_STS_ATTEMPTS}")
                 return self.assume_from_openeo_connection(connection, attempt)
             else:
-                _log.fatal("Maximum attempts performed for STS access", exc_info=e)
                 raise RuntimeError("Could not get credentials from STS") from e
 
     def _get_sts_client(self) -> STSClient:
