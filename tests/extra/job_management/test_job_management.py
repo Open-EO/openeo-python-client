@@ -6,7 +6,6 @@ import json
 import logging
 import re
 import threading
-import time
 from pathlib import Path
 from time import sleep
 from typing import Union
@@ -109,7 +108,6 @@ class DummyResultTask(Task):
 
 
 class TestMultiBackendJobManager:
-
     @pytest.fixture
     def job_manager_root_dir(self, tmp_path):
         return tmp_path / "job_mgr_root"
@@ -582,7 +580,6 @@ class TestMultiBackendJobManager:
                 12 * 60 * 60,
                 "finished",
             ),
-
         ],
     )
     def test_automatic_cancel_of_too_long_running_jobs(
@@ -672,30 +669,28 @@ class TestMultiBackendJobManager:
         needle = re.compile(r"Job status histogram:.*'finished': 5.*Run stats:.*'job_queued_for_start': 5")
         assert needle.search(caplog.text)
 
-
-
     @pytest.mark.parametrize(
-    ["create_time", "start_time", "running_start_time", "end_time", "end_status", "cancel_after_seconds"],
-    [
-        # Scenario 1: Missing running_start_time (None)
-        (
-            "2024-09-01T09:00:00Z",  # Job creation time
-            "2024-09-01T09:00:00Z",  # Job start time (should be 1 hour after create_time)
-            None,                     # Missing running_start_time
-            "2024-09-01T20:00:00Z",  # Job end time
-            "finished",               # Job final status
-            6 * 60 * 60,              # Cancel after 6 hours
-        ),
-        # Scenario 2: NaN running_start_time
-        (
-            "2024-09-01T09:00:00Z",
-            "2024-09-01T09:00:00Z",
-            float("nan"),             # NaN running_start_time
-            "2024-09-01T20:00:00Z",  # Job end time
-            "finished",               # Job final status
-            6 * 60 * 60,              # Cancel after 6 hours
-        ),
-    ]
+        ["create_time", "start_time", "running_start_time", "end_time", "end_status", "cancel_after_seconds"],
+        [
+            # Scenario 1: Missing running_start_time (None)
+            (
+                "2024-09-01T09:00:00Z",  # Job creation time
+                "2024-09-01T09:00:00Z",  # Job start time (should be 1 hour after create_time)
+                None,  # Missing running_start_time
+                "2024-09-01T20:00:00Z",  # Job end time
+                "finished",  # Job final status
+                6 * 60 * 60,  # Cancel after 6 hours
+            ),
+            # Scenario 2: NaN running_start_time
+            (
+                "2024-09-01T09:00:00Z",
+                "2024-09-01T09:00:00Z",
+                float("nan"),  # NaN running_start_time
+                "2024-09-01T20:00:00Z",  # Job end time
+                "finished",  # Job final status
+                6 * 60 * 60,  # Cancel after 6 hours
+            ),
+        ],
     )
     def test_ensure_running_start_time_is_datetime(
         self,
@@ -726,10 +721,12 @@ class TestMultiBackendJobManager:
         job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
 
         # Create a DataFrame representing the job database
-        df = pd.DataFrame({
-            "year": [2024],
-            "running_start_time": [running_start_time],  # Initial running_start_time
-        })
+        df = pd.DataFrame(
+            {
+                "year": [2024],
+                "running_start_time": [running_start_time],  # Initial running_start_time
+            }
+        )
 
         # Move the time machine to the job creation time
         time_machine.move_to(create_time)
@@ -871,6 +868,7 @@ class TestMultiBackendJobManager:
         assert any("Skipping invalid db_update" in msg for msg in caplog.messages)
         assert any("Skipping invalid stats_update" in msg for msg in caplog.messages)
 
+
 JOB_DB_DF_BASICS = pd.DataFrame(
     {
         "numbers": [3, 2, 1],
@@ -986,7 +984,6 @@ class TestFullDataFrameJobDatabase:
 
 
 class TestCsvJobDatabase:
-
     def test_repr(self, tmp_path):
         path = tmp_path / "db.csv"
         db = CsvJobDatabase(path)
@@ -1153,7 +1150,6 @@ class TestCsvJobDatabase:
 
 
 class TestParquetJobDatabase:
-
     def test_repr(self, tmp_path):
         path = tmp_path / "db.pq"
         db = ParquetJobDatabase(path)

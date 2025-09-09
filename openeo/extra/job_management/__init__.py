@@ -383,7 +383,6 @@ class MultiBackendJobManager:
         self._worker_pool = _JobManagerWorkerThreadPool()
 
         def run_loop():
-
             # TODO: support user-provided `stats`
             stats = collections.defaultdict(int)
 
@@ -726,7 +725,6 @@ class MultiBackendJobManager:
         job_db.persist(df_updates)
         stats["job_db persist"] = stats.get("job_db persist", 0) + 1
 
-
     def on_job_done(self, job: BatchJob, row):
         """
         Handles jobs that have finished. Can be overridden to provide custom behaviour.
@@ -862,10 +860,10 @@ class MultiBackendJobManager:
                     active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
                 if self._cancel_running_job_after and new_status == "running":
-                    if  (not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"])):
+                    if not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"]):
                         _log.warning(
                             f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
-                            )
+                        )
                         stats["job started running"] += 1
                         active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
@@ -910,7 +908,6 @@ def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
 
 
 class FullDataFrameJobDatabase(JobDatabaseInterface):
-
     def __init__(self):
         super().__init__()
         self._df = None
@@ -1272,7 +1269,7 @@ class ProcessBasedJobCreator:
                 # Skip optional parameters without any fallback default value
                 continue
             else:
-                raise ValueError(f"Missing required parameter {param_name !r} for process {process_id!r}")
+                raise ValueError(f"Missing required parameter {param_name!r} for process {process_id!r}")
 
             # Prepare some values/dtypes for JSON encoding
             if isinstance(value, numpy.integer):

@@ -188,9 +188,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
         if df.shape[0] == 0:
             # TODO: What if default columns are overwritten by the user?
-            df = self._normalize_df(
-                df
-            )  # Even for an empty dataframe the default columns are required
+            df = self._normalize_df(df)  # Even for an empty dataframe the default columns are required
         return df
 
     def get_by_indices(self, indices: Iterable[Union[int, str]]) -> pd.DataFrame:

@@ -105,7 +105,6 @@ def _pystac_item(
 
 class TestSTACAPIJobDatabase:
     def test_exists(self, job_db_exists, job_db_not_exists):
-
         assert job_db_exists.exists() == True
         assert job_db_not_exists.exists() == False
 
@@ -431,8 +430,6 @@ class TestSTACAPIJobDatabase:
         job_db_exists.persist(bulk_dataframe)
         assert post_bulk_items_mock.called
 
-
-
     def test_persist_multiple_chunks(self, requests_mock, job_db_exists):
         rows = 12
         bulk_dataframe = pd.DataFrame(
@@ -572,11 +569,7 @@ class DummyStacApi:
     def _get_search(self, request, context):
         """Handler of `GET /search` requests."""
         collections = request.qs["collections"][0].split(",")
-        items = [
-            item
-            for cid in collections
-            for item in self.items.get(cid, {}).values()
-        ]
+        items = [item for cid in collections for item in self.items.get(cid, {}).values()]
         if "ids" in request.qs:
             [ids] = request.qs["ids"]
             ids = set(ids.split(","))

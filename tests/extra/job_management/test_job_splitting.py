@@ -10,6 +10,7 @@ from openeo.extra.job_management._job_splitting import (
 
 # TODO: using fixtures for these simple objects is a bit overkill, makes the test harder to follow, and undermines opportunity to parameterize
 
+
 @pytest.fixture
 def mock_polygon_wgs():
     return shapely.geometry.box(0.0, 0.0, 1.0, 1.0)

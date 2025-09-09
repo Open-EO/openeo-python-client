@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Iterator
 
 import pytest
-import requests
 
 from openeo.extra.job_management._thread_worker import (
     Task,
@@ -69,7 +68,7 @@ class TestJobStartTask:
         )
         assert job.status() == "error"
         assert caplog.messages == [
-            "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting " "for you, buddy')"
+            "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting for you, buddy')"
         ]
 
     @pytest.mark.parametrize("serializer", [repr, str])
