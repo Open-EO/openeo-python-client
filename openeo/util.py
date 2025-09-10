@@ -14,9 +14,8 @@ import re
 import sys
 import time
 from collections import OrderedDict
-from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests

@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterator, List, NamedTuple, Optional, Tuple, Union
+from typing import Iterator, List, NamedTuple, Union
 
 import numpy
 import pytest

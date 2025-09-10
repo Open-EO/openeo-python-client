@@ -7,11 +7,10 @@ import textwrap
 import typing
 import uuid
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import requests
 
-import openeo
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode, _FromNodeMixin
 from openeo.internal.jupyter import render_component
 from openeo.internal.processes.builder import (
@@ -26,8 +25,6 @@ from openeo.util import dict_no_none, str_truncate
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
     from openeo.rest.connection import Connection
-    from openeo.rest.result import SaveResult
-    from openeo.rest.stac_resource import StacResource
 
 log = logging.getLogger(__name__)
 

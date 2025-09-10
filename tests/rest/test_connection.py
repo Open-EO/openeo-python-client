@@ -34,7 +34,7 @@ from openeo.rest import (
     OpenEoClientException,
     OpenEoRestError,
 )
-from openeo.rest._testing import DummyBackend, build_capabilities
+from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock, SimpleBasicAuthMocker

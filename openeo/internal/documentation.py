@@ -7,7 +7,7 @@ import inspect
 import re
 import textwrap
 from functools import partial
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Callable, Dict, List, Optional, Sequence, TypeVar, Union
 
 # TODO: give this a proper public API?
 _process_registry = collections.defaultdict(list)

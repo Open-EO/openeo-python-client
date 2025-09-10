@@ -1,6 +1,4 @@
 import contextlib
-import dataclasses
-import json
 import re
 import typing
 from unittest import mock
@@ -9,9 +7,8 @@ import pytest
 import time_machine
 
 from openeo.rest._testing import DummyBackend, build_capabilities
-from openeo.rest.auth.testing import SimpleBasicAuthMocker, build_basic_auth_header
+from openeo.rest.auth.testing import SimpleBasicAuthMocker
 from openeo.rest.connection import Connection
-from openeo.util import url_join
 
 API_URL = "https://oeo.test/"
 

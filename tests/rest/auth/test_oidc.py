@@ -1,16 +1,13 @@
-import contextlib
 import logging
 import re
 import time
 from io import BytesIO
 from queue import Queue
-from unittest import mock
 
 import pytest
 import requests
 import requests_mock
 
-import openeo.rest.auth.oidc
 from openeo.rest.auth.oidc import (
     DefaultOidcClientGrant,
     HttpServerThread,

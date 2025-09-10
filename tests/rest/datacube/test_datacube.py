@@ -8,7 +8,6 @@ General cube method tests against both
 import contextlib
 import json
 import pathlib
-import re
 from datetime import date, datetime
 from unittest import mock
 

@@ -7,7 +7,6 @@ import shapely.geometry
 
 import openeo.processes
 from openeo.api.process import Parameter
-from openeo.rest import OpenEoClientException
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.connection import Connection
 from openeo.rest.models.general import ValidationResponse

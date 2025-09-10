@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, Union
 
 from openeo.util import repr_truncate
 

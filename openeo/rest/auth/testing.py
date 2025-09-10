@@ -7,7 +7,7 @@ import dataclasses
 import json
 import urllib.parse
 import uuid
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import requests
 import requests_mock.request

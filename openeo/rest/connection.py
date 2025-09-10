@@ -66,7 +66,7 @@ from openeo.rest.auth.oidc import (
 from openeo.rest.capabilities import OpenEoCapabilities
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
-from openeo.rest.job import BatchJob, RESTJob
+from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.models.general import (
     CollectionListingResponse,

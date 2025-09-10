@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 import pytest
 
 import openeo
-from openeo.rest import OpenEoApiError, OpenEoApiPlainError
+from openeo.rest import OpenEoApiPlainError
 from openeo.rest.userfile import UserFile
 
 API_URL = "https://oeo.test"

@@ -2,11 +2,9 @@ import json
 import logging
 import platform
 import re
-from unittest import mock
 
 import pytest
 
-import openeo.rest.auth.config
 from openeo.rest.auth.config import (
     PRIVATE_PERMISSIONS,
     AuthConfig,

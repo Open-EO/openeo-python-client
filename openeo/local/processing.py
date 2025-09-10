@@ -4,13 +4,11 @@ from pathlib import Path
 
 import openeo_processes_dask.process_implementations
 import openeo_processes_dask.specs
-import rasterio
 import rioxarray
 import xarray as xr
 from openeo_pg_parser_networkx import ProcessRegistry
 from openeo_pg_parser_networkx.process_registry import Process
 from openeo_processes_dask.process_implementations.core import process
-from openeo_processes_dask.process_implementations.data_model import RasterCube
 
 _log = logging.getLogger(__name__)
 

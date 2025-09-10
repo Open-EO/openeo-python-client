@@ -1,5 +1,3 @@
-import collections
-from typing import Optional
 
 from requests import Request
 from requests.auth import AuthBase

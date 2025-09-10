@@ -1,6 +1,5 @@
 from openeo.rest.datacube import THIS
 from openeo.rest.models.general import ValidationResponse
-from openeo.rest.result import SaveResult
 
 
 def test_legacy_save_result_export_workspace(dummy_backend):

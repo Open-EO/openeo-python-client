@@ -8,7 +8,6 @@ import unittest.mock as mock
 from typing import List, Union
 
 import dateutil.tz
-import pyproj
 import pytest
 import shapely.geometry
 

@@ -3,12 +3,10 @@ import itertools
 import json
 import logging
 import re
-from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 from unittest import mock
 
-import dirty_equals
 import httpretty
 import pytest
 import requests

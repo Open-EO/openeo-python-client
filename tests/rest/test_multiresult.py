@@ -1,7 +1,5 @@
-import pytest
 
 from openeo import BatchJob
-from openeo.rest._testing import DummyBackend
 from openeo.rest.multiresult import MultiResult
 
 
