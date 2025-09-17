@@ -1,0 +1,139 @@
+/*
+ * Customization of Alabaster theme
+ * per https://alabaster.readthedocs.io/en/latest/customization.html#custom-stylesheet
+ */
+
+/* "Quick Search" should be capitalized. */
+div#searchbox h3 {
+    text-transform: capitalize;
+}
+
+/* Much-improved spacing around code blocks. */
+div.highlight pre {
+    padding: 1ex;
+}
+
+/* Reduce space between paragraphs for better visual structure */
+p {
+    margin: 1ex 0;
+}
+
+/* Hide "view source code" links by default, only show on hover */
+dt .viewcode-link {
+    visibility: hidden;
+    font-size: 70%;
+}
+
+dt:hover .viewcode-link {
+    visibility: visible;
+}
+
+/* More breathing space between successive methods */
+dl {
+    margin-bottom: 1.5em;
+}
+
+dl.field-list > dt {
+    /* Cleaner aligning of Parameters/Returns/Raises listing with method description paragraphs */
+    padding-left: 0;
+    /* Make Parameters/Returns/Raises labels less dominant */
+    text-transform: uppercase;
+    font-size: 70%;
+}
+
+.sidebar-meta {
+    font-size: 80%;
+}
+
+div.body h1, div.body h2, div.body h3, div.body h4, div.body h5, div.body h6 {
+    margin: 1.5em 0 0.5em 0;
+}
+
+div.body h1 {
+    margin: 0 0 0.5em 0;
+}
+
+.toctree-l1 {
+    padding: 0.1em 0.5em;
+    margin-left: -0.5em;
+}
+
+div.sphinxsidebar .toctree-l1 a {
+    border: none;
+}
+
+.toctree-l1.current {
+    background-color: #f3f5f7;
+    border-right: 0.5rem solid #a2cedb;
+}
+
+
+div.admonition,
+div.versionadded,
+.py div.versionchanged,
+.py div.deprecated {
+    padding: 0.5em 1em;
+    border-style: solid;
+    border-width: 0 0 0 0.5rem;
+    border-color: #cccccc;
+    background-color: #f3f5f7;
+}
+
+div.admonition :first-child,
+div.versionadded :first-child,
+.py div.versionchanged :first-child,
+.py div.deprecated  :first-child {
+    margin-top: 0;
+}
+
+
+div.admonition :last-child,
+div.versionadded :last-child,
+.py div.versionchanged :last-child,
+.py div.deprecated  :last-child {
+    margin-bottom: 0;
+}
+
+div.admonition p.admonition-title {
+    font-size: 80%;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+div.admonition.note,
+div.admonition.tip,
+div.admonition.seealso,
+div.admonition.hint,
+div.versionadded,
+.py div.versionchanged {
+    border-left-color: #42b983;
+}
+
+div.admonition.warning,
+div.admonition.attention,
+div.admonition.caution,
+div.admonition.danger,
+div.admonition.error,
+div.admonition.important,
+.py div.deprecated {
+    border-left-color: #b9425e;
+}
+
+
+pre {
+    background-color: #e2f0f4;
+}
+
+.highlight-default, .highlight-python, .highlight-pycon, .highlight-shell , .highlight-text {
+    border-right: 0.5rem solid #a2cedb;
+}
+
+.highlight span.linenos {
+    color: #888;
+    font-size: 75%;
+    padding: 0 1ex;
+}
+
+nav.contents.local {
+    border: none;
+}
