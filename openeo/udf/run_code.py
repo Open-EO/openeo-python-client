@@ -57,6 +57,9 @@ def load_module_from_string(code: str) -> dict:
     @param code:
     @return:
     """
+    if _log.isEnabledFor(logging.DEBUG):
+        cache_info = load_module_from_string.cache_info()
+        _log.debug(f"run_udf: Loading UDF from string {code[:50]}. Cache info: {cache_info}")
     globals = _build_default_execution_context()
     exec(code, globals)
     return globals
