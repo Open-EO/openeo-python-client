@@ -13,7 +13,6 @@ from typing import (
     Callable,
     Dict,
     List,
-    Mapping,
     NamedTuple,
     Optional,
     Tuple,
@@ -31,7 +30,9 @@ from openeo.extra.job_management._thread_worker import (
     _JobStartTask,
 )
 from openeo.extra.job_management.process_based_job_creator import ProcessBasedJobCreator
-from openeo.extra.job_management.dataframe_job_db import JobDatabaseInterface, FullDataFrameJobDatabase, ParquetJobDatabase, CsvJobDatabase
+from openeo.extra.job_management._job_database import FullDataFrameJobDatabase, JobDatabaseInterface, ParquetJobDatabase, CsvJobDatabase, create_job_db, get_job_db
+from openeo.extra.job_management._dataframe_utils import normalize_dataframe
+
 
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
@@ -44,6 +45,10 @@ __all__ = [
     "FullDataFrameJobDatabase",
     "ParquetJobDatabase",
     "CsvJobDatabase",
+    "ProcessBasedJobCreator",
+    "create_job_db",
+    "get_job_db",
+
 ]
 
 class _Backend(NamedTuple):
@@ -71,6 +76,8 @@ class _ColumnProperties:
 
     dtype: str = "object"
     default: Any = None
+
+
 
 
 class MultiBackendJobManager:
@@ -143,21 +150,7 @@ class MultiBackendJobManager:
     # Expected columns in the job DB dataframes.
     # TODO: make this part of public API when settled?
     # TODO: move non official statuses to seperate column (not_started, queued_for_start)
-    _COLUMN_REQUIREMENTS: Mapping[str, _ColumnProperties] = {
-        "id": _ColumnProperties(dtype="str"),
-        "backend_name": _ColumnProperties(dtype="str"),
-        "status": _ColumnProperties(dtype="str", default="not_started"),
-        # TODO: use proper date/time dtype instead of legacy str for start times?
-        "start_time": _ColumnProperties(dtype="str"),
-        "running_start_time": _ColumnProperties(dtype="str"),
-        # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
-        #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
-        #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
-        "cpu": _ColumnProperties(dtype="str"),
-        "memory": _ColumnProperties(dtype="str"),
-        "duration": _ColumnProperties(dtype="str"),
-        "costs": _ColumnProperties(dtype="float64"),
-    }
+
 
     def __init__(
         self,
@@ -258,17 +251,8 @@ class MultiBackendJobManager:
 
     @classmethod
     def _normalize_df(cls, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Normalize given pandas dataframe (creating a new one):
-        ensure we have the required columns.
 
-        :param df: The dataframe to normalize.
-        :return: a new dataframe that is normalized.
-        """
-        new_columns = {col: req.default for (col, req) in cls._COLUMN_REQUIREMENTS.items() if col not in df.columns}
-        df = df.assign(**new_columns)
-
-        return df
+        return normalize_dataframe(df)
 
     def start_job_thread(self, start_job: Callable[[], BatchJob], job_db: JobDatabaseInterface):
         """
@@ -842,46 +826,5 @@ def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
         # Back off a bit
         time.sleep(sleep)
 
-
-
-def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
-    """
-    Factory to get a job database at a given path,
-    guessing the database type from filename extension.
-
-    :param path: path to job database file.
-
-    .. versionadded:: 0.33.0
-    """
-    path = Path(path)
-    if path.suffix.lower() in {".csv"}:
-        job_db = CsvJobDatabase(path=path)
-    elif path.suffix.lower() in {".parquet", ".geoparquet"}:
-        job_db = ParquetJobDatabase(path=path)
-    else:
-        raise ValueError(f"Could not guess job database type from {path!r}")
-    return job_db
-
-
-def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = "error"):
-    """
-    Factory to create a job database at given path,
-    initialized from a given dataframe,
-    and its database type guessed from filename extension.
-
-    :param path: Path to the job database file.
-    :param df: DataFrame to store in the job database.
-    :param on_exists: What to do when the job database already exists:
-        - "error": (default) raise an exception
-        - "skip": work with existing database, ignore given dataframe and skip any initialization
-
-    .. versionadded:: 0.33.0
-    """
-    job_db = get_job_db(path)
-    if isinstance(job_db, FullDataFrameJobDatabase):
-        job_db.initialize_from_df(df=df, on_exists=on_exists)
-    else:
-        raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
-    return job_db
 
 

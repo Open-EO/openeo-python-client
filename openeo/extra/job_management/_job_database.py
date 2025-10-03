@@ -3,16 +3,20 @@ import logging
 from pathlib import Path
 from typing import (
     Iterable,
-    List,
     Union,
+    List,
 )
+
 
 import pandas as pd
 import shapely.errors
 import shapely.wkt
 
+from openeo.extra.job_management._dataframe_utils import normalize_dataframe, COLUMN_REQUIREMENTS
+
+
+
 _log = logging.getLogger(__name__)
-from openeo.extra.job_management import MultiBackendJobManager
 
 class JobDatabaseInterface(metaclass=abc.ABCMeta):
     """
@@ -74,6 +78,8 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         """
         ...
 
+        
+
 class FullDataFrameJobDatabase(JobDatabaseInterface):
     def __init__(self):
         super().__init__()
@@ -103,7 +109,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             else:
                 # TODO handle other on_exists modes: e.g. overwrite, merge, ...
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
-        df = MultiBackendJobManager._normalize_df(df)
+        df = normalize_dataframe(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -161,6 +167,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         return self._df.loc[list(known)]
 
 
+
 class CsvJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a CSV file.
@@ -196,7 +203,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         df = pd.read_csv(
             self.path,
             # TODO: possible to avoid hidden coupling with MultiBackendJobManager here?
-            dtype={c: r.dtype for (c, r) in MultiBackendJobManager._COLUMN_REQUIREMENTS.items()},
+            dtype={c: r.dtype for (c, r) in COLUMN_REQUIREMENTS.items()},
         )
         if (
             "geometry" in df.columns
@@ -262,6 +269,66 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
     def persist(self, df: pd.DataFrame):
         self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.df.to_parquet(self.path, index=False)
+        self.df.to_parquet(self.path, index=False)    
 
+def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = "error"):
+    """
+    Factory to create a job database at given path,
+    initialized from a given dataframe,
+    and its database type guessed from filename extension.
+
+    :param path: Path to the job database file.
+    :param df: DataFrame to store in the job database.
+    :param on_exists: What to do when the job database already exists:
+        - "error": (default) raise an exception
+        - "skip": work with existing database, ignore given dataframe and skip any initialization
+
+    .. versionadded:: 0.33.0
+    """
+    job_db = get_job_db(path)
+    if isinstance(job_db, FullDataFrameJobDatabase):
+        job_db.initialize_from_df(df=df, on_exists=on_exists)
+    else:
+        raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
+    return job_db
+
+def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
+    """
+    Factory to get a job database at a given path,
+    guessing the database type from filename extension.
+
+    :param path: path to job database file.
+
+    .. versionadded:: 0.33.0
+    """
+    path = Path(path)
+    if path.suffix.lower() in {".csv"}:
+        job_db = CsvJobDatabase(path=path)
+    elif path.suffix.lower() in {".parquet", ".geoparquet"}:
+        job_db = ParquetJobDatabase(path=path)
+    else:
+        raise ValueError(f"Could not guess job database type from {path!r}")
+    return job_db
+
+
+def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = "error"):
+    """
+    Factory to create a job database at given path,
+    initialized from a given dataframe,
+    and its database type guessed from filename extension.
+
+    :param path: Path to the job database file.
+    :param df: DataFrame to store in the job database.
+    :param on_exists: What to do when the job database already exists:
+        - "error": (default) raise an exception
+        - "skip": work with existing database, ignore given dataframe and skip any initialization
+
+    .. versionadded:: 0.33.0
+    """
+    job_db = get_job_db(path)
+    if isinstance(job_db, FullDataFrameJobDatabase):
+        job_db.initialize_from_df(df=df, on_exists=on_exists)
+    else:
+        raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
+    return job_db
 
