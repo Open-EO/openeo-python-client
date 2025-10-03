@@ -869,7 +869,7 @@ class TestMultiBackendJobManager:
         dummy_backend_bar,
         job_manager_root_dir,
         sleep_mock,
-        requests_mock,
+        requests_mock
     ):
 
         client_id = "client123"
