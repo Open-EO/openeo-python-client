@@ -30,9 +30,7 @@ from openeo.extra.job_management._thread_worker import (
     _JobStartTask,
 )
 from openeo.extra.job_management.process_based_job_creator import ProcessBasedJobCreator
-from openeo.extra.job_management._job_database import FullDataFrameJobDatabase, JobDatabaseInterface, ParquetJobDatabase, CsvJobDatabase, create_job_db, get_job_db
-from openeo.extra.job_management._dataframe_utils import normalize_dataframe
-
+from openeo.extra.job_management._job_database import FullDataFrameJobDatabase, JobDatabaseInterface, ParquetJobDatabase, CsvJobDatabase, create_job_db, get_job_db, normalize_dataframe
 
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
