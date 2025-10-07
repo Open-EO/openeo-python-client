@@ -198,6 +198,10 @@ class MultiBackendJobManager:
         Optional temporal limit (in seconds) after which running jobs should be canceled
         by the job manager.
 
+    :param auto_download_results:
+        Whether to automatically download the results of finished jobs to the local filesystem.
+        Defaults to True. The results/metadata are downloaded to a subfolder of ``root_dir`` named after the job ID.
+        
     .. versionadded:: 0.14.0
 
     .. versionchanged:: 0.32.0
@@ -229,6 +233,7 @@ class MultiBackendJobManager:
         root_dir: Optional[Union[str, Path]] = ".",
         *,
         cancel_running_job_after: Optional[int] = None,
+        auto_download_results: bool = True,  # Currently not used, always True
     ):
         """Create a MultiBackendJobManager."""
         self._stop_thread = None
@@ -242,6 +247,8 @@ class MultiBackendJobManager:
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
         )
+        self.auto_download_results = auto_download_results
+
         self._thread = None
         self._worker_pool = None
 
@@ -741,7 +748,9 @@ class MultiBackendJobManager:
         metadata_path = self.get_job_metadata_path(job.job_id)
 
         self.ensure_job_dir_exists(job.job_id)
-        job.get_results().download_files(target=job_dir)
+
+        if self.auto_download_results:
+            job.get_results().download_files(target=job_dir)
 
         with metadata_path.open("w", encoding="utf-8") as f:
             json.dump(job_metadata, f, ensure_ascii=False)
