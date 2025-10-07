@@ -868,6 +868,82 @@ class TestMultiBackendJobManager:
         assert any("Skipping invalid db_update" in msg for msg in caplog.messages)
         assert any("Skipping invalid stats_update" in msg for msg in caplog.messages)
 
+    @pytest.mark.parametrize("auto_download,expected_result_files", [
+    (True, {"job-results.json", "result.data"}),  # Default behavior - should download
+    (False, set()),  # Disabled - should not download results
+    ])
+    def test_auto_download_results_behavior(
+        self,
+        tmp_path,
+        job_manager_root_dir,
+        sleep_mock,
+        dummy_backend_foo,
+        dummy_backend_bar,
+        auto_download,
+        expected_result_files,
+    ):
+        """
+        Test that auto_download_results controls whether job results are downloaded.
+        
+        This test resembles real usage by running the full job management loop
+        and verifying the file system outcomes.
+        """
+        # Create job manager with specified auto_download setting
+        job_manager = MultiBackendJobManager(
+            root_dir=job_manager_root_dir,
+            auto_download_results=auto_download
+        )
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+        # Create job definitions
+        df = pd.DataFrame({"year": [2018, 2019]})
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
+
+        # Run jobs through the full management loop
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        
+        # Verify jobs completed successfully
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "sleep": dirty_equals.IsInt(gt=1),
+                "start_job call": 2,
+                "job finished": 2,
+            }
+        )
+
+        # Check final job statuses
+        final_df = job_db.read()
+        assert set(final_df.status) == {"finished"}
+        assert set(final_df.id) == {"job-2018", "job-2019"}
+
+        # Verify the file system state matches our auto_download setting
+        actual_files = set(p.relative_to(job_manager_root_dir) for p in job_manager_root_dir.glob("**/*.*"))
+        
+        # All jobs should have metadata files regardless of auto_download setting
+        expected_metadata_files = {
+            Path(f"job_{job_id}") / f"job_{job_id}.json"
+            for job_id in ["job-2018", "job-2019"]
+        }
+        
+        # Result files depend on auto_download setting
+        expected_result_paths = {
+            Path(f"job_{job_id}") / filename
+            for job_id in ["job-2018", "job-2019"]
+            for filename in expected_result_files
+        }
+        
+        # Verify metadata files exist
+        for metadata_file in expected_metadata_files:
+            assert metadata_file in actual_files, f"Metadata file {metadata_file} should always exist"
+
+        # Verify result files match our expectation
+        for result_file in expected_result_paths:
+            if auto_download:
+                assert result_file in actual_files, f"Result file {result_file} should exist when auto_download_results=True"
+            else:
+                assert result_file not in actual_files, f"Result file {result_file} should not exist when auto_download_results=False"
+
 
 JOB_DB_DF_BASICS = pd.DataFrame(
     {
@@ -1906,3 +1982,5 @@ class TestProcessBasedJobCreator:
                 "description": "Process 'increment' (namespace https://remote.test/increment.json) with {'data': 5, 'increment': 200}",
             },
         }
+
+
