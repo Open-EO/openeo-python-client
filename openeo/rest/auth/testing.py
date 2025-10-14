@@ -143,6 +143,11 @@ class OidcMock:
         assert params["scope"] == self.expected_fields["scope"]
         return self._build_token_response()
 
+    def token_callback_block_400(self, params: dict, context):
+        """Failing callback with 400 Bad Request"""
+        context.status_code = 400
+        return "block_400"
+
     def device_code_callback(self, request: requests_mock.request._RequestObjectProxy, context):
         params = self._get_query_params(query=request.text)
         assert params["client_id"] == self.expected_client_id

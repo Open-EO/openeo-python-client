@@ -665,6 +665,28 @@ class Connection(RestApiConnection):
         self._oidc_auth_renewer = None
         return self
 
+    def try_access_token_refresh(self, *, reason: Optional[str] = None) -> bool:
+        """
+        Try to get a fresh access token if possible.
+        Returns whether a new access token was obtained.
+        """
+        reason = f" Reason: {reason}" if reason else ""
+        if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
+            try:
+                self._authenticate_oidc(
+                    authenticator=self._oidc_auth_renewer,
+                    provider_id=self._oidc_auth_renewer.provider_info.id,
+                    store_refresh_token=False,
+                    oidc_auth_renewer=self._oidc_auth_renewer,
+                )
+                _log.info(f"Obtained new access token (grant {self._oidc_auth_renewer.grant_type!r}).{reason}")
+                return True
+            except OpenEoClientException as auth_exc:
+                _log.error(
+                    f"Failed to obtain new access token (grant {self._oidc_auth_renewer.grant_type!r}): {auth_exc!r}.{reason}"
+                )
+        return False
+
     def request(
         self,
         method: str,
@@ -690,24 +712,11 @@ class Connection(RestApiConnection):
                 api_exc.http_status_code in {HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN}
                 and api_exc.code == "TokenInvalid"
             ):
-                # Auth token expired: can we refresh?
-                if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
-                    msg = f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
-                    try:
-                        self._authenticate_oidc(
-                            authenticator=self._oidc_auth_renewer,
-                            provider_id=self._oidc_auth_renewer.provider_info.id,
-                            store_refresh_token=False,
-                            oidc_auth_renewer=self._oidc_auth_renewer,
-                        )
-                        _log.info(f"{msg} Obtained new access token (grant {self._oidc_auth_renewer.grant_type!r}).")
-                    except OpenEoClientException as auth_exc:
-                        _log.error(
-                            f"{msg} Failed to obtain new access token (grant {self._oidc_auth_renewer.grant_type!r}): {auth_exc!r}."
-                        )
-                    else:
-                        # Retry request.
-                        return _request()
+                # Retry if we can refresh the access token
+                if self.try_access_token_refresh(
+                    reason=f"OIDC access token expired ({api_exc.http_status_code} {api_exc.code})."
+                ):
+                    return _request()
             raise
 
     def describe_account(self) -> dict:
