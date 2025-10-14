@@ -1178,10 +1178,18 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert not result31.has_temporal_dimension()
 
 
-def test_cube_metadata_repr():
-    assert repr(CUBE_METADATA_XYTB) == dirty_equals.IsStr(
-        regex="CubeMetadata.*dimensions=.*SpatialDimension.*x.*SpatialDimension.*y.*TemporalDimension.*t.*BandDimension.*bands.*B2.*B3.*"
+def test_cube_metadata_repr_with_bands():
+    assert repr(CUBE_METADATA_XYTB) == "CubeMetadata(dimension_names=['x', 'y', 't', 'bands'], band_names=['B2', 'B3'])"
+
+
+def test_cube_metadata_repr_no_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
+            TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+        ]
     )
+    assert repr(metadata) == "CubeMetadata(dimension_names=['x', 't'])"
 
 
 class TestStacMetadataParser:
