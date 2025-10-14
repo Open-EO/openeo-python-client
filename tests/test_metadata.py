@@ -1178,6 +1178,11 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert not result31.has_temporal_dimension()
 
 
+def test_cube_metadata_repr_empty():
+    metadata = CubeMetadata()
+    assert repr(metadata) == "CubeMetadata(dimension_names=[])"
+
+
 def test_cube_metadata_repr_with_bands():
     assert repr(CUBE_METADATA_XYTB) == "CubeMetadata(dimension_names=['x', 'y', 't', 'bands'], band_names=['B2', 'B3'])"
 

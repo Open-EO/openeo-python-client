@@ -260,7 +260,7 @@ class CubeMetadata:
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
-        self._dimensions = dimensions
+        self._dimensions = dimensions or []
         self._band_dimension = None
         self._temporal_dimension = None
 
