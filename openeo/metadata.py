@@ -260,7 +260,10 @@ class CubeMetadata:
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
-        self._dimensions = dimensions or []
+        # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
+        #       but most usage actually assumes it is a list that can be iterated over.
+        #       Can we handle this more consistently and less error-prone?
+        self._dimensions: Union[List[Dimension], None] = dimensions
         self._band_dimension = None
         self._temporal_dimension = None
 
@@ -300,6 +303,9 @@ class CubeMetadata:
         return cls(dimensions=dimensions, **kwargs)
 
     def dimension_names(self) -> List[str]:
+        if self._dimensions is None:
+            # TODO: better solution for unknown dimensions?
+            return ["unknown"]
         return list(d.name for d in self._dimensions)
 
     def assert_valid_dimension(self, dimension: str) -> str:
