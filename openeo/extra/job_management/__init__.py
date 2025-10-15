@@ -674,18 +674,20 @@ class MultiBackendJobManager:
                 df.loc[i, "status"] = "skipped"
                 stats["start_job skipped"] += 1
 
-    def _refresh_bearer_token(self, connection: Connection, *, max_age: float = 60):
+    def _refresh_bearer_token(self, connection: Connection, *, max_age: float = 60) -> None:
         """
-        Helper to proactively refresh access token of connection
+        Helper to proactively refresh the bearer (access) token of the connection
         (but not too often, based on `max_age`).
         """
         # TODO: be smarter about timing, e.g. by inspecting expiry of current token?
         now = time.time()
-        key = f"connection-{id(connection)}-refresh-time"
+        key = f"connection:{id(connection)}:refresh-time"
         if self._cache.get(key, 0) + max_age < now:
             refreshed = connection.try_access_token_refresh()
             if refreshed:
                 self._cache[key] = now
+            else:
+                _log.warning("Failed to proactively refresh bearer token")
 
     def _process_threadworker_updates(
         self,
