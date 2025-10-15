@@ -342,28 +342,32 @@ class Connection(RestApiConnection):
         *,
         provider_id: str,
         store_refresh_token: bool = False,
-        fallback_refresh_token_to_store: Optional[str] = None,
+        auto_renew_from_refresh_token: bool = False,
+        fallback_refresh_token: Optional[str] = None,
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
     ) -> Connection:
         """
         Authenticate through OIDC and set up bearer token (based on OIDC access_token) for further requests.
         """
-        tokens = authenticator.get_tokens(request_refresh_token=store_refresh_token)
+        request_refresh_token = store_refresh_token or (not oidc_auth_renewer and auto_renew_from_refresh_token)
+        tokens = authenticator.get_tokens(request_refresh_token=request_refresh_token)
         _log.info("Obtained tokens: {t}".format(t=[k for k, v in tokens._asdict().items() if v]))
+
+        refresh_token = tokens.refresh_token or fallback_refresh_token
         if store_refresh_token:
-            refresh_token = tokens.refresh_token or fallback_refresh_token_to_store
             if refresh_token:
                 self._get_refresh_token_store().set_refresh_token(
                     issuer=authenticator.provider_info.issuer,
                     client_id=authenticator.client_id,
                     refresh_token=refresh_token
                 )
-                if not oidc_auth_renewer:
-                    oidc_auth_renewer = OidcRefreshTokenAuthenticator(
-                        client_info=authenticator.client_info, refresh_token=refresh_token
-                    )
             else:
                 _log.warning("No OIDC refresh token to store.")
+        if not oidc_auth_renewer and auto_renew_from_refresh_token and refresh_token:
+            oidc_auth_renewer = OidcRefreshTokenAuthenticator(
+                client_info=authenticator.client_info, refresh_token=refresh_token
+            )
+
         token = tokens.access_token
         self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
         self._oidc_auth_renewer = oidc_auth_renewer
@@ -452,7 +456,12 @@ class Connection(RestApiConnection):
         authenticator = OidcResourceOwnerPasswordAuthenticator(
             client_info=client_info, username=username, password=password
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        return self._authenticate_oidc(
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+            oidc_auth_renewer=authenticator,
+        )
 
     def authenticate_oidc_refresh_token(
         self,
@@ -493,7 +502,7 @@ class Connection(RestApiConnection):
             authenticator,
             provider_id=provider_id,
             store_refresh_token=store_refresh_token,
-            fallback_refresh_token_to_store=refresh_token,
+            fallback_refresh_token=refresh_token,
             oidc_auth_renewer=authenticator,
         )
 
@@ -534,7 +543,13 @@ class Connection(RestApiConnection):
         authenticator = OidcDeviceAuthenticator(
             client_info=client_info, use_pkce=use_pkce, max_poll_time=max_poll_time, **kwargs
         )
-        return self._authenticate_oidc(authenticator, provider_id=provider_id, store_refresh_token=store_refresh_token)
+        return self._authenticate_oidc(
+            authenticator,
+            provider_id=provider_id,
+            store_refresh_token=store_refresh_token,
+            # TODO: expose `auto_renew_from_refresh_token` directly as option instead of reusing `store_refresh_token` arg?
+            auto_renew_from_refresh_token=store_refresh_token,
+        )
 
     def authenticate_oidc(
         self,
@@ -604,7 +619,8 @@ class Connection(RestApiConnection):
                     authenticator,
                     provider_id=provider_id,
                     store_refresh_token=store_refresh_token,
-                    fallback_refresh_token_to_store=refresh_token,
+                    fallback_refresh_token=refresh_token,
+                    oidc_auth_renewer=authenticator,
                 )
                 # TODO: pluggable/jupyter-aware display function?
                 print("Authenticated using refresh token.")
@@ -622,6 +638,8 @@ class Connection(RestApiConnection):
             authenticator,
             provider_id=provider_id,
             store_refresh_token=store_refresh_token,
+            # TODO: expose `auto_renew_from_refresh_token` directly as option instead of reusing `store_refresh_token` arg?
+            auto_renew_from_refresh_token=store_refresh_token,
         )
         print("Authenticated using device code flow.")
         return con
