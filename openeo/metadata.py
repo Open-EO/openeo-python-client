@@ -193,8 +193,10 @@ class BandDimension(Dimension):
             bands=[self.bands[self.band_index(b)] for b in bands]
         )
 
-    def append_band(self, band: Band) -> BandDimension:
+    def append_band(self, band: Union[Band, str]) -> BandDimension:
         """Create new BandDimension with appended band."""
+        if isinstance(band, str):
+            band = Band(name=band)
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
 
@@ -377,7 +379,7 @@ class CubeMetadata:
             dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
         )
 
-    def append_band(self, band: Band) -> CubeMetadata:
+    def append_band(self, band: Union[Band, str]) -> CubeMetadata:
         """
         Create new `CubeMetadata` with given band added to band dimension.
         """

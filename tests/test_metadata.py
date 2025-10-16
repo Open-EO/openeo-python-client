@@ -228,6 +228,24 @@ def test_band_dimension_rename_labels_with_source_mismatch():
         _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
 
 
+def test_band_dimension_append_band():
+    bdim1 = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490),
+            Band("B04", "red", 0.665),
+        ],
+    )
+    bdim2 = bdim1.append_band(Band("B08", "nir", 0.842))
+    bdim3 = bdim1.append_band("B03")
+    assert bdim1.band_names == ["B02", "B04"]
+    assert bdim1.common_names == ["blue", "red"]
+    assert bdim2.band_names == ["B02", "B04", "B08"]
+    assert bdim2.common_names == ["blue", "red", "nir"]
+    assert bdim3.band_names == ["B02", "B04", "B03"]
+    assert bdim3.common_names == ["blue", "red", None]
+
+
 def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
     assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 
@@ -738,6 +756,19 @@ def test_cubemetadata_add_band_dimension_duplicate():
     metadata = metadata.add_dimension("layer", "red", "bands")
     with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
         _ = metadata.add_dimension("layer", "red", "bands")
+
+
+def test_cubemetadata_append_band():
+    metadata1 = CubeMetadata(
+        dimensions=[
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    metadata2 = metadata1.append_band(Band("blue"))
+    metadata3 = metadata1.append_band("pink")
+    assert metadata1.band_names == ["red", "green"]
+    assert metadata2.band_names == ["red", "green", "blue"]
+    assert metadata3.band_names == ["red", "green", "pink"]
 
 
 def test_collectionmetadata_add_temporal_dimension():

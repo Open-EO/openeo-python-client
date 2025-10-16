@@ -39,6 +39,7 @@ def _setup_connection(api_version, requests_mock, build_capabilities_kwargs: Opt
     # Some other collections
     setup_collection_metadata(requests_mock=requests_mock, cid="MASK", bands=["CLOUDS", "WATER"])
     setup_collection_metadata(requests_mock=requests_mock, cid="SENTINEL2_SCF", bands=["SCENECLASSIFICATION", "MSK"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S1", bands=["VV", "VH"])
 
     requests_mock.get(API_URL + "/file_formats", json={
         "output": {
