@@ -290,8 +290,10 @@ class CubeMetadata:
     def __repr__(self) -> str:
         if self.has_band_dimension():
             return f"{self.__class__.__name__}(dimension_names={self.dimension_names()}, band_names={self.band_names})"
-        else:
+        elif self._dimensions is not None:
             return f"{self.__class__.__name__}(dimension_names={self.dimension_names()})"
+        else:
+            return f"{self.__class__.__name__}(dimensions=None)"
 
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
@@ -304,10 +306,10 @@ class CubeMetadata:
             dimensions = self._dimensions
         return cls(dimensions=dimensions, **kwargs)
 
-    def dimension_names(self) -> List[str]:
+    def dimension_names(self) -> Union[List[str], None]:
         if self._dimensions is None:
             # TODO: better solution for unknown dimensions?
-            return ["unknown"]
+            return None
         return list(d.name for d in self._dimensions)
 
     def assert_valid_dimension(self, dimension: str) -> str:

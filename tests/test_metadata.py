@@ -1211,7 +1211,7 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
 
 def test_cube_metadata_repr_empty():
     metadata = CubeMetadata()
-    assert repr(metadata) == "CubeMetadata(dimension_names=['unknown'])"
+    assert repr(metadata) == "CubeMetadata(dimensions=None)"
 
 
 def test_cube_metadata_repr_with_bands():
