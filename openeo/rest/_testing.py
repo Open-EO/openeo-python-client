@@ -132,6 +132,22 @@ class DummyBackend:
         connection = Connection(root_url)
         return cls(requests_mock=requests_mock, connection=connection)
 
+    def setup_credentials_oidc(self, *, issuer: str = "https://oidc.test", id: str = "oi"):
+        self._requests_mock.get(
+            self.connection.build_url("/credentials/oidc"),
+            json={
+                "providers": [
+                    {
+                        "id": id,
+                        "issuer": issuer,
+                        "title": id,
+                        "scopes": ["openid"],
+                    }
+                ]
+            },
+        )
+        return self
+
     def setup_collection(
         self,
         collection_id: str,

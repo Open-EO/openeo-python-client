@@ -2119,6 +2119,8 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_refresh_token
     }
 
 
+
+
 @pytest.mark.parametrize(
     ["invalidate", "token_invalid_status_code"],
     [
@@ -2363,17 +2365,17 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     client_id = "myclient"
     client_secret = "$3cr3t"
-    issuer = "https://oidc.test"
+    oidc_issuer = "https://oidc.test"
     requests_mock.get(
         API_URL + "credentials/oidc",
-        json={"providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]},
+        json={"providers": [{"id": "oi", "issuer": oidc_issuer, "title": "example", "scopes": ["openid"]}]},
     )
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="client_credentials",
         expected_client_id=client_id,
         expected_fields={"client_secret": client_secret, "scope": "openid"},
-        oidc_issuer=issuer,
+        oidc_issuer=oidc_issuer,
     )
 
     _setup_get_me_handler(
@@ -2381,12 +2383,13 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     )
     caplog.set_level(logging.INFO)
 
-    # Explicit authentication with `authenticate_oidc_refresh_token`
+    # Initial authentication with `authenticate_oidc_client_credentials`
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+
     # Just one "client_credentials" auth request so far
     assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["client_credentials"]
     access_token1 = oidc_mock.state["access_token"]
@@ -2458,7 +2461,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     )
     caplog.set_level(logging.INFO)
 
-    # Explicit authentication with `authenticate_oidc_refresh_token`
+    # Initial authentication with `authenticate_oidc_client_credentials`
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
@@ -2475,9 +2478,9 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
         "_used_access_token": access_token1,
     }
 
-    # Expire access token don't accept client credentials anymore
+    # Expire access token, and don't accept client credentials anymore
     oidc_mock.invalidate_access_token()
-    requests_mock.post(oidc_mock.token_endpoint, status_code=401, text="nope")
+    oidc_mock.token_callback_client_credentials = oidc_mock.token_callback_block_400
     # Do request that requires auth headers and might trigger re-authentication
     assert f"{token_invalid_status_code} TokenInvalid" not in caplog.text
     with pytest.raises(
@@ -2488,6 +2491,258 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
 
     assert f"OIDC access token expired ({token_invalid_status_code} TokenInvalid)" in caplog.text
     assert "Failed to obtain new access token (grant 'client_credentials')" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ["invalid_refresh_token", "expect_refresh"],
+    [
+        (False, True),
+        (True, False),
+    ],
+)
+def test_try_access_token_refresh_initial_refresh_token(
+    requests_mock, refresh_token_store, caplog, invalid_refresh_token, expect_refresh
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    initial_refresh_token = "r3fr35h!"
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": oidc_issuer, "title": "example", "scopes": ["openid"]}]},
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="refresh_token",
+        expected_client_id=client_id,
+        oidc_issuer=oidc_issuer,
+        expected_fields={"refresh_token": initial_refresh_token},
+    )
+    _setup_get_me_handler(requests_mock=requests_mock, oidc_mock=oidc_mock)
+    caplog.set_level(logging.WARNING)
+
+    # Initial authentication with `authenticate_oidc_refresh_token`
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_refresh_token(refresh_token=initial_refresh_token, client_id=client_id)
+    assert isinstance(conn.auth, BearerAuth) and conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+
+    # Just one "refresh_token" auth request so far
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token"]
+    access_token1 = oidc_mock.state["access_token"]
+
+    # Do request that requires auth headers
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token1,
+    }
+
+    # Prepare for refresh attempt
+    if invalid_refresh_token:
+        oidc_mock.expected_fields["refresh_token"] = "nope-not-accepting-that"
+
+    # Trigger refresh
+    refreshed = conn.try_access_token_refresh(reason="Can I Haz Fresh")
+
+    # Two "refresh_token" auth request attempts should have happened now
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == ["refresh_token", "refresh_token"]
+    access_token2 = oidc_mock.state["access_token"]
+
+    if expect_refresh:
+        assert refreshed == True
+        assert access_token2 != access_token1
+        assert caplog.messages == []
+    else:
+        assert refreshed == False
+        assert access_token2 == access_token1
+        assert caplog.messages == [
+            dirty_equals.IsStr(
+                regex="Failed to obtain new access token.*grant 'refresh_token'.*invalid refresh token.*Reason: Can I Haz Fresh"
+            )
+        ]
+
+    # New request with fresh token?
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token2,
+    }
+
+
+@pytest.mark.parametrize(
+    ["invalid_refresh_token", "expect_refresh"],
+    [
+        (False, True),
+        (True, False),
+    ],
+)
+def test_try_access_token_refresh_initial_device_code(
+    requests_mock, refresh_token_store, caplog, invalid_refresh_token, expect_refresh, oidc_device_code_flow_checker
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": oidc_issuer, "title": "example", "scopes": ["openid"]}]},
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
+        expected_client_id=client_id,
+        oidc_issuer=oidc_issuer,
+        expected_fields={
+            "scope": "openid",
+            "code_verifier": True,
+            "code_challenge": True,
+        },
+        scopes_supported=["openid"],
+    )
+    _setup_get_me_handler(requests_mock=requests_mock, oidc_mock=oidc_mock)
+    caplog.set_level(logging.WARNING)
+
+    # Initial authentication with `authenticate_oidc_refresh_token`
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    with oidc_device_code_flow_checker():
+        conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
+    assert isinstance(conn.auth, BearerAuth) and conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+
+    # Just one "refresh_token" auth request so far
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ]
+    access_token1 = oidc_mock.state["access_token"]
+    refresh_token1 = oidc_mock.state["refresh_token"]
+    assert refresh_token1 is not None
+
+    # Do request that requires auth headers
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token1,
+    }
+
+    # Prepare for refresh attempt
+    oidc_mock.expected_grant_type = "refresh_token"
+    if invalid_refresh_token:
+        oidc_mock.expected_fields["refresh_token"] = "nope-not-accepting-that"
+    else:
+        oidc_mock.expected_fields["refresh_token"] = refresh_token1
+
+    # Trigger refresh
+    refreshed = conn.try_access_token_refresh(reason="Can I Haz Fresh")
+
+    # Two "refresh_token" auth request attempts should have happened now
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
+        "urn:ietf:params:oauth:grant-type:device_code",
+        "refresh_token",
+    ]
+    access_token2 = oidc_mock.state["access_token"]
+
+    if expect_refresh:
+        assert refreshed == True
+        assert access_token2 != access_token1
+        assert caplog.messages == []
+    else:
+        assert refreshed == False
+        assert access_token2 == access_token1
+        assert caplog.messages == [
+            dirty_equals.IsStr(
+                regex="Failed to obtain new access token.*grant 'refresh_token'.*invalid refresh token.*Reason: Can I Haz Fresh"
+            )
+        ]
+
+    # New request with fresh token?
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token2,
+    }
+
+
+@pytest.mark.parametrize(
+    ["block_token_endpoint", "expect_refresh"],
+    [
+        (False, True),
+        (True, False),
+    ],
+)
+def test_try_access_token_refresh_initial_client_credentials(
+    requests_mock, refresh_token_store, caplog, block_token_endpoint, expect_refresh, oidc_device_code_flow_checker
+):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    client_secret = "$3cr3t"
+    oidc_issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": oidc_issuer, "title": "example", "scopes": ["openid"]}]},
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="client_credentials",
+        expected_client_id=client_id,
+        expected_fields={"client_secret": client_secret, "scope": "openid"},
+        oidc_issuer=oidc_issuer,
+    )
+    _setup_get_me_handler(requests_mock=requests_mock, oidc_mock=oidc_mock)
+    caplog.set_level(logging.WARNING)
+
+    # Initial authentication with `authenticate_oidc_client_credentials`
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
+    assert isinstance(conn.auth, BearerAuth) and conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+
+    # Just one "refresh_token" auth request so far
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
+        "client_credentials",
+    ]
+    access_token1 = oidc_mock.state["access_token"]
+
+    # Do request that requires auth headers
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token1,
+    }
+
+    # Prepare for refresh attempt
+    if block_token_endpoint:
+        oidc_mock.token_callback_client_credentials = oidc_mock.token_callback_block_400
+
+    # Trigger refresh
+    refreshed = conn.try_access_token_refresh(reason="Can I Haz Fresh")
+
+    # Two "refresh_token" auth request attempts should have happened now
+    assert [h["grant_type"] for h in oidc_mock.grant_request_history] == [
+        "client_credentials",
+        "client_credentials",
+    ]
+    access_token2 = oidc_mock.state["access_token"]
+
+    if expect_refresh:
+        assert refreshed == True
+        assert access_token2 != access_token1
+        assert caplog.messages == []
+    else:
+        assert refreshed == False
+        assert access_token2 == access_token1
+        assert caplog.messages == [
+            dirty_equals.IsStr(
+                regex="Failed to obtain new access token.*grant 'client_credentials'.*block_400.*Reason: Can I Haz Fresh"
+            )
+        ]
+
+    # New request with fresh token?
+    assert conn.describe_account() == {
+        "user_id": "john",
+        "_used_oidc_provider": "oi",
+        "_used_access_token": access_token2,
+    }
 
 
 class TestAuthenticateOidcAccessToken:
