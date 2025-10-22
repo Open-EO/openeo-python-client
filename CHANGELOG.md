@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DataCube.sar_backscatter()`: add corresponding band names to metadata when enabling "mask", "contributing_area", "local_incidence_angle" or "ellipsoid_incidence_angle" ([#804](https://github.com/Open-EO/openeo-python-client/issues/804))
 - Proactively refresh access/bearer token in `MultiBackendJobManager` before launching a job start thread ([#817](https://github.com/Open-EO/openeo-python-client/issues/817))
+- `Connection.list_services()`: Fix list access error for federation extension
 
 
 ## [0.45.0] - 2025-09-17

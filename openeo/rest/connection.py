@@ -848,12 +848,12 @@ class Connection(RestApiConnection):
         :return: data_dict: Dict All available services
         """
         # TODO return parsed service objects
-        services = self.get('/services', expected_status=200).json()["services"]
-        federation_missing = federation_extension.get_federation_missing(data=services, resource_name="services")
+        response = self.get("/services", expected_status=200).json()
+        federation_missing = federation_extension.get_federation_missing(data=response, resource_name="services")
         federation = self.capabilities().ext_federation_backend_details()
         return VisualList(
             "data-table",
-            data=services,
+            data=response["services"],
             parameters={"columns": "services", "missing": federation_missing, "federation": federation},
         )
 
