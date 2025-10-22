@@ -3810,6 +3810,63 @@ def test_list_service_types_error(requests_mock):
     assert m.call_count == 2
 
 
+def test_list_services(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    requests_mock.get(
+        API_URL + "services",
+        json={
+            "services": [
+                {
+                    "id": "wms-a3cca9",
+                    "url": "https://openeo.example/wms/wms-a3cca9",
+                    "type": "wms",
+                    "enabled": True,
+                }
+            ],
+            "links": [],
+        },
+    )
+    assert conn.list_services() == [
+        {
+            "id": "wms-a3cca9",
+            "url": "https://openeo.example/wms/wms-a3cca9",
+            "type": "wms",
+            "enabled": True,
+        }
+    ]
+
+
+def test_list_services_federation_missing(requests_mock):
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    conn = Connection(API_URL)
+    requests_mock.get(
+        API_URL + "services",
+        json={
+            "services": [
+                {
+                    "id": "wms-a3cca9",
+                    "url": "https://openeo.example/wms/wms-a3cca9",
+                    "type": "wms",
+                    "enabled": True,
+                }
+            ],
+            "links": [],
+            "federation:missing": ["oeob"],
+        },
+    )
+    services = conn.list_services()
+    assert services == [
+        {
+            "id": "wms-a3cca9",
+            "url": "https://openeo.example/wms/wms-a3cca9",
+            "type": "wms",
+            "enabled": True,
+        }
+    ]
+    assert services.parameters["missing"] == ["oeob"]
+
+
 def test_list_udf_runtimes(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     conn = Connection(API_URL)
