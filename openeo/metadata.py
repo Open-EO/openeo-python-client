@@ -124,6 +124,7 @@ class Band(NamedTuple):
     aliases: Optional[List[str]] = None
     # "openeo:gsd" field (https://github.com/Open-EO/openeo-stac-extensions#GSD-Object)
     gsd: Optional[dict] = None
+    statistics: Optional[dict] = None
 
 
 class BandDimension(Dimension):
