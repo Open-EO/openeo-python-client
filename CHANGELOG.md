@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Official support for Python 3.14 (include Python 3.14 in unit test matrix on GitHub Actions) ([#801](https://github.com/Open-EO/openeo-python-client/issues/801))
+
 ### Changed
 
 ### Removed
