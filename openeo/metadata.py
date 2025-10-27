@@ -193,8 +193,10 @@ class BandDimension(Dimension):
             bands=[self.bands[self.band_index(b)] for b in bands]
         )
 
-    def append_band(self, band: Band) -> BandDimension:
+    def append_band(self, band: Union[Band, str]) -> BandDimension:
         """Create new BandDimension with appended band."""
+        if isinstance(band, str):
+            band = Band(name=band)
         if band.name in self.band_names:
             raise ValueError("Duplicate band {b!r}".format(b=band))
 
@@ -260,7 +262,10 @@ class CubeMetadata:
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
         # Original collection metadata (actual cube metadata might be altered through processes)
-        self._dimensions = dimensions
+        # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
+        #       but most usage actually assumes it is a list that can be iterated over.
+        #       Can we handle this more consistently and less error-prone?
+        self._dimensions: Union[List[Dimension], None] = dimensions
         self._band_dimension = None
         self._temporal_dimension = None
 
@@ -283,8 +288,12 @@ class CubeMetadata:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
 
     def __repr__(self) -> str:
-        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
-        return f"{self.__class__.__name__}({bands} - {self.dimension_names()})"
+        if self.has_band_dimension():
+            return f"{self.__class__.__name__}(dimension_names={self.dimension_names()}, band_names={self.band_names})"
+        elif self._dimensions is not None:
+            return f"{self.__class__.__name__}(dimension_names={self.dimension_names()})"
+        else:
+            return f"{self.__class__.__name__}(dimensions=None)"
 
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
@@ -297,7 +306,10 @@ class CubeMetadata:
             dimensions = self._dimensions
         return cls(dimensions=dimensions, **kwargs)
 
-    def dimension_names(self) -> List[str]:
+    def dimension_names(self) -> Union[List[str], None]:
+        if self._dimensions is None:
+            # TODO: better solution for unknown dimensions?
+            return None
         return list(d.name for d in self._dimensions)
 
     def assert_valid_dimension(self, dimension: str) -> str:
@@ -369,7 +381,7 @@ class CubeMetadata:
             dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
         )
 
-    def append_band(self, band: Band) -> CubeMetadata:
+    def append_band(self, band: Union[Band, str]) -> CubeMetadata:
         """
         Create new `CubeMetadata` with given band added to band dimension.
         """

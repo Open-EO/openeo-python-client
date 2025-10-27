@@ -244,6 +244,8 @@ class MultiBackendJobManager:
         )
         self._thread = None
         self._worker_pool = None
+        # Generic cache
+        self._cache = {}
 
     def add_backend(
         self,
@@ -650,6 +652,8 @@ class MultiBackendJobManager:
                         # start job if not yet done by callback
                         try:
                             job_con = job.connection
+                            # Proactively refresh bearer token (because task in thread will not be able to do that)
+                            self._refresh_bearer_token(connection=job_con)
                             task = _JobStartTask(
                                 root_url=job_con.root_url,
                                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
@@ -669,6 +673,21 @@ class MultiBackendJobManager:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
                 stats["start_job skipped"] += 1
+
+    def _refresh_bearer_token(self, connection: Connection, *, max_age: float = 60) -> None:
+        """
+        Helper to proactively refresh the bearer (access) token of the connection
+        (but not too often, based on `max_age`).
+        """
+        # TODO: be smarter about timing, e.g. by inspecting expiry of current token?
+        now = time.time()
+        key = f"connection:{id(connection)}:refresh-time"
+        if self._cache.get(key, 0) + max_age < now:
+            refreshed = connection.try_access_token_refresh()
+            if refreshed:
+                self._cache[key] = now
+            else:
+                _log.warning("Failed to proactively refresh bearer token")
 
     def _process_threadworker_updates(
         self,

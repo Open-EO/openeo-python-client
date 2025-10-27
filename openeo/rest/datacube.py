@@ -2943,7 +2943,16 @@ class DataCube(_ProcessGraphAbstraction):
         }
         if options:
             arguments["options"] = options
-        return self.process(process_id="sar_backscatter", arguments=arguments)
+        metadata = self.metadata
+        if mask:
+            metadata = metadata.append_band(band="mask")
+        if contributing_area:
+            metadata = metadata.append_band(band="contributing_area")
+        if local_incidence_angle:
+            metadata = metadata.append_band(band="local_incidence_angle")
+        if ellipsoid_incidence_angle:
+            metadata = metadata.append_band(band="ellipsoid_incidence_angle")
+        return self.process(process_id="sar_backscatter", arguments=arguments, metadata=metadata)
 
     @openeo_process
     def fit_curve(self, parameters: list, function: Union[str, PGNode, typing.Callable], dimension: str):

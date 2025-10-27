@@ -228,6 +228,24 @@ def test_band_dimension_rename_labels_with_source_mismatch():
         _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
 
 
+def test_band_dimension_append_band():
+    bdim1 = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490),
+            Band("B04", "red", 0.665),
+        ],
+    )
+    bdim2 = bdim1.append_band(Band("B08", "nir", 0.842))
+    bdim3 = bdim1.append_band("B03")
+    assert bdim1.band_names == ["B02", "B04"]
+    assert bdim1.common_names == ["blue", "red"]
+    assert bdim2.band_names == ["B02", "B04", "B08"]
+    assert bdim2.common_names == ["blue", "red", "nir"]
+    assert bdim3.band_names == ["B02", "B04", "B03"]
+    assert bdim3.common_names == ["blue", "red", None]
+
+
 def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
     assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 
@@ -740,6 +758,19 @@ def test_cubemetadata_add_band_dimension_duplicate():
         _ = metadata.add_dimension("layer", "red", "bands")
 
 
+def test_cubemetadata_append_band():
+    metadata1 = CubeMetadata(
+        dimensions=[
+            BandDimension(name="b", bands=[Band("red"), Band("green")]),
+        ]
+    )
+    metadata2 = metadata1.append_band(Band("blue"))
+    metadata3 = metadata1.append_band("pink")
+    assert metadata1.band_names == ["red", "green"]
+    assert metadata2.band_names == ["red", "green", "blue"]
+    assert metadata3.band_names == ["red", "green", "pink"]
+
+
 def test_collectionmetadata_add_temporal_dimension():
     metadata = CollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
     new = metadata.add_dimension("date", "2020-05-15", "temporal")
@@ -1178,10 +1209,23 @@ def test_metadata_resample_cube_spatial_preserve_non_spatial():
     assert not result31.has_temporal_dimension()
 
 
-def test_cube_metadata_repr():
-    assert repr(CUBE_METADATA_XYTB) == dirty_equals.IsStr(
-        regex="CubeMetadata.*dimensions=.*SpatialDimension.*x.*SpatialDimension.*y.*TemporalDimension.*t.*BandDimension.*bands.*B2.*B3.*"
+def test_cube_metadata_repr_empty():
+    metadata = CubeMetadata()
+    assert repr(metadata) == "CubeMetadata(dimensions=None)"
+
+
+def test_cube_metadata_repr_with_bands():
+    assert repr(CUBE_METADATA_XYTB) == "CubeMetadata(dimension_names=['x', 'y', 't', 'bands'], band_names=['B2', 'B3'])"
+
+
+def test_cube_metadata_repr_no_bands():
+    metadata = CubeMetadata(
+        dimensions=[
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
+            TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+        ]
     )
+    assert repr(metadata) == "CubeMetadata(dimension_names=['x', 't'])"
 
 
 class TestStacMetadataParser:

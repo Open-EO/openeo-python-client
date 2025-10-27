@@ -2875,6 +2875,29 @@ def test_sar_backscatter_check_coefficient_backend(con100, requests_mock):
     }
 
 
+def test_sar_backscatter_metadat(con100):
+    s1 = con100.load_collection("S1")
+    assert s1.sar_backscatter().metadata.band_names == ["VV", "VH"]
+    assert s1.sar_backscatter(mask=True).metadata.band_names == ["VV", "VH", "mask"]
+    assert s1.sar_backscatter(contributing_area=True).metadata.band_names == ["VV", "VH", "contributing_area"]
+    assert s1.sar_backscatter(local_incidence_angle=True).metadata.band_names == ["VV", "VH", "local_incidence_angle"]
+    assert s1.sar_backscatter(ellipsoid_incidence_angle=True).metadata.band_names == [
+        "VV",
+        "VH",
+        "ellipsoid_incidence_angle",
+    ]
+    assert s1.sar_backscatter(
+        mask=True, contributing_area=True, local_incidence_angle=True, ellipsoid_incidence_angle=True
+    ).metadata.band_names == [
+        "VV",
+        "VH",
+        "mask",
+        "contributing_area",
+        "local_incidence_angle",
+        "ellipsoid_incidence_angle",
+    ]
+
+
 def test_datacube_from_process(con100):
     cube = con100.datacube_from_process("colorize", color="red", size=4)
     assert cube.flat_graph() == {

@@ -47,6 +47,7 @@ from openeo.extra.job_management._thread_worker import (
     _TaskResult,
 )
 from openeo.rest._testing import OPENEO_BACKEND, DummyBackend, build_capabilities
+from openeo.rest.auth.testing import OidcMock
 from openeo.util import rfc3339
 from openeo.utils.version import ComparableVersion
 
@@ -269,7 +270,7 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
 
-    def test_basic_threading(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
+    def test_start_job_thread_basic(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         df = pd.DataFrame(
             {
                 "year": [2018, 2019, 2020, 2021, 2022],
@@ -867,6 +868,52 @@ class TestMultiBackendJobManager:
         # Assert log about invalid db update
         assert any("Skipping invalid db_update" in msg for msg in caplog.messages)
         assert any("Skipping invalid stats_update" in msg for msg in caplog.messages)
+
+    def test_refresh_bearer_token_before_start(
+        self,
+        tmp_path,
+        job_manager,
+        dummy_backend_foo,
+        dummy_backend_bar,
+        job_manager_root_dir,
+        sleep_mock,
+        requests_mock,
+    ):
+
+        client_id = "client123"
+        client_secret = "$3cr3t"
+        oidc_issuer = "https://oidc.test/"
+        oidc_mock = OidcMock(
+            requests_mock=requests_mock,
+            expected_grant_type="client_credentials",
+            expected_client_id=client_id,
+            expected_fields={"client_secret": client_secret, "scope": "openid"},
+            oidc_issuer=oidc_issuer,
+        )
+        dummy_backend_foo.setup_credentials_oidc(issuer=oidc_issuer)
+        dummy_backend_bar.setup_credentials_oidc(issuer=oidc_issuer)
+        dummy_backend_foo.connection.authenticate_oidc_client_credentials(client_id="client123", client_secret="$3cr3t")
+        dummy_backend_bar.connection.authenticate_oidc_client_credentials(client_id="client123", client_secret="$3cr3t")
+
+        # After this setup, we have 2 client credential token requests (one for each backend)
+        assert len(oidc_mock.grant_request_history) == 2
+
+        df = pd.DataFrame({"year": [2020, 2021, 2022, 2023, 2024]})
+        job_db_path = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(job_db_path).initialize_from_df(df)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+
+        assert run_stats == dirty_equals.IsPartialDict(
+            {
+                "job_queued_for_start": 5,
+                "job started running": 5,
+                "job finished": 5,
+            }
+        )
+
+        # Because of proactive+throttled token refreshing,
+        # we should have 2 additional token requests now
+        assert len(oidc_mock.grant_request_history) == 4
 
 
 JOB_DB_DF_BASICS = pd.DataFrame(

@@ -304,23 +304,6 @@ def test_save_load_dtype_float64(roundtrip, tmp_path):
     assert result.array.dtype == numpy.float64
 
 
-@pytest.mark.slow
-def test_datacube_plot(tmp_path):
-    import matplotlib.pyplot as plt  # TODO: mandatory dev dependency or optional?
-
-    ts = [numpy.datetime64('2020-08-01'), numpy.datetime64('2020-08-11'), numpy.datetime64('2020-08-21')]
-    xdc = _build_xdc(ts=ts, bands=["a", "b"], xs=100, ys=100)
-    path = tmp_path / "test.png"
-    xdc.plot("title", oversample=1.2, cbartext="some\nvalue", to_file=path, to_show=False)
-
-    png_data = plt.imread(str(path))
-    # Just check basic file properties to make sure the file isn't empty.
-    assert len(png_data.shape) == 3
-    assert png_data.shape[0] > 100
-    assert png_data.shape[1] > 100
-    assert png_data.shape[2] == 4
-
-
 class TestXarrayIO:
 
     def test_from_netcdf_file_simple(self, tmp_path):
