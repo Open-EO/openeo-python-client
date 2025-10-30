@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move `ProcessBasedJobCreator` to own submodule `openeo.extra.job_management.process_based` ([#741](https://github.com/Open-EO/openeo-python-client/issues/741))
+
 ### Removed
 
 - Remove unused/outdated `XarrayDataCube.plot()` and its related matplotlib dependency ([#472](https://github.com/Open-EO/openeo-python-client/issues/472))
