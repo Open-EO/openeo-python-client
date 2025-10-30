@@ -284,7 +284,8 @@ class TestMultiBackendJobManager:
 
         job_manager.start_job_thread(start_job=self._create_year_job, job_db=job_db)
         # Trigger context switch to job thread
-        sleep(1)
+        # TODO: better way than sleeping to make sure the job thread does all its work?
+        sleep(2)
         job_manager.stop_job_thread()
         # TODO #645 how to collect stats with the threaded run_job?
         assert sleep_mock.call_count > 10
