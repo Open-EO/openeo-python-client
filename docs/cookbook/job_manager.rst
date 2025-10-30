@@ -21,7 +21,7 @@ API
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
 
 
-.. autoclass:: openeo.extra.job_management.ProcessBasedJobCreator
+.. autoclass:: openeo.extra.job_management.process_based.ProcessBasedJobCreator
     :members:
     :special-members: __call__
 
@@ -41,7 +41,7 @@ define a "template" job as a parameterized process
 and let the job manager fill in the parameters
 from a given data frame.
 
-The :py:class:`~openeo.extra.job_management.ProcessBasedJobCreator` helper class
+The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` helper class
 allows to do exactly that.
 Given a reference to a parameterized process,
 such as a user-defined process or remote process definition,
@@ -49,21 +49,21 @@ it can be used directly as ``start_job`` callable to
 :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
 which will fill in the process parameters from the dataframe.
 
-Basic :py:class:`~openeo.extra.job_management.ProcessBasedJobCreator` example
------------------------------------------------------------------------------
+Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example
+--------------------------------------------------------------------------------------------
 
 Basic usage example with a remote process definition:
 
 .. code-block:: python
     :linenos:
-    :caption: Basic :py:class:`~openeo.extra.job_management.ProcessBasedJobCreator` example snippet
+    :caption: Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example snippet
     :emphasize-lines: 10-15, 28
 
     from openeo.extra.job_management import (
         MultiBackendJobManager,
         create_job_db,
-        ProcessBasedJobCreator,
     )
+    from openeo.extra.job_management.process_based import ProcessBasedJobCreator
 
     # Job creator, based on a parameterized openEO process
     # (specified by the remote process definition at given URL)
@@ -90,7 +90,7 @@ Basic usage example with a remote process definition:
     job_manager = MultiBackendJobManager(...)
     job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
-In this example, a :py:class:`ProcessBasedJobCreator` is instantiated
+In this example, a :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is instantiated
 based on a remote process definition,
 which has parameters ``start_date`` and ``bands``.
 When passed to :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`,
@@ -103,11 +103,11 @@ with parameter values based on matching columns in the dataframe:
     and will get its value from the default specified in the ``parameter_defaults`` argument.
 
 
-:py:class:`~openeo.extra.job_management.ProcessBasedJobCreator` with geometry handling
----------------------------------------------------------------------------------------------
+:py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` with geometry handling
+-----------------------------------------------------------------------------------------------------
 
 Apart from the intuitive name-based parameter-column linking,
-:py:class:`~openeo.extra.job_management.ProcessBasedJobCreator`
+:py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator`
 also automatically links:
 
 -   a process parameters that accepts inline GeoJSON geometries/features
