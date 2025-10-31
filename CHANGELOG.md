@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Removed
+
+### Fixed
+
+
+## [0.46.0] - 2025-10-31
+
+### Changed
+
 - Move `ProcessBasedJobCreator` to own submodule `openeo.extra.job_management.process_based` ([#741](https://github.com/Open-EO/openeo-python-client/issues/741))
 
 ### Removed
