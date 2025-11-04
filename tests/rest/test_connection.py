@@ -767,6 +767,59 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         )
 
 
+def test_list_auth_providers(requests_mock, api_version):
+    requests_mock.get(
+        API_URL,
+        json={
+            "api_version": api_version,
+            "endpoints": [
+                {"methods": ["GET"], "path": "/credentials/basic"},
+                {"methods": ["GET"], "path": "/credentials/oidc"},
+            ],
+        },
+    )
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {"id": "p1", "issuer": "https://openeo.example", "title": "openEO", "scopes": ["openid"]},
+                {"id": "p2", "issuer": "https://other.example", "title": "Other", "scopes": ["openid"]},
+            ]
+        },
+    )
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 3
+
+    p1 = next(filter(lambda x: x["id"] == "p1", providers), None)
+    assert isinstance(p1, dict)
+    assert p1["type"] == "oidc"
+    assert p1["issuer"] == "https://openeo.example"
+    assert p1["title"] == "openEO"
+
+    p2 = next(filter(lambda x: x["id"] == "p2", providers), None)
+    assert isinstance(p2, dict)
+    assert p2["type"] == "oidc"
+    assert p2["issuer"] == "https://other.example"
+    assert p2["title"] == "Other"
+
+    basic = next(filter(lambda x: x["type"] == "basic", providers), None)
+    assert isinstance(basic, dict)
+    assert isinstance(basic["id"], str)
+    assert len(basic["id"]) > 0
+    assert basic["issuer"] == API_URL + "credentials/basic"
+    assert basic["title"] == "Basic"
+
+
+def test_list_auth_providers_empty(requests_mock, api_version):
+    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": []})
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 0
+
+
 def test_authenticate_basic_no_support(requests_mock, api_version):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": []})
 
