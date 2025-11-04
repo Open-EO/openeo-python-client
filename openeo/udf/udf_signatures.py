@@ -6,6 +6,7 @@ is compatible with the calling context of the process graph in which it is used.
 """
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
+from deprecated import deprecated
 import xarray
 from pandas import Series
 
@@ -33,10 +34,12 @@ def apply_timeseries(series: Series, context: dict) -> Series:
     # TODO: do we need geospatial coordinates for the series?
     return series
 
-
+@deprecated
 def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     """
     Map a :py:class:`XarrayDataCube` to another :py:class:`XarrayDataCube`.
+
+    Deprecated: use the signature with xarray.DataArray instead.
 
     Depending on the context in which this function is used, the :py:class:`XarrayDataCube` dimensions
     have to be retained or can be chained.
@@ -47,6 +50,22 @@ def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     :param cube: input data cube
     :param context: A dictionary containing user context.
     :return: output data cube
+    """
+    return cube
+
+def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+    """
+    Map a :py:class:`xarray.DataArray` to another :py:class:`xarray.DataArray`.
+
+    Depending on the context in which this function is used, the :py:class:`xarray.DataArray` dimensions
+    have to be retained or can be chained.
+    For instance, in the context of a reducing operation along a dimension,
+    that dimension will have to be reduced to a single value.
+    In the context of a 1 to 1 mapping operation, all dimensions have to be retained.
+
+    :param cube: input data array
+    :param context: A dictionary containing user context.
+    :return: output data array
     """
     return cube
 
