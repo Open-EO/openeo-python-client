@@ -9,6 +9,7 @@ import logging
 import os
 import shlex
 import urllib.parse
+import uuid
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -215,6 +216,37 @@ class Connection(RestApiConnection):
         if self._refresh_token_store is None:
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
+
+    def list_auth_providers(self) -> list[dict]:
+        providers = []
+        cap = self.capabilities()
+
+        # Add OIDC providers
+        oidc_path = "/credentials/oidc"
+        if cap.supports_endpoint(oidc_path, method="GET"):
+            try:
+                data = self.get(oidc_path, expected_status=200).json()
+                if isinstance(data, dict):
+                    for provider in data.get("providers", []):
+                        provider["type"] = "oidc"
+                        providers.append(provider)
+            except OpenEoApiError:
+                pass
+
+        # Add Basic provider
+        basic_path = "/credentials/basic"
+        if cap.supports_endpoint(basic_path, method="GET"):
+            providers.append(
+                {
+                    "id": uuid.uuid4().hex,
+                    "issuer": self.build_url(basic_path),
+                    "type": "basic",
+                    "title": "Basic",
+                    "description": "HTTP Basic authentication using username and password",
+                }
+            )
+
+        return providers
 
     def authenticate_basic(self, username: Optional[str] = None, password: Optional[str] = None) -> Connection:
         """
