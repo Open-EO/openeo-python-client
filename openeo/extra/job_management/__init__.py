@@ -845,7 +845,6 @@ def ignore_connection_errors(context: Optional[str] = None, sleep: int = 5):
 
 
 
-<<<<<<< HEAD
 def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
     """
     Factory to get a job database at a given path,
@@ -885,5 +884,3 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
     else:
         raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
     return job_db
-=======
->>>>>>> 4825bbcd (remove circular dependency)
