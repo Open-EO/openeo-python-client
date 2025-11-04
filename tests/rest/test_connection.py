@@ -809,7 +809,7 @@ def test_list_auth_providers(requests_mock, api_version):
     assert isinstance(basic["id"], str)
     assert len(basic["id"]) > 0
     assert basic["issuer"] == API_URL + "credentials/basic"
-    assert basic["title"] == "Basic"
+    assert basic["title"] == "Internal"
 
 
 def test_list_auth_providers_empty(requests_mock, api_version):
