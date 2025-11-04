@@ -241,8 +241,8 @@ class Connection(RestApiConnection):
                     "id": uuid.uuid4().hex,
                     "issuer": self.build_url(basic_path),
                     "type": "basic",
-                    "title": "Basic",
-                    "description": "HTTP Basic authentication using username and password",
+                    "title": "Internal",
+                    "description": "The HTTP Basic authentication method is mostly used for development and testing purposes.",
                 }
             )
 
