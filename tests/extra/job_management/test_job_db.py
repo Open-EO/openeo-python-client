@@ -1,13 +1,6 @@
 import re
 
 import geopandas
-
-# TODO: can we avoid using httpretty?
-#   We need it for testing the resilience, which uses an HTTPadapter with Retry
-#   but requests-mock also uses an HTTPAdapter for the mocking and basically
-#   erases the HTTPAdapter we have set up.
-#   httpretty avoids this specific problem because it mocks at the socket level,
-#   But I would rather not have two dependencies with almost the same goal.
 import pandas as pd
 import pytest
 import shapely.geometry

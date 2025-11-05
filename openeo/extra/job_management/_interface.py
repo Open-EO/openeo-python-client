@@ -6,7 +6,8 @@ import pandas as pd
 
 class JobDatabaseInterface(metaclass=abc.ABCMeta):
     """
-    Interface for a database of job metadata to use with the :py:class:`MultiBackendJobManager`,
+    Interface for a database of job metadata to use with the
+    :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager`,
     allowing to regularly persist the job metadata while polling the job statuses
     and resume/restart the job tracking after it was interrupted.
 
