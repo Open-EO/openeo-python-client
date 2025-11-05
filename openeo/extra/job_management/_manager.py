@@ -1,6 +1,5 @@
 import collections
 import contextlib
-import dataclasses
 import datetime
 import json
 import logging
@@ -25,27 +24,30 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from openeo import BatchJob, Connection
+from openeo.extra.job_management._df_schema import _normalize
+from openeo.extra.job_management._interface import JobDatabaseInterface
+from openeo.extra.job_management._job_db import get_job_db
 from openeo.extra.job_management._thread_worker import (
     _JobManagerWorkerThreadPool,
     _JobStartTask,
 )
-from openeo.extra.job_management._interface import JobDatabaseInterface
-from openeo.extra.job_management._job_db import get_job_db 
-from openeo.extra.job_management._df_schema import _normalize
-
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
 from openeo.util import deep_get, rfc3339
 
-
 _log = logging.getLogger(__name__)
 
+
 MAX_RETRIES = 50
+
+
 # Sentinel value to indicate that a parameter was not set
 _UNSET = object()
 
+
 def _start_job_default(row: pd.Series, connection: Connection, *args, **kwargs):
     raise NotImplementedError("No 'start_job' callable provided")
+
 
 class _Backend(NamedTuple):
     """Container for backend info/settings"""
@@ -54,8 +56,6 @@ class _Backend(NamedTuple):
     get_connection: Callable[[], Connection]
     # Maximum number of jobs to allow in parallel on a backend
     parallel_jobs: int
-
-
 
 
 class MultiBackendJobManager:
@@ -124,7 +124,6 @@ class MultiBackendJobManager:
     .. versionchanged:: 0.32.0
         Added ``cancel_running_job_after`` parameter.
     """
-
 
     def __init__(
         self,
@@ -409,7 +408,7 @@ class MultiBackendJobManager:
         assert not kwargs, f"Unexpected keyword arguments: {kwargs!r}"
 
         if isinstance(job_db, (str, Path)):
-            job_db = get_job_db(path=job_db) #TODO circular import
+            job_db = get_job_db(path=job_db)  # TODO circular import
 
         if not isinstance(job_db, JobDatabaseInterface):
             raise ValueError(f"Unsupported job_db {job_db!r}")
@@ -806,7 +805,7 @@ class MultiBackendJobManager:
         job_db.persist(active)
 
         return jobs_done, jobs_error, jobs_cancel
-    
+
 
 def _format_usage_stat(job_metadata: dict, field: str) -> str:
     value = deep_get(job_metadata, "usage", field, "value", default=0)

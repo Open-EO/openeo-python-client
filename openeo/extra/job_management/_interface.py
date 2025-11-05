@@ -1,13 +1,8 @@
 import abc
-from typing import (
-    Callable,
-    Iterable,
-    List,
-    NamedTuple,
-    Union,
-)
+from typing import Iterable, List, Union
 
 import pandas as pd
+
 
 class JobDatabaseInterface(metaclass=abc.ABCMeta):
     """
@@ -68,8 +63,3 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         :return: DataFrame with jobs filtered by indices.
         """
         ...
-
-
-
-
-

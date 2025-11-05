@@ -1,6 +1,8 @@
 import dataclasses
 from typing import Any, Mapping
+
 import pandas as pd
+
 
 @dataclasses.dataclass(frozen=True)
 class _ColumnProperties:
@@ -8,6 +10,7 @@ class _ColumnProperties:
 
     dtype: str = "object"
     default: Any = None
+
 
 # Expected columns in the job DB dataframes.
 # TODO: make this part of public API when settled?
@@ -28,15 +31,16 @@ _COLUMN_REQUIREMENTS: Mapping[str, _ColumnProperties] = {
     "costs": _ColumnProperties(dtype="float64"),
 }
 
+
 def _normalize(df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Normalize given pandas dataframe (creating a new one):
-        ensure we have the required columns.
+    """
+    Normalize given pandas dataframe (creating a new one):
+    ensure we have the required columns.
 
-        :param df: The dataframe to normalize.
-        :return: a new dataframe that is normalized.
-        """
-        new_columns = {col: req.default for (col, req) in _COLUMN_REQUIREMENTS.items() if col not in df.columns}
-        df = df.assign(**new_columns)
+    :param df: The dataframe to normalize.
+    :return: a new dataframe that is normalized.
+    """
+    new_columns = {col: req.default for (col, req) in _COLUMN_REQUIREMENTS.items() if col not in df.columns}
+    df = df.assign(**new_columns)
 
-        return df
+    return df

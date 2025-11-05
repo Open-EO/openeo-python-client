@@ -26,15 +26,14 @@ import requests
 
 import openeo
 from openeo import BatchJob
-from openeo.extra.job_management._manager import (
-    MAX_RETRIES,
-    MultiBackendJobManager,
-)
-
 from openeo.extra.job_management._job_db import (
     CsvJobDatabase,
     ParquetJobDatabase,
     create_job_db,
+)
+from openeo.extra.job_management._manager import (
+    MAX_RETRIES,
+    MultiBackendJobManager,
 )
 from openeo.extra.job_management._thread_worker import (
     Task,
@@ -604,7 +603,9 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to not actually sleep, but skip one hour at a time
-        with mock.patch.object(openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch.object(
+            openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)
+        ):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -723,7 +724,9 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to skip one hour at a time instead of actually sleeping
-        with mock.patch.object(openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch.object(
+            openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)
+        ):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -865,9 +868,8 @@ class TestMultiBackendJobManager:
         dummy_backend_bar,
         job_manager_root_dir,
         sleep_mock,
-        requests_mock
+        requests_mock,
     ):
-
         client_id = "client123"
         client_secret = "$3cr3t"
         oidc_issuer = "https://oidc.test/"
@@ -902,6 +904,3 @@ class TestMultiBackendJobManager:
         # Because of proactive+throttled token refreshing,
         # we should have 2 additional token requests now
         assert len(oidc_mock.grant_request_history) == 4
-
-
-

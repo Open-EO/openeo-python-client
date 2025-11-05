@@ -1,5 +1,5 @@
-
 import re
+
 import geopandas
 
 # TODO: can we avoid using httpretty?
@@ -18,7 +18,6 @@ from openeo.extra.job_management._job_db import (
     create_job_db,
     get_job_db,
 )
-
 from openeo.utils.version import ComparableVersion
 
 JOB_DB_DF_BASICS = pd.DataFrame(
