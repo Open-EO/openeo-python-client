@@ -7,7 +7,7 @@ import pandas as pd
 import shapely.errors
 import shapely.wkt
 
-from openeo.extra.job_management._df_schema import _COLUMN_REQUIREMENTS, _normalize
+import openeo.extra.job_management._manager
 from openeo.extra.job_management._interface import JobDatabaseInterface
 
 _log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         """
         Initialize the job database from a given dataframe,
         which will be first normalized to be compatible
-        with :py:class:`MultiBackendJobManager` usage.
+        with :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager` usage.
 
         :param df: dataframe with some columns your ``start_job`` callable expects
         :param on_exists: what to do when the job database already exists (persisted on disk):
@@ -42,7 +42,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             else:
                 # TODO handle other on_exists modes: e.g. overwrite, merge, ...
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
-        df = _normalize(df)
+        df = openeo.extra.job_management._manager.MultiBackendJobManager._column_requirements.normalize_df(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -104,7 +104,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a CSV file.
 
-    :implements: :py:class:`JobDatabaseInterface`
+    :implements: :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface`
     :param path: Path to local CSV file.
 
     .. note::
@@ -135,7 +135,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         df = pd.read_csv(
             self.path,
             # TODO: possible to avoid hidden coupling with MultiBackendJobManager here?
-            dtype={c: r.dtype for (c, r) in _COLUMN_REQUIREMENTS.items()},
+            dtype=openeo.extra.job_management._manager.MultiBackendJobManager._column_requirements.dtype_mapping(),
         )
         if (
             "geometry" in df.columns
@@ -159,7 +159,7 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a Parquet file.
 
-    :implements: :py:class:`JobDatabaseInterface`
+    :implements: :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface`
     :param path: Path to the Parquet file.
 
     .. note::

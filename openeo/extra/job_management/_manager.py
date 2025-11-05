@@ -1,5 +1,6 @@
 import collections
 import contextlib
+import dataclasses
 import datetime
 import json
 import logging
@@ -12,6 +13,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     NamedTuple,
     Optional,
     Tuple,
@@ -23,10 +25,10 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+# TODO avoid this (circular) dependency on _job_db?
+import openeo.extra.job_management._job_db
 from openeo import BatchJob, Connection
-from openeo.extra.job_management._df_schema import _normalize
 from openeo.extra.job_management._interface import JobDatabaseInterface
-from openeo.extra.job_management._job_db import get_job_db
 from openeo.extra.job_management._thread_worker import (
     _JobManagerWorkerThreadPool,
     _JobStartTask,
@@ -38,6 +40,7 @@ from openeo.util import deep_get, rfc3339
 _log = logging.getLogger(__name__)
 
 
+# TODO: eliminate this module constant (should be part of some constructor interface)
 MAX_RETRIES = 50
 
 
@@ -56,6 +59,45 @@ class _Backend(NamedTuple):
     get_connection: Callable[[], Connection]
     # Maximum number of jobs to allow in parallel on a backend
     parallel_jobs: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _ColumnProperties:
+    """Expected/required properties of a column in the job manager related dataframes"""
+
+    dtype: str = "object"
+    default: Any = None
+
+
+class _ColumnRequirements:
+    """
+    Helper class to encapsulate the column requirements expected by MultiBackendJobManager.
+    The current implementation (e.g. _job_db) has some undesired coupling here,
+    but it turns out quite hard to eliminate.
+    The goal of this class is, currently, to at least make the coupling explicit
+    in a centralized way.
+    """
+
+    def __init__(self, requirements: Mapping[str, _ColumnProperties]):
+        self._requirements = dict(requirements)
+
+    def normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize given pandas dataframe (creating a new one):
+        ensure we have the required columns.
+
+        :param df: The dataframe to normalize.
+        :return: a new dataframe that is normalized.
+        """
+        new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
+        df = df.assign(**new_columns)
+        return df
+
+    def dtype_mapping(self) -> Dict[str, str]:
+        """
+        Get mapping of column name to expected dtype string, e.g. to be used with pandas.read_csv(dtype=...)
+        """
+        return {col: req.dtype for (col, req) in self._requirements.items()}
 
 
 class MultiBackendJobManager:
@@ -124,6 +166,27 @@ class MultiBackendJobManager:
     .. versionchanged:: 0.32.0
         Added ``cancel_running_job_after`` parameter.
     """
+
+    # Expected columns in the job DB dataframes.
+    # TODO: make this part of public API when settled?
+    # TODO: move non official statuses to separate column (not_started, queued_for_start)
+    _column_requirements: _ColumnRequirements = _ColumnRequirements(
+        {
+            "id": _ColumnProperties(dtype="str"),
+            "backend_name": _ColumnProperties(dtype="str"),
+            "status": _ColumnProperties(dtype="str", default="not_started"),
+            # TODO: use proper date/time dtype instead of legacy str for start times?
+            "start_time": _ColumnProperties(dtype="str"),
+            "running_start_time": _ColumnProperties(dtype="str"),
+            # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
+            #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
+            #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
+            "cpu": _ColumnProperties(dtype="str"),
+            "memory": _ColumnProperties(dtype="str"),
+            "duration": _ColumnProperties(dtype="str"),
+            "costs": _ColumnProperties(dtype="float64"),
+        }
+    )
 
     def __init__(
         self,
@@ -227,13 +290,9 @@ class MultiBackendJobManager:
     @classmethod
     def _normalize_df(cls, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Normalize given pandas dataframe (creating a new one):
-        ensure we have the required columns.
-
-        :param df: The dataframe to normalize.
-        :return: a new dataframe that is normalized.
+        Deprecated, but kept for backwards compatibility
         """
-        return _normalize(df)
+        return cls._column_requirements.normalize_df(df)
 
     def start_job_thread(self, start_job: Callable[[], BatchJob], job_db: JobDatabaseInterface):
         """
@@ -268,7 +327,7 @@ class MultiBackendJobManager:
         :param job_db:
             Job database to load/store existing job status data and other metadata from/to.
             Can be specified as a path to CSV or Parquet file,
-            or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
+            or as a custom database object following the :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` interface.
 
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
@@ -373,7 +432,7 @@ class MultiBackendJobManager:
         :param job_db:
             Job database to load/store existing job status data and other metadata from/to.
             Can be specified as a path to CSV or Parquet file,
-            or as a custom database object following the :py:class:`JobDatabaseInterface` interface.
+            or as a custom database object following the :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` interface.
 
             .. note::
                 Support for Parquet files depends on the ``pyarrow`` package
@@ -389,7 +448,7 @@ class MultiBackendJobManager:
         .. versionchanged:: 0.31.0
             Replace ``output_file`` argument with ``job_db`` argument,
             which can be a path to a CSV or Parquet file,
-            or a user-defined :py:class:`JobDatabaseInterface` object.
+            or a user-defined :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` object.
             The deprecated ``output_file`` argument is still supported for now.
 
         .. versionchanged:: 0.33.0
@@ -408,7 +467,7 @@ class MultiBackendJobManager:
         assert not kwargs, f"Unexpected keyword arguments: {kwargs!r}"
 
         if isinstance(job_db, (str, Path)):
-            job_db = get_job_db(path=job_db)  # TODO circular import
+            job_db = openeo.extra.job_management._job_db.get_job_db(path=job_db)
 
         if not isinstance(job_db, JobDatabaseInterface):
             raise ValueError(f"Unsupported job_db {job_db!r}")

@@ -31,10 +31,7 @@ from openeo.extra.job_management._job_db import (
     ParquetJobDatabase,
     create_job_db,
 )
-from openeo.extra.job_management._manager import (
-    MAX_RETRIES,
-    MultiBackendJobManager,
-)
+from openeo.extra.job_management._manager import MAX_RETRIES, MultiBackendJobManager
 from openeo.extra.job_management._thread_worker import (
     Task,
     _JobManagerWorkerThreadPool,
@@ -296,7 +293,7 @@ class TestMultiBackendJobManager:
 
     def test_normalize_df(self):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
-        df_normalized = MultiBackendJobManager._normalize_df(df)
+        df_normalized = MultiBackendJobManager._column_requirements.normalize_df(df)
         assert set(df_normalized.columns) == set(
             [
                 "some_number",
@@ -603,9 +600,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to not actually sleep, but skip one hour at a time
-        with mock.patch.object(
-            openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)
-        ):
+        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -724,9 +719,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to skip one hour at a time instead of actually sleeping
-        with mock.patch.object(
-            openeo.extra.job_management._manager.time, "sleep", new=lambda s: time_machine.shift(60 * 60)
-        ):
+        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
