@@ -1,104 +1,15 @@
 import abc
 import logging
-from pathlib import Path
-from typing import (
-    Iterable,
-    Union,
-    List,
-)
-
-
-import pandas as pd
 import shapely.errors
 import shapely.wkt
-
-
-
-_log = logging.getLogger(__name__)
-
+from pathlib import Path
+from typing import Iterable, Union
 import pandas as pd
 
-class _ColumnProperties:
-    def __init__(self, dtype: str, default=None):
-        self.dtype = dtype
-        self.default = default
+from openeo.extra.job_management._interface import JobDatabaseInterface
+from openeo.extra.job_management._manager import MultiBackendJobManager
 
-
-
-class JobDatabaseInterface(metaclass=abc.ABCMeta):
-    """
-    Interface for a database of job metadata to use with the :py:class:`MultiBackendJobManager`,
-    allowing to regularly persist the job metadata while polling the job statuses
-    and resume/restart the job tracking after it was interrupted.
-
-    .. versionadded:: 0.31.0
-    """
-
-    @abc.abstractmethod
-    def exists(self) -> bool:
-        """Does the job database already exist, to read job data from?"""
-        ...
-
-    @abc.abstractmethod
-    def persist(self, df: pd.DataFrame):
-        """
-        Store (now or updated) job data to the database.
-
-        The provided dataframe may only cover a subset of all the jobs ("rows") of the whole database,
-        so it should be merged with the existing data (if any) instead of overwriting it completely.
-
-        :param df: job data to store.
-        """
-        ...
-
-    @abc.abstractmethod
-    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
-        """
-        Retrieve the number of jobs per status.
-
-        :param statuses: List/set of statuses to include. If empty, all statuses are included.
-
-        :return: dictionary with status as key and the count as value.
-        """
-        ...
-
-    @abc.abstractmethod
-    def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
-        """
-        Returns a dataframe with jobs, filtered by status.
-
-        :param statuses: List of statuses to include.
-        :param max: Maximum number of jobs to return.
-
-        :return: DataFrame with jobs filtered by status.
-        """
-        ...
-
-    @abc.abstractmethod
-    def get_by_indices(self, indices: Iterable[Union[int, str]]) -> pd.DataFrame:
-        """
-        Returns a dataframe with jobs based on their (dataframe) index
-
-        :param indices: List of indices to include.
-
-        :return: DataFrame with jobs filtered by indices.
-        """
-        ...
-
-# Expected columns in the job DB dataframes.
-# TODO: make this part of public API when settled?
-# TODO: move non official statuses to seperate column (not_started, queued_for_start)
-COLUMN_REQUIREMENTS = {
-    "id": _ColumnProperties(dtype="str"),
-    "backend_name": _ColumnProperties(dtype="str"),
-    "status": _ColumnProperties(dtype="str", default="not_started"),
-    "start_time": _ColumnProperties(dtype="str"),
-    "running_start_time": _ColumnProperties(dtype="str"),
-    "cpu": _ColumnProperties(dtype="str"),
-    "memory": _ColumnProperties(dtype="str"),
-    "duration": _ColumnProperties(dtype="str"),
-    "costs": _ColumnProperties(dtype="float64"),
-}   
+_log = logging.getLogger(__name__)
 
 class FullDataFrameJobDatabase(JobDatabaseInterface):
     def __init__(self):
@@ -129,7 +40,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             else:
                 # TODO handle other on_exists modes: e.g. overwrite, merge, ...
                 raise ValueError(f"Invalid on_exists={on_exists!r}")
-        df = normalize_dataframe(df)
+        df = MultiBackendJobManager._normalize_df(df)
         self.persist(df)
         # Return self to allow chaining with constructor.
         return self
@@ -187,7 +98,6 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         return self._df.loc[list(known)]
 
 
-
 class CsvJobDatabase(FullDataFrameJobDatabase):
     """
     Persist/load job metadata with a CSV file.
@@ -223,7 +133,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         df = pd.read_csv(
             self.path,
             # TODO: possible to avoid hidden coupling with MultiBackendJobManager here?
-            dtype={c: r.dtype for (c, r) in COLUMN_REQUIREMENTS.items()},
+            dtype={c: r.dtype for (c, r) in MultiBackendJobManager._COLUMN_REQUIREMENTS.items()},
         )
         if (
             "geometry" in df.columns
@@ -241,6 +151,7 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
         self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.df.to_csv(self.path, index=False)
+
 
 class ParquetJobDatabase(FullDataFrameJobDatabase):
     """
@@ -289,40 +200,8 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
     def persist(self, df: pd.DataFrame):
         self._merge_into_df(df)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.df.to_parquet(self.path, index=False)    
+        self.df.to_parquet(self.path, index=False)
 
-def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normalize given pandas dataframe (creating a new one):
-    ensure we have the required columns.
-
-    :param df: The dataframe to normalize.
-    :return: a new dataframe that is normalized.
-    """
-    new_columns = {col: req.default for (col, req) in COLUMN_REQUIREMENTS.items() if col not in df.columns}
-    df = df.assign(**new_columns)
-    return df 
-
-def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = "error"):
-    """
-    Factory to create a job database at given path,
-    initialized from a given dataframe,
-    and its database type guessed from filename extension.
-
-    :param path: Path to the job database file.
-    :param df: DataFrame to store in the job database.
-    :param on_exists: What to do when the job database already exists:
-        - "error": (default) raise an exception
-        - "skip": work with existing database, ignore given dataframe and skip any initialization
-
-    .. versionadded:: 0.33.0
-    """
-    job_db = get_job_db(path)
-    if isinstance(job_db, FullDataFrameJobDatabase):
-        job_db.initialize_from_df(df=df, on_exists=on_exists)
-    else:
-        raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
-    return job_db
 
 def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
     """
@@ -363,4 +242,3 @@ def create_job_db(path: Union[str, Path], df: pd.DataFrame, *, on_exists: str = 
     else:
         raise NotImplementedError(f"Initialization of {type(job_db)} is not supported.")
     return job_db
-
