@@ -1,15 +1,17 @@
 import abc
 import logging
-import shapely.errors
-import shapely.wkt
 from pathlib import Path
 from typing import Iterable, Union
-import pandas as pd
 
+import pandas as pd
+import shapely.errors
+import shapely.wkt
+
+from openeo.extra.job_management._df_schema import _COLUMN_REQUIREMENTS, _normalize
 from openeo.extra.job_management._interface import JobDatabaseInterface
-from openeo.extra.job_management._df_schema import _normalize, _COLUMN_REQUIREMENTS
 
 _log = logging.getLogger(__name__)
+
 
 class FullDataFrameJobDatabase(JobDatabaseInterface):
     def __init__(self):
