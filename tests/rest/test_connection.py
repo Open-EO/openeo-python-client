@@ -769,16 +769,7 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
 
 
 def test_list_auth_providers(requests_mock, api_version):
-    requests_mock.get(
-        API_URL,
-        json={
-            "api_version": api_version,
-            "endpoints": [
-                {"methods": ["GET"], "path": "/credentials/basic"},
-                {"methods": ["GET"], "path": "/credentials/oidc"},
-            ],
-        },
-    )
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
     requests_mock.get(
         API_URL + "credentials/oidc",
         json={
@@ -805,20 +796,37 @@ def test_list_auth_providers(requests_mock, api_version):
     assert p2["issuer"] == "https://other.example"
     assert p2["title"] == "Other"
 
-    basic = next(filter(lambda x: x["type"] == "basic", providers), None)
+    basic = next(filter(lambda x: x["id"] == "/credentials/basic", providers), None)
     assert isinstance(basic, dict)
-    assert isinstance(basic["id"], str)
-    assert len(basic["id"]) > 0
+    assert basic["type"] == "basic"
     assert basic["issuer"] == API_URL + "credentials/basic"
     assert basic["title"] == "Internal"
 
 
 def test_list_auth_providers_empty(requests_mock, api_version):
-    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": []})
+    requests_mock.get(
+        API_URL,
+        json=build_capabilities(api_version=api_version, basic_auth=False, oidc_auth=False),
+    )
 
     conn = Connection(API_URL)
     providers = conn.list_auth_providers()
     assert len(providers) == 0
+
+
+def test_list_auth_providers_invalid(requests_mock, api_version, caplog):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, basic_auth=False))
+    error_message = "Maintenance ongoing"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        status_code=500,
+        json={"code": "Internal", "message": error_message},
+    )
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 0
+    assert f"Unable to load the OpenID Connect provider list: {error_message}" in caplog.messages
 
 
 def test_authenticate_basic_no_support(requests_mock, api_version):
