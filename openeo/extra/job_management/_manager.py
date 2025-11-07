@@ -157,9 +157,13 @@ class MultiBackendJobManager:
             - get_error_log_path
             - get_job_metadata_path
 
+    :param auto_download_results:
+        Optional disable the automated download of job results.
+
     :param cancel_running_job_after:
         Optional temporal limit (in seconds) after which running jobs should be canceled
         by the job manager.
+
 
     .. versionadded:: 0.14.0
 
@@ -193,6 +197,7 @@ class MultiBackendJobManager:
         poll_sleep: int = 60,
         root_dir: Optional[Union[str, Path]] = ".",
         *,
+        auto_download_results: bool = True,
         cancel_running_job_after: Optional[int] = None,
     ):
         """Create a MultiBackendJobManager."""
@@ -203,6 +208,8 @@ class MultiBackendJobManager:
 
         # An explicit None or "" should also default to "."
         self._root_dir = Path(root_dir or ".")
+
+        self.auto_download_results = auto_download_results
 
         self._cancel_running_job_after = (
             datetime.timedelta(seconds=cancel_running_job_after) if cancel_running_job_after is not None else None
@@ -712,16 +719,16 @@ class MultiBackendJobManager:
         :param row: DataFrame row containing the job's metadata.
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
+        if self.auto_download_results:
+            job_metadata = job.describe()
+            job_dir = self.get_job_dir(job.job_id)
+            metadata_path = self.get_job_metadata_path(job.job_id)
 
-        job_metadata = job.describe()
-        job_dir = self.get_job_dir(job.job_id)
-        metadata_path = self.get_job_metadata_path(job.job_id)
+            self.ensure_job_dir_exists(job.job_id)
+            job.get_results().download_files(target=job_dir)
 
-        self.ensure_job_dir_exists(job.job_id)
-        job.get_results().download_files(target=job_dir)
-
-        with metadata_path.open("w", encoding="utf-8") as f:
-            json.dump(job_metadata, f, ensure_ascii=False)
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
 
     def on_job_error(self, job: BatchJob, row):
         """
