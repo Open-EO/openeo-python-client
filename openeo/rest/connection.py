@@ -9,7 +9,6 @@ import logging
 import os
 import shlex
 import urllib.parse
-import uuid
 import warnings
 from collections import OrderedDict
 from pathlib import Path, PurePosixPath
@@ -225,15 +224,15 @@ class Connection(RestApiConnection):
                     for provider in data.get("providers", []):
                         provider["type"] = "oidc"
                         providers.append(provider)
-            except OpenEoApiError:
-                pass
+            except OpenEoApiError as e:
+                _log.warning(f"Unable to load the OpenID Connect provider list: {e.message}")
 
         # Add Basic provider
         basic_path = "/credentials/basic"
         if cap.supports_endpoint(basic_path, method="GET"):
             providers.append(
                 {
-                    "id": uuid.uuid4().hex,
+                    "id": basic_path,
                     "issuer": self.build_url(basic_path),
                     "type": "basic",
                     "title": "Internal",
