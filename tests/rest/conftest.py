@@ -1,5 +1,6 @@
 import contextlib
 import re
+import time
 import typing
 from unittest import mock
 
@@ -25,9 +26,7 @@ class _Sleeper:
     @contextlib.contextmanager
     def patch(self, time_machine: time_machine.TimeMachineFixture) -> typing.Iterator["_Sleeper"]:
         def sleep(seconds):
-            # Note: this requires that `time_machine.move_to()` has been called before
-            # also see https://github.com/adamchainz/time-machine/issues/247
-            time_machine.coordinates.shift(seconds)
+            time_machine.shift(seconds)
             self.history.append(seconds)
 
         with mock.patch("time.sleep", new=sleep):
@@ -58,7 +57,7 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
 
     @contextlib.contextmanager
     def assert_oidc_device_code_flow(url: str = "https://oidc.test/dc", elapsed: float = 3, check_capsys: bool = True):
-        start = time_machine.coordinates.time()
+        start = time.time()
         yield
         assert fast_sleep.did_sleep()
         if check_capsys:
@@ -66,7 +65,7 @@ def oidc_device_code_flow_checker(time_machine, simple_time, fast_sleep, capsys)
             assert f"Visit {url} and enter" in stdout
             assert re.search(r"\[#+-*\] Authorization pending *\r\[#+-*\] Polling *\r", stdout)
             assert re.search(r"Authorized successfully *\r\n", stdout)
-        assert time_machine.coordinates.time() - start >= elapsed
+        assert time.time() - start >= elapsed
 
     return assert_oidc_device_code_flow
 
