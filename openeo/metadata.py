@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import warnings
 from typing import (
     Any,
     Callable,
@@ -540,7 +539,7 @@ class CollectionMetadata(CubeMetadata):
         self._federation = _federation
 
     @classmethod
-    def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = warnings.warn) -> List[Dimension]:
+    def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = _log.warning) -> List[Dimension]:
         """
         Extract data cube dimension metadata from STAC-like description of a collection.
 
