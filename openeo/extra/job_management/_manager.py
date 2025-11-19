@@ -169,6 +169,9 @@ class MultiBackendJobManager:
 
     .. versionchanged:: 0.32.0
         Added ``cancel_running_job_after`` parameter.
+
+    .. versionchanged:: 0.47.0
+        Added ``download_results`` parameter.
     """
 
     # Expected columns in the job DB dataframes.
