@@ -27,7 +27,7 @@ tests_require = [
     "geopandas>=0.14; python_version>='3.9'",
     "geopandas",  # Best-effort geopandas dependency for Python 3.8
     "flake8>=5.0.0",
-    "time_machine",
+    "time_machine>=2.0.0,<3.0.0",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
     "dirty_equals>=0.8.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
