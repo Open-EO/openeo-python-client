@@ -113,13 +113,15 @@ class TemporalDimension(Dimension):
 class Band(NamedTuple):
     """
     Simple container class for band metadata.
-    Based on https://github.com/stac-extensions/eo#band-object
+    Based on STAC-1.1 common band object
+    and https://github.com/stac-extensions/eo#band-object
     """
 
     name: str
     common_name: Optional[str] = None
     # wavelength in micrometer
     wavelength_um: Optional[float] = None
+    # Note: "aliases" is non-standard band metadata (probably just VITO-specific).
     aliases: Optional[List[str]] = None
     # "openeo:gsd" field (https://github.com/Open-EO/openeo-stac-extensions#GSD-Object)
     gsd: Optional[dict] = None
@@ -143,6 +145,16 @@ class BandDimension(Dimension):
     def common_names(self) -> List[str]:
         return [b.common_name for b in self.bands]
 
+    def _alias_match(self, name: str) -> Union[Tuple[int, Band], None]:
+        """Look up band by alias, return (index, Band) or None if not found."""
+        matches = [(i, b) for (i, b) in enumerate(self.bands) if b.aliases and name in b.aliases]
+        if len(matches) == 0:
+            return None
+        elif len(matches) == 1:
+            return matches[0]
+        else:
+            raise ValueError(f"Multiple alias matches for band {name!r}: {[b.name for _, b in matches]}")
+
     def band_index(self, band: Union[int, str]) -> int:
         """
         Resolve a given band (common) name/index to band index
@@ -161,9 +173,8 @@ class BandDimension(Dimension):
             if band in band_names:
                 return band_names.index(band)
             # Check band aliases to still support old band names
-            aliases = [True if aliases and band in aliases else False for aliases in self.band_aliases]
-            if any(aliases):
-                return aliases.index(True)
+            if alias_match := self._alias_match(name=band):
+                return alias_match[0]
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=band_names))
 
     def band_name(self, band: Union[str, int], allow_common=True) -> str:
@@ -176,8 +187,8 @@ class BandDimension(Dimension):
                     return band
                 else:
                     return self.band_names[self.common_names.index(band)]
-            elif any([True if aliases and band in aliases else False for aliases in self.band_aliases]):
-                return self.band_names[self.band_index(band)]
+            elif alias_match := self._alias_match(name=band):
+                return alias_match[1].name
         elif isinstance(band, int) and 0 <= band < len(self.bands):
             return self.band_names[band]
         raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=self.band_names))

@@ -112,6 +112,22 @@ def test_band_dimension_band_index():
         bdim.band_index("yellow")
 
 
+def test_band_dimension_band_index_with_aliases():
+    bdim = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490, aliases=["sky"]),
+            Band("B03", "green", 0.560, aliases=["grass", "apple"]),
+            Band("B04", "red", 0.560, aliases=["apple"]),
+        ],
+    )
+    assert bdim.band_index("sky") == 0
+    assert bdim.band_index("grass") == 1
+
+    with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
+        bdim.band_index("apple")
+
+
 def test_band_dimension_contains_band():
     bdim = BandDimension(
         name="spectral",
@@ -146,14 +162,34 @@ def test_band_dimension_band_name():
     assert bdim.band_name("B03") == "B03"
     with pytest.raises(ValueError, match="Invalid band name/index"):
         bdim.band_name("B04")
+
     assert bdim.band_name("blue") == "blue"
+    assert bdim.band_name("blue", allow_common=False) == "B02"
     assert bdim.band_name("green") == "green"
+    assert bdim.band_name("green", allow_common=False) == "B03"
     with pytest.raises(ValueError, match="Invalid band name/index"):
         bdim.band_name("red")
+
     assert bdim.band_name(0) == "B02"
     assert bdim.band_name(1) == "B03"
     with pytest.raises(ValueError, match="Invalid band name/index"):
         bdim.band_name(2)
+
+
+def test_band_dimension_band_name_with_aliases():
+    bdim = BandDimension(
+        name="spectral",
+        bands=[
+            Band("B02", "blue", 0.490, aliases=["sky"]),
+            Band("B03", "green", 0.560, aliases=["grass", "apple"]),
+            Band("B04", "red", 0.560, aliases=["apple"]),
+        ],
+    )
+    assert bdim.band_name("sky") == "B02"
+    assert bdim.band_name("grass") == "B03"
+
+    with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
+        bdim.band_name("apple")
 
 
 def test_band_dimension_filter_bands():
