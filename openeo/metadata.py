@@ -588,22 +588,23 @@ class CollectionMetadata(CubeMetadata):
                 dimensions.append(Dimension(name=name, type=dim_type))
 
         # Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)
-        eo_bands = (
-            deep_get(spec, "summaries", "eo:bands", default=None)
+        summaries_bands = (
+            deep_get(spec, "summaries", "bands", default=None)
+            or deep_get(spec, "summaries", "eo:bands", default=None)
             or deep_get(spec, "summaries", "raster:bands", default=None)
             or deep_get(spec, "properties", "eo:bands", default=None)
         )
-        if eo_bands:
-            # center_wavelength is in micrometer according to spec
+        if summaries_bands:
             bands_detailed = [
                 Band(
                     name=b["name"],
-                    common_name=b.get("common_name"),
-                    wavelength_um=b.get("center_wavelength"),
+                    common_name=b.get("eo:common_name") or b.get("common_name"),
+                    # center_wavelength is in micrometer according to spec
+                    wavelength_um=b.get("eo:center_wavelength") or b.get("center_wavelength"),
                     aliases=b.get("aliases"),
                     gsd=b.get("openeo:gsd"),
                 )
-                for b in eo_bands
+                for b in summaries_bands
             ]
             # Update band dimension with more detailed info
             band_dimensions = [d for d in dimensions if d.type == "bands"]

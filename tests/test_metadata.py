@@ -332,7 +332,28 @@ def test_get_dimensions_cube_dimensions_no_band_names():
     assert logs == ["No band names in dimension 'spectral'"]
 
 
-def test_get_dimensions_cube_dimensions_eo_bands():
+@pytest.mark.parametrize(
+    "summaries",
+    [
+        {
+            # Pre-STAC-1.1-style eo:bands
+            "eo:bands": [
+                {"name": "r", "common_name": "red", "center_wavelength": 5},
+                {"name": "g", "center_wavelength": 8},
+                {"name": "b", "common_name": "blue"},
+            ]
+        },
+        {
+            # STAC 1.1-style bands
+            "bands": [
+                {"name": "r", "eo:common_name": "red", "eo:center_wavelength": 5},
+                {"name": "g", "eo:center_wavelength": 8},
+                {"name": "b", "eo:common_name": "blue"},
+            ]
+        },
+    ],
+)
+def test_get_dimensions_cube_dimensions_eo_bands(summaries):
     dims = CollectionMetadata._parse_dimensions(
         {
             "cube:dimensions": {
@@ -341,13 +362,7 @@ def test_get_dimensions_cube_dimensions_eo_bands():
                 "t": {"type": "temporal", "extent": ["2020-02-20", None]},
                 "spectral": {"type": "bands", "values": ["r", "g", "b"]},
             },
-            "summaries": {
-                "eo:bands": [
-                    {"name": "r", "common_name": "red", "center_wavelength": 5},
-                    {"name": "g", "center_wavelength": 8},
-                    {"name": "b", "common_name": "blue"},
-                ]
-            },
+            "summaries": summaries,
         }
     )
     assert_same_dimensions(
@@ -368,7 +383,28 @@ def test_get_dimensions_cube_dimensions_eo_bands():
     )
 
 
-def test_get_dimensions_cube_dimensions_eo_bands_mismatch():
+@pytest.mark.parametrize(
+    "summaries",
+    [
+        {
+            # Pre-STAC-1.1-style eo:bands
+            "eo:bands": [
+                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                {"name": "c", "center_wavelength": 8},
+                {"name": "m", "common_name": "magenta"},
+            ]
+        },
+        {
+            # STAC 1.1-style bands
+            "bands": [
+                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                {"name": "c", "eo:center_wavelength": 8},
+                {"name": "m", "eo:common_name": "magenta"},
+            ]
+        },
+    ],
+)
+def test_get_dimensions_cube_dimensions_eo_bands_mismatch(summaries):
     logs = []
     dims = CollectionMetadata._parse_dimensions(
         {
@@ -376,13 +412,7 @@ def test_get_dimensions_cube_dimensions_eo_bands_mismatch():
                 "x": {"type": "spatial", "extent": [-10, 10]},
                 "spectral": {"type": "bands", "values": ["r", "g", "b"]},
             },
-            "summaries": {
-                "eo:bands": [
-                    {"name": "y", "common_name": "yellow", "center_wavelength": 5},
-                    {"name": "c", "center_wavelength": 8},
-                    {"name": "m", "common_name": "magenta"},
-                ]
-            },
+            "summaries": summaries,
         },
         complain=logs.append,
     )
@@ -403,7 +433,28 @@ def test_get_dimensions_cube_dimensions_eo_bands_mismatch():
     assert logs == ["Band name mismatch: ['r', 'g', 'b'] != ['y', 'c', 'm']"]
 
 
-def test_get_dimensions_eo_bands_only():
+@pytest.mark.parametrize(
+    "summaries",
+    [
+        {
+            # Pre-STAC-1.1-style eo:bands
+            "eo:bands": [
+                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                {"name": "c", "center_wavelength": 8},
+                {"name": "m", "common_name": "magenta"},
+            ]
+        },
+        {
+            # STAC 1.1-style bands
+            "bands": [
+                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                {"name": "c", "eo:center_wavelength": 8},
+                {"name": "m", "eo:common_name": "magenta"},
+            ]
+        },
+    ],
+)
+def test_get_dimensions_eo_bands_only(summaries):
     logs = []
     dims = CollectionMetadata._parse_dimensions(
         {
@@ -433,20 +484,35 @@ def test_get_dimensions_eo_bands_only():
     assert logs == ["No cube:dimensions metadata", "Assuming name 'bands' for anonymous band dimension."]
 
 
-def test_get_dimensions_no_band_dimension_with_eo_bands():
+@pytest.mark.parametrize(
+    "summaries",
+    [
+        {
+            # Pre-STAC-1.1-style eo:bands
+            "eo:bands": [
+                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                {"name": "c", "center_wavelength": 8},
+                {"name": "m", "common_name": "magenta"},
+            ]
+        },
+        {
+            # STAC 1.1-style bands
+            "bands": [
+                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                {"name": "c", "eo:center_wavelength": 8},
+                {"name": "m", "eo:common_name": "magenta"},
+            ]
+        },
+    ],
+)
+def test_get_dimensions_no_band_dimension_with_eo_bands(summaries):
     logs = []
     dims = CollectionMetadata._parse_dimensions(
         {
             "cube:dimensions": {
                 "x": {"type": "spatial", "extent": [-10, 10]},
             },
-            "summaries": {
-                "eo:bands": [
-                    {"name": "y", "common_name": "yellow", "center_wavelength": 5},
-                    {"name": "c", "center_wavelength": 8},
-                    {"name": "m", "common_name": "magenta"},
-                ]
-            },
+            "summaries": summaries,
         },
         complain=logs.append,
     )
@@ -459,7 +525,24 @@ def test_get_dimensions_no_band_dimension_with_eo_bands():
     assert logs == ["No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'"]
 
 
-def test_get_dimensions_multiple_band_dimensions_with_eo_bands():
+@pytest.mark.parametrize(
+    "summaries",
+    [
+        {
+            # Pre-STAC-1.1-style eo:bands
+            "eo:bands": [
+                {"name": "zu", "common_name": "foo"},
+            ]
+        },
+        {
+            # STAC 1.1-style bands
+            "bands": [
+                {"name": "zu", "eo:common_name": "foo"},
+            ]
+        },
+    ],
+)
+def test_get_dimensions_multiple_band_dimensions_with_eo_bands(summaries):
     logs = []
     dims = CollectionMetadata._parse_dimensions(
         {
@@ -468,11 +551,7 @@ def test_get_dimensions_multiple_band_dimensions_with_eo_bands():
                 "spectral": {"type": "bands", "values": ["alpha", "beta"]},
                 "bands": {"type": "bands", "values": ["r", "g", "b"]},
             },
-            "summaries": {
-                "eo:bands": [
-                    {"name": "zu", "common_name": "foo"},
-                ]
-            },
+            "summaries": summaries,
         },
         complain=logs.append,
     )
@@ -574,16 +653,22 @@ def test_cubemetadata_bands_dimension_no_band_dimensions():
 @pytest.mark.parametrize(
     "spec",
     [
-        # API 0.4 style
         {
+            # API 0.4 style
             "properties": {
                 "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
             }
         },
-        # API 1.0 style
         {
+            # API 1.0 style
             "summaries": {
                 "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+            }
+        },
+        {
+            # STAC 1.1 style
+            "summaries": {
+                "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
             }
         },
     ],
@@ -599,8 +684,8 @@ def test_metadata_bands_dimension_eo_bands(spec):
 @pytest.mark.parametrize(
     "spec",
     [
-        # API 0.4 style
         {
+            # API 0.4 style
             "properties": {
                 "cube:dimensions": {
                     "x": {"type": "spatial", "axis": "x"},
@@ -609,14 +694,24 @@ def test_metadata_bands_dimension_eo_bands(spec):
                 "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}],
             }
         },
-        # API 1.0 style
         {
+            # API 1.0 style
             "cube:dimensions": {
                 "x": {"type": "spatial", "axis": "x"},
                 "b": {"type": "bands", "values": ["foo", "bar"]},
             },
             "summaries": {
                 "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+            },
+        },
+        {
+            # STAC 1.1 bands style
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x"},
+                "b": {"type": "bands", "values": ["foo", "bar"]},
+            },
+            "summaries": {
+                "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
             },
         },
     ],
@@ -996,6 +1091,10 @@ def test_cubemetadata_subclass():
             StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
             ["B01", "B02"],
         ),
+        (
+            StacDummyBuilder.collection(summaries={"bands": [{"name": "B01"}, {"name": "B02"}]}),
+            ["B01", "B02"],
+        ),
         # TODO: test asset handling in collection?
         (
             StacDummyBuilder.catalog(),
@@ -1004,6 +1103,12 @@ def test_cubemetadata_subclass():
         (
             StacDummyBuilder.item(
                 properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]}
+            ),
+            ["SCL", "B08"],
+        ),
+        (
+            StacDummyBuilder.item(
+                properties={"datetime": "2020-05-22T00:00:00Z", "bands": [{"name": "SCL"}, {"name": "B08"}]}
             ),
             ["SCL", "B08"],
         ),
