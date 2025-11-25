@@ -600,8 +600,8 @@ class CollectionMetadata(CubeMetadata):
 
         # Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)
         summaries_bands = (
-            deep_get(spec, "summaries", "bands", default=None)
-            or deep_get(spec, "summaries", "eo:bands", default=None)
+            deep_get(spec, "summaries", "eo:bands", default=None)
+            or deep_get(spec, "summaries", "bands", default=None)
             or deep_get(spec, "summaries", "raster:bands", default=None)
             or deep_get(spec, "properties", "eo:bands", default=None)
         )
