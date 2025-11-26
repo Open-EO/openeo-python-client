@@ -7,7 +7,9 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
 
+import json
 import urllib3.util
 
 import openeo
@@ -140,6 +142,50 @@ class _JobStartTask(ConnectedTask):
                 stats_update={"start_job error": 1},
             )
 
+@dataclass(frozen=True)
+class _JobDownloadTask(ConnectedTask):
+    """
+    Task for downloading job results and metadata.
+
+    :param download_dir:
+        Root directory where job results and metadata will be downloaded.
+    """
+    download_dir: Path
+
+    def execute(self) -> _TaskResult:
+        """
+        Download job results and metadata.
+        """
+        try:
+            job = self.get_connection(retry=True).job(self.job_id)
+            
+            # Ensure download directory exists
+            self.download_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Download results
+            job.get_results().download_files(target=self.download_dir)
+            
+            # Download metadata
+            job_metadata = job.describe()
+            metadata_path = self.download_dir / f"job_{self.job_id}.json"
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
+            
+            _log.info(f"Job {self.job_id!r} results downloaded successfully")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={}, #TODO consider db updates
+                stats_update={"job download": 1},
+            )
+        except Exception as e:
+            _log.error(f"Failed to download results for job {self.job_id!r}: {e!r}")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={},
+                stats_update={"job download error": 1},
+            )
 
 class _JobManagerWorkerThreadPool:
     """
