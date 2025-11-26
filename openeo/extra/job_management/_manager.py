@@ -32,6 +32,7 @@ from openeo.extra.job_management._interface import JobDatabaseInterface
 from openeo.extra.job_management._thread_worker import (
     _JobManagerWorkerThreadPool,
     _JobStartTask,
+    _JobDownloadTask
 )
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
@@ -175,6 +176,7 @@ class MultiBackendJobManager:
 
     .. versionchanged:: 0.47.0
         Added ``download_results`` parameter.
+
     """
 
     # Expected columns in the job DB dataframes.
@@ -222,6 +224,7 @@ class MultiBackendJobManager:
         )
         self._thread = None
         self._worker_pool = None
+        self._download_pool = None
         # Generic cache
         self._cache = {}
 
@@ -361,6 +364,7 @@ class MultiBackendJobManager:
 
         self._stop_thread = False
         self._worker_pool = _JobManagerWorkerThreadPool()
+        self._download_pool = _JobManagerWorkerThreadPool()
 
         def run_loop():
             # TODO: support user-provided `stats`
@@ -398,7 +402,13 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
-        self._worker_pool.shutdown()
+        if self._worker_pool is not None:
+            self._worker_pool.shutdown()
+            self._worker_pool = None
+            
+        if self._download_pool is not None:
+            self._download_pool.shutdown()
+            self._download_pool = None
 
         if self._thread is not None:
             self._stop_thread = True
@@ -503,6 +513,8 @@ class MultiBackendJobManager:
         stats = collections.defaultdict(int)
 
         self._worker_pool = _JobManagerWorkerThreadPool()
+        self._download_pool = _JobManagerWorkerThreadPool()
+
 
         while (
             sum(
@@ -521,7 +533,7 @@ class MultiBackendJobManager:
             stats["sleep"] += 1
 
         # TODO; run post process after shutdown once more to ensure completion?
-        self._worker_pool.shutdown()
+        self.stop_job_thread()
 
         return stats
 
@@ -567,7 +579,11 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-        self._process_threadworker_updates(self._worker_pool, job_db=job_db, stats=stats)
+        if self._worker_pool is not None:
+            self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
+            
+        if self._download_pool is not None:
+            self._process_threadworker_updates(worker_pool=self._download_pool, job_db=job_db, stats=stats)
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -578,6 +594,7 @@ class MultiBackendJobManager:
 
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
+
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -671,7 +688,7 @@ class MultiBackendJobManager:
             else:
                 _log.warning("Failed to proactively refresh bearer token")
 
-    def _process_threadworker_updates(
+    def _process_task_results(
         self,
         worker_pool: _JobManagerWorkerThreadPool,
         *,
@@ -737,15 +754,23 @@ class MultiBackendJobManager:
         """
         # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
         if self._download_results:
-            job_metadata = job.describe()
+
             job_dir = self.get_job_dir(job.job_id)
-            metadata_path = self.get_job_metadata_path(job.job_id)
-
             self.ensure_job_dir_exists(job.job_id)
-            job.get_results().download_files(target=job_dir)
 
-            with metadata_path.open("w", encoding="utf-8") as f:
-                json.dump(job_metadata, f, ensure_ascii=False)
+            # Proactively refresh bearer token (because task in thread will not be able to do that
+            job_con =  job.connection
+            self._refresh_bearer_token(connection=job_con)
+            
+            task = _JobDownloadTask(
+                root_url=job_con.root_url,
+                bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
+                job_id=job.job_id,
+                df_idx=row.name,  # TODO figure out correct index usage
+                download_dir=job_dir,
+            )
+            _log.info(f"Submitting download task {task} to download thread pool")
+            self._download_pool.submit_task(task)
 
     def on_job_error(self, job: BatchJob, row):
         """
