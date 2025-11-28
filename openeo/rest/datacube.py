@@ -65,7 +65,7 @@ from openeo.rest._datacube import (
     _ProcessGraphAbstraction,
     build_child_callback,
 )
-from openeo.rest.graph_building import CollectionProperty
+from openeo.rest.graph_building import CollectionProperty, ProcessBuilder
 from openeo.rest.job import BatchJob
 from openeo.rest.mlmodel import MlModel
 from openeo.rest.models.general import ValidationResponse
@@ -513,9 +513,9 @@ class DataCube(_ProcessGraphAbstraction):
         if len(args) == 1 and isinstance(args[0], Parameter):
             assert start_date is None and end_date is None and extent is None
             return args[0]
-        elif len(args) == 0 and isinstance(extent, Parameter):
+        elif len(args) == 0 and (isinstance(extent, Parameter) or isinstance(extent, ProcessBuilder)):
             assert start_date is None and end_date is None
-            # TODO: warn about unexpected parameter schema
+            # TODO: warn about unexpected parameter or ProcessBuilder schema
             return extent
         else:
             def convertor(d: Any) -> Any:
