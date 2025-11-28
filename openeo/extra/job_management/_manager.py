@@ -688,7 +688,7 @@ class MultiBackendJobManager:
             else:
                 _log.warning("Failed to proactively refresh bearer token")
 
-    def _process_task_results(
+    def _process_threadworker_updates(
         self,
         worker_pool: _JobManagerWorkerThreadPool,
         *,
@@ -770,6 +770,9 @@ class MultiBackendJobManager:
                 download_dir=job_dir,
             )
             _log.info(f"Submitting download task {task} to download thread pool")
+            
+            if self._download_pool is None:
+                self._download_pool = _JobManagerWorkerThreadPool()
             self._download_pool.submit_task(task)
 
     def on_job_error(self, job: BatchJob, row):

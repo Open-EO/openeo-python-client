@@ -142,7 +142,6 @@ class _JobStartTask(ConnectedTask):
                 stats_update={"start_job error": 1},
             )
 
-@dataclass(frozen=True)
 class _JobDownloadTask(ConnectedTask):
     """
     Task for downloading job results and metadata.
@@ -150,12 +149,11 @@ class _JobDownloadTask(ConnectedTask):
     :param download_dir:
         Root directory where job results and metadata will be downloaded.
     """
-    download_dir: Path
+    def __init__(self, download_dir: Path, **kwargs):
+        super().__init__(**kwargs)
+        object.__setattr__(self, 'download_dir', download_dir)
 
     def execute(self) -> _TaskResult:
-        """
-        Download job results and metadata.
-        """
         try:
             job = self.get_connection(retry=True).job(self.job_id)
             
@@ -186,7 +184,7 @@ class _JobDownloadTask(ConnectedTask):
                 db_update={},
                 stats_update={"job download error": 1},
             )
-
+        
 class _JobManagerWorkerThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
