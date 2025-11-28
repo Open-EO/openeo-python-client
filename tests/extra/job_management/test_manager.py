@@ -39,7 +39,7 @@ from openeo.extra.job_management._thread_worker import (
 )
 from openeo.rest._testing import DummyBackend
 from openeo.rest.auth.testing import OidcMock
-from openeo.util import rfc3339
+from openeo.util import load_json, rfc3339
 
 
 def _job_id_from_year(process_graph) -> Union[str, None]:
@@ -897,3 +897,33 @@ class TestMultiBackendJobManager:
         # Because of proactive+throttled token refreshing,
         # we should have 2 additional token requests now
         assert len(oidc_mock.grant_request_history) == 4
+
+    @pytest.mark.parametrize(
+        ["download_results"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
+    def test_download_results_toggle(
+        self, tmp_path, job_manager_root_dir, dummy_backend_foo, download_results, sleep_mock
+    ):
+        job_manager = MultiBackendJobManager(root_dir=job_manager_root_dir, download_results=download_results)
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
+
+        df = pd.DataFrame({"year": [2018, 2019]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"job finished": 2})
+
+        if download_results:
+            assert (job_manager_root_dir / "job_job-2018/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2018/job_job-2018.json") == dirty_equals.IsPartialDict(
+                id="job-2018", status="finished"
+            )
+            assert (job_manager_root_dir / "job_job-2019/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2019/job_job-2019.json") == dirty_equals.IsPartialDict(
+                id="job-2019", status="finished"
+            )
+        else:
+            assert not job_manager_root_dir.exists() or list(job_manager_root_dir.iterdir()) == []
