@@ -956,6 +956,10 @@ class TestMultiBackendJobManager:
         
         # Call on_job_done
         manager_with_download.on_job_done(job=job, row=row)
+
+        # Wait for download task to complete
+        if manager_with_download._download_pool is not None:
+            manager_with_download._download_pool.shutdown() 
         
         # Verify files were downloaded and directory was created
         assert job_dir.exists(), "Job directory should exist when auto_download_results=True"
