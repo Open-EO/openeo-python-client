@@ -158,7 +158,7 @@ class MultiBackendJobManager:
             - get_job_metadata_path
 
     :param download_results:
-        Boolean to enable the automated download of job results once completed by the job manager.
+        Whether to download job results automatically once the job is completed.
 
     :param cancel_running_job_after:
         Optional temporal limit (in seconds) after which running jobs should be canceled

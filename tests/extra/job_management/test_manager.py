@@ -39,7 +39,7 @@ from openeo.extra.job_management._thread_worker import (
 )
 from openeo.rest._testing import DummyBackend
 from openeo.rest.auth.testing import OidcMock
-from openeo.util import rfc3339
+from openeo.util import load_json, rfc3339
 
 
 def _job_id_from_year(process_graph) -> Union[str, None]:
@@ -898,76 +898,32 @@ class TestMultiBackendJobManager:
         # we should have 2 additional token requests now
         assert len(oidc_mock.grant_request_history) == 4
 
-    def test_on_job_done_boolean_download(
-        self, tmp_path, job_manager_root_dir, requests_mock
+    @pytest.mark.parametrize(
+        ["download_results"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
+    def test_download_results_toggle(
+        self, tmp_path, job_manager_root_dir, dummy_backend_foo, download_results, sleep_mock
     ):
-        """Test that job results are only downloaded when download_results=True"""
+        job_manager = MultiBackendJobManager(root_dir=job_manager_root_dir, download_results=download_results)
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
 
-        # Setup backend and connection
-        backend = "http://foo.test"
-        job_id = "job-test-123"
-        
-        requests_mock.get(backend, json={"api_version": "1.1.0"})
-        requests_mock.get(f"{backend}/jobs/{job_id}", json={
-            "id": job_id, 
-            "status": "finished",
-            "title": "Test Job"
-        })
-        requests_mock.get(f"{backend}/jobs/{job_id}/results", json={
-            "assets": {
-                "result.tif": {
-                    "href": f"{backend}/jobs/{job_id}/results/result.tif",
-                    "type": "image/tiff"
-                }
-            }
-        })
-        # Mock the actual file download
-        requests_mock.head(f"{backend}/jobs/{job_id}/results/result.tif", headers={"Content-Length": "100"})
-        requests_mock.get(f"{backend}/jobs/{job_id}/results/result.tif", content=b"fake_tiff_data")
-        
-        # Test with auto_download_results=False
-        manager_no_download = MultiBackendJobManager(
-            root_dir=job_manager_root_dir, 
-            download_results=False
-        )
-        connection = openeo.connect(backend)
-        manager_no_download.add_backend("foo", connection=connection)
-        
-        df = pd.DataFrame({"year": [2020]})
-        job = BatchJob(job_id=job_id, connection=connection)
-        row = df.loc[0]
-        
-        # Call on_job_done
-        manager_no_download.on_job_done(job=job, row=row)
-        
-        # Verify no files were downloaded and no directory was created
-        job_dir = manager_no_download.get_job_dir(job_id)
-        metadata_path = manager_no_download.get_job_metadata_path(job_id)
-        
-        assert not job_dir.exists(), "Job directory should not exist when auto_download_results=False"
-        assert not metadata_path.exists(), "Metadata file should not exist when auto_download_results=False"
-        
-        # Now test with auto_download_results=True
-        manager_with_download = MultiBackendJobManager(
-            root_dir=job_manager_root_dir, 
-            download_results=True
-        )
-        manager_with_download.add_backend("foo", connection=connection)
-        
-        # Call on_job_done
-        manager_with_download.on_job_done(job=job, row=row)
-        
-        # Verify files were downloaded and directory was created
-        assert job_dir.exists(), "Job directory should exist when auto_download_results=True"
-        assert metadata_path.exists(), "Metadata file should exist when auto_download_results=True"
-        
-        # Verify metadata content
-        with metadata_path.open("r", encoding="utf-8") as f:
-            metadata = json.load(f)
-        assert metadata["id"] == job_id
-        assert metadata["status"] == "finished"
-        
-        # Verify result file was downloaded
-        result_file = job_dir / "result.tif"
-        assert result_file.exists(), "Result file should be downloaded"
-        assert result_file.read_bytes() == b"fake_tiff_data"
+        df = pd.DataFrame({"year": [2018, 2019]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"job finished": 2})
+
+        if download_results:
+            assert (job_manager_root_dir / "job_job-2018/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2018/job_job-2018.json") == dirty_equals.IsPartialDict(
+                id="job-2018", status="finished"
+            )
+            assert (job_manager_root_dir / "job_job-2019/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2019/job_job-2019.json") == dirty_equals.IsPartialDict(
+                id="job-2019", status="finished"
+            )
+        else:
+            assert not job_manager_root_dir.exists() or list(job_manager_root_dir.iterdir()) == []
