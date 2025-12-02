@@ -91,7 +91,7 @@ log = logging.getLogger(__name__)
 
 
 # Type annotation aliases
-InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, None]
+InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, _FromNodeMixin, None]
 
 
 class DataCube(_ProcessGraphAbstraction):
@@ -165,8 +165,10 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Optional[Connection] = None,
-        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        spatial_extent: Union[
+            dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, _FromNodeMixin, None
+        ] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
@@ -480,22 +482,22 @@ class DataCube(_ProcessGraphAbstraction):
         *args,
         start_date: InputDate = None,
         end_date: InputDate = None,
-        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-    ) -> Union[List[Union[str, Parameter, PGNode, None]], Parameter]:
+        extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
+    ) -> Union[List[Union[str, Parameter, PGNode, _FromNodeMixin, None]], Parameter, _FromNodeMixin]:
         """Parameter aware temporal_extent normalizer"""
         # TODO: move this outside of DataCube class
         # TODO: return extent as tuple instead of list
-        if len(args) == 1 and isinstance(args[0], Parameter):
+        if len(args) == 1 and isinstance(args[0], (Parameter, _FromNodeMixin)):
             assert start_date is None and end_date is None and extent is None
             return args[0]
-        elif len(args) == 0 and isinstance(extent, Parameter):
+        elif len(args) == 0 and isinstance(extent, (Parameter, _FromNodeMixin)):
             assert start_date is None and end_date is None
             # TODO: warn about unexpected parameter schema
             return extent
         else:
             def convertor(d: Any) -> Any:
                 # TODO: can this be generalized through _FromNodeMixin?
-                if isinstance(d, Parameter) or isinstance(d, PGNode):
+                if isinstance(d, Parameter) or isinstance(d, _FromNodeMixin):
                     # TODO: warn about unexpected parameter schema
                     return d
                 elif isinstance(d, ProcessBuilderBase):
@@ -531,7 +533,7 @@ class DataCube(_ProcessGraphAbstraction):
         *args,
         start_date: InputDate = None,
         end_date: InputDate = None,
-        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
     ) -> DataCube:
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:

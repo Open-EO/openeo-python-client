@@ -2375,6 +2375,70 @@ def test_load_collection_parameterized_extents(con100, spatial_extent, temporal_
     }
 
 
+@pytest.mark.parametrize(
+    "udf_factory",
+    [
+        (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+        (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+    ],
+)
+def test_load_collection_extents_from_udf(con100, udf_factory):
+    spatial_extent = udf_factory(data=[1, 2, 3], udf="print('hello space')", runtime="Python")
+    temporal_extent = udf_factory(data=[4, 5, 6], udf="print('hello time')", runtime="Python")
+    cube = con100.load_collection("S2", spatial_extent=spatial_extent, temporal_extent=temporal_extent)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "runudf1": {
+            "process_id": "run_udf",
+            "arguments": {"data": [1, 2, 3], "udf": "print('hello space')", "runtime": "Python"},
+        },
+        "runudf2": {
+            "process_id": "run_udf",
+            "arguments": {"data": [4, 5, 6], "udf": "print('hello time')", "runtime": "Python"},
+        },
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": {"from_node": "runudf1"},
+                "temporal_extent": {"from_node": "runudf2"},
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "udf_factory",
+    [
+        (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+        (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+    ],
+)
+def test_load_collection_temporal_extent_from_udf(con100, udf_factory):
+    temporal_extent = [
+        udf_factory(data=[1, 2, 3], udf="print('hello start')", runtime="Python"),
+        udf_factory(data=[4, 5, 6], udf="print('hello end')", runtime="Python"),
+    ]
+    cube = con100.load_collection("S2", temporal_extent=temporal_extent)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "runudf1": {
+            "process_id": "run_udf",
+            "arguments": {"data": [1, 2, 3], "udf": "print('hello start')", "runtime": "Python"},
+        },
+        "runudf2": {
+            "process_id": "run_udf",
+            "arguments": {"data": [4, 5, 6], "udf": "print('hello end')", "runtime": "Python"},
+        },
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": [{"from_node": "runudf1"}, {"from_node": "runudf2"}],
+            },
+        },
+    }
+
+
 def test_apply_dimension_temporal_cumsum_with_target(con100, test_data):
     cumsum = con100.load_collection("S2").apply_dimension('cumsum', dimension="t", target_dimension="MyNewTime")
     actual_graph = cumsum.flat_graph()
