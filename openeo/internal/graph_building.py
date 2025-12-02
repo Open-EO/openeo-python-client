@@ -95,6 +95,8 @@ class FlatGraphableMixin(metaclass=abc.ABCMeta):
 class _FromNodeMixin(abc.ABC):
     """Mixin for classes that want to hook into the generation of a "from_node" reference."""
 
+    # TODO: rename this class: it's more an interface than a mixin, and "from node" might be confusing as explained below.
+
     @abc.abstractmethod
     def from_node(self) -> PGNode:
         # TODO: "from_node" is a bit a confusing name:
