@@ -3095,6 +3095,27 @@ class DataCube(_ProcessGraphAbstraction):
             ),
         )
 
+    @openeo_process
+    def convert_data_type(
+            self,
+            data_type: str,
+    ) -> DataCube:
+        """
+        Converts the datacube data to another data type.
+
+        :param data_type: The desired data type.
+
+        :return: A data cube with the same dimensions but converted to the new data type.
+        """
+        return self.process(
+            process_id="convert_data_type",
+            arguments=dict_no_none(
+                data=THIS,
+                data_type=data_type
+            ),
+        )
+
+
 
 def _get_geometry_argument(
     argument: Union[
