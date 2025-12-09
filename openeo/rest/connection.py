@@ -77,6 +77,7 @@ from openeo.rest.models.general import (
 )
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
+from openeo.rest.stac_resource import StacResource
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
@@ -1130,6 +1131,10 @@ class Connection(RestApiConnection):
         """
         graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
         return DataCube(graph=graph, connection=self)
+
+    def stac_resource_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> StacResource:
+        graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
+        return StacResource(graph=graph, connection=self)
 
     def datacube_from_flat_graph(
         self, flat_graph: dict, parameters: Optional[dict] = None
