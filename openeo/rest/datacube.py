@@ -3103,7 +3103,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Converts the datacube data to another data type.
 
-        :param data_type: The desired data type.
+        :param data_type: The desired data type, as a string e.g. 'uint8', 'int16ud32767', ...
 
         :return: A data cube with the same dimensions but converted to the new data type.
         """
