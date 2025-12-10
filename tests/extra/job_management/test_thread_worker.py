@@ -2,7 +2,9 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Iterator, Dict, Any
+from pathlib import Path
+import json
 
 import pytest
 
@@ -290,65 +292,118 @@ class TestJobManagerWorkerThreadPool:
             "Failed to start job 'job-000': OpenEoApiError('[500] Internal: No job starting for you, buddy')"
         ]
 
-    def test_download_task_in_pool(self, worker_pool, tmp_path):
-        # Test that download tasks can be submitted to the thread pool
-        # without needing actual backend functionality
-        task = _JobDownloadTask(
-            job_id="pool-job-123",
-            df_idx=42,
-            root_url="https://example.com",
-            bearer_token="test-token",
-            download_dir=tmp_path
-        )
-        
-        worker_pool.submit_task(task)
-        results, remaining = worker_pool.process_futures(timeout=1)
-        
-        # We can't test the actual download result without a backend,
-        # but we can verify the task was processed
-        assert len(results) == 1
-        result = results[0]
-        assert result.job_id == "pool-job-123"
-        assert result.df_idx == 42
-        assert remaining == 0
+
+
+import tempfile
+from requests_mock import Mocker
+OPENEO_BACKEND = "https://openeo.dummy.test/"
 
 class TestJobDownloadTask:
-    def test_download_success(self, tmp_path, caplog):
-        caplog.set_level(logging.INFO)
-        
-        # Test the basic functionality without complex backend setup
-        download_dir = tmp_path / "downloads"
-        task = _JobDownloadTask(
-            job_id="test-job-123",
-            df_idx=0,
-            root_url="https://example.com",
-            bearer_token="test-token",
-            download_dir=download_dir
-        )
-        
-        # Since we can't test actual downloads without a real backend,
-        # we'll test that the task is properly constructed and the directory is handled
-        assert task.job_id == "test-job-123"
-        assert task.df_idx == 0
-        assert task.root_url == "https://example.com"
-        assert task.download_dir == download_dir
-        # Token should be hidden in repr
-        assert "test-token" not in repr(task)
+    
+    # Use a temporary directory for safe file handling
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            yield Path(temp_dir)
 
-    def test_download_failure_handling(self, tmp_path, caplog):
-        caplog.set_level(logging.ERROR)
+    def test_job_download_success(self, requests_mock: Mocker, temp_dir: Path):
+        """
+        Test a successful job download and verify file content and stats update.
+        """
+        job_id = "job-007"
+        df_idx = 42
         
-        # Test that the task properly handles execution context
-        # We can't easily test actual download failures without complex setup,
-        # but we can verify the task structure and error handling approach
-        download_dir = tmp_path / "downloads"
+        # Setup Dummy Backend
+        backend = DummyBackend.at_url(OPENEO_BACKEND, requests_mock=requests_mock)
+        backend.next_result = b"The downloaded file content."
+        
+        # Pre-set job status to "finished" so the download link is available
+        backend.batch_jobs[job_id] = {"job_id": job_id, "pg": {}, "status": "created"}
+        
+        # Need to ensure job status is "finished" for download attempt to occur
+        backend._set_job_status(job_id=job_id, status="finished")
+        backend.batch_jobs[job_id]["status"] = "finished"  
+
+        download_dir = temp_dir / job_id / "results"
+        download_dir.mkdir(parents=True)
+        
+        # Create the task instance
         task = _JobDownloadTask(
-            job_id="failing-job",
-            df_idx=1,
-            root_url="https://example.com", 
-            bearer_token="test-token",
-            download_dir=download_dir
+            root_url=OPENEO_BACKEND,
+            bearer_token="dummy-token-7",
+            job_id=job_id,
+            df_idx=df_idx,
+            download_dir=download_dir,
         )
+
+        # Execute the task
+        result = task.execute()
+
+        # 4. Assertions
+
+        # A. Verify TaskResult structure
+        assert isinstance(result, _TaskResult)
+        assert result.job_id == job_id
+        assert result.df_idx == df_idx
         
-        # The task should be properly constructed for error handling
-        assert task.job_id == "failing-job"
+        # B. Verify stats update for the MultiBackendJobManager
+        assert result.stats_update == {"job download": 1}
+        
+        # C. Verify download content (crucial part of the unit test)
+        downloaded_file = download_dir / "result.data"
+        assert downloaded_file.exists()
+        assert downloaded_file.read_bytes() == b"The downloaded file content."
+        
+        # Verify backend interaction
+        get_results_calls = [c for c in requests_mock.request_history if c.method == "GET" and f"/jobs/{job_id}/results" in c.url]
+        assert len(get_results_calls) >= 1
+        get_asset_calls = [c for c in requests_mock.request_history if c.method == "GET" and f"/jobs/{job_id}/results/result.data" in c.url]
+        assert len(get_asset_calls) == 1
+        
+    def test_job_download_failure(self, requests_mock: Mocker, temp_dir: Path):
+        """
+        Test a failed download (e.g., bad connection) and verify error reporting.
+        """
+        job_id = "job-008"
+        df_idx = 55
+                
+        # Need to ensure job status is "finished" for download attempt to occur
+        backend = DummyBackend.at_url(OPENEO_BACKEND, requests_mock=requests_mock)
+
+        requests_mock.get(
+            f"{OPENEO_BACKEND}jobs/{job_id}/results",
+            status_code=500,
+            json={"code": "InternalError", "message": "Failed to list results"})
+
+        backend.batch_jobs[job_id] = {"job_id": job_id, "pg": {}, "status": "created"}
+        
+        # Need to ensure job status is "finished" for download attempt to occur
+        backend._set_job_status(job_id=job_id, status="finished")
+        backend.batch_jobs[job_id]["status"] = "finished"
+        
+        download_dir = temp_dir / job_id / "results"
+        download_dir.mkdir(parents=True)
+
+        # Create the task instance
+        task = _JobDownloadTask(
+            root_url=OPENEO_BACKEND,
+            bearer_token="dummy-token-8",
+            job_id=job_id,
+            df_idx=df_idx,
+            download_dir=download_dir,
+        )
+
+        # Execute the task
+        result = task.execute()
+
+        # Verify TaskResult structure
+        assert isinstance(result, _TaskResult)
+        assert result.job_id == job_id
+        assert result.df_idx == df_idx
+        
+        # Verify stats update for the MultiBackendJobManager
+        assert result.stats_update == {"job download error": 1}
+        
+        # Verify no file was created (or only empty/failed files)
+        assert not any(p.is_file() for p in download_dir.glob("*"))
+
