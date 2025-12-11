@@ -521,18 +521,21 @@ class MultiBackendJobManager:
         stats = collections.defaultdict(int)
 
         self._worker_pool = _JobManagerWorkerThreadPool()
-        self._download_pool = _JobManagerWorkerThreadPool()
+
+        if self._download_results:
+            self._download_pool = _JobManagerWorkerThreadPool()
 
 
         while (
             sum(
                 job_db.count_by_status(
                     statuses=["not_started", "created", "queued_for_start", "queued", "running"]
-                ).values()
-            )
-            > 0
+                ).values()) > 0
 
-            or self._worker_pool.num_pending_tasks() > 0
+            or (self._worker_pool is not None and self._worker_pool.num_pending_tasks() > 0)
+
+            or (self._download_pool is not None and self._download_pool.num_pending_tasks() > 0)
+                
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
@@ -542,18 +545,6 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-        # TODO; run post process after shutdown once more to ensure completion?
-        # Wait for all download tasks to complete
-        if self._download_results and self._download_pool is not None:
-            _log.info("Waiting for download tasks to complete...")
-            while self._download_pool.num_pending_tasks() > 0:
-                self._process_threadworker_updates(
-                    worker_pool=self._download_pool, 
-                    job_db=job_db, 
-                    stats=stats
-                )
-                time.sleep(1)  # Brief pause to avoid busy waiting
-            _log.info("All download tasks completed.")
 
         self._worker_pool.shutdown()
         self._download_pool.shutdown()
@@ -789,13 +780,14 @@ class MultiBackendJobManager:
                 root_url=job_con.root_url,
                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                 job_id=job.job_id,
-                df_idx=row.name,  # TODO figure out correct index usage
+                df_idx=row.name,  #this is going to be the index in the not saterted dataframe; should not be an issue as there is no db update for download task
                 download_dir=job_dir,
             )
             _log.info(f"Submitting download task {task} to download thread pool")
             
             if self._download_pool is None:
                 self._download_pool = _JobManagerWorkerThreadPool()
+                
             self._download_pool.submit_task(task)
 
     def on_job_error(self, job: BatchJob, row):
