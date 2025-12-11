@@ -173,7 +173,7 @@ class _JobDownloadTask(ConnectedTask):
             return _TaskResult(
                 job_id=self.job_id,
                 df_idx=self.df_idx,
-                db_update={}, #TODO consider db updates
+                db_update={}, #TODO consider db updates?
                 stats_update={"job download": 1},
             )
         except Exception as e:
