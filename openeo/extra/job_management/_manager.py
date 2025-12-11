@@ -825,6 +825,7 @@ class MultiBackendJobManager:
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
+    #TODO pull this functionality away from the manager to a general utility class? job dir creation could be reused for tje Jobdownload task
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
         return self._root_dir / f"job_{job_id}"
