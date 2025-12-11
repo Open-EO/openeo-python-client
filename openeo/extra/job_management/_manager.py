@@ -546,8 +546,11 @@ class MultiBackendJobManager:
             stats["sleep"] += 1
 
 
-        self._worker_pool.shutdown()
-        self._download_pool.shutdown()
+        if self._worker_pool is not None:
+            self._worker_pool.shutdown()
+            
+        if self._download_pool is not None:
+            self._download_pool.shutdown()
 
         return stats
 

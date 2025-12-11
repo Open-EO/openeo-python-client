@@ -157,9 +157,6 @@ class _JobDownloadTask(ConnectedTask):
         try:
             job = self.get_connection(retry=True).job(self.job_id)
             
-            # Ensure download directory exists
-            self.download_dir.mkdir(parents=True, exist_ok=True)
-            
             # Download results
             job.get_results().download_files(target=self.download_dir)
             
