@@ -407,10 +407,6 @@ class MultiBackendJobManager:
             self._worker_pool = None
 
         if self._download_pool is not None:
-        # Wait for downloads to complete before shutting down
-            _log.info("Waiting for download tasks to complete before stopping...")
-            while  self._download_pool.num_pending_tasks() > 0:
-                time.sleep(1)
             self._download_pool.shutdown()
             self._download_pool = None
 
