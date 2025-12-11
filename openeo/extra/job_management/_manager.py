@@ -544,9 +544,11 @@ class MultiBackendJobManager:
 
         if self._worker_pool is not None:
             self._worker_pool.shutdown()
+            self._worker_pool = None
             
         if self._download_pool is not None:
             self._download_pool.shutdown()
+            self._download_pool = None
 
         return stats
 
@@ -765,7 +767,6 @@ class MultiBackendJobManager:
         :param job: The job that has finished.
         :param row: DataFrame row containing the job's metadata.
         """
-        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
         if self._download_results:
 
             job_dir = self.get_job_dir(job.job_id)
