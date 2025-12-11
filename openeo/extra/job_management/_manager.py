@@ -410,6 +410,14 @@ class MultiBackendJobManager:
             self._download_pool.shutdown()
             self._download_pool = None
 
+        if self._download_pool is not None:
+        # Wait for downloads to complete before shutting down
+            _log.info("Waiting for download tasks to complete before stopping...")
+            while  self._download_pool.num_pending_tasks() > 0:
+                time.sleep(0.5)
+            self._download_pool.shutdown()
+            self._download_pool = None
+
         if self._thread is not None:
             self._stop_thread = True
             if timeout_seconds is _UNSET:
@@ -523,6 +531,8 @@ class MultiBackendJobManager:
                 ).values()
             )
             > 0
+
+            or self._worker_pool.num_pending_tasks() > 0
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
@@ -533,7 +543,20 @@ class MultiBackendJobManager:
             stats["sleep"] += 1
 
         # TODO; run post process after shutdown once more to ensure completion?
-        self.stop_job_thread()
+        # Wait for all download tasks to complete
+        if self._download_results and self._download_pool is not None:
+            _log.info("Waiting for download tasks to complete...")
+            while self._download_pool.num_pending_tasks() > 0:
+                self._process_threadworker_updates(
+                    worker_pool=self._download_pool, 
+                    job_db=job_db, 
+                    stats=stats
+                )
+                time.sleep(1)  # Brief pause to avoid busy waiting
+            _log.info("All download tasks completed.")
+
+        self._worker_pool.shutdown()
+        self._download_pool.shutdown()
 
         return stats
 

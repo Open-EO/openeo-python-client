@@ -251,6 +251,10 @@ class _JobManagerWorkerThreadPool:
 
         self._future_task_pairs = to_keep
         return results, len(to_keep)
+    
+    def num_pending_tasks(self) -> int:
+        """Return the number of tasks that are still pending (not completed)."""
+        return len(self._future_task_pairs)
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""
