@@ -87,6 +87,32 @@ class TestDummyStacDictBuilder:
         assert asset == {
             "href": "https://stac.test/asset.tiff",
             "type": "image/tiff; application=geotiff",
+            "roles": ["data"],
         }
-        # Check if the default asset validates
+        pystac.Asset.from_dict(asset)
+
+    def test_asset_no_roles(self):
+        asset = StacDummyBuilder.asset(roles=None)
+        assert asset == {
+            "href": "https://stac.test/asset.tiff",
+            "type": "image/tiff; application=geotiff",
+        }
+        pystac.Asset.from_dict(asset)
+
+    def test_asset_proj_fields(self):
+        asset = StacDummyBuilder.asset(
+            proj_code="EPSG:4326",
+            proj_bbox=(3, 51, 4, 52),
+            proj_shape=(100, 100),
+            proj_transform=(0.01, 0.0, 3.0, 0.0, -0.01, 52.0),
+        )
+        assert asset == {
+            "href": "https://stac.test/asset.tiff",
+            "type": "image/tiff; application=geotiff",
+            "roles": ["data"],
+            "proj:code": "EPSG:4326",
+            "proj:bbox": [3, 51, 4, 52],
+            "proj:shape": [100, 100],
+            "proj:transform": [0.01, 0.0, 3.0, 0.0, -0.01, 52.0],
+        }
         pystac.Asset.from_dict(asset)
