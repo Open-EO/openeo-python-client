@@ -229,7 +229,13 @@ class MultiBackendJobManager:
         parallel_jobs: int = 2,
     ):
         """
-        Register a backend with a name and a Connection getter.
+        Register a backend with a name and a :py:class:`Connection` getter.
+
+        .. note::
+           For optimal throughput and responsiveness, it is recommended
+           to provide a :py:class:`Connection` instance without its own (blocking) retry behavior,
+           since the job manager will do retries in a non-blocking way,
+           allowing to take care of other tasks before retrying failed requests.
 
         :param name:
             Name of the backend.
