@@ -3,8 +3,6 @@ Internal utilities to handle job management tasks through threads.
 """
 
 import concurrent.futures
-import threading
-import queue
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -103,7 +101,7 @@ class ConnectedTask(Task):
             connection.authenticate_bearer_token(self.bearer_token)
         return connection
 
-
+@dataclass(frozen=True)
 class _JobStartTask(ConnectedTask):
     """
     Task for starting an openEO batch job (the `POST /jobs/<job_id>/result` request).
@@ -143,18 +141,16 @@ class _JobStartTask(ConnectedTask):
                 db_update={"status": "start_failed"},
                 stats_update={"start_job error": 1},
             )
-
+        
+@dataclass(frozen=True)
 class _JobDownloadTask(ConnectedTask):
     """
     Task for downloading job results and metadata.
 
     :param download_dir:
         Root directory where job results and metadata will be downloaded.
-    :param download_throttle:
-        A threading.Semaphore to limit concurrent downloads.
     """
-    download_dir: Path = field(repr=False)
-
+    download_dir: Path = field(default=None, repr=False)
 
     def execute(self) -> _TaskResult:
 
@@ -198,9 +194,10 @@ class _TaskThreadPool:
         Defaults to 2.
     """
 
-    def __init__(self, max_workers: int = 2):
+    def __init__(self, max_workers: int = 2, name: str = None):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
+        self._name = name
 
     def submit_task(self, task: Task) -> None:
         """
@@ -264,36 +261,77 @@ class _TaskThreadPool:
 
 
 class _JobManagerWorkerThreadPool:
-    """WRAPPER that hides two pools behind one interface"""
+
+    """
+    Generic wrapper that manages multiple thread pools with a dict.
+    Uses task class names as pool names automatically.
+    """
     
-    def __init__(self, max_start_workers=2, max_download_workers=10):
-        # These are the TWO pools with their OWN _future_task_pairs
-        self._start_pool = _TaskThreadPool(max_workers=max_start_workers)
-        self._download_pool = _TaskThreadPool(max_workers=max_download_workers)
+    def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
+        """
+        :param pool_configs: Dict of task_class_name -> max_workers
+                            Example: {"_JobStartTask": 1, "_JobDownloadTask": 2}
+        """
+        self._pools: Dict[str, _TaskThreadPool] = {}
+        self._pool_configs = pool_configs or {}
     
-    def submit_start_task(self, task):
-        # Delegate to start pool
-        self._start_pool.submit_task(task)
+    def _get_pool_name_for_task(self, task: Task) -> str:
+        """
+        Get pool name from task class name.
+        """
+        return task.__class__.__name__
     
-    def submit_download_task(self, task):
-        # Delegate to download pool
-        self._download_pool.submit_task(task)
-    
-    def process_all_updates(self, timeout=0):
-        # Get results from BOTH pools
-        start_results, start_remaining = self._start_pool.process_futures(timeout)
-        download_results, download_remaining = self._download_pool.process_futures(timeout)
+    def submit_task(self, task: Task) -> None:
+        """
+        Submit a task to a pool named after its class.
+        Creates pool dynamically if it doesn't exist.
+        """
+        pool_name = self._get_pool_name_for_task(task)
         
-        # Combine and return
-        all_results = start_results + download_results
-        return all_results, start_remaining, download_remaining
+        if pool_name not in self._pools:
+            # Create pool on-demand
+            max_workers = self._pool_configs.get(pool_name, 1)  # Default 1 worker
+            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+            _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
+        
+        self._pools[pool_name].submit_task(task)
+
+    def process_all_updates(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
+        """
+        Process updates from ALL pools.
+        Returns: (all_results, dict of remaining tasks per pool)
+        """
+        all_results = []
+        remaining_by_pool = {}
+        
+        for pool_name, pool in self._pools.items():
+            results, remaining = pool.process_futures(timeout)
+            all_results.extend(results)
+            remaining_by_pool[pool_name] = remaining
+            
+        return all_results, remaining_by_pool
     
-    def num_pending_tasks(self):
-        # Sum of BOTH pools
-        return (self._start_pool.num_pending_tasks() + 
-                self._download_pool.num_pending_tasks())
+    def num_pending_tasks(self, pool_name: Optional[str] = None) -> int:
+        if pool_name:
+            pool = self._pools.get(pool_name)
+            return pool.num_pending_tasks() if pool else 0
+        else:
+            return sum(pool.num_pending_tasks() for pool in self._pools.values())
     
-    def shutdown(self):
-        # Shutdown BOTH pools
-        self._start_pool.shutdown()
-        self._download_pool.shutdown()
+    def shutdown(self, pool_name: Optional[str] = None) -> None:
+        """
+        Shutdown pools.
+        If pool_name is None, shuts down all pools.
+        """
+        if pool_name:
+            if pool_name in self._pools:
+                self._pools[pool_name].shutdown()
+                del self._pools[pool_name]
+        else:
+            for pool_name, pool in list(self._pools.items()):
+                pool.shutdown()
+                del self._pools[pool_name]
+    
+    def list_pools(self) -> List[str]:
+        """List all active pool names."""
+        return list(self._pools.keys())
