@@ -377,7 +377,7 @@ class MultiBackendJobManager:
                 > 0
 
                 or (self._worker_pool.num_pending_tasks() > 0)
-                
+
                 and not self._stop_thread
             ):
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -658,7 +658,7 @@ class MultiBackendJobManager:
                                 df_idx=i,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
-                            self._worker_pool.submit_start_task(task)
+                            self._worker_pool.submit_task(task)
 
                             stats["job_queued_for_start"] += 1
                             df.loc[i, "status"] = "queued_for_start"
@@ -704,7 +704,7 @@ class MultiBackendJobManager:
         :param stats:       Dictionary accumulating statistic counters
         """
         # Retrieve completed task results immediately
-        results, start_remaining, download_remaining = worker_pool.process_all_updates(timeout=0)
+        results, _ = worker_pool.process_all_updates(timeout=0)
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []
@@ -760,10 +760,10 @@ class MultiBackendJobManager:
             self._refresh_bearer_token(connection=job_con)
             
             task = _JobDownloadTask(
-                root_url=job_con.root_url,
-                bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                 job_id=job.job_id,
                 df_idx=row.name,  #this is going to be the index in the not saterted dataframe; should not be an issue as there is no db update for download task
+                root_url=job_con.root_url,
+                bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                 download_dir=job_dir,
             )
             _log.info(f"Submitting download task {task} to download thread pool")
@@ -771,7 +771,7 @@ class MultiBackendJobManager:
             if self._worker_pool is None:
                 self._worker_pool = _JobManagerWorkerThreadPool()
                 
-            self._worker_pool.submit_download_task(task)
+            self._worker_pool.submit_task(task)
 
     def on_job_error(self, job: BatchJob, row):
         """

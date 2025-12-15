@@ -221,7 +221,7 @@ class TestJobManagerWorkerThreadPool:
     @pytest.fixture
     def worker_pool(self) -> Iterator[_JobManagerWorkerThreadPool]:
         """Fixture for creating and cleaning up a worker thread pool."""
-        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        pool = _JobManagerWorkerThreadPool()
         yield pool
         pool.shutdown()
 
