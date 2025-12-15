@@ -3,6 +3,8 @@ Internal utilities to handle job management tasks through threads.
 """
 
 import concurrent.futures
+import threading
+import queue
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -148,12 +150,14 @@ class _JobDownloadTask(ConnectedTask):
 
     :param download_dir:
         Root directory where job results and metadata will be downloaded.
+    :param download_throttle:
+        A threading.Semaphore to limit concurrent downloads.
     """
-    def __init__(self, download_dir: Path, **kwargs):
-        super().__init__(**kwargs)
-        object.__setattr__(self, 'download_dir', download_dir)
+    download_dir: Path = field(repr=False)
+
 
     def execute(self) -> _TaskResult:
+
         try:
             job = self.get_connection(retry=True).job(self.job_id)
             
@@ -182,7 +186,7 @@ class _JobDownloadTask(ConnectedTask):
                 stats_update={"job download error": 1},
             )
         
-class _JobManagerWorkerThreadPool:
+class _TaskThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
 
@@ -257,3 +261,39 @@ class _JobManagerWorkerThreadPool:
         """Shuts down the thread pool gracefully."""
         _log.info("Shutting down thread pool")
         self._executor.shutdown(wait=True)
+
+
+class _JobManagerWorkerThreadPool:
+    """WRAPPER that hides two pools behind one interface"""
+    
+    def __init__(self, max_start_workers=2, max_download_workers=10):
+        # These are the TWO pools with their OWN _future_task_pairs
+        self._start_pool = _TaskThreadPool(max_workers=max_start_workers)
+        self._download_pool = _TaskThreadPool(max_workers=max_download_workers)
+    
+    def submit_start_task(self, task):
+        # Delegate to start pool
+        self._start_pool.submit_task(task)
+    
+    def submit_download_task(self, task):
+        # Delegate to download pool
+        self._download_pool.submit_task(task)
+    
+    def process_all_updates(self, timeout=0):
+        # Get results from BOTH pools
+        start_results, start_remaining = self._start_pool.process_futures(timeout)
+        download_results, download_remaining = self._download_pool.process_futures(timeout)
+        
+        # Combine and return
+        all_results = start_results + download_results
+        return all_results, start_remaining, download_remaining
+    
+    def num_pending_tasks(self):
+        # Sum of BOTH pools
+        return (self._start_pool.num_pending_tasks() + 
+                self._download_pool.num_pending_tasks())
+    
+    def shutdown(self):
+        # Shutdown BOTH pools
+        self._start_pool.shutdown()
+        self._download_pool.shutdown()

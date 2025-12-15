@@ -224,7 +224,6 @@ class MultiBackendJobManager:
         )
         self._thread = None
         self._worker_pool = None
-        self._download_pool = None
         # Generic cache
         self._cache = {}
 
@@ -364,7 +363,6 @@ class MultiBackendJobManager:
 
         self._stop_thread = False
         self._worker_pool = _JobManagerWorkerThreadPool()
-        self._download_pool = _JobManagerWorkerThreadPool()
 
         def run_loop():
             # TODO: support user-provided `stats`
@@ -377,6 +375,9 @@ class MultiBackendJobManager:
                     ).values()
                 )
                 > 0
+
+                or (self._worker_pool.num_pending_tasks() > 0)
+                
                 and not self._stop_thread
             ):
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -402,13 +403,10 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
-        if self._worker_pool is not None:
+        if self._worker_pool is not None: #TODO or thread_pool.num_pending_tasks() > 0 
             self._worker_pool.shutdown()
             self._worker_pool = None
 
-        if self._download_pool is not None:
-            self._download_pool.shutdown()
-            self._download_pool = None
 
         if self._thread is not None:
             self._stop_thread = True
@@ -514,9 +512,6 @@ class MultiBackendJobManager:
 
         self._worker_pool = _JobManagerWorkerThreadPool()
 
-        if self._download_results:
-            self._download_pool = _JobManagerWorkerThreadPool()
-
 
         while (
             sum(
@@ -524,9 +519,7 @@ class MultiBackendJobManager:
                     statuses=["not_started", "created", "queued_for_start", "queued", "running"]
                 ).values()) > 0
 
-            or (self._worker_pool is not None and self._worker_pool.num_pending_tasks() > 0)
-
-            or (self._download_pool is not None and self._download_pool.num_pending_tasks() > 0)
+            or (self._worker_pool.num_pending_tasks() > 0)
                 
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -538,13 +531,9 @@ class MultiBackendJobManager:
             stats["sleep"] += 1
 
 
-        if self._worker_pool is not None:
-            self._worker_pool.shutdown()
-            self._worker_pool = None
-            
-        if self._download_pool is not None:
-            self._download_pool.shutdown()
-            self._download_pool = None
+       
+        self._worker_pool.shutdown()
+        self._worker_pool = None
 
         return stats
 
@@ -593,8 +582,6 @@ class MultiBackendJobManager:
         if self._worker_pool is not None:
             self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
             
-        if self._download_pool is not None:
-            self._process_threadworker_updates(worker_pool=self._download_pool, job_db=job_db, stats=stats)
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -671,7 +658,7 @@ class MultiBackendJobManager:
                                 df_idx=i,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
-                            self._worker_pool.submit_task(task)
+                            self._worker_pool.submit_start_task(task)
 
                             stats["job_queued_for_start"] += 1
                             df.loc[i, "status"] = "queued_for_start"
@@ -717,7 +704,7 @@ class MultiBackendJobManager:
         :param stats:       Dictionary accumulating statistic counters
         """
         # Retrieve completed task results immediately
-        results, _ = worker_pool.process_futures(timeout=0)
+        results, start_remaining, download_remaining = worker_pool.process_all_updates(timeout=0)
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []
@@ -781,10 +768,10 @@ class MultiBackendJobManager:
             )
             _log.info(f"Submitting download task {task} to download thread pool")
             
-            if self._download_pool is None:
-                self._download_pool = _JobManagerWorkerThreadPool()
+            if self._worker_pool is None:
+                self._worker_pool = _JobManagerWorkerThreadPool()
                 
-            self._download_pool.submit_task(task)
+            self._worker_pool.submit_download_task(task)
 
     def on_job_error(self, job: BatchJob, row):
         """
