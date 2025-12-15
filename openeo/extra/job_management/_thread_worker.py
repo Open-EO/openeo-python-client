@@ -194,7 +194,7 @@ class _TaskThreadPool:
         Defaults to 2.
     """
 
-    def __init__(self, max_workers: int = 2, name: str = None):
+    def __init__(self, max_workers: int = 1, name: str = 'default'):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
         self._name = name
@@ -335,3 +335,5 @@ class _JobManagerWorkerThreadPool:
     def list_pools(self) -> List[str]:
         """List all active pool names."""
         return list(self._pools.keys())
+    
+
