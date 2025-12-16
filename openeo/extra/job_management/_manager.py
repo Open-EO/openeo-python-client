@@ -690,7 +690,7 @@ class MultiBackendJobManager:
         :param stats:       Dictionary accumulating statistic counters
         """
         # Retrieve completed task results immediately
-        results, _ = worker_pool.process_all_updates(timeout=0)
+        results, _ = worker_pool.process_futures(timeout=0)
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []

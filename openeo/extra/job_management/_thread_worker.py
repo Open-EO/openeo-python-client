@@ -296,7 +296,7 @@ class _JobManagerWorkerThreadPool:
         
         self._pools[pool_name].submit_task(task)
 
-    def process_all_updates(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
+    def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
         """
         Process updates from ALL pools.
         Returns: (all_results, dict of remaining tasks per pool)
