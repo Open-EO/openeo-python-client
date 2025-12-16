@@ -1873,26 +1873,6 @@ class Connection(RestApiConnection):
         """
         return Service(service_id, connection=self)
 
-    @deprecated(
-        reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",
-        version="0.25.0")
-    def load_disk_collection(
-        self, format: str, glob_pattern: str, options: Optional[dict] = None
-    ) -> DataCube:
-        """
-        Loads image data from disk as a :py:class:`DataCube`.
-
-        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
-        :py:meth:`openeo.rest.connection.Connection.load_stac` or https://processes.openeo.org/#load_uploaded_files
-
-        :param format: the file format, e.g. 'GTiff'
-        :param glob_pattern: a glob pattern that matches the files to load from disk
-        :param options: options specific to the file format
-        """
-        return DataCube.load_disk_collection(
-            self, format, glob_pattern, **(options or {})
-        )
-
     def as_curl(
         self,
         data: Union[dict, DataCube, FlatGraphableMixin],

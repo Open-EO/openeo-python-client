@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Internal reorganization of `openeo.extra.job_management` submodule to ease future development ([#741](https://github.com/Open-EO/openeo-python-client/issues/741))
 - `openeo.Connection`: add some more HTTP error codes to the default retry list: `502 Bad Gateway`, `503 Service Unavailable` and `504 Gateway Timeout` ([#835](https://github.com/Open-EO/openeo-python-client/issues/835))
 
-
 ### Removed
+
+- Remove `Connection.load_disk_collection` (wrapper for non-standard `load_disk_data` process), deprecated since version 0.25.0 (related to [Open-EO/openeo-geopyspark-driver#1457](https://github.com/Open-EO/openeo-geopyspark-driver/issues/1457))
 
 ### Fixed
 
