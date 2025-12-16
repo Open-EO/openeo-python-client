@@ -308,31 +308,6 @@ class DataCube(_ProcessGraphAbstraction):
         return properties
 
     @classmethod
-    @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
-    def load_disk_collection(cls, connection: Connection, file_format: str, glob_pattern: str, **options) -> DataCube:
-        """
-        Loads image data from disk as a DataCube.
-        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
-        :py:meth:`openeo.rest.connection.Connection.load_stac` or https://processes.openeo.org/#load_uploaded_files
-
-
-        :param connection: The connection to use to connect with the backend.
-        :param file_format: the file format, e.g. 'GTiff'
-        :param glob_pattern: a glob pattern that matches the files to load from disk
-        :param options: options specific to the file format
-        :return: the data as a DataCube
-        """
-        pg = PGNode(
-            process_id='load_disk_data',
-            arguments={
-                'format': file_format,
-                'glob_pattern': glob_pattern,
-                'options': options
-            }
-        )
-        return cls(graph=pg, connection=connection)
-
-    @classmethod
     def load_stac(
         cls,
         url: str,
