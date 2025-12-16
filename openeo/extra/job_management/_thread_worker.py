@@ -191,7 +191,7 @@ class _TaskThreadPool:
 
     :param max_workers:
         Maximum number of concurrent threads to use for execution.
-        Defaults to 2.
+        Defaults to 1.
     """
 
     def __init__(self, max_workers: int = 1, name: str = 'default'):
