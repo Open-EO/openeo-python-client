@@ -35,12 +35,7 @@ from requests.auth import AuthBase, HTTPBasicAuth
 import openeo
 from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import (
-    FlatGraphableMixin,
-    PGNode,
-    _FromNodeMixin,
-    as_flat_graph,
-)
+from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
@@ -1191,8 +1186,8 @@ class Connection(RestApiConnection):
         self,
         collection_id: Union[str, Parameter],
         spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
-        bands: Union[Iterable[str], Parameter, str, _FromNodeMixin, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, FlatGraphableMixin, None] = None,
+        bands: Union[Iterable[str], Parameter, str, FlatGraphableMixin, None] = None,
         properties: Union[
             Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
         ] = None,
@@ -1293,9 +1288,9 @@ class Connection(RestApiConnection):
         self,
         url: str,
         spatial_extent: Union[
-            dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, _FromNodeMixin, None
+            dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, FlatGraphableMixin, None
         ] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, FlatGraphableMixin, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
