@@ -17,6 +17,7 @@ import requests_mock
 import shapely.geometry
 
 import openeo
+import openeo.processes
 from openeo import BatchJob
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
@@ -3710,6 +3711,73 @@ class TestLoadStac:
                 "arguments": {
                     "url": "https://stac.test/data",
                     "spatial_extent": {"from_node": "loadurl1"},
+                },
+                "result": True,
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "udf_factory",
+        [
+            (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+            (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+        ],
+    )
+    def test_load_stac_extents_from_udf(self, dummy_backend, udf_factory):
+        spatial_extent = udf_factory(data=[1, 2, 3], udf="print('hello space')", runtime="Python")
+        temporal_extent = udf_factory(data=[4, 5, 6], udf="print('hello time')", runtime="Python")
+        cube = dummy_backend.connection.load_stac(
+            "https://stac.test/data", spatial_extent=spatial_extent, temporal_extent=temporal_extent
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "runudf1": {
+                "process_id": "run_udf",
+                "arguments": {"data": [1, 2, 3], "udf": "print('hello space')", "runtime": "Python"},
+            },
+            "runudf2": {
+                "process_id": "run_udf",
+                "arguments": {"data": [4, 5, 6], "udf": "print('hello time')", "runtime": "Python"},
+            },
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://stac.test/data",
+                    "spatial_extent": {"from_node": "runudf1"},
+                    "temporal_extent": {"from_node": "runudf2"},
+                },
+                "result": True,
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "udf_factory",
+        [
+            (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+            (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+        ],
+    )
+    def test_load_stac_temporal_extent_from_udf(self, dummy_backend, udf_factory):
+        temporal_extent = [
+            udf_factory(data=[1, 2, 3], udf="print('hello start')", runtime="Python"),
+            udf_factory(data=[4, 5, 6], udf="print('hello end')", runtime="Python"),
+        ]
+        cube = dummy_backend.connection.load_stac("https://stac.test/data", temporal_extent=temporal_extent)
+        cube.execute()
+        assert dummy_backend.get_sync_pg() == {
+            "runudf1": {
+                "process_id": "run_udf",
+                "arguments": {"data": [1, 2, 3], "udf": "print('hello start')", "runtime": "Python"},
+            },
+            "runudf2": {
+                "process_id": "run_udf",
+                "arguments": {"data": [4, 5, 6], "udf": "print('hello end')", "runtime": "Python"},
+            },
+            "loadstac1": {
+                "process_id": "load_stac",
+                "arguments": {
+                    "url": "https://stac.test/data",
+                    "temporal_extent": [{"from_node": "runudf1"}, {"from_node": "runudf2"}],
                 },
                 "result": True,
             },
