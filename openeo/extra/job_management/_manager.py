@@ -543,7 +543,7 @@ class MultiBackendJobManager:
 
         if len(not_started) > 0:
             # Check number of jobs running at each backend
-            running = job_db.get_by_status(statuses=["running"])
+            running = job_db.get_by_status(statuses=["queued", "queued_for_start", "running"])
             stats["job_db get_by_status"] += 1
             running_per_backend = running.groupby("backend_name").size().to_dict()
             queued_per_backend = queued.groupby("backend_name").size().to_dict()
