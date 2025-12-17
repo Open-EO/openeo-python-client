@@ -281,15 +281,7 @@ class TestMultiBackendJobManager:
             ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
             ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
             ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            (
-                "job-2022",
-                "finished",
-                dirty_equals.IsOneOf("foo", "bar"),
-                "1234.5 cpu-seconds",
-                "34567.89 mb-seconds",
-                "2345 seconds",
-                123,
-            ),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
         ]
 
         # Check downloaded results and metadata.
