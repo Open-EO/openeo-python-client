@@ -543,7 +543,6 @@ class MultiBackendJobManager:
 
         if len(not_started) > 0 and len(pending) < 10:
             # Check number of jobs running at each backend
-            # TODO: should "created" be included in here? Calling this "running" is quite misleading then.
             running = job_db.get_by_status(statuses=["running"])
             stats["job_db get_by_status"] += 1
             per_backend = running.groupby("backend_name").size().to_dict()
