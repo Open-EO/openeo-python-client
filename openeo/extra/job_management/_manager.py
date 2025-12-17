@@ -42,7 +42,6 @@ _log = logging.getLogger(__name__)
 
 # TODO: eliminate this module constant (should be part of some constructor interface)
 MAX_RETRIES = 50
-QUEUE_LIMIT_PER_BACKEND = 10
 
 # Sentinel value to indicate that a parameter was not set
 _UNSET = object()
@@ -59,6 +58,9 @@ class _Backend(NamedTuple):
     get_connection: Callable[[], Connection]
     # Maximum number of jobs to allow in parallel on a backend
     parallel_jobs: int
+
+    # Maximum number of jobs to allow in queue on a backend
+    queueing_limit: int = 10
 
 
 @dataclasses.dataclass(frozen=True)
@@ -252,7 +254,8 @@ class MultiBackendJobManager:
             c = connection
             connection = lambda: c
         assert callable(connection)
-        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs)
+        # TODO: expose queueing_limit?
+        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs, queueing_limit=10)
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
         """Get a connection for the backend and optionally make it resilient (adds retry behavior)
@@ -539,34 +542,23 @@ class MultiBackendJobManager:
             stats["track_statuses"] += 1
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
-        queued = job_db.get_by_status(statuses=["queued"], max=200)
-
         if len(not_started) > 0:
-            # Check number of jobs running at each backend
+            # Check number of jobs queued/running at each backend
             running = job_db.get_by_status(statuses=["queued", "queued_for_start", "running"])
-            stats["job_db get_by_status"] += 1
+            queued = running[running["status"] == "queued"]
             running_per_backend = running.groupby("backend_name").size().to_dict()
             queued_per_backend = queued.groupby("backend_name").size().to_dict()
-            _log.info(f"Running per backend: {running_per_backend}")
-            _log.info(f"Queued per backend: {queued_per_backend}")
+            _log.info(f"{running_per_backend=} {queued_per_backend=}")
 
             total_added = 0
             for backend_name in self.backends:
-                backend_running = running_per_backend.get(backend_name, 0)
-                backend_queued = queued_per_backend.get(backend_name, 0)
-
-                # capacity, check per backend (max 10 queued jobs per user/backend)
-                backend_capacity = self.backends[backend_name].parallel_jobs
-                has_capacity = backend_running < backend_capacity
-                under_queued_limit = backend_queued < QUEUE_LIMIT_PER_BACKEND
-
-                if has_capacity and under_queued_limit:
-
-                    #calcualte the number of jobs we can add, also based on the queue size
-                    available_slots = max(0, backend_capacity - backend_running)
-                    remaining_queue_space = max(0, QUEUE_LIMIT_PER_BACKEND - backend_queued)
-                    to_add = min(available_slots, remaining_queue_space)
-     
+                to_add = min(
+                    # How much room is there to start/queue a job?
+                    self.backends[backend_name].queueing_limit - queued_per_backend.get(backend_name, 0),
+                    # How much room is there to run a job?
+                    self.backends[backend_name].parallel_jobs - running_per_backend.get(backend_name, 0),
+                )
+                if to_add > 0:
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
