@@ -43,6 +43,7 @@ _log = logging.getLogger(__name__)
 # TODO: eliminate this module constant (should be part of some constructor interface)
 MAX_RETRIES = 50
 
+
 # Sentinel value to indicate that a parameter was not set
 _UNSET = object()
 
@@ -552,12 +553,9 @@ class MultiBackendJobManager:
 
             total_added = 0
             for backend_name in self.backends:
-                to_add = min(
-                    # How much room is there to start/queue a job?
-                    self.backends[backend_name].queueing_limit - queued_per_backend.get(backend_name, 0),
-                    # How much room is there to run a job?
-                    self.backends[backend_name].parallel_jobs - running_per_backend.get(backend_name, 0),
-                )
+                queue_capacity = self.backends[backend_name].queueing_limit - queued_per_backend.get(backend_name, 0)
+                run_capacity = self.backends[backend_name].parallel_jobs - running_per_backend.get(backend_name, 0)
+                to_add = min(queue_capacity, run_capacity)
                 if to_add > 0:
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
