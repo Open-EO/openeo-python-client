@@ -60,6 +60,9 @@ class _Backend(NamedTuple):
     # Maximum number of jobs to allow in parallel on a backend
     parallel_jobs: int
 
+    # Maximum number of jobs to allow in queue on a backend
+    queueing_limit: int = 10
+
 
 @dataclasses.dataclass(frozen=True)
 class _ColumnProperties:
@@ -252,7 +255,8 @@ class MultiBackendJobManager:
             c = connection
             connection = lambda: c
         assert callable(connection)
-        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs)
+        # TODO: expose queueing_limit?
+        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs, queueing_limit=10)
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
         """Get a connection for the backend and optionally make it resilient (adds retry behavior)
@@ -540,18 +544,21 @@ class MultiBackendJobManager:
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
-            # Check number of jobs running at each backend
+            # Check number of jobs queued/running at each backend
             # TODO: should "created" be included in here? Calling this "running" is quite misleading then.
             #       apparently (see #839/#840) this seemingly simple change makes a lot of MultiBackendJobManager tests flaky
             running = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"])
-            stats["job_db get_by_status"] += 1
-            per_backend = running.groupby("backend_name").size().to_dict()
-            _log.info(f"Running per backend: {per_backend}")
+            queued = running[running["status"] == "queued"]
+            running_per_backend = running.groupby("backend_name").size().to_dict()
+            queued_per_backend = queued.groupby("backend_name").size().to_dict()
+            _log.info(f"{running_per_backend=} {queued_per_backend=}")
+
             total_added = 0
             for backend_name in self.backends:
-                backend_load = per_backend.get(backend_name, 0)
-                if backend_load < self.backends[backend_name].parallel_jobs:
-                    to_add = self.backends[backend_name].parallel_jobs - backend_load
+                queue_capacity = self.backends[backend_name].queueing_limit - queued_per_backend.get(backend_name, 0)
+                run_capacity = self.backends[backend_name].parallel_jobs - running_per_backend.get(backend_name, 0)
+                to_add = min(queue_capacity, run_capacity)
+                if to_add > 0:
                     for i in not_started.index[total_added : total_added + to_add]:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
