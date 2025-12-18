@@ -52,7 +52,7 @@ class Service:
 
     def logs(self, offset: Optional[str] = None, level: Union[str, int, None] = None) -> List[LogEntry]:
         """Retrieve service logs."""
-        url = f"/service/{self.service_id}/logs"
+        url = f"/services/{self.service_id}/logs"
         params = {}
         if offset is not None:
             params["offset"] = offset
