@@ -376,7 +376,7 @@ class MultiBackendJobManager:
                 )
                 > 0
 
-                or (self._worker_pool.num_pending_tasks() > 0)
+                or (self._worker_pool.number_pending_tasks() > 0)
 
                 and not self._stop_thread
             ):
@@ -403,7 +403,7 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
-        if self._worker_pool is not None: #TODO or thread_pool.num_pending_tasks() > 0 
+        if self._worker_pool is not None or self._worker_pool.number_pending_tasks() > 0:
             self._worker_pool.shutdown()
             self._worker_pool = None
 
@@ -519,7 +519,7 @@ class MultiBackendJobManager:
                     statuses=["not_started", "created", "queued_for_start", "queued", "running"]
                 ).values()) > 0
 
-            or (self._worker_pool.num_pending_tasks() > 0)
+            or (self._worker_pool.number_pending_tasks() > 0)
                 
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
