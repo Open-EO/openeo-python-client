@@ -159,6 +159,10 @@ class _JobDownloadTask(ConnectedTask):
             
             # Download results
             job.get_results().download_files(target=self.download_dir)
+
+            # Count assets (files to download)
+            assets = job.list_results().get('assets', {})
+            file_count = len(assets)
             
             # Download metadata
             job_metadata = job.describe()
@@ -171,7 +175,7 @@ class _JobDownloadTask(ConnectedTask):
                 job_id=self.job_id,
                 df_idx=self.df_idx,
                 db_update={}, #TODO consider db updates?
-                stats_update={"job download": 1},
+                stats_update={"job download": 1, "files downloaded": file_count},
             )
         except Exception as e:
             _log.error(f"Failed to download results for job {self.job_id!r}: {e!r}")
@@ -179,7 +183,7 @@ class _JobDownloadTask(ConnectedTask):
                 job_id=self.job_id,
                 df_idx=self.df_idx,
                 db_update={},
-                stats_update={"job download error": 1},
+                stats_update={"job download error": 1, "files downloaded": 0},
             )
         
 class _TaskThreadPool:
