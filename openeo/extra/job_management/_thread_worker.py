@@ -7,7 +7,9 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
 
+import json
 import urllib3.util
 
 import openeo
@@ -99,7 +101,7 @@ class ConnectedTask(Task):
             connection.authenticate_bearer_token(self.bearer_token)
         return connection
 
-
+@dataclass(frozen=True)
 class _JobStartTask(ConnectedTask):
     """
     Task for starting an openEO batch job (the `POST /jobs/<job_id>/result` request).
@@ -139,9 +141,52 @@ class _JobStartTask(ConnectedTask):
                 db_update={"status": "start_failed"},
                 stats_update={"start_job error": 1},
             )
+        
+@dataclass(frozen=True)
+class _JobDownloadTask(ConnectedTask):
+    """
+    Task for downloading job results and metadata.
 
+    :param download_dir:
+        Root directory where job results and metadata will be downloaded.
+    """
+    download_dir: Path = field(default=None, repr=False)
 
-class _JobManagerWorkerThreadPool:
+    def execute(self) -> _TaskResult:
+
+        try:
+            job = self.get_connection(retry=True).job(self.job_id)
+            
+            # Download results
+            job.get_results().download_files(target=self.download_dir)
+
+            # Count assets (files to download)
+            assets = job.list_results().get('assets', {})
+            file_count = len(assets)
+            
+            # Download metadata
+            job_metadata = job.describe()
+            metadata_path = self.download_dir / f"job_{self.job_id}.json"
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
+            
+            _log.info(f"Job {self.job_id!r} results downloaded successfully")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={}, #TODO consider db updates?
+                stats_update={"job download": 1, "files downloaded": file_count},
+            )
+        except Exception as e:
+            _log.error(f"Failed to download results for job {self.job_id!r}: {e!r}")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={},
+                stats_update={"job download error": 1, "files downloaded": 0},
+            )
+        
+class _TaskThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
 
@@ -150,12 +195,14 @@ class _JobManagerWorkerThreadPool:
 
     :param max_workers:
         Maximum number of concurrent threads to use for execution.
-        Defaults to 2.
+        Defaults to 1.
     """
 
-    def __init__(self, max_workers: int = 2):
+    def __init__(self, max_workers: int = 1, name: str = 'default'):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
+        self._name = name
+        self._max_workers = max_workers 
 
     def submit_task(self, task: Task) -> None:
         """
@@ -206,9 +253,99 @@ class _JobManagerWorkerThreadPool:
         _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
-        return results, len(to_keep)
+        return results
+    
+    def number_pending_tasks(self) -> int:
+        """Return the number of tasks that are still pending (not completed)."""
+        return len(self._future_task_pairs)
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""
         _log.info("Shutting down thread pool")
         self._executor.shutdown(wait=True)
+
+
+class _JobManagerWorkerThreadPool:
+
+    """
+    Generic wrapper that manages multiple thread pools with a dict.
+    """
+    
+    def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
+        """
+        :param pool_configs: Dict of pool_name -> max_workers
+                            Example: {"job_start": 1, "download": 2}
+        """
+        self._pools: Dict[str, _TaskThreadPool] = {}
+        self._pool_configs = pool_configs or {}
+        
+        # Create all pools upfront from config
+        for pool_name, max_workers in self._pool_configs.items():
+            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
+            _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
+    
+    def submit_task(self, task: Task, pool_name: str = "default") -> None:
+        """
+        Submit a task to a specific pool.
+        Creates pool dynamically only if not in config.
+        """
+        if pool_name not in self._pools:
+            # Check if pool_name is in config but somehow wasn't created
+            if pool_name in self._pool_configs:
+                # This shouldn't happen, but create it
+                max_workers = self._pool_configs[pool_name]
+                self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+                _log.warning(f"Created missing pool '{pool_name}' from config with {max_workers} workers")
+            else:
+                # Not in config - create with default
+                max_workers = 1
+                self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+                _log.info(f"Created dynamic pool '{pool_name}' with {max_workers} workers")
+        
+        self._pools[pool_name].submit_task(task)
+
+    def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
+        """
+        Process updates from ALL pools.
+        Returns: (all_results, dict of remaining tasks per pool)
+        """
+        all_results = []
+        
+        for pool_name, pool in self._pools.items():
+            results = pool.process_futures(timeout)
+            all_results.extend(results)
+            
+        return all_results
+    
+    def number_pending_tasks(self, pool_name: Optional[str] = None) -> int:
+        if pool_name:
+            pool = self._pools.get(pool_name)
+            return pool.number_pending_tasks() if pool else 0
+        else:
+            return sum(pool.number_pending_tasks() for pool in self._pools.values())
+    
+    def shutdown(self, pool_name: Optional[str] = None) -> None:
+        """
+        Shutdown pools.
+        If pool_name is None, shuts down all pools.
+        """
+        if pool_name:
+            if pool_name in self._pools:
+                self._pools[pool_name].shutdown()
+                del self._pools[pool_name]
+                if pool_name in self._pool_configs:
+                    del self._pool_configs[pool_name]
+        else:
+            for pool_name, pool in list(self._pools.items()):
+                pool.shutdown()
+                del self._pools[pool_name]
+                if pool_name in self._pool_configs:
+                    del self._pool_configs[pool_name]
+
+        self._pool_configs.clear()
+    
+    def list_pools(self) -> List[str]:
+        """List all active pool names."""
+        return list(self._pools.keys())
+    
+
