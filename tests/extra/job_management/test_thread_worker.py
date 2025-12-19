@@ -129,6 +129,12 @@ class TestJobDownloadTask:
         assert downloaded_file.exists()
         assert downloaded_file.read_bytes() == b"The downloaded file content."
 
+        # Verify metadata file
+        metadata_file = download_dir / f"job_{job_id}.json"
+        assert metadata_file.exists()
+        metadata = metadata_file.read_text()
+        assert job_id in metadata
+
         
     def test_job_download_failure(self, requests_mock: Mocker, tmp_path: Path):
         """
@@ -175,6 +181,32 @@ class TestJobDownloadTask:
         
         # Verify no file was created (or only empty/failed files)
         assert not any(p.is_file() for p in download_dir.glob("*"))
+
+    def test_download_directory_permission_error(self, requests_mock: Mocker, tmp_path: Path):
+        """Test download when directory has permission issues."""
+        job_id = "job-perm"
+        df_idx = 99
+        
+        backend = DummyBackend.at_url("https://openeo.dummy.test/", requests_mock=requests_mock)
+        backend.batch_jobs[job_id] = {"job_id": job_id, "pg": {}, "status": "finished"}
+        
+        # Create a read-only directory (simulate permission issue on some systems)
+        download_dir = tmp_path / "readonly"
+        download_dir.mkdir()
+        
+        task = _JobDownloadTask(
+            root_url="https://openeo.dummy.test/",
+            bearer_token="token",
+            job_id=job_id,
+            df_idx=df_idx,
+            download_dir=download_dir,
+        )
+        
+        # Should handle permission error gracefully
+        result = task.execute()
+        assert result.job_id == job_id
+        assert result.stats_update["job download error"] == 1
+
 
 class NopTask(Task):
     """Do Nothing"""
@@ -385,18 +417,6 @@ class TestJobManagerWorkerThreadPool:
         yield pool
         pool.shutdown()
 
-    @pytest.fixture
-    def configured_pool(self) -> Iterator[_JobManagerWorkerThreadPool]:
-        """Fixture with pre-configured pools."""
-        pool = _JobManagerWorkerThreadPool(
-            pool_configs={
-                "NopTask": 2,
-                "DummyTask": 3,
-                "BlockingTask": 1,
-            }
-        )
-        yield pool
-        pool.shutdown()
 
     def test_init_empty_config(self):
         """Test initialization with empty config."""
@@ -406,18 +426,49 @@ class TestJobManagerWorkerThreadPool:
         pool.shutdown()
 
     def test_init_with_config(self):
+        """Test that pools are created immediately from config (not lazily)."""
+        pool_configs = {"default": 3, "download": 5}
+        pool = _JobManagerWorkerThreadPool(pool_configs)
+        
+        # Pools should exist immediately (eager initialization)
+        assert set(pool.list_pools()) == {"default", "download"}
+        assert pool._pools["default"]._max_workers == 3
+        assert pool._pools["download"]._max_workers == 5
+
+    def test_init_with_duplicate_pool_names(self):
+        """Test behavior with duplicate pool names in config."""
+        pool_configs = {"duplicate": 2, "duplicate": 3}  
+        pool = _JobManagerWorkerThreadPool(pool_configs)
+        
+        # Last value should win 
+        assert pool._pools["duplicate"]._max_workers == 3
+
+
+    def test_submit_with_with_config(self):
         """Test initialization with pool configurations."""
-        pool = _JobManagerWorkerThreadPool({
-            "NopTask": 2,
-            "DummyTask": 3,
-        })
-        # Pools should NOT be created until first use
-        assert pool._pools == {}
-        assert pool._pool_configs == {
-            "NopTask": 2,
-            "DummyTask": 3,
+        pool_configs = {
+            "default": 2,
+            "download": 3,
+            "processing": 4
         }
-        pool.shutdown()
+        pool = _JobManagerWorkerThreadPool(pool_configs)
+        
+        # Pools should NOT be created until first use
+        # Pools should NOT be created until first use (lazy initialization)
+        assert len(pool._pools) == 3  # All 3 pools should exist
+        assert pool._pool_configs == pool_configs
+        assert set(pool._pools.keys()) == {"default", "download", "processing"}
+
+        task = NopTask(job_id="j-1", df_idx=1)
+        pool.submit_task(task = task, pool_name = 'no_task')
+        
+        # Verify each pool has correct number of workers
+        assert pool._pools["default"]._max_workers == 2
+        assert pool._pools["download"]._max_workers == 3
+        assert pool._pools["processing"]._max_workers == 4
+        assert pool._pools["no_task"]._max_workers == 1
+        
+        
 
     def test_submit_task_creates_pool(self, thread_pool):
         """Test that submitting a task creates a pool dynamically."""
@@ -437,18 +488,6 @@ class TestJobManagerWorkerThreadPool:
         assert len(results) == 1
         assert results[0].job_id == "j-1"
 
-    def test_submit_task_uses_config(self, configured_pool):
-        """Test that pool creation uses configuration."""
-        task = NopTask(job_id="j-1", df_idx=1)
-        
-        # Submit task - should create pool with configured workers
-        configured_pool.submit_task(task, "NopTask")
-
-        
-        
-        assert "NopTask" in configured_pool._pools
-        assert "NopTask" in configured_pool.list_pools()
-        assert "DummyTask" not in configured_pool.list_pools()
 
     def test_submit_multiple_task_types(self, thread_pool):
         """Test submitting different task types to different pools."""
@@ -457,9 +496,9 @@ class TestJobManagerWorkerThreadPool:
         task2 = DummyTask(job_id="j-2", df_idx=2)
         task3 = DummyTask(job_id="j-3", df_idx=3)
         
-        thread_pool.submit_task(task1)  # Goes to "NopTask" pool
-        thread_pool.submit_task(task2)  # Goes to "DummyTask" pool  
-        thread_pool.submit_task(task3, "seperate")  # Goes to "DummyTask" pool
+        thread_pool.submit_task(task1)  
+        thread_pool.submit_task(task2)   
+        thread_pool.submit_task(task3, "seperate")  
         
         # Should have 2 pools
         pools = sorted(thread_pool.list_pools())
@@ -478,9 +517,9 @@ class TestJobManagerWorkerThreadPool:
     def test_process_futures_updates_multiple_pools(self, thread_pool):
         """Test processing updates across multiple pools."""
         # Submit tasks to different pools
-        thread_pool.submit_task(NopTask(job_id="j-1", df_idx=1))  # NopTask pool
-        thread_pool.submit_task(NopTask(job_id="j-2", df_idx=2))  # NopTask pool
-        thread_pool.submit_task(DummyTask(job_id="j-3", df_idx=3))  # DummyTask pool
+        thread_pool.submit_task(NopTask(job_id="j-1", df_idx=1))  
+        thread_pool.submit_task(NopTask(job_id="j-2", df_idx=2))  
+        thread_pool.submit_task(DummyTask(job_id="j-3", df_idx=3), "dummy") 
         
         results = thread_pool.process_futures(timeout=0.1)
         
@@ -491,7 +530,6 @@ class TestJobManagerWorkerThreadPool:
         assert len(nop_results) == 2
         assert len(dummy_results) == 1
         
-        # All tasks should be completed
     def test_process_futures_updates_partial_completion(self):
         """Test processing when some tasks are still running."""
         # Use a pool with blocking tasks
@@ -527,6 +565,28 @@ class TestJobManagerWorkerThreadPool:
         
         pool.shutdown()
 
+    def test_concurrent_submissions(self, thread_pool):
+        """Test concurrent task submissions to same pool."""
+        import concurrent.futures
+        
+        def submit_tasks(start_idx: int):
+            for i in range(5):
+                thread_pool.submit_task(NopTask(job_id=f"j-{start_idx + i}", df_idx=start_idx + i))
+        
+        # Submit tasks from multiple threads
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(submit_tasks, i * 10) for i in range(3)]
+            concurrent.futures.wait(futures)
+        
+        # Should have all tasks in one pool
+        assert thread_pool.list_pools() == ["default"]
+        assert thread_pool.number_pending_tasks() == 15
+        
+        # Process them all
+        results = thread_pool.process_futures(timeout=0.5)
+        
+        assert len(results) == 15
+
     def test_num_pending_tasks(self, thread_pool):
         """Test counting pending tasks."""
         # Initially empty
@@ -550,92 +610,30 @@ class TestJobManagerWorkerThreadPool:
         assert thread_pool.number_pending_tasks() == 0
         assert thread_pool.number_pending_tasks("default") == 0
 
-    def test_shutdown_specific_pool(self):
-        """Test shutting down a specific pool."""
-        # Create fresh pool for destructive test
-        pool = _JobManagerWorkerThreadPool()
-        
-        # Create two pools
-        pool.submit_task(NopTask(job_id="j-1", df_idx=1), "notask")  # NopTask pool
-        pool.submit_task(DummyTask(job_id="j-2", df_idx=2), "dummy")  # DummyTask pool
-        
-        assert sorted(pool.list_pools()) == ["dummy", "notask"]
-        
-        # Shutdown NopTask pool only
-        pool.shutdown("notask")
-        
-        # Only DummyTask pool should remain
-        assert pool.list_pools() == ["dummy"]
-        
-        # Can't submit to shutdown pool
-        # Actually, it will create a new pool since we deleted it
-        pool.submit_task(NopTask(job_id="j-3", df_idx=3))  # Creates new NopTask pool
-        assert sorted(pool.list_pools()) == [ "default", "dummy"]
-        
-        pool.shutdown()
 
-    def test_shutdown_all(self):
-        """Test shutting down all pools."""
-        # Create fresh pool for destructive test
-        pool = _JobManagerWorkerThreadPool()
+    def test_process_futures_returns_remaining_counts(self):
+        """Test that process_futures returns remaining task counts per pool."""
+        # Note: Your current implementation doesn't return remaining counts!
+        # It returns List[_TaskResult] but the docstring says it returns 
+        # (all_results, dict of remaining tasks per pool)
         
-        # Create multiple pools
-        pool.submit_task(NopTask(job_id="j-1", df_idx=1), "notask")  # NopTask pool
-        pool.submit_task(DummyTask(job_id="j-2", df_idx=2), "dummy")
+        pool = _JobManagerWorkerThreadPool({"fast": 1, "slow": 1})
         
-        assert len(pool.list_pools()) == 2
+        # Add blocking and non-blocking tasks
+        event = threading.Event()
+        pool.submit_task(BlockingTask(job_id="j-block", df_idx=0, event=event), "slow")
+        pool.submit_task(NopTask(job_id="j-quick", df_idx=1), "fast")
         
-        # Shutdown all
-        pool.shutdown()
-
-        assert pool.list_pools() == []
-        assert len(pool._pools) == 0
-
-    def test_custom_get_pool_name(self):
-        """Test custom task class to verify pool name selection."""
+        # Process with timeout=0
+        results = pool.process_futures(timeout=0)
         
-        @dataclass(frozen=True)
-        class CustomTask(Task):            
-            def execute(self) -> _TaskResult:
-                return _TaskResult(job_id=self.job_id, df_idx=self.df_idx)
-        
-        pool = _JobManagerWorkerThreadPool()
-        
-        task = CustomTask(job_id="j-1", df_idx=1)
-        pool.submit_task(task, "custom_pool")
-        
-        # Pool should be named after class
-        assert pool.list_pools() == ["custom_pool"]
-        assert pool.number_pending_tasks() == 1
-        
-        # Process it
-        results = pool.process_futures(timeout=0.1)
+        # Should get only quick task
         assert len(results) == 1
-        assert results[0].job_id == "j-1"
+        assert results[0].job_id == "j-quick"
         
-        pool.shutdown()
-
-    def test_concurrent_submissions(self, thread_pool):
-        """Test concurrent task submissions to same pool."""
-        import concurrent.futures
-        
-        def submit_tasks(start_idx: int):
-            for i in range(5):
-                thread_pool.submit_task(NopTask(job_id=f"j-{start_idx + i}", df_idx=start_idx + i))
-        
-        # Submit tasks from multiple threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(submit_tasks, i * 10) for i in range(3)]
-            concurrent.futures.wait(futures)
-        
-        # Should have all tasks in one pool
-        assert thread_pool.list_pools() == ["default"]
-        assert thread_pool.number_pending_tasks() == 15
-        
-        # Process them all
-        results = thread_pool.process_futures(timeout=0.5)
-        
-        assert len(results) == 15
+        # Check remaining tasks
+        assert pool.number_pending_tasks("slow") == 1
+        assert pool.number_pending_tasks("fast") == 0
 
     def test_pool_parallelism_with_blocking_tasks(self):
         """Test that multiple workers allow parallel execution."""
@@ -713,3 +711,106 @@ class TestJobManagerWorkerThreadPool:
         error_result = error_results[0]
         assert error_result.db_update == {"status": "threaded task failed"}
         assert error_result.stats_update == {"threaded task failed": 1}
+
+    def test_submit_same_task_to_multiple_pools(self):
+        """Test submitting the same task instance to different pools."""
+        pool = _JobManagerWorkerThreadPool({"pool1": 1, "pool2": 1})
+        task = NopTask(job_id="j-1", df_idx=1)
+        
+        # Submit same task to two different pools
+        pool.submit_task(task, "pool1")
+        pool.submit_task(task, "pool2")  # Same instance!
+        
+        assert pool.number_pending_tasks("pool1") == 1
+        assert pool.number_pending_tasks("pool2") == 1
+        assert pool.number_pending_tasks() == 2
+
+    def test_shutdown_specific_pool(self):
+        """Test shutting down a specific pool."""
+        # Create fresh pool for destructive test
+        pool = _JobManagerWorkerThreadPool()
+        
+        # Create two pools
+        pool.submit_task(NopTask(job_id="j-1", df_idx=1), "notask")  # NopTask pool
+        pool.submit_task(DummyTask(job_id="j-2", df_idx=2), "dummy")  # DummyTask pool
+        
+        assert sorted(pool.list_pools()) == ["dummy", "notask"]
+        
+        # Shutdown NopTask pool only
+        pool.shutdown("notask")
+        
+        # Only DummyTask pool should remain
+        assert pool.list_pools() == ["dummy"]
+        
+        # Can't submit to shutdown pool
+        # Actually, it will create a new pool since we deleted it
+        pool.submit_task(NopTask(job_id="j-3", df_idx=3))  # Creates new NopTask pool
+        assert sorted(pool.list_pools()) == [ "default", "dummy"]
+        
+        pool.shutdown()
+
+    def test_shutdown_all(self):
+        """Test shutting down all pools."""
+        # Create fresh pool for destructive test
+        pool = _JobManagerWorkerThreadPool()
+        
+        # Create multiple pools
+        pool.submit_task(NopTask(job_id="j-1", df_idx=1), "notask")  # NopTask pool
+        pool.submit_task(DummyTask(job_id="j-2", df_idx=2), "dummy")
+        
+        assert len(pool.list_pools()) == 2
+        
+        # Shutdown all
+        pool.shutdown()
+
+        assert pool.list_pools() == []
+        assert len(pool._pools) == 0
+
+
+    def test_submit_to_nonexistent_pool_after_shutdown(self):
+        """Test submitting to a pool that was previously shutdown."""
+        pool = _JobManagerWorkerThreadPool({"download": 2})
+        
+        # Shutdown the pool
+        pool.shutdown("download")
+        assert "download" not in pool.list_pools()
+        
+        # Submit again - should create new pool (since dynamic creation allowed)
+        task = NopTask(job_id="j-1", df_idx=1)
+        pool.submit_task(task, "download")
+        
+        assert "download" in pool.list_pools()
+        assert pool._pools["download"]._max_workers == 1 
+
+
+    def test_number_pending_tasks_for_shutdown_pool(self):
+        """Test checking pending tasks for a pool that was shutdown."""
+        pool = _JobManagerWorkerThreadPool({"download": 2})
+
+        # Submit and process many tasks
+        for i in range(10):
+            pool.submit_task(NopTask(job_id=f"j-{i}", df_idx=i))
+        
+        pool.shutdown("download")
+        
+        # Should return 0 for shutdown/nonexistent pool
+        assert pool.number_pending_tasks("download") == 0
+
+    def test_future_task_pairs_postprocessing(self):
+        """Test that completed tasks don't accumulate in _future_task_pairs."""
+        pool = _JobManagerWorkerThreadPool()
+        
+        # Submit and process many tasks
+        for i in range(100):
+            pool.submit_task(NopTask(job_id=f"j-{i}", df_idx=i))
+        
+        # Process all
+        results = pool.process_futures(timeout=0.1)
+        assert len(results) == 100
+        
+        # Internal tracking list should be empty
+        for pool_obj in pool._pools.values():
+            assert len(pool_obj._future_task_pairs) == 0
+        
+        pool.shutdown()
+

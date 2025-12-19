@@ -202,6 +202,7 @@ class _TaskThreadPool:
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
         self._name = name
+        self._max_workers = max_workers 
 
     def submit_task(self, task: Task) -> None:
         """
@@ -272,31 +273,34 @@ class _JobManagerWorkerThreadPool:
     
     def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
         """
-        :param pool_configs: Dict of task_class_name -> max_workers
-                            Example: {"_JobStartTask": 1, "_JobDownloadTask": 2}
+        :param pool_configs: Dict of pool_name -> max_workers
+                            Example: {"job_start": 1, "download": 2}
         """
         self._pools: Dict[str, _TaskThreadPool] = {}
         self._pool_configs = pool_configs or {}
-    
-    def _get_pool_name_for_task(self, task: Task) -> str:
-        """
-        Get pool name from task class name.
-        """
-        return task.__class__.__name__
+        
+        # Create all pools upfront from config
+        for pool_name, max_workers in self._pool_configs.items():
+            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
+            _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
     
     def submit_task(self, task: Task, pool_name: str = "default") -> None:
         """
         Submit a task to a specific pool.
-        Creates pool dynamically if it doesn't exist.
-        
-        :param task: The task to execute
-        :param pool_name: Which pool to use (default, download, etc.)
+        Creates pool dynamically only if not in config.
         """
         if pool_name not in self._pools:
-            # Create pool on-demand
-            max_workers = self._pool_configs.get(pool_name, 1)  # Default 1 worker
-            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
-            _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
+            # Check if pool_name is in config but somehow wasn't created
+            if pool_name in self._pool_configs:
+                # This shouldn't happen, but create it
+                max_workers = self._pool_configs[pool_name]
+                self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+                _log.warning(f"Created missing pool '{pool_name}' from config with {max_workers} workers")
+            else:
+                # Not in config - create with default
+                max_workers = 1
+                self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+                _log.info(f"Created dynamic pool '{pool_name}' with {max_workers} workers")
         
         self._pools[pool_name].submit_task(task)
 
@@ -329,10 +333,16 @@ class _JobManagerWorkerThreadPool:
             if pool_name in self._pools:
                 self._pools[pool_name].shutdown()
                 del self._pools[pool_name]
+                if pool_name in self._pool_configs:
+                    del self._pool_configs[pool_name]
         else:
             for pool_name, pool in list(self._pools.items()):
                 pool.shutdown()
                 del self._pools[pool_name]
+                if pool_name in self._pool_configs:
+                    del self._pool_configs[pool_name]
+
+        self._pool_configs.clear()
     
     def list_pools(self) -> List[str]:
         """List all active pool names."""
