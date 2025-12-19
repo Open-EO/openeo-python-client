@@ -252,7 +252,7 @@ class _TaskThreadPool:
         _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
-        return results, len(to_keep)
+        return results
     
     def number_pending_tasks(self) -> int:
         """Return the number of tasks that are still pending (not completed)."""
@@ -306,14 +306,12 @@ class _JobManagerWorkerThreadPool:
         Returns: (all_results, dict of remaining tasks per pool)
         """
         all_results = []
-        remaining_by_pool = {}
         
         for pool_name, pool in self._pools.items():
-            results, remaining = pool.process_futures(timeout)
+            results = pool.process_futures(timeout)
             all_results.extend(results)
-            remaining_by_pool[pool_name] = remaining
             
-        return all_results, remaining_by_pool
+        return all_results
     
     def number_pending_tasks(self, pool_name: Optional[str] = None) -> int:
         if pool_name:
