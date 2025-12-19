@@ -254,7 +254,7 @@ class _TaskThreadPool:
         self._future_task_pairs = to_keep
         return results, len(to_keep)
     
-    def num_pending_tasks(self) -> int:
+    def number_pending_tasks(self) -> int:
         """Return the number of tasks that are still pending (not completed)."""
         return len(self._future_task_pairs)
 
@@ -315,12 +315,12 @@ class _JobManagerWorkerThreadPool:
             
         return all_results, remaining_by_pool
     
-    def num_pending_tasks(self, pool_name: Optional[str] = None) -> int:
+    def number_pending_tasks(self, pool_name: Optional[str] = None) -> int:
         if pool_name:
             pool = self._pools.get(pool_name)
-            return pool.num_pending_tasks() if pool else 0
+            return pool.number_pending_tasks() if pool else 0
         else:
-            return sum(pool.num_pending_tasks() for pool in self._pools.values())
+            return sum(pool.number_pending_tasks() for pool in self._pools.values())
     
     def shutdown(self, pool_name: Optional[str] = None) -> None:
         """
