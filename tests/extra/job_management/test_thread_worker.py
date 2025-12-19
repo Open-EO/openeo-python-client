@@ -4,7 +4,6 @@ import time
 from dataclasses import dataclass
 from typing import Iterator
 from pathlib import Path
-import tempfile
 from requests_mock import Mocker
 
 import pytest
