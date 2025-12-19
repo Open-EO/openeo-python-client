@@ -658,7 +658,7 @@ class MultiBackendJobManager:
                                 df_idx=i,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
-                            self._worker_pool.submit_task(task)
+                            self._worker_pool.submit_task(task=task, pool_name="job_start")
 
                             stats["job_queued_for_start"] += 1
                             df.loc[i, "status"] = "queued_for_start"
@@ -771,7 +771,7 @@ class MultiBackendJobManager:
             if self._worker_pool is None:
                 self._worker_pool = _JobManagerWorkerThreadPool()
                 
-            self._worker_pool.submit_task(task)
+            self._worker_pool.submit_task(task=task, pool_name="job_download")
 
     def on_job_error(self, job: BatchJob, row):
         """

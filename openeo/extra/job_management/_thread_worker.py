@@ -268,7 +268,6 @@ class _JobManagerWorkerThreadPool:
 
     """
     Generic wrapper that manages multiple thread pools with a dict.
-    Uses task class names as pool names automatically.
     """
     
     def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
@@ -285,17 +284,18 @@ class _JobManagerWorkerThreadPool:
         """
         return task.__class__.__name__
     
-    def submit_task(self, task: Task) -> None:
+    def submit_task(self, task: Task, pool_name: str = "default") -> None:
         """
-        Submit a task to a pool named after its class.
+        Submit a task to a specific pool.
         Creates pool dynamically if it doesn't exist.
-        """
-        pool_name = self._get_pool_name_for_task(task)
         
+        :param task: The task to execute
+        :param pool_name: Which pool to use (default, download, etc.)
+        """
         if pool_name not in self._pools:
             # Create pool on-demand
             max_workers = self._pool_configs.get(pool_name, 1)  # Default 1 worker
-            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers, name=pool_name)
+            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
             _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
         
         self._pools[pool_name].submit_task(task)
