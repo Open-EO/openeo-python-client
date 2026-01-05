@@ -110,8 +110,7 @@ class DummyBackend:
             re.compile(connection.build_url(r"/jobs/(job-\d+)/results$")), json=self._handle_delete_job_results
         )
         requests_mock.head(
-            re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
-            headers={"Content-Length": "666"}
+            re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")), headers={"Content-Length": "666"}
         )
         requests_mock.get(
             re.compile(connection.build_url("/jobs/(.*?)/results/result.data$")),
