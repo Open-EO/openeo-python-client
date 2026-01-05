@@ -22,8 +22,6 @@ from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
 
-OPENEO_BACKEND = "https://openeo.test/"
-
 
 class OpeneoTestingException(Exception):
     pass
