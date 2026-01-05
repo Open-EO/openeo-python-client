@@ -481,7 +481,7 @@ def build_capabilities(
         "stac_version": stac_version,
         "id": "dummy",
         "title": "Dummy openEO back-end",
-        "description": "Dummy openeEO back-end",
+        "description": "Dummy openEO back-end",
         "endpoints": endpoints,
         "links": [],
     }
