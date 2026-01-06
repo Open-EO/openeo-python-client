@@ -156,14 +156,13 @@ class _JobDownloadTask(ConnectedTask):
 
         try:
             job = self.get_connection(retry=True).job(self.job_id)
+
+            # Count assets (files to download)
+            file_count = len(job.get_results().get_assets())
             
             # Download results
             job.get_results().download_files(target=self.download_dir)
 
-            # Count assets (files to download)
-            assets = job.list_results().get('assets', {})
-            file_count = len(assets)
-            
             # Download metadata
             job_metadata = job.describe()
             metadata_path = self.download_dir / f"job_{self.job_id}.json"
