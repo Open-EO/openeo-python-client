@@ -211,7 +211,7 @@ class Connection(RestApiConnection):
             self._refresh_token_store = RefreshTokenStore()
         return self._refresh_token_store
 
-    def list_auth_providers(self) -> list[dict]:
+    def list_auth_providers(self) -> List[dict]:
         providers = []
         cap = self.capabilities()
 
