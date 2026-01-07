@@ -91,7 +91,7 @@ log = logging.getLogger(__name__)
 
 
 # Type annotation aliases
-InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, None]
+InputDate = Union[str, datetime.date, Parameter, PGNode, ProcessBuilderBase, _FromNodeMixin, None]
 
 
 class DataCube(_ProcessGraphAbstraction):
@@ -165,8 +165,10 @@ class DataCube(_ProcessGraphAbstraction):
         cls,
         collection_id: Union[str, Parameter],
         connection: Optional[Connection] = None,
-        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, None] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        spatial_extent: Union[
+            dict, Parameter, shapely.geometry.base.BaseGeometry, str, pathlib.Path, _FromNodeMixin, None
+        ] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         fetch_metadata: bool = True,
         properties: Union[
@@ -306,31 +308,6 @@ class DataCube(_ProcessGraphAbstraction):
             }
 
         return properties
-
-    @classmethod
-    @deprecated(reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",version="0.25.0")
-    def load_disk_collection(cls, connection: Connection, file_format: str, glob_pattern: str, **options) -> DataCube:
-        """
-        Loads image data from disk as a DataCube.
-        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
-        :py:meth:`openeo.rest.connection.Connection.load_stac` or https://processes.openeo.org/#load_uploaded_files
-
-
-        :param connection: The connection to use to connect with the backend.
-        :param file_format: the file format, e.g. 'GTiff'
-        :param glob_pattern: a glob pattern that matches the files to load from disk
-        :param options: options specific to the file format
-        :return: the data as a DataCube
-        """
-        pg = PGNode(
-            process_id='load_disk_data',
-            arguments={
-                'format': file_format,
-                'glob_pattern': glob_pattern,
-                'options': options
-            }
-        )
-        return cls(graph=pg, connection=connection)
 
     @classmethod
     def load_stac(
@@ -505,22 +482,22 @@ class DataCube(_ProcessGraphAbstraction):
         *args,
         start_date: InputDate = None,
         end_date: InputDate = None,
-        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-    ) -> Union[List[Union[str, Parameter, PGNode, None]], Parameter]:
+        extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
+    ) -> Union[List[Union[str, Parameter, PGNode, _FromNodeMixin, None]], Parameter, _FromNodeMixin]:
         """Parameter aware temporal_extent normalizer"""
         # TODO: move this outside of DataCube class
         # TODO: return extent as tuple instead of list
-        if len(args) == 1 and isinstance(args[0], Parameter):
+        if len(args) == 1 and isinstance(args[0], (Parameter, _FromNodeMixin)):
             assert start_date is None and end_date is None and extent is None
             return args[0]
-        elif len(args) == 0 and isinstance(extent, Parameter):
+        elif len(args) == 0 and isinstance(extent, (Parameter, _FromNodeMixin)):
             assert start_date is None and end_date is None
             # TODO: warn about unexpected parameter schema
             return extent
         else:
             def convertor(d: Any) -> Any:
                 # TODO: can this be generalized through _FromNodeMixin?
-                if isinstance(d, Parameter) or isinstance(d, PGNode):
+                if isinstance(d, Parameter) or isinstance(d, _FromNodeMixin):
                     # TODO: warn about unexpected parameter schema
                     return d
                 elif isinstance(d, ProcessBuilderBase):
@@ -556,7 +533,7 @@ class DataCube(_ProcessGraphAbstraction):
         *args,
         start_date: InputDate = None,
         end_date: InputDate = None,
-        extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
     ) -> DataCube:
         """
         Limit the DataCube to a certain date range, which can be specified in several ways:
@@ -3094,6 +3071,27 @@ class DataCube(_ProcessGraphAbstraction):
                 label_separator=label_separator,
             ),
         )
+
+    @openeo_process
+    def convert_data_type(
+            self,
+            data_type: str,
+    ) -> DataCube:
+        """
+        Converts the datacube data to another data type.
+
+        :param data_type: The desired data type, as a string e.g. 'uint8', 'int16ud32767', ...
+
+        :return: A data cube with the same dimensions but converted to the new data type.
+        """
+        return self.process(
+            process_id="convert_data_type",
+            arguments=dict_no_none(
+                data=THIS,
+                data_type=data_type
+            ),
+        )
+
 
 
 def _get_geometry_argument(

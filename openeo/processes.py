@@ -2134,6 +2134,18 @@ class ProcessBuilder(ProcessBuilderBase):
         )
 
     @openeo_process
+    def predict_onnx(self, model) -> ProcessBuilder:
+        """
+        Predict values based on an onnx model
+
+        :param self: An array of numbers.
+        :param model: an url to an onnx model
+
+        :return: The predicted value.
+        """
+        return predict_onnx(data=self, model=model)
+
+    @openeo_process
     def predict_random_forest(self, model) -> ProcessBuilder:
         """
         Predict values based on a Random Forest model
@@ -4909,6 +4921,19 @@ def predict_curve(parameters, function, dimension, labels=UNSET) -> ProcessBuild
         dimension=dimension,
         labels=labels
     )
+
+@openeo_process
+def predict_onnx(data, model) -> ProcessBuilder:
+    """
+    Predict values based on a Random Forest model
+
+    :param data: An array of numbers.
+    :param model: A model object that can be trained with the processes ``fit_regr_random_forest()``
+        (regression) and ``fit_class_random_forest()`` (classification).
+
+    :return: The predicted value. Returns `null` if any of the given values in the array is a no-data value.
+    """
+    return _process("predict_onnx", data=data, model=model)
 
 
 @openeo_process

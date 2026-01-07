@@ -11,7 +11,6 @@ from typing import Union
 from unittest import mock
 
 import dirty_equals
-import geopandas
 
 # TODO: can we avoid using httpretty?
 #   We need it for testing the resilience, which uses an HTTPadapter with Retry
@@ -21,24 +20,18 @@ import geopandas
 #   But I would rather not have two dependencies with almost the same goal.
 import httpretty
 import numpy as np
-import pandas
 import pandas as pd
-import pandas.testing
 import pytest
 import requests
-import shapely.geometry
 
 import openeo
-import openeo.extra.job_management
 from openeo import BatchJob
-from openeo.extra.job_management import (
-    MAX_RETRIES,
+from openeo.extra.job_management._job_db import (
     CsvJobDatabase,
-    MultiBackendJobManager,
     ParquetJobDatabase,
     create_job_db,
-    get_job_db,
 )
+from openeo.extra.job_management._manager import MAX_RETRIES, MultiBackendJobManager
 from openeo.extra.job_management._thread_worker import (
     Task,
     _JobManagerWorkerThreadPool,
@@ -46,8 +39,7 @@ from openeo.extra.job_management._thread_worker import (
 )
 from openeo.rest._testing import DummyBackend
 from openeo.rest.auth.testing import OidcMock
-from openeo.util import rfc3339
-from openeo.utils.version import ComparableVersion
+from openeo.util import load_json, rfc3339
 
 
 def _job_id_from_year(process_graph) -> Union[str, None]:
@@ -301,7 +293,7 @@ class TestMultiBackendJobManager:
 
     def test_normalize_df(self):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
-        df_normalized = MultiBackendJobManager._normalize_df(df)
+        df_normalized = MultiBackendJobManager._column_requirements.normalize_df(df)
         assert set(df_normalized.columns) == set(
             [
                 "some_number",
@@ -608,7 +600,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to not actually sleep, but skip one hour at a time
-        with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -727,7 +719,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to skip one hour at a time instead of actually sleeping
-        with mock.patch.object(openeo.extra.job_management.time, "sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -759,9 +751,9 @@ class TestMultiBackendJobManager:
         mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
 
         df_final = job_db.read()
-        pandas.testing.assert_frame_equal(
+        pd.testing.assert_frame_equal(
             df_final[["id", "status"]],
-            pandas.DataFrame(
+            pd.DataFrame(
                 {
                     "id": ["j-0", "j-1", "j-2", "j-3"],
                     "status": ["queued", "queued", "created", "created"],
@@ -796,9 +788,9 @@ class TestMultiBackendJobManager:
         mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
 
         df_final = job_db.read()
-        pandas.testing.assert_frame_equal(
+        pd.testing.assert_frame_equal(
             df_final[["id", "status"]],
-            pandas.DataFrame(
+            pd.DataFrame(
                 {
                     "id": ["j-123", "j-456"],
                     "status": ["queued", "created"],
@@ -871,7 +863,6 @@ class TestMultiBackendJobManager:
         sleep_mock,
         requests_mock,
     ):
-
         client_id = "client123"
         client_secret = "$3cr3t"
         oidc_issuer = "https://oidc.test/"
@@ -907,362 +898,32 @@ class TestMultiBackendJobManager:
         # we should have 2 additional token requests now
         assert len(oidc_mock.grant_request_history) == 4
 
+    @pytest.mark.parametrize(
+        ["download_results"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
+    def test_download_results_toggle(
+        self, tmp_path, job_manager_root_dir, dummy_backend_foo, download_results, sleep_mock
+    ):
+        job_manager = MultiBackendJobManager(root_dir=job_manager_root_dir, download_results=download_results)
+        job_manager.add_backend("foo", connection=dummy_backend_foo.connection)
 
-JOB_DB_DF_BASICS = pd.DataFrame(
-    {
-        "numbers": [3, 2, 1],
-        "names": ["apple", "banana", "coconut"],
-    }
-)
-JOB_DB_GDF_WITH_GEOMETRY = geopandas.GeoDataFrame(
-    {
-        "numbers": [11, 22],
-        "geometry": [shapely.geometry.Point(1, 2), shapely.geometry.Point(2, 1)],
-    },
-)
-JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
-    {
-        "numbers": [11, 22],
-        "geometry": ['{"type":"Point","coordinates":[1,2]}', '{"type":"Point","coordinates":[1,2]}'],
-    }
-)
+        df = pd.DataFrame({"year": [2018, 2019]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"job finished": 2})
 
-
-class TestFullDataFrameJobDatabase:
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_initialize_from_df(self, tmp_path, db_class):
-        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
-        path = tmp_path / "jobs.db"
-
-        db = db_class(path)
-        assert not path.exists()
-        db.initialize_from_df(orig_df)
-        assert path.exists()
-
-        # Check persisted CSV
-        assert path.exists()
-        expected_columns = {
-            "some_number",
-            "status",
-            "id",
-            "start_time",
-            "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
-            "backend_name",
-            "costs",
-        }
-
-        actual_columns = set(db_class(path).read().columns)
-        assert actual_columns == expected_columns
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_initialize_from_df_on_exists_error(self, tmp_path, db_class):
-        df = pd.DataFrame({"some_number": [3, 2, 1]})
-        path = tmp_path / "jobs.csv"
-        _ = db_class(path).initialize_from_df(df, on_exists="error")
-        assert path.exists()
-
-        with pytest.raises(FileExistsError, match="Job database.* already exists"):
-            _ = db_class(path).initialize_from_df(df, on_exists="error")
-
-        assert set(db_class(path).read()["some_number"]) == {1, 2, 3}
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_initialize_from_df_on_exists_skip(self, tmp_path, db_class):
-        path = tmp_path / "jobs.db"
-
-        db = db_class(path).initialize_from_df(
-            pd.DataFrame({"some_number": [3, 2, 1]}),
-            on_exists="skip",
-        )
-        assert set(db.read()["some_number"]) == {1, 2, 3}
-
-        db = db_class(path).initialize_from_df(
-            pd.DataFrame({"some_number": [444, 555, 666]}),
-            on_exists="skip",
-        )
-        assert set(db.read()["some_number"]) == {1, 2, 3}
-
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
-    def test_count_by_status(self, tmp_path, db_class):
-        path = tmp_path / "jobs.db"
-
-        db = db_class(path).initialize_from_df(
-            pd.DataFrame(
-                {
-                    "status": [
-                        "not_started",
-                        "created",
-                        "queued",
-                        "queued",
-                        "queued",
-                        "running",
-                        "running",
-                        "finished",
-                        "finished",
-                        "error",
-                    ]
-                }
+        if download_results:
+            assert (job_manager_root_dir / "job_job-2018/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2018/job_job-2018.json") == dirty_equals.IsPartialDict(
+                id="job-2018", status="finished"
             )
-        )
-        assert db.count_by_status(statuses=["not_started"]) == {"not_started": 1}
-        assert db.count_by_status(statuses=("not_started", "running")) == {"not_started": 1, "running": 2}
-        assert db.count_by_status(statuses={"finished", "error"}) == {"error": 1, "finished": 2}
-
-        # All statuses by default
-        assert db.count_by_status() == {
-            "created": 1,
-            "error": 1,
-            "finished": 2,
-            "not_started": 1,
-            "queued": 3,
-            "running": 2,
-        }
-
-
-class TestCsvJobDatabase:
-    def test_repr(self, tmp_path):
-        path = tmp_path / "db.csv"
-        db = CsvJobDatabase(path)
-        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", repr(db))
-        assert re.match(r"CsvJobDatabase\('[^']+\.csv'\)", str(db))
-
-    def test_read_wkt(self, tmp_path):
-        wkt_df = pd.DataFrame(
-            {
-                "value": ["wkt"],
-                "geometry": ["POINT (30 10)"],
-            }
-        )
-        path = tmp_path / "jobs.csv"
-        wkt_df.to_csv(path, index=False)
-        df = CsvJobDatabase(path).read()
-        assert isinstance(df.geometry[0], shapely.geometry.Point)
-
-    def test_read_non_wkt(self, tmp_path):
-        non_wkt_df = pd.DataFrame(
-            {
-                "value": ["non_wkt"],
-                "geometry": ["this is no WKT"],
-            }
-        )
-        path = tmp_path / "jobs.csv"
-        non_wkt_df.to_csv(path, index=False)
-        df = CsvJobDatabase(path).read()
-        assert isinstance(df.geometry[0], str)
-
-    @pytest.mark.parametrize(
-        ["orig"],
-        [
-            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
-            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
-            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
-        ],
-    )
-    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
-        path = tmp_path / "jobs.parquet"
-        CsvJobDatabase(path).persist(orig)
-        assert path.exists()
-
-        loaded = CsvJobDatabase(path).read()
-        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
-        assert loaded.equals(orig)
-        assert type(orig) is type(loaded)
-
-    @pytest.mark.parametrize(
-        ["orig"],
-        [
-            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
-            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
-            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
-        ],
-    )
-    def test_partial_read_write(self, tmp_path, orig: pandas.DataFrame):
-        path = tmp_path / "jobs.csv"
-
-        required_with_default = [
-            ("status", "not_started"),
-            ("id", None),
-            ("start_time", None),
-        ]
-        new_columns = {col: val for (col, val) in required_with_default if col not in orig.columns}
-        orig = orig.assign(**new_columns)
-
-        db = CsvJobDatabase(path)
-        db.persist(orig)
-        assert path.exists()
-
-        loaded = db.get_by_status(statuses=["not_started"], max=2)
-        assert db.count_by_status(statuses=["not_started"])["not_started"] > 1
-
-        assert len(loaded) == 2
-        loaded.loc[0, "status"] = "running"
-        loaded.loc[1, "status"] = "error"
-        db.persist(loaded)
-        assert db.count_by_status(statuses=["error"])["error"] == 1
-
-        all = db.read()
-        assert len(all) == len(orig)
-        assert all.loc[0, "status"] == "running"
-        assert all.loc[1, "status"] == "error"
-        if len(all) > 2:
-            assert all.loc[2, "status"] == "not_started"
-        print(loaded.index)
-
-    def test_initialize_from_df(self, tmp_path):
-        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
-        path = tmp_path / "jobs.csv"
-
-        # Initialize the CSV from the dataframe
-        _ = CsvJobDatabase(path).initialize_from_df(orig_df)
-
-        # Check persisted CSV
-        assert path.exists()
-        expected_columns = {
-            "some_number",
-            "status",
-            "id",
-            "start_time",
-            "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
-            "backend_name",
-            "costs",
-        }
-
-        # Raw file content check
-        raw_columns = set(path.read_text().split("\n")[0].split(","))
-        # Higher level read
-        read_columns = set(CsvJobDatabase(path).read().columns)
-
-        assert raw_columns == expected_columns
-        assert read_columns == expected_columns
-
-    def test_initialize_from_df_on_exists_error(self, tmp_path):
-        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
-        path = tmp_path / "jobs.csv"
-        _ = CsvJobDatabase(path).initialize_from_df(orig_df, on_exists="error")
-        with pytest.raises(FileExistsError, match="Job database.* already exists"):
-            _ = CsvJobDatabase(path).initialize_from_df(orig_df, on_exists="error")
-
-    def test_initialize_from_df_on_exists_skip(self, tmp_path):
-        path = tmp_path / "jobs.csv"
-
-        db = CsvJobDatabase(path).initialize_from_df(
-            pd.DataFrame({"some_number": [3, 2, 1]}),
-            on_exists="skip",
-        )
-        assert set(db.read()["some_number"]) == {1, 2, 3}
-
-        db = CsvJobDatabase(path).initialize_from_df(
-            pd.DataFrame({"some_number": [444, 555, 666]}),
-            on_exists="skip",
-        )
-        assert set(db.read()["some_number"]) == {1, 2, 3}
-
-    @pytest.mark.skipif(
-        ComparableVersion(geopandas.__version__) < "0.14",
-        reason="This issue has no workaround with geopandas < 0.14 (highest available version on Python 3.8 is 0.13.2)",
-    )
-    def test_read_with_crs_column(self, tmp_path):
-        """
-        Having a column named "crs" can cause obscure error messages when creating a GeoPandas dataframe
-        https://github.com/Open-EO/openeo-python-client/issues/714
-        """
-        source_df = pd.DataFrame(
-            {
-                "crs": [1234],
-                "geometry": ["Point(2 3)"],
-            }
-        )
-        path = tmp_path / "jobs.csv"
-        source_df.to_csv(path, index=False)
-        result_df = CsvJobDatabase(path).read()
-        assert isinstance(result_df, geopandas.GeoDataFrame)
-        assert result_df.to_dict(orient="list") == {
-            "crs": [1234],
-            "geometry": [shapely.geometry.Point(2, 3)],
-        }
-
-
-class TestParquetJobDatabase:
-    def test_repr(self, tmp_path):
-        path = tmp_path / "db.pq"
-        db = ParquetJobDatabase(path)
-        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", repr(db))
-        assert re.match(r"ParquetJobDatabase\('[^']+\.pq'\)", str(db))
-
-    @pytest.mark.parametrize(
-        ["orig"],
-        [
-            pytest.param(JOB_DB_DF_BASICS, id="pandas basics"),
-            pytest.param(JOB_DB_GDF_WITH_GEOMETRY, id="geopandas with geometry"),
-            pytest.param(JOB_DB_DF_WITH_GEOJSON_STRING, id="pandas with geojson string as geometry"),
-        ],
-    )
-    def test_persist_and_read(self, tmp_path, orig: pandas.DataFrame):
-        path = tmp_path / "jobs.parquet"
-        ParquetJobDatabase(path).persist(orig)
-        assert path.exists()
-
-        loaded = ParquetJobDatabase(path).read()
-        assert loaded.dtypes.to_dict() == orig.dtypes.to_dict()
-        assert loaded.equals(orig)
-        assert type(orig) is type(loaded)
-
-    def test_initialize_from_df(self, tmp_path):
-        orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
-        path = tmp_path / "jobs.parquet"
-
-        # Initialize the CSV from the dataframe
-        _ = ParquetJobDatabase(path).initialize_from_df(orig_df)
-
-        # Check persisted CSV
-        assert path.exists()
-        expected_columns = {
-            "some_number",
-            "status",
-            "id",
-            "start_time",
-            "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
-            "backend_name",
-            "costs",
-        }
-
-        df_from_disk = ParquetJobDatabase(path).read()
-        assert set(df_from_disk.columns) == expected_columns
-
-
-@pytest.mark.parametrize(
-    ["filename", "expected"],
-    [
-        ("jobz.csv", CsvJobDatabase),
-        ("jobz.parquet", ParquetJobDatabase),
-    ],
-)
-def test_get_job_db(tmp_path, filename, expected):
-    path = tmp_path / filename
-    db = get_job_db(path)
-    assert isinstance(db, expected)
-    assert not path.exists()
-
-
-@pytest.mark.parametrize(
-    ["filename", "expected"],
-    [
-        ("jobz.csv", CsvJobDatabase),
-        ("jobz.parquet", ParquetJobDatabase),
-    ],
-)
-def test_create_job_db(tmp_path, filename, expected):
-    df = pd.DataFrame({"year": [2023, 2024]})
-    path = tmp_path / filename
-    db = create_job_db(path=path, df=df)
-    assert isinstance(db, expected)
-    assert path.exists()
+            assert (job_manager_root_dir / "job_job-2019/result.data").read_bytes() == DummyBackend.DEFAULT_RESULT
+            assert load_json(job_manager_root_dir / "job_job-2019/job_job-2019.json") == dirty_equals.IsPartialDict(
+                id="job-2019", status="finished"
+            )
+        else:
+            assert not job_manager_root_dir.exists() or list(job_manager_root_dir.iterdir()) == []

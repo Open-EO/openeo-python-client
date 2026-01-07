@@ -18,8 +18,10 @@ import requests
 import shapely
 import shapely.geometry
 
+import openeo.processes
 from openeo import collection_property
 from openeo.api.process import Parameter
+from openeo.internal.graph_building import PGNode
 from openeo.metadata import SpatialDimension
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
@@ -696,6 +698,69 @@ def test_filter_temporal_single_arg(s2cube: DataCube, arg, expect_failure):
         context = contextlib.nullcontext()
     with context:
         _ = s2cube.filter_temporal(arg)
+
+
+@pytest.mark.parametrize(
+    "udf_factory",
+    [
+        (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+        (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+    ],
+)
+def test_filter_temporal_from_udf(s2cube: DataCube, udf_factory):
+    temporal_extent = udf_factory(data=[1, 2, 3], udf="print('hello time')", runtime="Python")
+    cube = s2cube.filter_temporal(temporal_extent)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "runudf1": {
+            "process_id": "run_udf",
+            "arguments": {"data": [1, 2, 3], "udf": "print('hello time')", "runtime": "Python"},
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "extent": {"from_node": "runudf1"},
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "udf_factory",
+    [
+        (lambda data, udf, runtime: openeo.processes.run_udf(data=data, udf=udf, runtime=runtime)),
+        (lambda data, udf, runtime: PGNode(process_id="run_udf", data=data, udf=udf, runtime=runtime)),
+    ],
+)
+def test_filter_temporal_start_end_from_udf(s2cube: DataCube, udf_factory):
+    start = udf_factory(data=[1, 2, 3], udf="print('hello start')", runtime="Python")
+    end = udf_factory(data=[4, 5, 6], udf="print('hello end')", runtime="Python")
+    cube = s2cube.filter_temporal(start_date=start, end_date=end)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {"id": "S2", "spatial_extent": None, "temporal_extent": None},
+        },
+        "runudf1": {
+            "process_id": "run_udf",
+            "arguments": {"data": [1, 2, 3], "udf": "print('hello start')", "runtime": "Python"},
+        },
+        "runudf2": {
+            "process_id": "run_udf",
+            "arguments": {"data": [4, 5, 6], "udf": "print('hello end')", "runtime": "Python"},
+        },
+        "filtertemporal1": {
+            "process_id": "filter_temporal",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "extent": [{"from_node": "runudf1"}, {"from_node": "runudf2"}],
+            },
+        },
+    }
 
 
 def test_max_time(s2cube, api_version):

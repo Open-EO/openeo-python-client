@@ -35,7 +35,12 @@ from requests.auth import AuthBase, HTTPBasicAuth
 import openeo
 from openeo.config import config_log, get_config_option
 from openeo.internal.documentation import openeo_process
-from openeo.internal.graph_building import FlatGraphableMixin, PGNode, as_flat_graph
+from openeo.internal.graph_building import (
+    FlatGraphableMixin,
+    PGNode,
+    _FromNodeMixin,
+    as_flat_graph,
+)
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
@@ -1217,8 +1222,8 @@ class Connection(RestApiConnection):
         self,
         collection_id: Union[str, Parameter],
         spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
-        bands: Union[Iterable[str], Parameter, str, None] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
+        bands: Union[Iterable[str], Parameter, str, _FromNodeMixin, None] = None,
         properties: Union[
             Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
         ] = None,
@@ -1318,8 +1323,10 @@ class Connection(RestApiConnection):
     def load_stac(
         self,
         url: str,
-        spatial_extent: Union[dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, None] = None,
-        temporal_extent: Union[Sequence[InputDate], Parameter, str, None] = None,
+        spatial_extent: Union[
+            dict, Parameter, shapely.geometry.base.BaseGeometry, str, Path, _FromNodeMixin, None
+        ] = None,
+        temporal_extent: Union[Sequence[InputDate], Parameter, str, _FromNodeMixin, None] = None,
         bands: Union[Iterable[str], Parameter, str, None] = None,
         properties: Union[
             Dict[str, Union[PGNode, Callable]], List[CollectionProperty], CollectionProperty, None
@@ -1903,26 +1910,6 @@ class Connection(RestApiConnection):
         :return: A service object.
         """
         return Service(service_id, connection=self)
-
-    @deprecated(
-        reason="Depends on non-standard process, replace with :py:meth:`openeo.rest.connection.Connection.load_stac` where possible.",
-        version="0.25.0")
-    def load_disk_collection(
-        self, format: str, glob_pattern: str, options: Optional[dict] = None
-    ) -> DataCube:
-        """
-        Loads image data from disk as a :py:class:`DataCube`.
-
-        This is backed by a non-standard process ('load_disk_data'). This will eventually be replaced by standard options such as
-        :py:meth:`openeo.rest.connection.Connection.load_stac` or https://processes.openeo.org/#load_uploaded_files
-
-        :param format: the file format, e.g. 'GTiff'
-        :param glob_pattern: a glob pattern that matches the files to load from disk
-        :param options: options specific to the file format
-        """
-        return DataCube.load_disk_collection(
-            self, format, glob_pattern, **(options or {})
-        )
 
     def as_curl(
         self,

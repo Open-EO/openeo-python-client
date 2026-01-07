@@ -353,8 +353,8 @@ def test_start_and_wait_with_error_require_success(dummy_backend, require_succes
             pytest.raises(OpenEoApiPlainError, match=re.escape("[500] Internal Server Error")),
             [23],
         ),
-        (  # Default config with a 503 error (skipped by soft error feature of execute_batch poll loop)
-            None,
+        (  # Only retry by default on 429, but still handle a 503 error with soft error skipping feature of execute_batch poll loop
+            {"status_forcelist": [HTTP_429_TOO_MANY_REQUESTS]},
             [httpretty.Response(status=HTTP_503_SERVICE_UNAVAILABLE, body="Service Unavailable")],
             contextlib.nullcontext(),
             [23, 12.34, 34],

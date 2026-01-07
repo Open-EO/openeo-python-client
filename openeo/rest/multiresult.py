@@ -24,9 +24,9 @@ class MultiResult(FlatGraphableMixin):
 
         from openeo import MultiResult
 
-        cube1 = ...
-        cube2 = ...
-        multi_result = MultiResult([cube1, cube2])
+        res1 = cube1.save_result(...)
+        res2 = cube2.save_result(...)
+        multi_result = MultiResult([res1, res2])
         job = multi_result.create_job()
 
     .. seealso::

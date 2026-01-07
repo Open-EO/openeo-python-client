@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 
 class StacDummyBuilder:
@@ -117,13 +117,25 @@ class StacDummyBuilder:
         cls,
         href: str = "https://stac.test/asset.tiff",
         type: str = "image/tiff; application=geotiff",
-        roles: Optional[List[str]] = None,
+        roles: Union[Sequence[str], None] = ("data",),
+        proj_code: Optional[str] = None,
+        proj_bbox: Optional[Sequence[float]] = None,
+        proj_shape: Optional[Sequence[int]] = None,
+        proj_transform: Optional[Sequence[float]] = None,
         **kwargs,
     ):
-        d = {"href": href, **kwargs}
+        d: Dict[str, Any] = {"href": href, **kwargs}
         if type:
             d["type"] = type
-        if roles is not None:
-            d["roles"] = roles
+        if roles:
+            d["roles"] = list(roles)
+        if proj_code:
+            d["proj:code"] = proj_code
+        if proj_bbox:
+            d["proj:bbox"] = list(proj_bbox)
+        if proj_shape:
+            d["proj:shape"] = list(proj_shape)
+        if proj_transform:
+            d["proj:transform"] = list(proj_transform)
 
         return d

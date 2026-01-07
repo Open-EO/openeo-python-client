@@ -22,7 +22,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     Unstable API, subject to change.
 
-    :implements: :py:class:`JobDatabaseInterface`
+    :implements: :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface`
     """
 
     def __init__(
@@ -56,10 +56,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Normalize the given dataframe to be compatible with :py:class:`MultiBackendJobManager`
+        Normalize the given dataframe to be compatible with :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager`
         by adding the default columns and setting the index.
         """
-        df = MultiBackendJobManager._normalize_df(df)
+        df = MultiBackendJobManager._column_requirements.normalize_df(df)
         # If the user doesn't specify the item_id column, we will use the index.
         if "item_id" not in df.columns:
             df = df.reset_index(names=["item_id"])
@@ -69,7 +69,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         """
         Initialize the job database from a given dataframe,
         which will be first normalized to be compatible
-        with :py:class:`MultiBackendJobManager` usage.
+        with :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager` usage.
 
         :param df: dataframe with some columns your ``start_job`` callable expects
         :param on_exists: what to do when the job database already exists (persisted on disk):
