@@ -164,6 +164,15 @@ def apply_timeseries_generic(
     udf_data.set_datacube_list(datacubes)
     return udf_data
 
+def _build_expected_signatures_message() -> str:
+    """Build the 'expected signatures' part of error messages."""
+    message = "\nExpected signatures:\n"
+    for cat_name, cat_info in UDF_CATEGORIES.items():
+        for func_name in cat_info["function_names"]:
+            params = ", ".join(cat_info["required_params"])
+            message += f"  - {func_name}({params})\n"
+    message += "  - Or a single-parameter function for generic UDF"
+    return message
 
 
 def validate_udf_signature(func: Callable, category: str) -> List[str]:
@@ -192,27 +201,32 @@ def discover_udf(code: str) -> Tuple[Callable, str]:
     Returns (function, category)
     """
     module = load_module_from_string(code)
+    signature_errors = []
     
+    # Collect valid UDF candidate functions
     functions = {}
     for name, obj in module.items():
         if not callable(obj):
             continue
-        # Exclude classes
+        # Exclude classes (e.g., XarrayDataCube)
         if inspect.isclass(obj):
             continue
-        # Exclude built-in functions
+        # Exclude built-in functions, keep only user-defined functions
         if not inspect.isfunction(obj):
             continue
         
         functions[name] = obj
     
+    # Helper for building error messages
+    expected_sigs = _build_expected_signatures_message()
+    
     if not functions:
-        raise OpenEoUdfException("No function (apply_datacube, apply_timeseries, apply_vectorcube) found in UDF code.")
+        # No functions found at all
+        error_msg = "No function (apply_datacube, apply_timeseries, apply_vectorcube) found in UDF code."
+        error_msg += expected_sigs
+        raise OpenEoUdfException(error_msg)
     
-    
-    # Track all signature errors for better error messages
-    signature_errors = []
-    
+    # Check each function
     for func_name, func in functions.items():
         # Determine category based on function name
         category = None
@@ -222,7 +236,7 @@ def discover_udf(code: str) -> Tuple[Callable, str]:
                 break
         
         if category:
-            # Validate signature
+            # Validate signature for specific UDF type
             errors = validate_udf_signature(func, category)
             if not errors:
                 _log.info(f"Found UDF '{func_name}' (category: {category})")
@@ -235,19 +249,19 @@ def discover_udf(code: str) -> Tuple[Callable, str]:
             _log.info(f"Found generic UDF '{func_name}'")
             return func, "generic"
     
-    # Build comprehensive error message
+    # Functions were found, but none were valid
     error_msg = "No valid UDF found.\n"
     
     if signature_errors:
         error_msg += "\nSignature errors:\n" + "\n".join(f"  - {e}" for e in signature_errors)
+        error_msg += "\n"
     
-    error_msg += "\n\nExpected signatures:\n"
-    for cat_name, cat_info in UDF_CATEGORIES.items():
-        for func_name in cat_info["function_names"]:
-            params = ", ".join(cat_info["required_params"])
-            error_msg += f"  - {func_name}({params})\n"
+    # Optional: List the functions that were found but rejected
+    found_names = list(functions.keys())
+    if found_names:
+        error_msg += f"\nFound functions (none valid): {', '.join(found_names)}\n"
     
-    error_msg += "  - Or a single-parameter function for generic UDF"
+    error_msg += expected_sigs
     
     raise OpenEoUdfException(error_msg)
 
