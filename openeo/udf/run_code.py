@@ -3,6 +3,8 @@
 Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 """
 
+#%%
+
 import functools
 import inspect
 import logging
@@ -190,10 +192,23 @@ def discover_udf(code: str) -> Tuple[Callable, str]:
     Returns (function, category)
     """
     module = load_module_from_string(code)
-    functions = {k: v for k, v in module.items() if callable(v)}
+    
+    functions = {}
+    for name, obj in module.items():
+        if not callable(obj):
+            continue
+        # Exclude classes
+        if inspect.isclass(obj):
+            continue
+        # Exclude built-in functions
+        if not inspect.isfunction(obj):
+            continue
+        
+        functions[name] = obj
     
     if not functions:
         raise OpenEoUdfException("No function (apply_datacube, apply_timeseries, apply_vectorcube) found in UDF code.")
+    
     
     # Track all signature errors for better error messages
     signature_errors = []
@@ -427,3 +442,6 @@ def extract_udf_dependencies(udf: Union[str, UDF]) -> Union[List[str], None]:
     )
 
     return tomllib.loads(content).get("dependencies")
+
+
+
