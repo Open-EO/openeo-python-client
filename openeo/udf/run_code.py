@@ -238,24 +238,15 @@ def discover_udf(code: str) -> Tuple[Callable, str]:
 
 
 def run_udf_code(code: str, data: UdfData) -> UdfData:
-    # Main orchestrator;  
-
-    # Use discover_udf to get better error messages, but fall back to original logic
-    # if discover_udf fails (for backward compatibility)
-
     # TODO: current implementation uses first match directly, first check for multiple matches?
-
-    
-    discovered_func = None
-    discovered_category = None
-    
     try:
-        discovered_func, discovered_category = discover_udf(code)
-    except OpenEoUdfException:
-        # If discover_udf fails, we'll use the original logic
-        pass
+        # This will give us better error messages if no UDF is found
+        discover_udf(code)
+    except OpenEoUdfException as e:
+        # Re-raise with the better error message
+        raise e
     
-    # Original logic unchanged (except for adding logging of discovered UDF)
+    # SECOND: Run the original logic unchanged
     module = load_module_from_string(code)
     functions = ((k, v) for (k, v) in module.items() if callable(v))
 
@@ -339,17 +330,8 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             func(data)
             return data
 
-    # If we get here and discover_udf succeeded, log the inconsistency
-    if discovered_func and discovered_category:
-        _log.warning(f"discover_udf found UDF but run_udf_code didn't execute it")
-    
-    # Use discover_udf's error message if it failed
-    try:
-        discover_udf(code)  # This will raise with better error message
-    except OpenEoUdfException as e:
-        raise e
-    except Exception:
-        raise OpenEoUdfException("No UDF found.")
+    # This should rarely be reached since discover_udf should have caught it
+    raise OpenEoUdfException("No UDF found.")
 
 
 def execute_local_udf(
