@@ -340,7 +340,7 @@ def _is_package_available(name: str) -> bool:
 
 class TestsDiscoverUdf:
 
-    def test_discover_udf_empty_code():
+    def test_discover_udf_empty_code(self):
         """Test: Code with no functions at all."""
         udf_code = textwrap.dedent("""
             # Just comments
@@ -361,7 +361,7 @@ class TestsDiscoverUdf:
         assert "apply_vectorcube(geometries, cube, context)" in error_msg
 
 
-    def test_discover_udf_wrong_function_name():
+    def test_discover_udf_wrong_function_name(self):
         """Test: Functions exist but with wrong names."""
         udf_code = textwrap.dedent("""
             def process_data(cube, context):
@@ -383,7 +383,7 @@ class TestsDiscoverUdf:
 
 
 
-    def test_discover_udf_missing_required_param_timeseries():
+    def test_discover_udf_missing_required_param_timeseries(self):
         """Test: apply_timeseries missing 'series' parameter."""
         udf_code = textwrap.dedent("""
             import pandas as pd
@@ -400,7 +400,7 @@ class TestsDiscoverUdf:
         assert "Missing required parameter: 'series'" in error_msg
 
 
-    def test_discover_udf_missing_required_param_datacube():
+    def test_discover_udf_missing_required_param_datacube(self):
         """Test: apply_datacube missing 'context' parameter."""
         udf_code = textwrap.dedent("""
             def apply_datacube(cube):  # Missing 'context'
@@ -415,7 +415,7 @@ class TestsDiscoverUdf:
         assert "Missing required parameter: 'context'" in error_msg
 
 
-    def test_discover_udf_missing_required_param_vectorcube():
+    def test_discover_udf_missing_required_param_vectorcube(self):
         """Test: apply_vectorcube missing 'geometries' parameter."""
         udf_code = textwrap.dedent("""
             def apply_vectorcube(cube, context):  # Missing 'geometries'
