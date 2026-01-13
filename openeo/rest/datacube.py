@@ -300,7 +300,7 @@ class DataCube(_ProcessGraphAbstraction):
                 unsupported_properties = set(properties.keys()).difference(supported_properties)
                 if unsupported_properties:
                     warnings.warn(
-                        f"Property filtering with unsupported properties according to collection/STAC metadata: {unsupported_properties} (supported: {supported_properties}).",
+                        f"Property filtering with properties not listed in collection/STAC metadata: {list(unsupported_properties)} (supported: {list(supported_properties)}).",
                         stacklevel=3,
                     )
             properties = {
