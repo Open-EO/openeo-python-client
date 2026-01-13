@@ -805,6 +805,11 @@ def test_url_join():
     assert url_join("http://d.test", "/foo/bar") == "http://d.test/foo/bar"
     assert url_join("http://d.test/", "/foo/bar") == "http://d.test/foo/bar"
 
+    assert url_join("http://d.test/sub", "foo/bar") == "http://d.test/sub/foo/bar"
+    assert url_join("http://d.test/sub/", "foo/bar") == "http://d.test/sub/foo/bar"
+    assert url_join("http://d.test/sub", "/foo/bar") == "http://d.test/sub/foo/bar"
+    assert url_join("http://d.test/sub/", "/foo/bar") == "http://d.test/sub/foo/bar"
+
 
 def test_clip():
     assert clip(-3, -2, 8) == -2
