@@ -16,7 +16,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 import shapely.geometry.base
@@ -604,7 +604,10 @@ def to_bbox_dict(x: Any, *, crs: Optional[Union[str, int]] = None) -> BBoxDict:
 
 def url_join(root_url: str, path: str):
     """Join a base url and sub path properly."""
-    return urljoin(root_url.rstrip("/") + "/", path.lstrip("/"))
+    root = root_url.rstrip("/")
+    if path.startswith("/") and urlparse(root).path:
+        return root + path
+    return urljoin(root + "/", path.lstrip("/"))
 
 
 def clip(x: float, min: float, max: float) -> float:

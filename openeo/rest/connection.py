@@ -187,6 +187,7 @@ class Connection(RestApiConnection):
         :param url: initial backend url (not including "/.well-known/openeo")
         :return: root url of highest supported backend version
         """
+        original_url = url
         try:
             connection = RestApiConnection(url, session=session, retry=retry)
             well_known_url_response = connection.get("/.well-known/openeo", timeout=timeout)
@@ -197,10 +198,14 @@ class Connection(RestApiConnection):
             production_versions = [v for v in supported_versions if v.get("production", True)]
             highest_version = max(production_versions or supported_versions, key=lambda v: v["api_version"])
             _log.debug("Highest supported version available in backend: %s" % highest_version)
-            return highest_version['url']
+            discovered_url = highest_version['url']
+            from urllib.parse import urlparse
+            if urlparse(original_url).path not in ("", "/") and urlparse(discovered_url).path in ("", "/"):
+                return original_url
+            return discovered_url
         except Exception:
             # Be very lenient about failing on the well-known URI strategy.
-            return url
+            return original_url
 
     def _on_auth_update(self):
         super()._on_auth_update()
