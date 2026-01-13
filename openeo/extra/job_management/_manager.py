@@ -230,6 +230,7 @@ class MultiBackendJobManager:
         name: str,
         connection: Union[Connection, Callable[[], Connection]],
         parallel_jobs: int = 2,
+        queueing_limit: int = 10,
     ):
         """
         Register a backend with a name and a :py:class:`Connection` getter.
@@ -246,6 +247,8 @@ class MultiBackendJobManager:
             Either a Connection to the backend, or a callable to create a backend connection.
         :param parallel_jobs:
             Maximum number of jobs to allow in parallel on a backend.
+        :param queueing_limit:
+            Maximum number of jobs to allow in queue on a backend. Setting this too high may lead to a backend rejecting jobs.
         """
 
         # TODO: Code might become simpler if we turn _Backend into class move this logic there.
@@ -255,8 +258,9 @@ class MultiBackendJobManager:
             c = connection
             connection = lambda: c
         assert callable(connection)
-        # TODO: expose queueing_limit?
-        self.backends[name] = _Backend(get_connection=connection, parallel_jobs=parallel_jobs, queueing_limit=10)
+        self.backends[name] = _Backend(
+            get_connection=connection, parallel_jobs=parallel_jobs, queueing_limit=queueing_limit
+        )
 
     def _get_connection(self, backend_name: str, resilient: bool = True) -> Connection:
         """Get a connection for the backend and optionally make it resilient (adds retry behavior)
