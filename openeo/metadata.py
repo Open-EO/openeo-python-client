@@ -603,6 +603,7 @@ class CollectionMetadata(CubeMetadata):
             deep_get(spec, "summaries", "eo:bands", default=None)
             or deep_get(spec, "summaries", "bands", default=None)
             or deep_get(spec, "summaries", "raster:bands", default=None)
+            # TODO: drop this 0.4-style "properties/eo:bands"
             or deep_get(spec, "properties", "eo:bands", default=None)
         )
         if summaries_bands:
@@ -878,7 +879,12 @@ class _StacMetadataParser:
         # Check item assets if available
         elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
             return self._bands_from_item_assets(collection.item_assets)
-        elif _PYSTAC_1_9_EXTENSION_INTERFACE and collection.ext.has("item_assets") and collection.ext.item_assets:
+        elif (
+            _PYSTAC_1_9_EXTENSION_INTERFACE
+            and collection.ext.has("item_assets")
+            and collection.extra_fields.get("item-assets")
+            and collection.ext.item_assets
+        ):
             return self._bands_from_item_assets(collection.ext.item_assets)
         elif collection.extra_fields.get("item_assets"):
             # Workaround for lack of support for STAC 1.1 core item_assets with pystac < 1.12

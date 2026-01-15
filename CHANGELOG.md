@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Guard STAC metadata parsing against invalid "item_assets" usage ([#853](https://github.com/Open-EO/openeo-python-client/issues/853))
+
 
 ## [0.47.0] - 2025-12-17
 
