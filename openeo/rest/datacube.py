@@ -3073,6 +3073,34 @@ class DataCube(_ProcessGraphAbstraction):
         )
 
     @openeo_process
+    def aspect(self) -> DataCube:
+        """
+        Converts every band in the datacube to a band with suffix "_aspect" containing the aspect.
+
+        :return: A data cube with the same dimensions but containing the computed aspect values.
+        """
+        return self.process(
+            process_id="aspect",
+            arguments=dict_no_none(
+                data=THIS
+            ),
+        )
+
+    @openeo_process
+    def slope(self) -> DataCube:
+        """
+        Converts every band in the datacube to a band with suffix "_slope" containing the slope.
+
+        :return: A data cube with the same dimensions but containing the computed slope values.
+        """
+        return self.process(
+            process_id="slope",
+            arguments=dict_no_none(
+                data=THIS
+            ),
+        )
+
+    @openeo_process
     def convert_data_type(
             self,
             data_type: str,
