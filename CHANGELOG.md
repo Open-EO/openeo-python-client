@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Official support for Python 3.14 (include Python 3.14 in unit test matrix on GitHub Actions) ([#801](https://github.com/Open-EO/openeo-python-client/issues/801))
+- Add `on_response_headers_sync` option to  `openeo.connect`/`Connection` to set default `on_response_headers` handler for sync requests at connection level.
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+- Guard STAC metadata parsing against invalid "item_assets" usage ([#853](https://github.com/Open-EO/openeo-python-client/issues/853))
 
 
 ## [0.47.0] - 2025-12-17

@@ -768,6 +768,67 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         )
 
 
+def test_list_auth_providers(requests_mock, api_version):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={
+            "providers": [
+                {"id": "p1", "issuer": "https://openeo.example", "title": "openEO", "scopes": ["openid"]},
+                {"id": "p2", "issuer": "https://other.example", "title": "Other", "scopes": ["openid"]},
+            ]
+        },
+    )
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 3
+
+    p1 = next(filter(lambda x: x["id"] == "p1", providers), None)
+    assert isinstance(p1, dict)
+    assert p1["type"] == "oidc"
+    assert p1["issuer"] == "https://openeo.example"
+    assert p1["title"] == "openEO"
+
+    p2 = next(filter(lambda x: x["id"] == "p2", providers), None)
+    assert isinstance(p2, dict)
+    assert p2["type"] == "oidc"
+    assert p2["issuer"] == "https://other.example"
+    assert p2["title"] == "Other"
+
+    basic = next(filter(lambda x: x["id"] == "/credentials/basic", providers), None)
+    assert isinstance(basic, dict)
+    assert basic["type"] == "basic"
+    assert basic["issuer"] == API_URL + "credentials/basic"
+    assert basic["title"] == "Internal"
+
+
+def test_list_auth_providers_empty(requests_mock, api_version):
+    requests_mock.get(
+        API_URL,
+        json=build_capabilities(api_version=api_version, basic_auth=False, oidc_auth=False),
+    )
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 0
+
+
+def test_list_auth_providers_invalid(requests_mock, api_version, caplog):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, basic_auth=False))
+    error_message = "Maintenance ongoing"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        status_code=500,
+        json={"code": "Internal", "message": error_message},
+    )
+
+    conn = Connection(API_URL)
+    providers = conn.list_auth_providers()
+    assert len(providers) == 0
+    assert f"Unable to load the OpenID Connect provider list: {error_message}" in caplog.messages
+
+
 def test_authenticate_basic_no_support(requests_mock, api_version):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": []})
 
@@ -4296,6 +4357,16 @@ def test_download_on_response_headers(dummy_backend, tmp_path):
         {"foo1": {"process_id": "foo"}},
         tmp_path / "result.data",
         on_response_headers=results.append,
+    )
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
+def test_connection_on_response_headers_sync_download(dummy_backend, tmp_path):
+    results = []
+    connection = openeo.connect(dummy_backend.connection.root_url, on_response_headers_sync=results.append)
+    connection.download(
+        {"foo1": {"process_id": "foo"}},
+        tmp_path / "result.data",
     )
     assert results == [{"OpenEO-Identifier": "r-001"}]
 

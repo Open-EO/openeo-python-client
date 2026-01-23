@@ -2088,6 +2088,24 @@ class TestStacMetadataParser:
         if _PYSTAC_1_9_EXTENSION_INTERFACE:
             assert caplog.messages == expected_warnings
 
+    def test_bands_from_stac_collection_with_item_assets_extension_but_no_item_assets(self, caplog):
+        """
+        item-assets extension is declared, but "item_assets" field is missing
+        which is wrong, but we should not crash on that.
+        https://github.com/Open-EO/openeo-python-client/issues/853
+        """
+        stac_data = StacDummyBuilder.collection(
+            stac_version="1.0.0",
+            stac_extensions=[
+                "https://stac-extensions.github.io/eo/v1.1.0/schema.json",
+                "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json",
+            ],
+        )
+        collection = pystac.Collection.from_dict(stac_data)
+        actual_bands = _StacMetadataParser().bands_from_stac_collection(collection).band_names()
+        assert actual_bands == []
+        assert "bands_from_stac_collection: no band name source found" in caplog.messages
+
     @pytest.mark.parametrize(
         ["path", "expected"],
         [
