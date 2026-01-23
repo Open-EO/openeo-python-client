@@ -78,11 +78,14 @@ def _get_annotation_str(annotation: Union[str, type]) -> str:
 
 def _annotation_is_pandas_series(annotation) -> bool:
     # Support both pandas 2.x ("pandas.core.series.Series") and pandas 3.x ("pandas.Series")
+    # We explicitly list both paths to ensure cross-version compatibility:
+    # - UDFs written with pandas 2.x annotations should work in pandas 3.x environments
+    # - UDFs written with pandas 3.x annotations should work in pandas 2.x environments
     return annotation in {
         pandas.Series,
-        _get_annotation_str(pandas.Series),
-        "pandas.core.series.Series",  # Legacy pandas 2.x path
-        "pandas.Series",  # pandas 3.x path
+        _get_annotation_str(pandas.Series),  # Current pandas version's path
+        "pandas.core.series.Series",  # Explicit pandas 2.x path for cross-version support
+        "pandas.Series",  # Explicit pandas 3.x path for cross-version support
     }
 
 
