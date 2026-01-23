@@ -292,7 +292,12 @@ class VectorCube(_ProcessGraphAbstraction):
         else:
             res = self
         return self._connection.download(
-            res.flat_graph(), outputfile=outputfile, validate=validate, additional=additional, job_options=job_options
+            res.flat_graph(),
+            outputfile=outputfile,
+            validate=validate,
+            additional=additional,
+            job_options=job_options,
+            on_response_headers=on_response_headers,
         )
 
     def execute_batch(

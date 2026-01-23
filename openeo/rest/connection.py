@@ -107,6 +107,9 @@ _log = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE = 30 * 60
 
 
+ResponseHeadersHandler = Callable[[Mapping], None]
+
+
 class Connection(RestApiConnection):
     """
     Connection to an openEO backend.
@@ -134,8 +137,14 @@ class Connection(RestApiConnection):
         - ``None`` (default) to use default openEO-oriented retry settings
         - ``False`` to disable retrying requests
 
+    :param on_response_headers_sync: (optional) callback to handle (e.g. :py:func:`print`)
+        the response headers of synchronous processing requests.
+
     .. versionchanged:: 0.41.0
         Added ``retry`` argument.
+
+    .. versionchanged:: 0.48
+            Added argument ``on_response_headers_sync``.
     """
 
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
@@ -153,6 +162,7 @@ class Connection(RestApiConnection):
         oidc_auth_renewer: Optional[OidcAuthenticator] = None,
         auth: Optional[AuthBase] = None,
         retry: Union[urllib3.util.Retry, dict, bool, None] = None,
+        on_response_headers_sync: Optional[ResponseHeadersHandler] = None,
     ):
         if "://" not in url:
             url = "https://" + url
@@ -172,6 +182,7 @@ class Connection(RestApiConnection):
         self._refresh_token_store = refresh_token_store
         self._oidc_auth_renewer = oidc_auth_renewer
         self._auto_validate = auto_validate
+        self._on_response_headers_sync = on_response_headers_sync
 
     @classmethod
     def version_discovery(
@@ -1712,7 +1723,7 @@ class Connection(RestApiConnection):
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
-        on_response_headers: Optional[Callable[[Mapping], None]] = None,
+        on_response_headers: Optional[ResponseHeadersHandler] = None,
     ) -> Union[None, bytes]:
         """
         Send the underlying process graph to the backend
@@ -1731,7 +1742,7 @@ class Connection(RestApiConnection):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param on_response_headers: (optional) callback to handle/show the response headers
+        :param on_response_headers: (optional) callback to handle (e.g. :py:func:`print`) the response headers.
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
@@ -1754,7 +1765,7 @@ class Connection(RestApiConnection):
             stream=True,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
-        if on_response_headers:
+        if on_response_headers := (on_response_headers or self._on_response_headers_sync):
             on_response_headers(response.headers)
 
         if outputfile is not None:
@@ -1776,6 +1787,7 @@ class Connection(RestApiConnection):
         auto_decode: bool = True,
         additional: Optional[dict] = None,
         job_options: Optional[dict] = None,
+        on_response_headers: Optional[ResponseHeadersHandler] = None,
     ) -> Union[dict, requests.Response]:
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
@@ -1788,11 +1800,15 @@ class Connection(RestApiConnection):
         :param additional: additional (top-level) properties to set in the request body
         :param job_options: dictionary of job options to pass to the backend
             (under top-level property "job_options")
+        :param on_response_headers: (optional) callback to handle (e.g. :py:func:`print`) the response headers.
 
         :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
 
         .. versionadded:: 0.36.0
             Added arguments ``additional`` and ``job_options``.
+
+        .. versionchanged:: 0.48
+            Added argument ``on_response_headers``.
         """
         pg_with_metadata = self._build_request_with_process_graph(
             process_graph=process_graph, additional=additional, job_options=job_options
@@ -1804,6 +1820,9 @@ class Connection(RestApiConnection):
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+        if on_response_headers := (on_response_headers or self._on_response_headers_sync):
+            on_response_headers(response.headers)
+
         if auto_decode:
             try:
                 return response.json()
@@ -1993,6 +2012,7 @@ def connect(
     default_timeout: Optional[int] = None,
     auto_validate: bool = True,
     retry: Union[urllib3.util.Retry, dict, bool, None] = None,
+    on_response_headers_sync: Optional[ResponseHeadersHandler] = None,
 ) -> Connection:
     """
     This method is the entry point to OpenEO.
@@ -2020,11 +2040,17 @@ def connect(
         - ``None`` (default) to use default openEO-oriented retry settings
         - ``False`` to disable retrying requests
 
+    :param on_response_headers_sync: (optional) callback to handle (e.g. :py:func:`print`)
+        the response headers of synchronous processing requests.
+
     .. versionchanged:: 0.24.0
         Added ``auto_validate`` argument
 
     .. versionchanged:: 0.41.0
         Added ``retry`` argument.
+
+    .. versionchanged:: 0.48
+        Added argument ``on_response_headers_sync``.
     """
 
     def _config_log(message):
@@ -2055,6 +2081,7 @@ def connect(
         default_timeout=default_timeout,
         auto_validate=auto_validate,
         retry=retry,
+        on_response_headers_sync=on_response_headers_sync,
     )
 
     auth_type = auth_type.lower() if isinstance(auth_type, str) else auth_type

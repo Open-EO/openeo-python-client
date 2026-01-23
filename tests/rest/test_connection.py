@@ -4361,6 +4361,16 @@ def test_download_on_response_headers(dummy_backend, tmp_path):
     assert results == [{"OpenEO-Identifier": "r-001"}]
 
 
+def test_connection_on_response_headers_sync_download(dummy_backend, tmp_path):
+    results = []
+    connection = openeo.connect(dummy_backend.connection.root_url, on_response_headers_sync=results.append)
+    connection.download(
+        {"foo1": {"process_id": "foo"}},
+        tmp_path / "result.data",
+    )
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
 @pytest.mark.parametrize(
     "pg",
     [
