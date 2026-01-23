@@ -2456,7 +2456,7 @@ class DataCube(_ProcessGraphAbstraction):
         :param additional: (optional) additional (top-level) properties to set in the request body
         :param job_options: (optional) dictionary of job options to pass to the backend
             (under top-level property "job_options")
-        :param on_response_headers: (optional) callback to handle/show the response headers
+        :param on_response_headers: (optional) callback to handle (e.g. :py:func:`print`) the response headers.
 
         :return: if ``outputfile`` was not specified:
             a :py:class:`bytes` object containing the raw data.
