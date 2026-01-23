@@ -82,6 +82,7 @@ def _annotation_is_pandas_series(annotation) -> bool:
         pandas.Series,
         _get_annotation_str(pandas.Series),
         "pandas.core.series.Series",  # Legacy pandas 2.x path
+        "pandas.Series",  # pandas 3.x path
     }
 
 
