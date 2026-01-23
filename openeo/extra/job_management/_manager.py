@@ -94,6 +94,14 @@ class _ColumnRequirements:
         """
         new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
         df = df.assign(**new_columns)
+        # Apply dtype conversions to ensure compatibility with pandas 3's stricter type checking
+        # This is especially important for columns that may contain NaN values but need to be strings
+        dtype_conversions = {}
+        for col, req in self._requirements.items():
+            if col in df.columns and req.dtype != "object":
+                dtype_conversions[col] = req.dtype
+        if dtype_conversions:
+            df = df.astype(dtype_conversions)
         return df
 
     def dtype_mapping(self) -> Dict[str, str]:

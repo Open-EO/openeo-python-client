@@ -80,7 +80,7 @@ setup(
         "shapely>=1.6.4",
         "numpy>=1.17.0",
         "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
-        "pandas>0.20.0,<3.0.0",  # TODO pandas 3 compatibility https://github.com/Open-EO/openeo-python-client/issues/856
+        "pandas>0.20.0",  # pandas 3 compatibility added
         # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
         "pystac>=1.5.0",
         "deprecated>=1.2.12",

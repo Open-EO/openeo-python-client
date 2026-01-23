@@ -28,7 +28,10 @@ UDF_CODE_PATH = Path(__file__).parent / "udf_code"
 
 @pytest.mark.parametrize(["annotation", "expected"], [
     ("str", "str"),
-    (pandas.Series, "pandas.core.series.Series"),
+    # pandas.Series module path changed in pandas 3.0:
+    # pandas 2.x: "pandas.core.series.Series"
+    # pandas 3.x: "pandas.Series"
+    (pandas.Series, _get_annotation_str(pandas.Series)),
     (XarrayDataCube, "openeo.udf.xarraydatacube.XarrayDataCube"),
     (UdfData, "openeo.udf.udf_data.UdfData"),
     (str, "str"),
@@ -40,7 +43,9 @@ def test_get_annotation_str(annotation, expected):
 
 def test_annotation_is_pandas_series():
     assert _annotation_is_pandas_series(pandas.Series) is True
-    assert _annotation_is_pandas_series("pandas.core.series.Series") is True
+    # Support both pandas 2.x and 3.x module paths
+    assert _annotation_is_pandas_series("pandas.core.series.Series") is True  # pandas 2.x
+    assert _annotation_is_pandas_series("pandas.Series") is True  # pandas 3.x
 
 
 def test_annotation_is_udf_datacube():

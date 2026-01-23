@@ -77,7 +77,12 @@ def _get_annotation_str(annotation: Union[str, type]) -> str:
 
 
 def _annotation_is_pandas_series(annotation) -> bool:
-    return annotation in {pandas.Series, _get_annotation_str(pandas.Series)}
+    # Support both pandas 2.x ("pandas.core.series.Series") and pandas 3.x ("pandas.Series")
+    return annotation in {
+        pandas.Series,
+        _get_annotation_str(pandas.Series),
+        "pandas.core.series.Series",  # Legacy pandas 2.x path
+    }
 
 
 def _annotation_is_udf_datacube(annotation) -> bool:
