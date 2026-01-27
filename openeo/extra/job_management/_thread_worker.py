@@ -194,10 +194,10 @@ class _TaskThreadPool:
 
     :param max_workers:
         Maximum number of concurrent threads to use for execution.
-        Defaults to 1.
+        Defaults to 2.
     """
 
-    def __init__(self, max_workers: int = 1, name: str = 'default'):
+    def __init__(self, max_workers: int = 2, name: str = 'default'):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
         self._name = name
@@ -251,10 +251,10 @@ class _TaskThreadPool:
         _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
-        return results
+        return results, len(to_keep)
     
     def number_pending_tasks(self) -> int:
-        """Return the number of tasks that are still pending (not completed)."""
+        """Approximation of the number of tasks is used to avoid stopping the job manager too early."""
         return len(self._future_task_pairs)
 
     def shutdown(self) -> None:
@@ -305,13 +305,15 @@ class _JobManagerWorkerThreadPool:
         Returns: (all_results, dict of remaining tasks per pool)
         """
         all_results = []
+        all_remaining = {}
         
         for pool_name, pool in self._pools.items():
-            results = pool.process_futures(timeout)
+            results, remaining = pool.process_futures(timeout)
             all_results.extend(results)
-            
-        return all_results
-    
+            all_remaining[pool_name] = remaining
+
+        return all_results, all_remaining
+
     def number_pending_tasks(self, pool_name: Optional[str] = None) -> int:
         if pool_name:
             pool = self._pools.get(pool_name)

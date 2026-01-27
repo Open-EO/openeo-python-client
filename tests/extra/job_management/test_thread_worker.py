@@ -221,12 +221,12 @@ class TestTaskThreadPool:
         pool.shutdown()
 
     def test_no_tasks(self, worker_pool):
-        results = worker_pool.process_futures(timeout=10)
+        results, _ = worker_pool.process_futures(timeout=10)
         assert results == []
 
     def test_submit_and_process(self, worker_pool):
         worker_pool.submit_task(DummyTask(job_id="j-123", df_idx=0))
-        results = worker_pool.process_futures(timeout=10)
+        results, _ = worker_pool.process_futures(timeout=10)
         assert results == [
             _TaskResult(job_id="j-123", df_idx=0, db_update={"status": "dummified"}, stats_update={"dummy": 1}),
         ]
@@ -235,14 +235,14 @@ class TestTaskThreadPool:
         worker_pool.submit_task(DummyTask(job_id="j-123", df_idx=0))
         # Trigger context switch
         time.sleep(0.1)
-        results = worker_pool.process_futures(timeout=0)
+        results, _ = worker_pool.process_futures(timeout=0)
         assert results == [
             _TaskResult(job_id="j-123", df_idx=0, db_update={"status": "dummified"}, stats_update={"dummy": 1}),
         ]
 
     def test_submit_and_process_with_error(self, worker_pool):
         worker_pool.submit_task(DummyTask(job_id="j-666", df_idx=0))
-        results = worker_pool.process_futures(timeout=10)
+        results, _ = worker_pool.process_futures(timeout=10)
         assert results == [
             _TaskResult(
                 job_id="j-666",
@@ -255,13 +255,13 @@ class TestTaskThreadPool:
 
     def test_submit_and_process_iterative(self, worker_pool):
         worker_pool.submit_task(NopTask(job_id="j-1", df_idx=1))
-        results = worker_pool.process_futures(timeout=1)
+        results, _ = worker_pool.process_futures(timeout=1)
         assert results == [_TaskResult(job_id="j-1", df_idx=1)]
 
         # Add some more
         worker_pool.submit_task(NopTask(job_id="j-22", df_idx=22))
         worker_pool.submit_task(NopTask(job_id="j-222", df_idx=222))
-        results = worker_pool.process_futures(timeout=1)
+        results, _ = worker_pool.process_futures(timeout=1)
         assert results == [_TaskResult(job_id="j-22", df_idx=22), _TaskResult(job_id="j-222", df_idx=222)]
 
     def test_submit_multiple_simple(self, worker_pool):
@@ -270,7 +270,7 @@ class TestTaskThreadPool:
             worker_pool.submit_task(NopTask(job_id=f"j-{j}", df_idx=j))
 
         # Process all of them (non-zero timeout, which should be plenty of time for all of them to finish)
-        results = worker_pool.process_futures(timeout=1)
+        results, _ = worker_pool.process_futures(timeout=1)
         expected = [_TaskResult(job_id=f"j-{j}", df_idx=j) for j in range(5)]
         assert sorted(results, key=lambda r: r.job_id) == expected
 
@@ -291,16 +291,16 @@ class TestTaskThreadPool:
             )
 
         # Initial state: nothing happened yet
-        results = worker_pool.process_futures(timeout=0)
+        results, _ = worker_pool.process_futures(timeout=0)
         assert results == []
 
         # No changes even after timeout
-        results = worker_pool.process_futures(timeout=0.1)
+        results, _ = worker_pool.process_futures(timeout=0.1)
         assert results == []
 
         # Set one event and wait for corresponding result
         events[0].set()
-        results = worker_pool.process_futures(timeout=0.1)
+        results, _ = worker_pool.process_futures(timeout=0.1)
         assert results == [
             _TaskResult(job_id="j-0", df_idx=0, db_update={"status": "all fine"}),
         ]
@@ -308,7 +308,7 @@ class TestTaskThreadPool:
         # Release all but one event
         for j in range(n - 1):
             events[j].set()
-        results = worker_pool.process_futures(timeout=0.1)
+        results, _ = worker_pool.process_futures(timeout=0.1)
         assert results == [
             _TaskResult(job_id="j-1", df_idx=1, db_update={"status": "all fine"}),
             _TaskResult(job_id="j-2", df_idx=2, db_update={"status": "all fine"}),
@@ -323,7 +323,7 @@ class TestTaskThreadPool:
         # Release all events
         for j in range(n):
             events[j].set()
-        results = worker_pool.process_futures(timeout=0.1)
+        results, _ = worker_pool.process_futures(timeout=0.1)
         assert results == [
             _TaskResult(job_id="j-4", df_idx=4, db_update={"status": "all fine"}),
         ]
@@ -331,7 +331,7 @@ class TestTaskThreadPool:
     def test_shutdown(self, worker_pool):
         # Before shutdown
         worker_pool.submit_task(NopTask(job_id="j-123", df_idx=0))
-        results = worker_pool.process_futures(timeout=0.1)
+        results, _ = worker_pool.process_futures(timeout=0.1)
         assert results == [_TaskResult(job_id="j-123", df_idx=0)]
 
         worker_pool.shutdown()
@@ -346,7 +346,7 @@ class TestTaskThreadPool:
         task = _JobStartTask(job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token=None)
         worker_pool.submit_task(task)
 
-        results = worker_pool.process_futures(timeout=1)
+        results, _ = worker_pool.process_futures(timeout=1)
         assert results == [
             _TaskResult(
                 job_id="job-000",
@@ -365,7 +365,7 @@ class TestTaskThreadPool:
         task = _JobStartTask(job_id=job.job_id, df_idx=0, root_url=dummy_backend.connection.root_url, bearer_token=None)
         worker_pool.submit_task(task)
 
-        results = worker_pool.process_futures(timeout=1)
+        results, _ = worker_pool.process_futures(timeout=1)
         assert results == [
             _TaskResult(
                 job_id="job-000", df_idx=0, db_update={"status": "start_failed"}, stats_update={"start_job error": 1}
@@ -433,7 +433,7 @@ class TestJobManagerWorkerThreadPool:
         assert "default" in thread_pool._pools
         
         # Process to complete the task
-        results = thread_pool.process_futures(timeout=0.1)
+        results, _ = thread_pool.process_futures(timeout=0.1)
         assert len(results) == 1
         assert results[0].job_id == "j-1"
 
@@ -472,7 +472,7 @@ class TestJobManagerWorkerThreadPool:
 
     def test_process_futures_updates_empty(self, thread_pool):
         """Test process futures with no pools."""
-        results = thread_pool.process_futures(timeout=0)
+        results, _ = thread_pool.process_futures(timeout=0)
         assert results == []
 
     def test_process_futures_updates_multiple_pools(self, thread_pool):
@@ -482,7 +482,7 @@ class TestJobManagerWorkerThreadPool:
         thread_pool.submit_task(NopTask(job_id="j-2", df_idx=2))  # NopTask pool
         thread_pool.submit_task(DummyTask(job_id="j-3", df_idx=3))  # DummyTask pool
         
-        results = thread_pool.process_futures(timeout=0.1)
+        results, _ = thread_pool.process_futures(timeout=0.1)
         
         assert len(results) == 3
 
@@ -508,7 +508,7 @@ class TestJobManagerWorkerThreadPool:
         pool.submit_task(quick_task, "quick")     # NopTask pool
         
         # Process with timeout=0 - only quick task should complete
-        results = pool.process_futures(timeout=0)
+        results, _ = pool.process_futures(timeout=0)
         
         # Only quick task completed
         assert len(results) == 1
@@ -520,7 +520,7 @@ class TestJobManagerWorkerThreadPool:
         
         # Release blocking task and process again
         event.set()
-        results2 = pool.process_futures(timeout=0.1)
+        results2, _ = pool.process_futures(timeout=0.1)
         
         assert len(results2) == 1
         assert results2[0].job_id == "j-block"
@@ -609,7 +609,7 @@ class TestJobManagerWorkerThreadPool:
         assert pool.number_pending_tasks() == 1
         
         # Process it
-        results = pool.process_futures(timeout=0.1)
+        results, _ = pool.process_futures(timeout=0.1)
         assert len(results) == 1
         assert results[0].job_id == "j-1"
         
@@ -633,7 +633,7 @@ class TestJobManagerWorkerThreadPool:
         assert thread_pool.number_pending_tasks() == 15
         
         # Process them all
-        results = thread_pool.process_futures(timeout=0.5)
+        results, _ = thread_pool.process_futures(timeout=0.5)
         
         assert len(results) == 15
 
@@ -661,7 +661,7 @@ class TestJobManagerWorkerThreadPool:
         for event in events:
             event.set()
         
-        results = pool.process_futures(timeout=0.5)        
+        results, _ = pool.process_futures(timeout=0.5)        
         assert len(results) == 5
         
         for result in results:
@@ -675,7 +675,7 @@ class TestJobManagerWorkerThreadPool:
         thread_pool.submit_task(DummyTask(job_id="j-666", df_idx=0))
         
         # Process it
-        results = thread_pool.process_futures(timeout=0.1)
+        results, _ = thread_pool.process_futures(timeout=0.1)
         
         # Should get error result
         assert len(results) == 1
@@ -692,7 +692,7 @@ class TestJobManagerWorkerThreadPool:
         thread_pool.submit_task(DummyTask(job_id="j-3", df_idx=3))   # Success
         
         # Process all
-        results = thread_pool.process_futures(timeout=0.1)
+        results, _ = thread_pool.process_futures(timeout=0.1)
         
         # Should get 3 results
         assert len(results) == 3

@@ -403,7 +403,7 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
-        if self._worker_pool is not None or self._worker_pool.number_pending_tasks() > 0:
+        if self._worker_pool is not None:
             self._worker_pool.shutdown()
             self._worker_pool = None
 
@@ -519,7 +519,7 @@ class MultiBackendJobManager:
                     statuses=["not_started", "created", "queued_for_start", "queued", "running"]
                 ).values()) > 0
 
-            or (self._worker_pool.number_pending_tasks() > 0)
+            or (self._worker_pool.number_pending_tasks() > 0) #avoid stopping the manager too early if there are still tasks being processed
                 
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -704,7 +704,7 @@ class MultiBackendJobManager:
         :param stats:       Dictionary accumulating statistic counters
         """
         # Retrieve completed task results immediately
-        results = worker_pool.process_futures(timeout=0)
+        results, _ = worker_pool.process_futures(timeout=0)
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []
