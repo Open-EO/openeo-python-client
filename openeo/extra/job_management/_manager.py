@@ -755,13 +755,13 @@ class MultiBackendJobManager:
             job_dir = self.get_job_dir(job.job_id)
             self.ensure_job_dir_exists(job.job_id)
 
-            # Proactively refresh bearer token (because task in thread will not be able to do that
+            #Proactively refresh bearer token
             job_con =  job.connection
             self._refresh_bearer_token(connection=job_con)
             
             task = _JobDownloadTask(
                 job_id=job.job_id,
-                df_idx=row.name,  #this is going to be the index in the not saterted dataframe; should not be an issue as there is no db update for download task
+                df_idx=row.name, 
                 root_url=job_con.root_url,
                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                 download_dir=job_dir,
