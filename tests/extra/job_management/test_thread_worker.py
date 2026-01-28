@@ -543,7 +543,7 @@ class TestJobManagerWorkerThreadPool:
         pools = sorted(thread_pool.list_pools())
         assert pools == ["default", "seperate"]
 
-        results, remaining = thread_pool.process_futures(timeout=0)
+        results, remaining = thread_pool.process_futures(timeout=0.1)
         
         # Check unprocessed tasks
         assert len(results) == 3  # All tasks completed
