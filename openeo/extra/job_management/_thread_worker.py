@@ -197,10 +197,11 @@ class _TaskThreadPool:
         Defaults to 2.
     """
 
-    def __init__(self, max_workers: int = 2, name: str = 'default'):
+    def __init__(self, max_workers: int = 2):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
-        self._name = name
+        self._total_submitted = 0
+        self._total_processed = 0
 
     def submit_task(self, task: Task) -> None:
         """
@@ -214,6 +215,8 @@ class _TaskThreadPool:
         """
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
+        self._total_submitted += 1
+
 
     def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], int]:
         """
@@ -231,7 +234,11 @@ class _TaskThreadPool:
         results = []
         to_keep = []
 
-        done, _ = concurrent.futures.wait([f for f, _ in self._future_task_pairs], timeout=timeout)
+        if not self._future_task_pairs:
+            return results, 0
+
+        futures = [f for f, _ in self._future_task_pairs]
+        done, _ = concurrent.futures.wait(futures, timeout=timeout)
 
         for future, task in self._future_task_pairs:
             if future in done:
@@ -251,11 +258,17 @@ class _TaskThreadPool:
         _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
+        self._total_processed += len(results)
+
         return results, len(to_keep)
     
-    def number_pending_tasks(self) -> int:
-        """Approximation of the number of tasks is used to avoid stopping the job manager too early."""
-        return len(self._future_task_pairs)
+    def get_unprocessed_count(self) -> int:
+        """Get number of tasks that haven't been processed yet."""
+        return self._total_submitted - self._total_processed
+    
+    def has_unprocessed_tasks(self) -> bool:
+        """Check if there are tasks that haven't been processed yet."""
+        return self._total_submitted > self._total_processed
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""
@@ -264,62 +277,49 @@ class _TaskThreadPool:
 
 
 class _JobManagerWorkerThreadPool:
-
     """
     Generic wrapper that manages multiple thread pools with a dict.
     """
     
     def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
-        """
-        :param pool_configs: Dict of task_class_name -> max_workers
-                            Example: {"_JobStartTask": 1, "_JobDownloadTask": 2}
-        """
         self._pools: Dict[str, _TaskThreadPool] = {}
         self._pool_configs = pool_configs or {}
-    
-    def _get_pool_name_for_task(self, task: Task) -> str:
-        """
-        Get pool name from task class name.
-        """
-        return task.__class__.__name__
+
+    def list_pools(self) -> List[str]:
+        """List all active pool names."""
+        return list(self._pools.keys())
     
     def submit_task(self, task: Task, pool_name: str = "default") -> None:
-        """
-        Submit a task to a specific pool.
-        Creates pool dynamically if it doesn't exist.
-        
-        :param task: The task to execute
-        :param pool_name: Which pool to use (default, download, etc.)
-        """
         if pool_name not in self._pools:
-            # Create pool on-demand
-            max_workers = self._pool_configs.get(pool_name, 1)  # Default 1 worker
+            max_workers = self._pool_configs.get(pool_name, 2)
             self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
             _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
         
         self._pools[pool_name].submit_task(task)
 
+    def get_unprocessed_counts(self) -> Dict[str, int]:
+        """Get unprocessed (submitted but not processed) task counts per pool."""
+        return {name: pool.get_unprocessed_count() for name, pool in self._pools.items()}
+    
+    def has_unprocessed_tasks(self) -> bool:
+        """Check if any pool has unprocessed (submitted but not processed) tasks."""
+        return any(pool.has_unprocessed_tasks() for pool in self._pools.values())
+    
     def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
         """
         Process updates from ALL pools.
         Returns: (all_results, dict of remaining tasks per pool)
         """
         all_results = []
-        all_remaining = {}
+        to_keep = {}
         
         for pool_name, pool in self._pools.items():
             results, remaining = pool.process_futures(timeout)
             all_results.extend(results)
-            all_remaining[pool_name] = remaining
 
-        return all_results, all_remaining
+            to_keep[pool_name] = remaining
 
-    def number_pending_tasks(self, pool_name: Optional[str] = None) -> int:
-        if pool_name:
-            pool = self._pools.get(pool_name)
-            return pool.number_pending_tasks() if pool else 0
-        else:
-            return sum(pool.number_pending_tasks() for pool in self._pools.values())
+        return all_results, to_keep
     
     def shutdown(self, pool_name: Optional[str] = None) -> None:
         """
@@ -335,8 +335,5 @@ class _JobManagerWorkerThreadPool:
                 pool.shutdown()
                 del self._pools[pool_name]
     
-    def list_pools(self) -> List[str]:
-        """List all active pool names."""
-        return list(self._pools.keys())
     
 
