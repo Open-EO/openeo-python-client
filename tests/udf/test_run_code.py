@@ -3,6 +3,7 @@ import textwrap
 from pathlib import Path
 from unittest import mock
 
+import dirty_equals
 import numpy
 import pandas
 import pytest
@@ -31,7 +32,7 @@ UDF_CODE_PATH = Path(__file__).parent / "udf_code"
     # pandas.Series module path changed in pandas 3.0:
     # pandas 2.x: "pandas.core.series.Series"
     # pandas 3.x: "pandas.Series"
-    (pandas.Series, _get_annotation_str(pandas.Series)),
+    (pandas.Series, dirty_equals.IsOneOf("pandas.core.series.Series", "pandas.Series")),
     (XarrayDataCube, "openeo.udf.xarraydatacube.XarrayDataCube"),
     (UdfData, "openeo.udf.udf_data.UdfData"),
     (str, "str"),
