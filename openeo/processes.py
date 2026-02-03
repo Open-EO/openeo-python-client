@@ -2879,7 +2879,8 @@ def aggregate_spatial(data, geometries, reducer, target_dimension=UNSET, context
         aggregated values (i.e. no-data). The spatial dimensions are replaced by a dimension of type 'geometries'
         and if `target_dimension` is not `null`, a new dimension is added.
     """
-    return _process('aggregate_spatial', 
+    return _process(
+        "aggregate_spatial",
         data=data,
         geometries=geometries,
         reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
@@ -2915,7 +2916,8 @@ def aggregate_spatial_window(data, reducer, size, boundary=UNSET, align=UNSET, c
         labels will be set to the coordinate at the center of the window. The other dimension properties (name,
         type and reference system) remain unchanged.
     """
-    return _process('aggregate_spatial_window', 
+    return _process(
+        "aggregate_spatial_window",
         data=data,
         reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
         size=size,
@@ -2954,7 +2956,8 @@ def aggregate_temporal(data, intervals, reducer, labels=UNSET, dimension=UNSET, 
         system and resolution) remain unchanged, except for the resolution and dimension labels of the given
         temporal dimension.
     """
-    return _process('aggregate_temporal', 
+    return _process(
+        "aggregate_temporal",
         data=data,
         intervals=intervals,
         reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
@@ -3008,7 +3011,8 @@ def aggregate_temporal_period(data, period, reducer, dimension=UNSET, context=UN
         the source data cube has just one dimension label `2020-01-05`, the process returns a data cube with just a
         single dimension label (`2020-005`).
     """
-    return _process('aggregate_temporal_period', 
+    return _process(
+        "aggregate_temporal_period",
         data=data,
         period=period,
         reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
@@ -3149,7 +3153,8 @@ def apply_dimension(data, process, dimension, target_dimension=UNSET, context=UN
         incrementing integers starting from zero, - the resolution changes, and - the reference system is
         undefined.
     """
-    return _process('apply_dimension', 
+    return _process(
+        "apply_dimension",
         data=data,
         process=build_child_callback(process, parent_parameters=['data', 'context']),
         dimension=dimension,
@@ -3207,7 +3212,8 @@ def apply_neighborhood(data, process, size, overlap=UNSET, context=UNSET) -> Pro
     :return: A raster data cube with the newly computed values and the same dimensions. The dimension
         properties (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return _process('apply_neighborhood', 
+    return _process(
+        "apply_neighborhood",
         data=data,
         process=build_child_callback(process, parent_parameters=['data', 'context']),
         size=size,
@@ -3236,7 +3242,8 @@ def apply_polygon(data, polygons, process, mask_value=UNSET, context=UNSET) -> P
     :return: A data cube with the newly computed values and the same dimensions. The dimension properties
         (name, type, labels, reference system and resolution) remain unchanged.
     """
-    return _process('apply_polygon', 
+    return _process(
+        "apply_polygon",
         data=data,
         polygons=polygons,
         process=build_child_callback(process, parent_parameters=['data', 'context']),
@@ -3330,7 +3337,8 @@ def ard_normalized_radar_backscatter(data, elevation_model=UNSET, contributing_a
         DEM-based local incidence angles in degrees.  The data returned is CARD4L compliant with corresponding
         metadata.
     """
-    return _process('ard_normalized_radar_backscatter', 
+    return _process(
+        "ard_normalized_radar_backscatter",
         data=data,
         elevation_model=elevation_model,
         contributing_area=contributing_area,
@@ -3385,7 +3393,8 @@ def ard_surface_reflectance(data, atmospheric_correction_method, cloud_detection
         (optional): Contains coefficients used for terrain illumination correction are provided for each pixel.
         The data returned is CARD4L compliant with corresponding metadata.
     """
-    return _process('ard_surface_reflectance', 
+    return _process(
+        "ard_surface_reflectance",
         data=data,
         atmospheric_correction_method=atmospheric_correction_method,
         cloud_detection_method=cloud_detection_method,
@@ -3425,7 +3434,8 @@ def array_apply(data, process, context=UNSET) -> ProcessBuilder:
     :return: An array with the newly computed values. The number of elements are the same as for the original
         array.
     """
-    return _process('array_apply', 
+    return _process(
+        "array_apply",
         data=data,
         process=build_child_callback(process, parent_parameters=['x', 'index', 'label', 'context']),
         context=context
@@ -3515,7 +3525,8 @@ def array_filter(data, condition, context=UNSET) -> ProcessBuilder:
     :return: An array filtered by the specified condition. The number of elements are less than or equal
         compared to the original array.
     """
-    return _process('array_filter', 
+    return _process(
+        "array_filter",
         data=data,
         condition=build_child_callback(condition, parent_parameters=['x', 'index', 'label', 'context']),
         context=context
@@ -4068,7 +4079,8 @@ def filter_labels(data, condition, dimension, context=UNSET) -> ProcessBuilder:
         system and resolution) remain unchanged, except that the given dimension has less (or the same) dimension
         labels.
     """
-    return _process('filter_labels', 
+    return _process(
+        "filter_labels",
         data=data,
         condition=build_child_callback(condition, parent_parameters=['value', 'context']),
         dimension=dimension,
@@ -4168,7 +4180,8 @@ def fit_curve(data, parameters, function, ignore_nodata=UNSET) -> ProcessBuilder
 
     :return: An array with the optimal values for the parameters.
     """
-    return _process('fit_curve', 
+    return _process(
+        "fit_curve",
         data=data,
         parameters=parameters,
         function=build_child_callback(function, parent_parameters=['x', 'parameters']),
@@ -4716,7 +4729,8 @@ def merge_cubes(cube1, cube2, overlap_resolver=UNSET, context=UNSET) -> ProcessB
     :return: The merged data cube. See the process description for details regarding the dimensions and
         dimension properties (name, type, labels, reference system and resolution).
     """
-    return _process('merge_cubes', 
+    return _process(
+        "merge_cubes",
         cube1=cube1,
         cube2=cube2,
         overlap_resolver=(build_child_callback(overlap_resolver, parent_parameters=['x', 'y', 'context']) if overlap_resolver not in [None, UNSET] else overlap_resolver),
@@ -4915,7 +4929,8 @@ def predict_curve(parameters, function, dimension, labels=UNSET) -> ProcessBuild
     :return: A data cube with the predicted values with the provided dimension `dimension` having as many
         labels as provided through `labels`.
     """
-    return _process('predict_curve', 
+    return _process(
+        "predict_curve",
         parameters=parameters,
         function=build_child_callback(function, parent_parameters=['x', 'parameters']),
         dimension=dimension,
@@ -5019,7 +5034,8 @@ def reduce_dimension(data, reducer, dimension, context=UNSET) -> ProcessBuilder:
         dimensions decreases by one. The dimension properties (name, type, labels, reference system and resolution)
         for all other dimensions remain unchanged.
     """
-    return _process('reduce_dimension', 
+    return _process(
+        "reduce_dimension",
         data=data,
         reducer=build_child_callback(reducer, parent_parameters=['data', 'context']),
         dimension=dimension,
@@ -5250,7 +5266,8 @@ def sar_backscatter(data, coefficient=UNSET, elevation_model=UNSET, mask=UNSET, 
     :return: Backscatter values corresponding to the chosen parametrization. The values are given in linear
         scale.
     """
-    return _process('sar_backscatter', 
+    return _process(
+        "sar_backscatter",
         data=data,
         coefficient=coefficient,
         elevation_model=elevation_model,

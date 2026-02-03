@@ -6,10 +6,10 @@ but rather want to extract a result at specific locations.
 Examples include extracting training data for model calibration, or computing the result for
 areas where validation data is available.
 
-An important constraint is that most implementations assume that sampling is an operation 
-on relatively small areas, of for instance up to 512x512 pixels (but often much smaller). 
+An important constraint is that most implementations assume that sampling is an operation
+on relatively small areas, of for instance up to 512x512 pixels (but often much smaller).
 When extracting polygons with larger areas, it is recommended to look into running a separate job per 'sample'.
-Some more important performance notices are mentioned later in the chapter, please read them carefully 
+Some more important performance notices are mentioned later in the chapter, please read them carefully
 to get best results.
 
 Sampling can be done for points or polygons:
@@ -23,9 +23,9 @@ public url, and to load it in openEO using {py:meth}`openeo.rest.connection.Conn
 
 ## Sampling at point locations
 
-To sample point locations, the `openeo.rest.datacube.DataCube.aggregate_spatial` method can be used. The reducer can be a 
+To sample point locations, the `openeo.rest.datacube.DataCube.aggregate_spatial` method can be used. The reducer can be a
 commonly supported reducer like `min`, `max` or `mean` and will receive only one value as input in most cases. Note that
-in edge cases, a point can intersect with up to 4 pixels. If this is not desirable, it might be worth trying to align 
+in edge cases, a point can intersect with up to 4 pixels. If this is not desirable, it might be worth trying to align
 points with pixel centers, which does require more advanced knowledge of the pixel grid of your data cube.
 
 More information on `aggregate_spatial` is available [here](_aggregate-spatial-evi).
