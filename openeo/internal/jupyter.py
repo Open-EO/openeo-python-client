@@ -129,7 +129,7 @@ def render_component(component: str, data=None, parameters: dict = None):
         font.as = "font";
         font.type = "font/woff2";
         font.crossOrigin = true;
-        font.href = "https://use.fontawesome.com/releases/v5.13.0/webfonts/fa-solid-900.woff2"
+        font.href = "https://use.fontawesome.com/releases/v5.13.0/webfonts/fa-solid-900.woff2";
         document.head.appendChild(font);
     }}
     </script>
