@@ -94,6 +94,25 @@ class _ColumnRequirements:
         """
         new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
         df = df.assign(**new_columns)
+        # Apply dtype conversions to ensure compatibility with pandas 3's stricter type checking.
+        # This is especially important for columns that may contain NaN values but need to be strings.
+        # Only convert columns where the current dtype doesn't match the required dtype.
+        # For string columns (dtype="str"), we convert to "object" to maintain backward compatibility
+        # (pandas 3.x "str" creates StringDtype, pandas 2.x "str" was an alias for object).
+        dtype_conversions = {}
+        for col, req in self._requirements.items():
+            if col in df.columns:
+                current_dtype = str(df[col].dtype)
+                required_dtype = req.dtype
+                # Only convert if the current dtype is different and not already compatible
+                if required_dtype == "str" and current_dtype not in {"object", "string", "str"}:
+                    # Convert to object for backward compatibility
+                    dtype_conversions[col] = "object"
+                elif required_dtype not in {"object", "str"} and current_dtype != required_dtype:
+                    # For other dtypes (e.g., float64), convert as specified
+                    dtype_conversions[col] = required_dtype
+        if dtype_conversions:
+            df = df.astype(dtype_conversions)
         return df
 
     def dtype_mapping(self) -> Dict[str, str]:
