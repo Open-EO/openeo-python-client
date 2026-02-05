@@ -474,6 +474,8 @@ def build_capabilities(
             ]
         )
 
+    conformance = ["https://api.openeo.org/1.3.0/authentication/jwt"]
+
     capabilities = {
         "api_version": api_version,
         "stac_version": stac_version,
@@ -481,6 +483,7 @@ def build_capabilities(
         "title": "Dummy openEO back-end",
         "description": "Dummy openeEO back-end",
         "endpoints": endpoints,
+        "conformsTo": conformance,
         "links": [],
     }
     return capabilities
