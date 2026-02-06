@@ -277,8 +277,12 @@ class Connection(RestApiConnection):
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
             auth=HTTPBasicAuth(username, password)
         ).json()
+
+        # check for JWT bearer token conformance
+        jwt_conformance = self.capabilities().has_conformance("https://api.openeo.org/*/authentication/jwt")
+
         # Switch to bearer based authentication in further requests.
-        self.auth = BasicBearerAuth(access_token=resp["access_token"])
+        self.auth = BasicBearerAuth(access_token=resp["access_token"], jwt_conformance = jwt_conformance)
         return self
 
     def _get_oidc_provider(
