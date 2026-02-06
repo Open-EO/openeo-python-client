@@ -189,6 +189,14 @@ class DummyBackend:
         }
         self._requests_mock.get(self.connection.build_url("/file_formats"), json=self.file_formats)
         return self
+    
+    def _get_conformance(self, request, context):
+        return {
+            "conformsTo": build_conformance(
+                api_version="1.3.0", 
+                stac_version="1.0.0"
+            )
+        }
 
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
@@ -424,6 +432,20 @@ class DummyBackend:
 
         self.job_status_updater = get_status
 
+def build_conformance(
+    *,
+    api_version: str = "1.0.0",
+    stac_version: str = "0.9.0",
+) -> list[str]:
+    conformance = [
+        "https://api.openeo.org/{api_version}",
+        "https://api.stacspec.org/v{stac_version}/core",
+        "https://api.stacspec.org/v{stac_version}/collections"
+        ]
+    if api_version == "1.3.0": #TODO: use ComparableVersion
+        conformance.append("https://api.openeo.org/1.3.0/authentication/jwt")
+    return conformance
+
 
 def build_capabilities(
     *,
@@ -441,6 +463,8 @@ def build_capabilities(
     """Build a dummy capabilities document for testing purposes."""
 
     endpoints = []
+    if basic_auth:
+        endpoints.append({"path": "/conformance", "methods": ["GET"]})
     if basic_auth:
         endpoints.append({"path": "/credentials/basic", "methods": ["GET"]})
     if oidc_auth:
@@ -470,8 +494,13 @@ def build_capabilities(
         endpoints.extend(
             [
                 {"path": "/process_graphs", "methods": ["GET"]},
-                {"path": "/process_graphs/{process_graph_id", "methods": ["GET", "PUT", "DELETE"]},
+                {"path": "/process_graphs/{process_graph_id}", "methods": ["GET", "PUT", "DELETE"]},
             ]
+        )
+
+    conformance = build_conformance(
+        api_version=api_version, 
+        stac_version=stac_version
         )
 
     capabilities = {
@@ -481,6 +510,7 @@ def build_capabilities(
         "title": "Dummy openEO back-end",
         "description": "Dummy openeEO back-end",
         "endpoints": endpoints,
+        "conformsTo": conformance,
         "links": [],
     }
     return capabilities
