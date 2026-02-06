@@ -470,11 +470,17 @@ def build_capabilities(
         endpoints.extend(
             [
                 {"path": "/process_graphs", "methods": ["GET"]},
-                {"path": "/process_graphs/{process_graph_id", "methods": ["GET", "PUT", "DELETE"]},
+                {"path": "/process_graphs/{process_graph_id}", "methods": ["GET", "PUT", "DELETE"]},
             ]
         )
 
-    conformance = ["https://api.openeo.org/1.3.0/authentication/jwt"]
+    conformance = [
+        "https://api.openeo.org/{api_version}",
+        "https://api.stacspec.org/v{stac_version}/core",
+        "https://api.stacspec.org/v{stac_version}/collections"
+        ]
+    if api_version == "1.3.0": #might need a way to compare version numbers via greater than
+        conformance.append("https://api.openeo.org/1.3.0/authentication/jwt")
 
     capabilities = {
         "api_version": api_version,
