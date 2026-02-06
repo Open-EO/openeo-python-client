@@ -41,7 +41,7 @@ class OpenEoCapabilities:
     def has_conformance(self, conformance: str) -> bool:
         """Check if backend provides a given conformance string"""
         if "conformsTo" in self.capabilities:
-            for url in conformsTo:
+            for url in self.capabilities["conformsTo"]:
                 if fnmatch(url, conformance):
                     return True
         return False
