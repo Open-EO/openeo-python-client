@@ -420,7 +420,9 @@ class Connection(RestApiConnection):
             )
 
         token = tokens.access_token
-        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
+        # check for JWT bearer token conformance
+        jwt_conformance = self.capabilities().has_conformance("https://api.openeo.org/*/authentication/jwt")
+        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, jwt_conformance=jwt_conformance)
         self._oidc_auth_renewer = oidc_auth_renewer
         return self
 
