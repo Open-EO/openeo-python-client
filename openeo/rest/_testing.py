@@ -14,6 +14,7 @@ from typing import (
     Union,
 )
 
+from openeo.utils.version import ComparableVersion
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
@@ -442,8 +443,8 @@ def build_conformance(
         "https://api.stacspec.org/v{stac_version}/core",
         "https://api.stacspec.org/v{stac_version}/collections"
         ]
-    if api_version == "1.3.0": #TODO: use ComparableVersion
-        conformance.append("https://api.openeo.org/1.3.0/authentication/jwt")
+    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+        conformance.append(f"https://api.openeo.org/{api_version}/authentication/jwt")
     return conformance
 
 
