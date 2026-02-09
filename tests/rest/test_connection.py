@@ -59,7 +59,9 @@ from .auth.test_cli import auth_config, refresh_token_store
 API_URL = "https://oeo.test/"
 
 # TODO: eliminate this and replace with `build_capabilities` usage
-BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
+BASIC_ENDPOINTS = [
+    {"path": "/credentials/basic", "methods": ["GET"]}
+    ]
 
 
 GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
@@ -848,7 +850,6 @@ def test_authenticate_basic(requests_mock, api_version, basic_auth):
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
-
 def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
     auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
@@ -859,6 +860,17 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config,
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
+def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
+    requests_mock.get(API_URL, json={"api_version": "1.3.0", "endpoints": BASIC_ENDPOINTS})
+
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
+    capabilities = conn.capabilities()
+    assert isinstance(conn.auth, BearerAuth)
+    assert capabilities.api_version() == "1.3.0"
+    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == "1.3.0"
+    assert conn.auth.bearer == "6cc3570k3n"
 
 @pytest.mark.slow
 def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, caplog):
