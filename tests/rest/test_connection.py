@@ -861,15 +861,21 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config,
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
 def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
-    requests_mock.get(API_URL, json={"api_version": "1.3.0", "endpoints": BASIC_ENDPOINTS})
+    requests_mock.get(API_URL, json={
+        "api_version": "1.3.0", 
+        "endpoints": BASIC_ENDPOINTS,
+        "conformsTo": ["https://api.openeo.org/1.3.0/authentication/jwt"]
+        }
+    )
 
     conn = Connection(API_URL)
+
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     capabilities = conn.capabilities()
     assert isinstance(conn.auth, BearerAuth)
     assert capabilities.api_version() == "1.3.0"
-    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == "1.3.0"
+    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
     assert conn.auth.bearer == "6cc3570k3n"
 
 @pytest.mark.slow
