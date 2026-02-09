@@ -99,6 +99,12 @@ def con120(requests_mock, api_capabilities):
     con = Connection(API_URL)
     return con
 
+@pytest.fixture
+def con130(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0", **api_capabilities))
+    con = Connection(API_URL)
+    return con
+
 
 @pytest.fixture
 def dummy_backend(requests_mock, con120) -> DummyBackend:
