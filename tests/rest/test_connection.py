@@ -861,12 +861,7 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config,
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
 def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
-    requests_mock.get(API_URL, json={
-        "api_version": "1.3.0", 
-        "endpoints": BASIC_ENDPOINTS,
-        "conformsTo": ["https://api.openeo.org/1.3.0/authentication/jwt"]
-        }
-    )
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0"))
 
     conn = Connection(API_URL)
 
@@ -902,7 +897,6 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock,
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
     assert "No OIDC provider given, but only one available: 'fauth'. Using that one." in caplog.text
-
 
 def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
