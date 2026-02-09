@@ -42,8 +42,9 @@ class BasicBearerAuth(BearerAuth):
     """Bearer token for Basic Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, access_token: str, jwt_conformance: bool = False):
+        bearer = False
         if jwt_conformance:
-            bearer="{t}"
+            bearer= "{t}".format(t=access_token)
         else:
             bearer = "basic//{t}".format(t=access_token)
         super().__init__(bearer=bearer)
