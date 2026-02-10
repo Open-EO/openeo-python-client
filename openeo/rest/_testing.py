@@ -465,8 +465,6 @@ def build_capabilities(
 
     endpoints = []
     if basic_auth:
-        endpoints.append({"path": "/conformance", "methods": ["GET"]})
-    if basic_auth:
         endpoints.append({"path": "/credentials/basic", "methods": ["GET"]})
     if oidc_auth:
         endpoints.append({"path": "/credentials/oidc", "methods": ["GET"]})
