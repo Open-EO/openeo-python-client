@@ -442,7 +442,7 @@ def build_conformance(
         "https://api.openeo.org/{api_version}",
         "https://api.stacspec.org/v{stac_version}/core",
         "https://api.stacspec.org/v{stac_version}/collections"
-        ]
+    ]
     if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
         conformance.append(f"https://api.openeo.org/{api_version}/authentication/jwt")
     return conformance
