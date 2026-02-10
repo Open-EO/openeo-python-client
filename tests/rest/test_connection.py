@@ -409,8 +409,8 @@ def test_connect_with_session():
             ],
             "https://oeo.test/openeo/1.1.0/",
             "1.1.0",
-        ),
-        (
+    ),
+    (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
                 {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
@@ -464,8 +464,8 @@ def test_connect_with_session():
             ],
             "https://oeo.test/openeo/1.1.0/",
             "1.1.0",
-        ),
-        (
+    ),
+    (
             [
                 {
                     "api_version": "0.1.0",
