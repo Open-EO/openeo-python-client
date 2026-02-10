@@ -47,6 +47,7 @@ from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.metadata import CollectionMetadata
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    CONFORMANCE_JWT_BEARER,
     CapabilitiesException,
     OpenEoApiError,
     OpenEoClientException,
@@ -279,7 +280,7 @@ class Connection(RestApiConnection):
         ).json()
 
         # check for JWT bearer token conformance
-        jwt_conformance = self.capabilities().has_conformance("https://api.openeo.org/*/authentication/jwt")
+        jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
 
         # Switch to bearer based authentication in further requests.
         self.auth = BasicBearerAuth(access_token=resp["access_token"], jwt_conformance = jwt_conformance)
@@ -421,7 +422,7 @@ class Connection(RestApiConnection):
 
         token = tokens.access_token
         # check for JWT bearer token conformance
-        jwt_conformance = self.capabilities().has_conformance("https://api.openeo.org/*/authentication/jwt")
+        jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
         self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, jwt_conformance=jwt_conformance)
         self._oidc_auth_renewer = oidc_auth_renewer
         return self
