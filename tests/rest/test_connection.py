@@ -61,7 +61,7 @@ API_URL = "https://oeo.test/"
 # TODO: eliminate this and replace with `build_capabilities` usage
 BASIC_ENDPOINTS = [
     {"path": "/credentials/basic", "methods": ["GET"]}
-    ]
+]
 
 
 GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
