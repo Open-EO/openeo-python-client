@@ -51,8 +51,7 @@ class OidcBearerAuth(BearerAuth):
     """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, provider_id: str, access_token: str, jwt_conformance: bool = False):
-        if jwt_conformance:
-            bearer="{t}"
-        else:
-            bearer="oidc/{p}/{t}".format(p=provider_id, t=access_token)
-        super().__init__(bearer=bearer)
+        if not jwt_conformance:
+            access_token = "oidc/{p}/{t}".format(p=provider_id, t=access_token)
+        super().__init__(bearer=access_token)
+
