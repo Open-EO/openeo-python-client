@@ -6,8 +6,8 @@ is compatible with the calling context of the process graph in which it is used.
 """
 # Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 
-from deprecated import deprecated
 import xarray
+from deprecated import deprecated
 from pandas import Series
 
 from openeo.metadata import CollectionMetadata

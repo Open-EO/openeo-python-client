@@ -272,8 +272,7 @@ def test_render_process_graph_callback_wrapping():
 
     renderer = PythonRenderer(optional_default="UNSET")
     src = renderer.render_process(process, width=80)
-    assert src == dedent(
-        '''\
+    assert src == dedent('''\
         def apply_dimension(data, dimension, process):
             """
             Apply
@@ -284,12 +283,11 @@ def test_render_process_graph_callback_wrapping():
 
             :return: Data cube
             """
-            return _process('apply_dimension', 
+            return _process('apply_dimension',
                 data=data,
                 dimension=dimension,
                 process=build_child_callback(process, parent_parameters=['data'])
-            )'''
-    )
+            )''')
 
 
 def test_render_process_graph_optional_callback():
@@ -321,8 +319,7 @@ def test_render_process_graph_optional_callback():
 
     renderer = PythonRenderer(optional_default="UNSET")
     src = renderer.render_process(process)
-    assert src == dedent(
-        '''\
+    assert src == dedent('''\
         def apply(data, process=UNSET):
             """
             Apply
@@ -332,11 +329,10 @@ def test_render_process_graph_optional_callback():
 
             :return: Data cube
             """
-            return _process('apply', 
+            return _process('apply',
                 data=data,
                 process=(build_child_callback(process, parent_parameters=['data']) if process not in [None, UNSET] else process)
-            )'''
-    )
+            )''')
 
 
 def test_collect_processes_basic(tmp_path, test_data):

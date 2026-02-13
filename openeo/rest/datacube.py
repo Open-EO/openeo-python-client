@@ -175,6 +175,7 @@ class DataCube(_ProcessGraphAbstraction):
             Dict[str, Union[PGNode, typing.Callable]], List[CollectionProperty], CollectionProperty, None
         ] = None,
         max_cloud_cover: Optional[float] = None,
+        **kwargs,
     ) -> DataCube:
         """
         Create a new Raster Data cube.
@@ -199,6 +200,9 @@ class DataCube(_ProcessGraphAbstraction):
         :param properties: limit data by metadata property predicates.
             See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of such predicates.
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
+        :param kwargs: additional backend-specific parameters to pass to ``load_collection``.
+            These allow leveraging backend-specific features not covered by the standard openEO API,
+            for example: ``nodata`` (force specific nodata value), ``target_crs`` (output CRS), etc.
         :return: new DataCube containing the collection
 
         .. versionchanged:: 0.13.0
@@ -213,6 +217,10 @@ class DataCube(_ProcessGraphAbstraction):
 
         .. versionchanged:: 0.37.0
             Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
+
+        .. versionadded:: 0.48.0
+            added ``**kwargs`` for additional backend-specific parameters.
+
         """
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -254,6 +262,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
         if properties is not None:
             arguments["properties"] = properties
+
+        # Add any additional backend-specific parameters
+        arguments.update(kwargs)
 
         pg = PGNode(
             process_id='load_collection',
