@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Harden STAC parsing of "bands"/"eo:bands" when "name" field is not present (which is technically not a required field) ([#860](https://github.com/Open-EO/openeo-python-client/issues/860))
+
 ### Removed
 
 ### Fixed
