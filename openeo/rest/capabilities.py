@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Union
+import re
 
 from openeo.internal.jupyter import render_component
 from openeo.rest.models import federation_extension
@@ -36,6 +37,15 @@ class OpenEoCapabilities:
         if not api_version:
             raise ApiVersionException("No API version found")
         return ComparableVersion(api_version)
+    
+    def has_conformance(self, uri: str) -> bool:
+        """Check if backend provides a given conformance string"""
+        uri = re.escape(uri).replace('\\*', '[^/]+')
+        for conformance_uri in self.capabilities.get("conformsTo", []):
+            if re.match(uri, conformance_uri):
+                return True
+        return False
+        
 
     def supports_endpoint(self, path: str, method="GET") -> bool:
         """Check if backend supports given endpoint"""

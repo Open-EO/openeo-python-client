@@ -59,7 +59,9 @@ from .auth.test_cli import auth_config, refresh_token_store
 API_URL = "https://oeo.test/"
 
 # TODO: eliminate this and replace with `build_capabilities` usage
-BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
+BASIC_ENDPOINTS = [
+    {"path": "/credentials/basic", "methods": ["GET"]}
+]
 
 
 GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
@@ -407,8 +409,8 @@ def test_connect_with_session():
             ],
             "https://oeo.test/openeo/1.1.0/",
             "1.1.0",
-        ),
-        (
+    ),
+    (
             [
                 {"api_version": "0.4.1", "url": "https://oeo.test/openeo/0.4.1/"},
                 {"api_version": "1.0.0", "url": "https://oeo.test/openeo/1.0.0/"},
@@ -462,8 +464,8 @@ def test_connect_with_session():
             ],
             "https://oeo.test/openeo/1.1.0/",
             "1.1.0",
-        ),
-        (
+    ),
+    (
             [
                 {
                     "api_version": "0.1.0",
@@ -860,6 +862,19 @@ def test_authenticate_basic_from_config(requests_mock, api_version, auth_config,
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
+def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0"))
+
+    conn = Connection(API_URL)
+
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
+    capabilities = conn.capabilities()
+    assert isinstance(conn.auth, BearerAuth)
+    assert capabilities.api_version() == "1.3.0"
+    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
+    assert conn.auth.bearer == "6cc3570k3n"
+
 @pytest.mark.slow
 def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, caplog):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
@@ -1049,6 +1064,36 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock,
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
 
+@pytest.mark.slow
+def test_authenticate_oidc_auth_code_pkce_flow_jwt_bearer(requests_mock, auth_config):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0"))
+    client_id = "myclient"
+    issuer = "https://oidc.test"
+    requests_mock.get(API_URL + 'credentials/oidc', json={
+        "providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]
+    })
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_grant_type="authorization_code",
+        expected_client_id=client_id,
+        expected_fields={"scope": "openid"},
+        oidc_issuer=issuer,
+        scopes_supported=["openid"],
+    )
+    auth_config.set_oidc_client_config(backend=API_URL, provider_id="oi", client_id=client_id)
+
+    # With all this set up, kick off the openid connect flow
+    refresh_token_store = mock.Mock()
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_oidc_authorization_code(webbrowser_open=oidc_mock.webbrowser_open)
+    capabilities = conn.capabilities()
+    assert isinstance(conn.auth, BearerAuth)
+    assert capabilities.api_version() == "1.3.0"
+    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
+    assert conn.auth.bearer == oidc_mock.state["access_token"]
+    # TODO: check issuer ("iss") value in parsed jwt. this will require the example jwt to be formatted accordingly 
+    assert refresh_token_store.mock_calls == []
 
 def test_authenticate_oidc_client_credentials(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
