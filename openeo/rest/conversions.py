@@ -5,11 +5,14 @@ Helpers for data conversions between Python ecosystem data types and openEO data
 from __future__ import annotations
 
 import typing
+from pathlib import Path
+from typing import Union
 
 import numpy as np
 import pandas
 
 from openeo.internal.warnings import deprecated
+from openeo.util import load_json_resource
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -22,7 +25,9 @@ class InvalidTimeSeriesException(ValueError):
     pass
 
 
-def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collapse=True) -> pandas.DataFrame:
+def timeseries_json_to_pandas(
+    timeseries: Union[dict, str, Path], index: str = "date", auto_collapse=True
+) -> pandas.DataFrame:
     """
     Convert a timeseries JSON object as returned by the `aggregate_spatial` process to a pandas DataFrame object
 
@@ -32,16 +37,21 @@ def timeseries_json_to_pandas(timeseries: dict, index: str = "date", auto_collap
     When there is just a single polygon or band in play, the dataframe will be simplified
     by removing the corresponding dimension if `auto_collapse` is enabled (on by default).
 
-    :param timeseries: dictionary as returned by `aggregate_spatial`
+    :param timeseries: dictionary, JSON dump, or path to JSON file as returned by `aggregate_spatial`
     :param index: which dimension should be used for the DataFrame index: 'date' or 'polygon'
     :param auto_collapse: whether single band or single polygon cases should be simplified automatically
 
     :return: pandas DataFrame or Series
+
+    .. versionchanged:: 0.48.0
+        The `timeseries` argument to also be a JSON dump or a path to a JSON file, in addition to a dictionary.
     """
     # The input timeseries dictionary is assumed to have this structure:
     #       {dict mapping date -> [list with one item per polygon: [list with one float/None per band or empty list]]}
     # TODO is this format of `aggregate_spatial` standardized across backends? Or can we detect the structure?
-    # TODO: option to pass a path to a JSON file as input?
+
+    if not isinstance(timeseries, dict):
+        timeseries = load_json_resource(timeseries)
 
     # Some quick checks
     if len(timeseries) == 0:
