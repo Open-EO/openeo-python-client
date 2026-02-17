@@ -396,10 +396,10 @@ def _as_job_results_download(
         _log.info(f"Downloading results from job {job_results.get_job_id()} to {download_dir}")
         job_results.download_files(target=download_dir)
         job_results = download_dir
-    if isinstance(job_results, (str, Path)):
-        return Path(job_results)
+    if isinstance(job_results, (str, Path)) and (job_results := Path(job_results)).is_dir():
+        return job_results
     else:
-        raise ValueError(f"Unsupported type: {type(job_results)}")
+        raise ValueError(f"Expected a directory with job result assets, but got {job_results!r}")
 
 
 def _compare_job_results(
@@ -425,6 +425,8 @@ def _compare_job_results(
 
     actual_filenames = set(p.name for p in actual_dir.glob("*") if p.is_file())
     expected_filenames = set(p.name for p in expected_dir.glob("*") if p.is_file())
+    if len(actual_filenames) == 0 or len(expected_filenames) == 0:
+        _log.warning(f"Empty actual/expected listing: {actual_filenames=} {expected_filenames=}")
     if actual_filenames != expected_filenames:
         all_issues.append(f"File set mismatch: {actual_filenames} != {expected_filenames}")
 
