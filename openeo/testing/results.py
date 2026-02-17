@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
-import numpy as np
+import numpy
 import xarray
 import xarray.testing
 from xarray import DataArray
@@ -113,7 +113,7 @@ def _ascii_art(
     bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
 
     def _pixel_char(v) -> str:
-        i = 0 if np.isnan(v) else int(v * max_grayscale_idx / data_max)
+        i = 0 if numpy.isnan(v) else int(v * max_grayscale_idx / data_max)
         if v > 0 and i == 0:
             i = 1  # don't show a blank for a difference above the threshold
         else:
@@ -149,7 +149,7 @@ def _compare_xarray_dataarray_xy(
     value_mapping = dict(map(lambda d: (d, expected_as_float[d].data), non_x_y_dims))
     shape = tuple([len(value_mapping[x]) for x in non_x_y_dims])
 
-    for shape_index, v in np.ndenumerate(np.ndarray(shape)):
+    for shape_index, v in numpy.ndenumerate(numpy.ndarray(shape)):
         indexers = {}
         for index, value_index in enumerate(shape_index):
             indexers[non_x_y_dims[index]] = value_mapping[non_x_y_dims[index]][value_index]
@@ -170,7 +170,7 @@ def _compare_xarray_dataarray_xy(
 
             _log.warning(f"Difference (ascii art) for {key}:\n{_ascii_art(diff_data)}")
 
-            coord_grid = np.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
+            coord_grid = numpy.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
             mask = diff_data.notnull()
             if mask.dims[0] != "y":
                 mask = mask.transpose()
