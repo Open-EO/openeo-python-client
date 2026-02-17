@@ -3,7 +3,18 @@ import re
 import pytest
 
 from openeo.rest import OpenEoApiError
-from openeo.rest._testing import DummyBackend
+from openeo.testing import DummyBackend, build_capabilities
+
+
+@pytest.fixture
+def con120(requests_mock):
+    """Connection fixture for API version 1.2.0"""
+    api_url = "https://oeo.test/"
+    requests_mock.get(api_url, json=build_capabilities(api_version="1.2.0"))
+    from openeo.rest.connection import Connection
+
+    con = Connection(api_url)
+    return con
 
 
 @pytest.fixture
