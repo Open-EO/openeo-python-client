@@ -232,8 +232,9 @@ def _compare_xarray_dataarray(
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
+    is_numerical_data = numpy.issubdtype(actual.dtype, numpy.number) and numpy.issubdtype(expected.dtype, numpy.number)
     try:
-        if pixel_tolerance and compatible:
+        if pixel_tolerance and compatible and is_numerical_data:
             threshold = abs(expected * rtol) + atol
             bad_pixels = abs(actual * 1.0 - expected * 1.0) > threshold
             percentage_bad_pixels = bad_pixels.mean().item() * 100
@@ -320,6 +321,7 @@ def assert_xarray_dataset_allclose(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
 ):
     """
     Assert that two Xarray ``DataSet`` instances are equal (with tolerance).
@@ -335,7 +337,9 @@ def assert_xarray_dataset_allclose(
     .. warning::
         This function is experimental and subject to change.
     """
-    issues = _compare_xarray_datasets(actual=actual, expected=expected, rtol=rtol, atol=atol)
+    issues = _compare_xarray_datasets(
+        actual=actual, expected=expected, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
+    )
     if issues:
         raise AssertionError("\n".join(issues))
 

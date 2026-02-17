@@ -357,6 +357,21 @@ class TestAssertXarray:
         )
         assert_xarray_dataset_allclose(actual=actual, expected=expected)
 
+    def test_assert_xarray_dataset_allclose_crs_variable(self):
+        expected = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        actual = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        assert_xarray_dataset_allclose(actual=actual, expected=expected, pixel_tolerance=0.1)
+
 
 class TestAssertJobResults:
     @pytest.fixture
