@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Best practices, coding style and general tips &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="openEO Federation Extension" href="federation-extension.html" />
+    <link rel="prev" title="Development and maintenance" href="development.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="best-practices-coding-style-and-general-tips">
+<h1>Best practices, coding style and general tips<a class="headerlink" href="#best-practices-coding-style-and-general-tips" title="Link to this heading">¶</a></h1>
+<p>This is a collection of guidelines regarding best practices,
+coding style and usage patterns for the openEO Python Client Library.</p>
+<p>It is in the first place an internal recommendation for openEO <em>developers</em>
+to give documentation, code examples, demo’s and tutorials
+a <em>consistent</em> look and feel,
+following common software engineering best practices.
+Secondly, the wider audience of openEO <em>users</em> is also invited to pick up
+a couple of tips and principles to improve their own code and scripts.</p>
+<section id="background-and-inspiration">
+<h2>Background and inspiration<a class="headerlink" href="#background-and-inspiration" title="Link to this heading">¶</a></h2>
+<p>While some people consider coding style a personal choice or even irrelevant,
+there are various reasons to settle on certain conventions.
+Just the fact alone of following conventions
+lowers the bar to get faster to the important details in someone else’s code.
+Apart from taste, there are also technical reasons to pick certain rules
+to <em>streamline the programming workflow</em>,
+not only for humans,
+but also supporting tools (e.g. minimize risk on merge conflicts).</p>
+<p>While the Python language already has a strong focus on readability by design,
+the Python community is strongly gravitating to even more strict conventions:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://peps.python.org/pep-0008/">pep8</a>: the mother of all Python code style guides</p></li>
+<li><p><a class="reference external" href="https://black.readthedocs.io/en/stable/">black</a>: an opinionated code formatting tool
+that gets more and more traction in popular, high profile projects.</p></li>
+</ul>
+<p>This openEO oriented style guide will highlight
+and build on these recommendations.</p>
+</section>
+<section id="general-code-style-recommendations">
+<h2>General code style recommendations<a class="headerlink" href="#general-code-style-recommendations" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Indentation with 4 spaces.</p></li>
+<li><p>Avoid star imports (<code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">module</span> <span class="pre">import</span> <span class="pre">*</span></code>).
+While this seems like a quick way to import a bunch of functions/classes,
+it makes it very hard for the reader to figure out where things come from.
+It can also lead to strange bugs and behavior because it silently overwrites
+references you previously imported.</p></li>
+</ul>
+</section>
+<section id="line-length-management">
+<h2>Line (length) management<a class="headerlink" href="#line-length-management" title="Link to this heading">¶</a></h2>
+<p>While desktop monitors offer plenty of (horizontal) space nowadays,
+it is still a common recommendation to <em>avoid long source code lines</em>.
+Not only are long lines hard to read and understand,
+one should also consider that source code might still be viewed
+on a small screen or tight viewport,
+where scrolling horizontally is annoying or even impossible.
+Unnecessarily long lines are also notorious
+for not playing well with version control tools and workflows.</p>
+<p>Here are some guidelines on how to split long statements over multiple lines.</p>
+<p>Split long function/method calls directly after the opening parenthesis
+and list arguments with a standard 4 space indentation
+(not after the first argument with some ad-hoc indentation).
+Put the closing parenthesis on its own line.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Avoid this:</span>
+<span class="n">s2_fapar</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;TERRASCOPE_S2_FAPAR_V2&quot;</span><span class="p">,</span>
+                                      <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;west&#39;</span><span class="p">:</span> <span class="mf">16.138916</span><span class="p">,</span> <span class="s1">&#39;east&#39;</span><span class="p">:</span> <span class="mf">16.524124</span><span class="p">,</span> <span class="s1">&#39;south&#39;</span><span class="p">:</span> <span class="mf">48.1386</span><span class="p">,</span> <span class="s1">&#39;north&#39;</span><span class="p">:</span> <span class="mf">48.320647</span><span class="p">},</span>
+                                      <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2020-05-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-05-20&quot;</span><span class="p">])</span>
+
+<span class="c1"># This is better:</span>
+<span class="n">s2_fapar</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;TERRASCOPE_S2_FAPAR_V2&quot;</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">16.138916</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">16.524124</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">48.1386</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">48.320647</span><span class="p">},</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2020-05-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-05-20&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="jupyter-lab-tips-and-tricks">
+<h2>Jupyter(lab)  tips and tricks<a class="headerlink" href="#jupyter-lab-tips-and-tricks" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Add a cell with <code class="docutils literal notranslate"><span class="pre">openeo.client_version()</span></code> (e.g. just after importing all your libraries)
+to keep track of which version of the openeo Python client library you used in your notebook.</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Best practices, coding style and general tips</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#background-and-inspiration">Background and inspiration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#general-code-style-recommendations">General code style recommendations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#line-length-management">Line (length) management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#jupyter-lab-tips-and-tricks">Jupyter(lab)  tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="development.html" title="previous chapter">Development and maintenance</a></li>
+      <li>Next: <a href="federation-extension.html" title="next chapter">openEO Federation Extension</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/best_practices.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

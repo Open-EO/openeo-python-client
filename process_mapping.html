@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>openEO Process Mapping &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Development and maintenance" href="development.html" />
+    <link rel="prev" title="API: openeo.extra.artifacts" href="api-artifacts.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="openeo-process-mapping">
+<span id="id1"></span><h1>openEO Process Mapping<a class="headerlink" href="#openeo-process-mapping" title="Link to this heading">¶</a></h1>
+<p>The table below maps openEO processes to the corresponding
+method or function in the openEO Python Client Library.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>openEO process</p></th>
+<th class="head"><p>openEO Python Client Method</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#absolute">absolute</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.absolute()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.absolute" title="openeo.processes.absolute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">absolute()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#add">add</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__add__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__radd__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.add()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.add" title="openeo.processes.add"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.add" title="openeo.rest.datacube.DataCube.add"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.add()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__add__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__radd__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#add_dimension">add_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.add_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.add_dimension" title="openeo.processes.add_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">add_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.add_dimension" title="openeo.rest.datacube.DataCube.add_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.add_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#aggregate_spatial">aggregate_spatial</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.aggregate_spatial()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.aggregate_spatial" title="openeo.processes.aggregate_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aggregate_spatial()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_spatial" title="openeo.rest.datacube.DataCube.aggregate_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#aggregate_spatial_window">aggregate_spatial_window</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.aggregate_spatial_window()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.aggregate_spatial_window" title="openeo.processes.aggregate_spatial_window"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aggregate_spatial_window()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_spatial_window" title="openeo.rest.datacube.DataCube.aggregate_spatial_window"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial_window()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#aggregate_temporal">aggregate_temporal</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.aggregate_temporal()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.aggregate_temporal" title="openeo.processes.aggregate_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aggregate_temporal()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_temporal" title="openeo.rest.datacube.DataCube.aggregate_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.aggregate_temporal()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#aggregate_temporal_period">aggregate_temporal_period</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.aggregate_temporal_period()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.aggregate_temporal_period" title="openeo.processes.aggregate_temporal_period"><code class="xref py py-meth docutils literal notranslate"><span class="pre">aggregate_temporal_period()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_temporal_period" title="openeo.rest.datacube.DataCube.aggregate_temporal_period"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.aggregate_temporal_period()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#all">all</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.all()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.all" title="openeo.processes.all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">all()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#and">and</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.logical_and" title="openeo.rest.datacube.DataCube.logical_and"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.logical_and()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__and__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#and_">and_</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.and_()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.and_" title="openeo.processes.and_"><code class="xref py py-meth docutils literal notranslate"><span class="pre">and_()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#anomaly">anomaly</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.anomaly()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.anomaly" title="openeo.processes.anomaly"><code class="xref py py-meth docutils literal notranslate"><span class="pre">anomaly()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#any">any</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.any()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.any" title="openeo.processes.any"><code class="xref py py-meth docutils literal notranslate"><span class="pre">any()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#apply">apply</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.apply()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.apply" title="openeo.processes.apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply" title="openeo.rest.datacube.DataCube.apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#apply_dimension">apply_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.apply_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.apply_dimension" title="openeo.processes.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.apply_dimension" title="openeo.rest.vectorcube.VectorCube.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.apply_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_dimension" title="openeo.rest.datacube.DataCube.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#apply_kernel">apply_kernel</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.apply_kernel()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.apply_kernel" title="openeo.processes.apply_kernel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_kernel()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_kernel" title="openeo.rest.datacube.DataCube.apply_kernel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_kernel()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#apply_neighborhood">apply_neighborhood</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.apply_neighborhood()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.apply_neighborhood" title="openeo.processes.apply_neighborhood"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_neighborhood()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_neighborhood" title="openeo.rest.datacube.DataCube.apply_neighborhood"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_neighborhood()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#apply_polygon">apply_polygon</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.apply_polygon()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.apply_polygon" title="openeo.processes.apply_polygon"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_polygon()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_polygon" title="openeo.rest.datacube.DataCube.apply_polygon"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_polygon()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#arccos">arccos</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arccos()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arccos" title="openeo.processes.arccos"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arccos()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#arcosh">arcosh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arcosh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arcosh" title="openeo.processes.arcosh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arcosh()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#arcsin">arcsin</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arcsin()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arcsin" title="openeo.processes.arcsin"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arcsin()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#arctan">arctan</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arctan()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arctan" title="openeo.processes.arctan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arctan()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#arctan2">arctan2</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arctan2()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arctan2" title="openeo.processes.arctan2"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arctan2()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#ard_normalized_radar_backscatter">ard_normalized_radar_backscatter</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.ard_normalized_radar_backscatter()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.ard_normalized_radar_backscatter" title="openeo.processes.ard_normalized_radar_backscatter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ard_normalized_radar_backscatter()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter" title="openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.ard_normalized_radar_backscatter()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#ard_surface_reflectance">ard_surface_reflectance</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.ard_surface_reflectance()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.ard_surface_reflectance" title="openeo.processes.ard_surface_reflectance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ard_surface_reflectance()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.ard_surface_reflectance" title="openeo.rest.datacube.DataCube.ard_surface_reflectance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.ard_surface_reflectance()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_append">array_append</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_append()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_append" title="openeo.processes.array_append"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_append()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_apply">array_apply</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_apply()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_apply" title="openeo.processes.array_apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_apply()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_concat">array_concat</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_concat()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_concat" title="openeo.processes.array_concat"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_concat()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_contains">array_contains</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_contains()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_contains" title="openeo.processes.array_contains"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_contains()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_create">array_create</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_create()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_create" title="openeo.processes.array_create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_create()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_create_labeled">array_create_labeled</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_create_labeled()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_create_labeled" title="openeo.processes.array_create_labeled"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_create_labeled()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_element">array_element</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__getitem__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_element()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_element" title="openeo.processes.array_element"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_element()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_filter">array_filter</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_filter()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_filter" title="openeo.processes.array_filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_filter()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_find">array_find</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_find()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_find" title="openeo.processes.array_find"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_find()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_find_label">array_find_label</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_find_label()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_find_label" title="openeo.processes.array_find_label"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_find_label()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_interpolate_linear">array_interpolate_linear</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_interpolate_linear()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_interpolate_linear" title="openeo.processes.array_interpolate_linear"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_interpolate_linear()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#array_labels">array_labels</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_labels()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_labels" title="openeo.processes.array_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_labels()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#array_modify">array_modify</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.array_modify()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.array_modify" title="openeo.processes.array_modify"><code class="xref py py-meth docutils literal notranslate"><span class="pre">array_modify()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#arsinh">arsinh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.arsinh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.arsinh" title="openeo.processes.arsinh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">arsinh()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#artanh">artanh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.artanh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.artanh" title="openeo.processes.artanh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">artanh()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#atmospheric_correction">atmospheric_correction</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.atmospheric_correction()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.atmospheric_correction" title="openeo.processes.atmospheric_correction"><code class="xref py py-meth docutils literal notranslate"><span class="pre">atmospheric_correction()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.atmospheric_correction" title="openeo.rest.datacube.DataCube.atmospheric_correction"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.atmospheric_correction()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#between">between</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.between()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.between" title="openeo.processes.between"><code class="xref py py-meth docutils literal notranslate"><span class="pre">between()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#ceil">ceil</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.ceil()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.ceil" title="openeo.processes.ceil"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ceil()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#climatological_normal">climatological_normal</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.climatological_normal()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.climatological_normal" title="openeo.processes.climatological_normal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">climatological_normal()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#clip">clip</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.clip()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.clip" title="openeo.processes.clip"><code class="xref py py-meth docutils literal notranslate"><span class="pre">clip()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#cloud_detection">cloud_detection</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cloud_detection()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cloud_detection" title="openeo.processes.cloud_detection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cloud_detection()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#constant">constant</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.constant()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.constant" title="openeo.processes.constant"><code class="xref py py-meth docutils literal notranslate"><span class="pre">constant()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#cos">cos</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cos()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cos" title="openeo.processes.cos"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cos()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#cosh">cosh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cosh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cosh" title="openeo.processes.cosh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cosh()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#count">count</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.count()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.count" title="openeo.processes.count"><code class="xref py py-meth docutils literal notranslate"><span class="pre">count()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.count_time" title="openeo.rest.datacube.DataCube.count_time"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.count_time()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#create_data_cube">create_data_cube</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.create_data_cube()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.create_data_cube" title="openeo.processes.create_data_cube"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_data_cube()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#cummax">cummax</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cummax()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cummax" title="openeo.processes.cummax"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cummax()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#cummin">cummin</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cummin()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cummin" title="openeo.processes.cummin"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cummin()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#cumproduct">cumproduct</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cumproduct()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cumproduct" title="openeo.processes.cumproduct"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cumproduct()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#cumsum">cumsum</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.cumsum()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.cumsum" title="openeo.processes.cumsum"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cumsum()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#date_between">date_between</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.date_between()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.date_between" title="openeo.processes.date_between"><code class="xref py py-meth docutils literal notranslate"><span class="pre">date_between()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#date_difference">date_difference</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.date_difference()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.date_difference" title="openeo.processes.date_difference"><code class="xref py py-meth docutils literal notranslate"><span class="pre">date_difference()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#date_shift">date_shift</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.date_shift()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.date_shift" title="openeo.processes.date_shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">date_shift()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#dimension_labels">dimension_labels</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.dimension_labels()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.dimension_labels" title="openeo.processes.dimension_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">dimension_labels()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.dimension_labels" title="openeo.rest.datacube.DataCube.dimension_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.dimension_labels()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#divide">divide</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__truediv__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__rtruediv__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.divide()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.divide" title="openeo.processes.divide"><code class="xref py py-meth docutils literal notranslate"><span class="pre">divide()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.divide" title="openeo.rest.datacube.DataCube.divide"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.divide()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__truediv__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__rtruediv__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#drop_dimension">drop_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.drop_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.drop_dimension" title="openeo.processes.drop_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">drop_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.drop_dimension" title="openeo.rest.datacube.DataCube.drop_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.drop_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#e">e</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.e()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.e" title="openeo.processes.e"><code class="xref py py-meth docutils literal notranslate"><span class="pre">e()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#eq">eq</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__eq__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.eq()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.eq" title="openeo.processes.eq"><code class="xref py py-meth docutils literal notranslate"><span class="pre">eq()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__eq__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#exp">exp</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.exp()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.exp" title="openeo.processes.exp"><code class="xref py py-meth docutils literal notranslate"><span class="pre">exp()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#export_workspace">export_workspace</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.stac_resource.StacResource.export_workspace" title="openeo.rest.stac_resource.StacResource.export_workspace"><code class="xref py py-meth docutils literal notranslate"><span class="pre">StacResource.export_workspace()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#extrema">extrema</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.extrema()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.extrema" title="openeo.processes.extrema"><code class="xref py py-meth docutils literal notranslate"><span class="pre">extrema()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_bands">filter_bands</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_bands()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_bands" title="openeo.processes.filter_bands"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_bands()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.filter_bands" title="openeo.rest.vectorcube.VectorCube.filter_bands"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.filter_bands()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_bands" title="openeo.rest.datacube.DataCube.filter_bands"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_bands()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_bbox">filter_bbox</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_bbox()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_bbox" title="openeo.processes.filter_bbox"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_bbox()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.filter_bbox" title="openeo.rest.vectorcube.VectorCube.filter_bbox"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.filter_bbox()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_bbox" title="openeo.rest.datacube.DataCube.filter_bbox"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_bbox()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_labels">filter_labels</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_labels()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_labels" title="openeo.processes.filter_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_labels()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.filter_labels" title="openeo.rest.vectorcube.VectorCube.filter_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.filter_labels()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_labels" title="openeo.rest.datacube.DataCube.filter_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_labels()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_spatial">filter_spatial</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_spatial()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_spatial" title="openeo.processes.filter_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_spatial()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_spatial" title="openeo.rest.datacube.DataCube.filter_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_spatial()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_temporal">filter_temporal</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_temporal()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_temporal" title="openeo.processes.filter_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_temporal()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_temporal" title="openeo.rest.datacube.DataCube.filter_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_temporal()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#filter_vector">filter_vector</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.filter_vector()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.filter_vector" title="openeo.processes.filter_vector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_vector()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.filter_vector" title="openeo.rest.vectorcube.VectorCube.filter_vector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.filter_vector()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#first">first</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.first()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.first" title="openeo.processes.first"><code class="xref py py-meth docutils literal notranslate"><span class="pre">first()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#fit_class_random_forest">fit_class_random_forest</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.fit_class_random_forest" title="openeo.rest.vectorcube.VectorCube.fit_class_random_forest"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.fit_class_random_forest()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#fit_curve">fit_curve</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.fit_curve()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.fit_curve" title="openeo.processes.fit_curve"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fit_curve()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.fit_curve" title="openeo.rest.datacube.DataCube.fit_curve"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.fit_curve()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#fit_regr_random_forest">fit_regr_random_forest</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.fit_regr_random_forest" title="openeo.rest.vectorcube.VectorCube.fit_regr_random_forest"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.fit_regr_random_forest()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#flatten_dimensions">flatten_dimensions</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.flatten_dimensions()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.flatten_dimensions" title="openeo.processes.flatten_dimensions"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flatten_dimensions()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.flatten_dimensions" title="openeo.rest.datacube.DataCube.flatten_dimensions"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.flatten_dimensions()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#floor">floor</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.floor()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.floor" title="openeo.processes.floor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">floor()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#ge">ge</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__ge__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__ge__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#gt">gt</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__gt__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.gt()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.gt" title="openeo.processes.gt"><code class="xref py py-meth docutils literal notranslate"><span class="pre">gt()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__gt__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#gte">gte</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.gte()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.gte" title="openeo.processes.gte"><code class="xref py py-meth docutils literal notranslate"><span class="pre">gte()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#if_">if_</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.if_()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.if_" title="openeo.processes.if_"><code class="xref py py-meth docutils literal notranslate"><span class="pre">if_()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#inspect">inspect</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.inspect()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.inspect" title="openeo.processes.inspect"><code class="xref py py-meth docutils literal notranslate"><span class="pre">inspect()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#int">int</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.int()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.int" title="openeo.processes.int"><code class="xref py py-meth docutils literal notranslate"><span class="pre">int()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#is_infinite">is_infinite</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.is_infinite()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.is_infinite" title="openeo.processes.is_infinite"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_infinite()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#is_nan">is_nan</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.is_nan()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.is_nan" title="openeo.processes.is_nan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_nan()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#is_nodata">is_nodata</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.is_nodata()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.is_nodata" title="openeo.processes.is_nodata"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_nodata()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#is_valid">is_valid</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.is_valid()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.is_valid" title="openeo.processes.is_valid"><code class="xref py py-meth docutils literal notranslate"><span class="pre">is_valid()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#last">last</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.last()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.last" title="openeo.processes.last"><code class="xref py py-meth docutils literal notranslate"><span class="pre">last()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#le">le</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__le__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#linear_scale_range">linear_scale_range</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.linear_scale_range()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.linear_scale_range" title="openeo.processes.linear_scale_range"><code class="xref py py-meth docutils literal notranslate"><span class="pre">linear_scale_range()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.linear_scale_range" title="openeo.rest.datacube.DataCube.linear_scale_range"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.linear_scale_range()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#ln">ln</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.ln()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.ln" title="openeo.processes.ln"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ln()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.ln" title="openeo.rest.datacube.DataCube.ln"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.ln()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#load_collection">load_collection</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_collection()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_collection" title="openeo.processes.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_collection()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.load_collection" title="openeo.rest.datacube.DataCube.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.load_collection()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_collection" title="openeo.rest.connection.Connection.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_collection()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#load_geojson">load_geojson</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_geojson()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_geojson" title="openeo.processes.load_geojson"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_geojson()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.load_geojson" title="openeo.rest.vectorcube.VectorCube.load_geojson"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.load_geojson()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_geojson" title="openeo.rest.connection.Connection.load_geojson"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_geojson()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#load_ml_model">load_ml_model</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_ml_model()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_ml_model" title="openeo.processes.load_ml_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_ml_model()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.mlmodel.MlModel.load_ml_model" title="openeo.rest.mlmodel.MlModel.load_ml_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">MlModel.load_ml_model()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#load_result">load_result</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_result()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_result" title="openeo.processes.load_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_result()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_result" title="openeo.rest.connection.Connection.load_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_result()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#load_stac">load_stac</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_stac()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_stac" title="openeo.processes.load_stac"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_stac()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_stac" title="openeo.rest.connection.Connection.load_stac"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_stac()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#load_uploaded_files">load_uploaded_files</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_uploaded_files()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_uploaded_files" title="openeo.processes.load_uploaded_files"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_uploaded_files()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#load_url">load_url</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.load_url()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.load_url" title="openeo.processes.load_url"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_url()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.load_url" title="openeo.rest.vectorcube.VectorCube.load_url"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.load_url()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_url" title="openeo.rest.connection.Connection.load_url"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_url()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#log">log</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.log()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.log" title="openeo.processes.log"><code class="xref py py-meth docutils literal notranslate"><span class="pre">log()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.logarithm" title="openeo.rest.datacube.DataCube.logarithm"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.logarithm()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.log2" title="openeo.rest.datacube.DataCube.log2"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.log2()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.log10" title="openeo.rest.datacube.DataCube.log10"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.log10()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#lt">lt</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__lt__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.lt()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.lt" title="openeo.processes.lt"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lt()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__lt__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#lte">lte</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__le__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.lte()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.lte" title="openeo.processes.lte"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lte()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#mask">mask</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.mask()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.mask" title="openeo.processes.mask"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mask()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.mask" title="openeo.rest.datacube.DataCube.mask"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.mask()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#mask_polygon">mask_polygon</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.mask_polygon()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.mask_polygon" title="openeo.processes.mask_polygon"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mask_polygon()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.mask_polygon" title="openeo.rest.datacube.DataCube.mask_polygon"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.mask_polygon()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#max">max</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.max()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.max" title="openeo.processes.max"><code class="xref py py-meth docutils literal notranslate"><span class="pre">max()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.max_time" title="openeo.rest.datacube.DataCube.max_time"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.max_time()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#mean">mean</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.mean()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.mean" title="openeo.processes.mean"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mean()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.mean_time" title="openeo.rest.datacube.DataCube.mean_time"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.mean_time()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#median">median</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.median()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.median" title="openeo.processes.median"><code class="xref py py-meth docutils literal notranslate"><span class="pre">median()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.median_time" title="openeo.rest.datacube.DataCube.median_time"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.median_time()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#merge_cubes">merge_cubes</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.merge_cubes()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.merge_cubes" title="openeo.processes.merge_cubes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">merge_cubes()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.merge_cubes" title="openeo.rest.datacube.DataCube.merge_cubes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.merge_cubes()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#min">min</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.min()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.min" title="openeo.processes.min"><code class="xref py py-meth docutils literal notranslate"><span class="pre">min()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.min_time" title="openeo.rest.datacube.DataCube.min_time"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.min_time()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#mod">mod</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.mod()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.mod" title="openeo.processes.mod"><code class="xref py py-meth docutils literal notranslate"><span class="pre">mod()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#multiply">multiply</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__mul__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__rmul__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__neg__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.multiply()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.multiply" title="openeo.processes.multiply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">multiply()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.multiply" title="openeo.rest.datacube.DataCube.multiply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.multiply()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__neg__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__mul__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__rmul__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#nan">nan</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.nan()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.nan" title="openeo.processes.nan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">nan()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#ndvi">ndvi</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.ndvi()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.ndvi" title="openeo.processes.ndvi"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ndvi()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.ndvi" title="openeo.rest.datacube.DataCube.ndvi"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.ndvi()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#neq">neq</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__ne__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.neq()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.neq" title="openeo.processes.neq"><code class="xref py py-meth docutils literal notranslate"><span class="pre">neq()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__ne__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#normalized_difference">normalized_difference</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.normalized_difference()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.normalized_difference" title="openeo.processes.normalized_difference"><code class="xref py py-meth docutils literal notranslate"><span class="pre">normalized_difference()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.normalized_difference" title="openeo.rest.datacube.DataCube.normalized_difference"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.normalized_difference()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#not">not</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__invert__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#not_">not_</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.not_()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.not_" title="openeo.processes.not_"><code class="xref py py-meth docutils literal notranslate"><span class="pre">not_()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#or">or</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.logical_or" title="openeo.rest.datacube.DataCube.logical_or"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.logical_or()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__or__()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#or_">or_</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.or_()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.or_" title="openeo.processes.or_"><code class="xref py py-meth docutils literal notranslate"><span class="pre">or_()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#order">order</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.order()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.order" title="openeo.processes.order"><code class="xref py py-meth docutils literal notranslate"><span class="pre">order()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#pi">pi</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.pi()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.pi" title="openeo.processes.pi"><code class="xref py py-meth docutils literal notranslate"><span class="pre">pi()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#power">power</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__pow__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.power()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.power" title="openeo.processes.power"><code class="xref py py-meth docutils literal notranslate"><span class="pre">power()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__rpow__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__pow__()</span></code>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.power" title="openeo.rest.datacube.DataCube.power"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.power()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#predict_curve">predict_curve</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.predict_curve()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.predict_curve" title="openeo.processes.predict_curve"><code class="xref py py-meth docutils literal notranslate"><span class="pre">predict_curve()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.predict_curve" title="openeo.rest.datacube.DataCube.predict_curve"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.predict_curve()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#predict_random_forest">predict_random_forest</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.predict_random_forest()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.predict_random_forest" title="openeo.processes.predict_random_forest"><code class="xref py py-meth docutils literal notranslate"><span class="pre">predict_random_forest()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.predict_random_forest" title="openeo.rest.datacube.DataCube.predict_random_forest"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.predict_random_forest()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#product">product</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.product()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.product" title="openeo.processes.product"><code class="xref py py-meth docutils literal notranslate"><span class="pre">product()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#quantiles">quantiles</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.quantiles()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.quantiles" title="openeo.processes.quantiles"><code class="xref py py-meth docutils literal notranslate"><span class="pre">quantiles()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#rearrange">rearrange</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.rearrange()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.rearrange" title="openeo.processes.rearrange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rearrange()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#reduce_dimension">reduce_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.reduce_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.reduce_dimension" title="openeo.processes.reduce_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reduce_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.reduce_dimension" title="openeo.rest.datacube.DataCube.reduce_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.reduce_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#reduce_spatial">reduce_spatial</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.reduce_spatial()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.reduce_spatial" title="openeo.processes.reduce_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reduce_spatial()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.reduce_spatial" title="openeo.rest.datacube.DataCube.reduce_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.reduce_spatial()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#rename_dimension">rename_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.rename_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.rename_dimension" title="openeo.processes.rename_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rename_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.rename_dimension" title="openeo.rest.datacube.DataCube.rename_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.rename_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#rename_labels">rename_labels</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.rename_labels()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.rename_labels" title="openeo.processes.rename_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rename_labels()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.rename_labels" title="openeo.rest.datacube.DataCube.rename_labels"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.rename_labels()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#resample_cube_spatial">resample_cube_spatial</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.resample_cube_spatial()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.resample_cube_spatial" title="openeo.processes.resample_cube_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">resample_cube_spatial()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#resample_cube_temporal">resample_cube_temporal</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.resample_cube_temporal()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.resample_cube_temporal" title="openeo.processes.resample_cube_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">resample_cube_temporal()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.resample_cube_temporal" title="openeo.rest.datacube.DataCube.resample_cube_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.resample_cube_temporal()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#resample_spatial">resample_spatial</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.resample_spatial()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.resample_spatial" title="openeo.processes.resample_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">resample_spatial()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.resample_spatial" title="openeo.rest.datacube.DataCube.resample_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.resample_spatial()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#resolution_merge">resolution_merge</a></p></td>
+<td><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.resolution_merge" title="openeo.rest.datacube.DataCube.resolution_merge"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.resolution_merge()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#round">round</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.round()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.round" title="openeo.processes.round"><code class="xref py py-meth docutils literal notranslate"><span class="pre">round()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#run_udf">run_udf</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.run_udf()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.run_udf" title="openeo.processes.run_udf"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_udf()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.run_udf" title="openeo.rest.vectorcube.VectorCube.run_udf"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.run_udf()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#run_udf_externally">run_udf_externally</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.run_udf_externally()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.run_udf_externally" title="openeo.processes.run_udf_externally"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_udf_externally()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#sar_backscatter">sar_backscatter</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sar_backscatter()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sar_backscatter" title="openeo.processes.sar_backscatter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sar_backscatter()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.sar_backscatter" title="openeo.rest.datacube.DataCube.sar_backscatter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.sar_backscatter()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#save_result">save_result</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.save_result()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.save_result" title="openeo.processes.save_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save_result()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube.save_result" title="openeo.rest.vectorcube.VectorCube.save_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">VectorCube.save_result()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.save_result" title="openeo.rest.datacube.DataCube.save_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.save_result()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#sd">sd</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sd()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sd" title="openeo.processes.sd"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sd()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#sgn">sgn</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sgn()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sgn" title="openeo.processes.sgn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sgn()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#sin">sin</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sin()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sin" title="openeo.processes.sin"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sin()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#sinh">sinh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sinh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sinh" title="openeo.processes.sinh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sinh()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#sort">sort</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sort()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sort" title="openeo.processes.sort"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sort()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#sqrt">sqrt</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sqrt()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sqrt" title="openeo.processes.sqrt"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sqrt()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#subtract">subtract</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__sub__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.__rsub__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.subtract()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.subtract" title="openeo.processes.subtract"><code class="xref py py-meth docutils literal notranslate"><span class="pre">subtract()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.subtract" title="openeo.rest.datacube.DataCube.subtract"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.subtract()</span></code></a>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__sub__()</span></code>, <code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.__rsub__()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#sum">sum</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.sum()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.sum" title="openeo.processes.sum"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sum()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#tan">tan</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.tan()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.tan" title="openeo.processes.tan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tan()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#tanh">tanh</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.tanh()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.tanh" title="openeo.processes.tanh"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tanh()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#text_begins">text_begins</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.text_begins()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.text_begins" title="openeo.processes.text_begins"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text_begins()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#text_concat">text_concat</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.text_concat()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.text_concat" title="openeo.processes.text_concat"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text_concat()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#text_contains">text_contains</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.text_contains()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.text_contains" title="openeo.processes.text_contains"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text_contains()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#text_ends">text_ends</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.text_ends()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.text_ends" title="openeo.processes.text_ends"><code class="xref py py-meth docutils literal notranslate"><span class="pre">text_ends()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#trim_cube">trim_cube</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.trim_cube()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.trim_cube" title="openeo.processes.trim_cube"><code class="xref py py-meth docutils literal notranslate"><span class="pre">trim_cube()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#unflatten_dimension">unflatten_dimension</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.unflatten_dimension()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.unflatten_dimension" title="openeo.processes.unflatten_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">unflatten_dimension()</span></code></a>, <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.unflatten_dimension" title="openeo.rest.datacube.DataCube.unflatten_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.unflatten_dimension()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#variance">variance</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.variance()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.variance" title="openeo.processes.variance"><code class="xref py py-meth docutils literal notranslate"><span class="pre">variance()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#vector_buffer">vector_buffer</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.vector_buffer()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.vector_buffer" title="openeo.processes.vector_buffer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">vector_buffer()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#vector_reproject">vector_reproject</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.vector_reproject()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.vector_reproject" title="openeo.processes.vector_reproject"><code class="xref py py-meth docutils literal notranslate"><span class="pre">vector_reproject()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#vector_to_random_points">vector_to_random_points</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.vector_to_random_points()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.vector_to_random_points" title="openeo.processes.vector_to_random_points"><code class="xref py py-meth docutils literal notranslate"><span class="pre">vector_to_random_points()</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference external" href="https://processes.openeo.org/#vector_to_regular_points">vector_to_regular_points</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.vector_to_regular_points()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.vector_to_regular_points" title="openeo.processes.vector_to_regular_points"><code class="xref py py-meth docutils literal notranslate"><span class="pre">vector_to_regular_points()</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference external" href="https://processes.openeo.org/#xor">xor</a></p></td>
+<td><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">ProcessBuilder.xor()</span></code>, <a class="reference internal" href="api-processes.html#openeo.processes.xor" title="openeo.processes.xor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">xor()</span></code></a></p></td>
+</tr>
+</tbody>
+</table>
+<p><sub>(Table autogenerated on 2025-02-12)</sub></p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="api-artifacts.html" title="previous chapter">API: openeo.extra.artifacts</a></li>
+      <li>Next: <a href="development.html" title="next chapter">Development and maintenance</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/process_mapping.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

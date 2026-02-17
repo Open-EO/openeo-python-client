@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Authentication and Account Management &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User-Defined Functions (UDF) explained" href="udf.html" />
+    <link rel="prev" title="User-Defined Processes (UDP)" href="udp.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="authentication-and-account-management">
+<span id="authentication-chapter"></span><h1>Authentication and Account Management<a class="headerlink" href="#authentication-and-account-management" title="Link to this heading">¶</a></h1>
+<p>While a couple of openEO operations can be done
+anonymously, most of the interesting parts
+of the API require you to identify as a registered
+user.
+The openEO API specifies two ways to authenticate
+as a user:</p>
+<ul class="simple">
+<li><p>OpenID Connect (recommended, but not always straightforward to use)</p></li>
+<li><p>Basic HTTP Authentication (not recommended, but practically easier in some situations)</p></li>
+</ul>
+<p>To illustrate how to authenticate with the openEO Python Client Library,
+we start form a back-end connection:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;https://openeo.example.com&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="openid-connect-based-authentication">
+<h2>OpenID Connect Based Authentication<a class="headerlink" href="#openid-connect-based-authentication" title="Link to this heading">¶</a></h2>
+<p>OpenID Connect (often abbreviated “OIDC”) is an identity layer on top of the OAuth 2.0 protocol.
+An in-depth discussion of the whole architecture would lead us too far here,
+but some central OpenID Connect concepts are quite useful to understand
+in the context of working with openEO:</p>
+<ul>
+<li><p>There is <strong>decoupling</strong> between:</p>
+<ul class="simple">
+<li><p>the <em>OpenID Connect identity provider</em>
+which handles the authentication/authorization and stores user information
+(e.g. an organization Google, Github, Microsoft, your academic/research institution, …)</p></li>
+<li><p>the <em>openEO back-end</em> which manages earth observation collections
+and executes your algorithms</p></li>
+</ul>
+<p>Instead of managing the authentication procedure itself,
+an openEO back-end forwards a user to the relevant OpenID Connect provider to authenticate
+and request access to basic profile information (e.g. email address).
+On return, when the user allowed this access,
+the openEO back-end receives the profile information and uses this to identify the user.</p>
+<p>Note that with this approach, the back-end does not have to
+take care of all the security and privacy challenges
+of properly handling user registration, passwords/authentication, etc.
+Also, it allows the user to securely reuse an existing account
+registered with an established organisation, instead of having
+to register yet another account with some web service.</p>
+</li>
+<li><p>Your openEO script or application acts as
+a so called <strong>OpenID Connect client</strong>, with an associated <strong>client id</strong>.
+In most cases, a default client (id) defined by the openEO back-end will be used automatically.
+For some applications a custom client might be necessary,
+but this is out of scope of this documentation.</p></li>
+<li><p>OpenID Connect authentication can be done with different kind of “<strong>flows</strong>” (also called “grants”)
+and picking the right flow depends on your specific use case.
+The most common OIDC flows using the openEO Python Client Library are:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#authenticate-oidc-device"><span class="std std-ref">OIDC Authentication: Device Code Flow</span></a></p></li>
+<li><p><a class="reference internal" href="#authenticate-oidc-client-credentials"><span class="std std-ref">OIDC Authentication: Client Credentials Flow</span></a></p></li>
+<li><p><a class="reference internal" href="#authenticate-oidc-refresh-token"><span class="std std-ref">OIDC Authentication: Refresh Token Flow</span></a></p></li>
+</ul>
+</li>
+</ul>
+<p>In the sections below we will discuss the practical details of each flow.</p>
+<section id="general-options">
+<h3>General options<a class="headerlink" href="#general-options" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A back-end might support <strong>multiple OpenID Connect providers</strong>.
+The openEO Python Client Library will pick the first one by default,
+but another another provider can specified explicitly with the <code class="docutils literal notranslate"><span class="pre">provider_id</span></code> argument, e.g.:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_device</span><span class="p">(</span>
+    <span class="n">provider_id</span><span class="o">=</span><span class="s2">&quot;gl&quot;</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="oidc-authentication-device-code-flow">
+<span id="authenticate-oidc-device"></span><h2>OIDC Authentication: Device Code Flow<a class="headerlink" href="#oidc-authentication-device-code-flow" title="Link to this heading">¶</a></h2>
+<p>The device code flow (also called device authorization grant)
+is an interactive flow that requires a web browser for the authentication
+with the OpenID Connect provider.
+The nice things is that the browser doesn’t have to run on
+the same system or network as where you run your application,
+you could even use a browser on your mobile phone.</p>
+<p>Use <a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc_device" title="openeo.rest.connection.Connection.authenticate_oidc_device"><code class="xref py py-meth docutils literal notranslate"><span class="pre">authenticate_oidc_device()</span></code></a> to initiate the flow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_device</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This will print a message like this:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Visit https://oidc.example.net/device
+and enter user code &#39;DTNY-KLNX&#39; to authenticate.
+</pre></div>
+</div>
+<p>Some OpenID Connect Providers use a slightly longer URL that already includes
+the user code, and then you don’t need to enter the user code in one of the next steps:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Visit https://oidc.example.net/device?user_code=DTNY-KLNX to authenticate.
+</pre></div>
+</div>
+<p>You should now visit this URL in your browser of choice.
+Usually, it is intentionally a short URL to make it feasible to type it
+instead of copy-pasting it (e.g. on another device).</p>
+<p>Authenticate with the OpenID Connect provider and, if requested, enter the user code
+shown in the message.
+When the URL already contains the user code, the page won’t ask for this code.</p>
+<p>Meanwhile, the openEO Python Client Library is actively polling the OpenID Connect
+provider and when you successfully complete the authentication,
+it will receive the necessary tokens for authenticated communication
+with the back-end and print:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Authorized successfully.
+</pre></div>
+</div>
+<p>In case of authentication failure, the openEO Python Client Library
+will stop polling at some point and raise an exception.</p>
+</section>
+<section id="oidc-authentication-refresh-token-flow">
+<span id="authenticate-oidc-refresh-token"></span><h2>OIDC Authentication: Refresh Token Flow<a class="headerlink" href="#oidc-authentication-refresh-token-flow" title="Link to this heading">¶</a></h2>
+<p>When OpenID Connect authentication completes successfully,
+the openID Python library receives an access token
+to be used when doing authenticated calls to the back-end.
+The access token usually has a short lifetime to reduce
+the security risk when it would be stolen or intercepted.
+The openID Python library also receives a <em>refresh token</em>
+that can be used, through the Refresh Token flow,
+to easily request a new access token,
+without having to re-authenticate,
+which makes it useful for <strong>non-interactive uses cases</strong>.</p>
+<p>However, as it needs an existing refresh token,
+the Refresh Token Flow requires
+<strong>first to authenticate with one of the other flows</strong>
+(but in practice this should not be done very often
+because refresh tokens usually have a relatively long lifetime).
+When doing the initial authentication,
+you have to explicitly enable storage of the refresh token,
+through the <code class="docutils literal notranslate"><span class="pre">store_refresh_token</span></code> argument, e.g.:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_device</span><span class="p">(</span>
+    <span class="o">...</span>
+    <span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">True</span>
+</pre></div>
+</div>
+<p>The refresh token will be stored in file in private file
+in your home directory and will be used automatically
+when authenticating with the Refresh Token Flow,
+using <a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc_refresh_token" title="openeo.rest.connection.Connection.authenticate_oidc_refresh_token"><code class="xref py py-meth docutils literal notranslate"><span class="pre">authenticate_oidc_refresh_token()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_refresh_token</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can also bootstrap the refresh token file
+as described in <a class="reference internal" href="#oidc-auth-get-refresh-token"><span class="std std-ref">OpenID Connect refresh tokens</span></a></p>
+</section>
+<section id="oidc-authentication-client-credentials-flow">
+<span id="authenticate-oidc-client-credentials"></span><h2>OIDC Authentication: Client Credentials Flow<a class="headerlink" href="#oidc-authentication-client-credentials-flow" title="Link to this heading">¶</a></h2>
+<p>The OIDC Client Credentials flow does not involve interactive authentication (e.g. through a web browser),
+which makes it a useful option for <strong>non-interactive use cases</strong>.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>This method requires a custom <strong>OIDC client id</strong> and <strong>client secret</strong>.
+It is out of scope of this general documentation to explain
+how to obtain these as it depends on the openEO back-end you are using
+and the OIDC provider that is in play.</p>
+<p>Also, your openEO back-end might not allow it, because technically
+you are authenticating a <em>client</em> instead of a <em>user</em>.</p>
+<p>Consult the support of the openEO back-end you want to use for more information.</p>
+</div>
+<p>In its most simple form, given your client id and secret,
+you can authenticate with
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc_client_credentials" title="openeo.rest.connection.Connection.authenticate_oidc_client_credentials"><code class="xref py py-meth docutils literal notranslate"><span class="pre">authenticate_oidc_client_credentials()</span></code></a>
+as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_client_credentials</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>You might also have to pass a custom provider id (argument <code class="docutils literal notranslate"><span class="pre">provider_id</span></code>)
+if your OIDC client is associated with an OIDC provider that is different from the default provider.</p>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>Make sure to <em>keep the client secret a secret</em> and avoid putting it directly in your source code
+or, worse, committing it to a version control system.
+Instead, fetch the secret from a protected source (e.g. a protected file, a database for sensitive data, …)
+or from environment variables.</p>
+</div>
+<section id="oidc-client-credentials-using-environment-variables">
+<span id="authenticate-oidc-client-credentials-env-vars"></span><h3>OIDC Client Credentials Using Environment Variables<a class="headerlink" href="#oidc-client-credentials-using-environment-variables" title="Link to this heading">¶</a></h3>
+<p>Since version 0.18.0, the openEO Python Client Library has built-in support to get the client id,
+secret (and provider id) from environment variables
+<code class="docutils literal notranslate"><span class="pre">OPENEO_AUTH_CLIENT_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">OPENEO_AUTH_CLIENT_SECRET</span></code> and <code class="docutils literal notranslate"><span class="pre">OPENEO_AUTH_PROVIDER_ID</span></code> respectively.
+Just call <a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc_client_credentials" title="openeo.rest.connection.Connection.authenticate_oidc_client_credentials"><code class="xref py py-meth docutils literal notranslate"><span class="pre">authenticate_oidc_client_credentials()</span></code></a>
+without arguments.</p>
+<p>Usage example assuming a Linux (Bash) shell context:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_CLIENT_ID</span><span class="o">=</span><span class="s2">&quot;my-client-id&quot;</span>
+<span class="gp">$ </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_CLIENT_SECRET</span><span class="o">=</span><span class="s2">&quot;Cl13n7S3cr3t!?123&quot;</span>
+<span class="gp">$ </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_PROVIDER_ID</span><span class="o">=</span><span class="s2">&quot;oidcprovider&quot;</span>
+<span class="gp">$ </span>python
+<span class="go">&gt;&gt;&gt; import openeo</span>
+<span class="go">&gt;&gt;&gt; connection = openeo.connect(&quot;openeo.example.com&quot;)</span>
+<span class="go">&gt;&gt;&gt; connection.authenticate_oidc_client_credentials()</span>
+<span class="go">&lt;Connection to &#39;https://openeo.example.com/openeo/1.1/&#39; with OidcBearerAuth&gt;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="oidc-authentication-dynamic-method-selection">
+<span id="authenticate-oidc-automatic"></span><h2>OIDC Authentication: Dynamic Method Selection<a class="headerlink" href="#oidc-authentication-dynamic-method-selection" title="Link to this heading">¶</a></h2>
+<p>The sections above discuss various authentication options, like
+the <a class="reference internal" href="#authenticate-oidc-device"><span class="std std-ref">device code flow</span></a>,
+<a class="reference internal" href="#authenticate-oidc-refresh-token"><span class="std std-ref">refresh tokens</span></a> and
+<a class="reference internal" href="#authenticate-oidc-client-credentials"><span class="std std-ref">client credentials flow</span></a>,
+but often you want to <em>dynamically</em> switch between these depending on the situation:
+e.g. use a refresh token if you have an active one, and fallback on the device code flow otherwise.
+Or you want to be able to run the same code in an interactive environment and automated in an unattended manner,
+without having to switch authentication methods explicitly in code.</p>
+<p>That is what <a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc" title="openeo.rest.connection.Connection.authenticate_oidc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.authenticate_oidc()</span></code></a> is for:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span> <span class="c1"># is all you need</span>
+</pre></div>
+</div>
+<p>In a basic situation (without any particular environment variables set as discussed further),
+this method will first try to authenticate with refresh tokens (if any)
+and fall back on the device code flow otherwise.
+Ideally, when valid refresh tokens are available, this works without interaction,
+but occasionally, when the refresh tokens expire, one has to do the interactive device code flow.</p>
+<p>Since version 0.18.0, the openEO Python Client Library also allows to trigger the
+<a class="reference internal" href="#authenticate-oidc-client-credentials"><span class="std std-ref">client credentials flow</span></a>
+from <a class="reference internal" href="api.html#openeo.rest.connection.Connection.authenticate_oidc" title="openeo.rest.connection.Connection.authenticate_oidc"><code class="xref py py-meth docutils literal notranslate"><span class="pre">authenticate_oidc()</span></code></a>
+by setting environment variable <code class="docutils literal notranslate"><span class="pre">OPENEO_AUTH_METHOD</span></code>
+and the other <a class="reference internal" href="#authenticate-oidc-client-credentials-env-vars"><span class="std std-ref">client credentials environment variables</span></a>.
+For example:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_METHOD</span><span class="o">=</span><span class="s2">&quot;client_credentials&quot;</span>
+$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_CLIENT_ID</span><span class="o">=</span><span class="s2">&quot;my-client-id&quot;</span>
+$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_CLIENT_SECRET</span><span class="o">=</span><span class="s2">&quot;Cl13n7S3cr3t!?123&quot;</span>
+$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">OPENEO_AUTH_PROVIDER_ID</span><span class="o">=</span><span class="s2">&quot;oidcprovider&quot;</span>
+$<span class="w"> </span>python
+&gt;&gt;&gt;<span class="w"> </span>import<span class="w"> </span>openeo
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">connection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>openeo.connect<span class="o">(</span><span class="s2">&quot;openeo.example.com&quot;</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>connection.authenticate_oidc<span class="o">()</span>
+&lt;Connection<span class="w"> </span>to<span class="w"> </span><span class="s1">&#39;https://openeo.example.com/openeo/1.1/&#39;</span><span class="w"> </span>with<span class="w"> </span>OidcBearerAuth&gt;
+</pre></div>
+</div>
+</section>
+<section id="auth-config-files-and-openeo-auth-helper-tool">
+<span id="auth-configuration-files"></span><h2>Auth config files and <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> helper tool<a class="headerlink" href="#auth-config-files-and-openeo-auth-helper-tool" title="Link to this heading">¶</a></h2>
+<p>The openEO Python Client Library provides some features and tools
+that ease the usability and security challenges
+that come with authentication (especially in case of OpenID Connect).</p>
+<p>Note that the code examples above contain quite some <strong>passwords and other secrets</strong>
+that should be kept safe from prying eyes.
+It is bad practice to define these kind of secrets directly
+in your scripts and source code because that makes it quite hard
+to responsibly share or reuse your code.
+Even worse is storing these secrets in your version control system,
+where it might be near impossible to remove them again.
+A better solution is to keep <strong>secrets in separate configuration or cache files</strong>,
+outside of your normal source code tree
+(to avoid committing them accidentally).</p>
+<p>The openEO Python Client Library supports config files to store:
+user names, passwords, client IDs, client secrets, etc,
+so you don’t have to specify them always in your scripts and applications.</p>
+<p>The openEO Python Client Library (when installed properly)
+provides a command line tool <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> to bootstrap and manage
+these configs and secrets.
+It is a command line tool that provides various “subcommands”
+and has built-in help:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth -h
+usage: openeo-auth [-h] [--verbose]
+                   {paths,config-dump,token-dump,add-basic,add-oidc,oidc-auth}
+                   ...
+
+Tool to manage openEO related authentication and configuration.
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+Subcommands:
+  {paths,config-dump,token-dump,add-basic,add-oidc,oidc-auth}
+    paths               Show paths to config/token files.
+    config-dump         Dump config file.
+...
+</pre></div>
+</div>
+<p>For example, to see the expected paths of the config files:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth paths
+openEO auth config: /home/john/.config/openeo-python-client/auth-config.json (perms: 0o600, size: 1414B)
+openEO OpenID Connect refresh token store: /home/john/.local/share/openeo-python-client/refresh-tokens.json (perms: 0o600, size: 846B)
+</pre></div>
+</div>
+<p>With the <code class="docutils literal notranslate"><span class="pre">config-dump</span></code> and <code class="docutils literal notranslate"><span class="pre">token-dump</span></code> subcommands you can dump
+the current configuration and stored refresh tokens, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth config-dump
+### /home/john/.config/openeo-python-client/auth-config.json ###############
+{
+  &quot;backends&quot;: {
+    &quot;https://openeo.example.com&quot;: {
+      &quot;basic&quot;: {
+        &quot;username&quot;: &quot;john&quot;,
+        &quot;password&quot;: &quot;&lt;redacted&gt;&quot;,
+        &quot;date&quot;: &quot;2020-07-24T13:40:50Z&quot;
+...
+</pre></div>
+</div>
+<p>The sensitive information (like passwords) are redacted by default.</p>
+<section id="openid-connect-configs">
+<h3>OpenID Connect configs<a class="headerlink" href="#openid-connect-configs" title="Link to this heading">¶</a></h3>
+<p>Likewise, with the <code class="docutils literal notranslate"><span class="pre">add-oidc</span></code> subcommand you can add OpenID Connect
+credentials to the config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth add-oidc https://openeo.example.com/
+Using provider ID &#39;example&#39; (issuer &#39;https://oidc.example.net/&#39;)
+Enter client_id and press enter: client-d7393fba
+Enter client_secret and press enter:
+Saved client information to &#39;/home/john/.config/openeo-python-client/auth-config.json&#39;
+</pre></div>
+</div>
+<p>Now you can user OpenID Connect based authentication in your application
+without having to specify the client ID and client secret explicitly,
+like one of these calls:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_authorization_code</span><span class="p">()</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_client_credentials</span><span class="p">()</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_resource_owner_password_credentials</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_device</span><span class="p">()</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_refresh_token</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Note that you still have to add additional options as required, like
+<code class="docutils literal notranslate"><span class="pre">provider_id</span></code>, <code class="docutils literal notranslate"><span class="pre">server_address</span></code>, <code class="docutils literal notranslate"><span class="pre">store_refresh_token</span></code>, etc.</p>
+<section id="openid-connect-refresh-tokens">
+<span id="oidc-auth-get-refresh-token"></span><h4>OpenID Connect refresh tokens<a class="headerlink" href="#openid-connect-refresh-tokens" title="Link to this heading">¶</a></h4>
+<p>There is also a <code class="docutils literal notranslate"><span class="pre">oidc-auth</span></code> subcommand to execute an OpenID Connect
+authentication flow and store the resulting refresh token.
+This is intended to for bootstrapping the environment or system
+on which you want to run openEO scripts or applications that use
+the Refresh Token Flow for authentication.
+For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth oidc-auth https://openeo.example.com
+Using config &#39;/home/john/.config/openeo-python-client/auth-config.json&#39;.
+Starting OpenID Connect device flow.
+To authenticate: visit https://oidc.example.net/device and enter the user code &#39;Q7ZNsy&#39;.
+Authorized successfully.
+The OpenID Connect device flow was successful.
+Stored refresh token in &#39;/home/john/.local/share/openeo-python-client/refresh-tokens.json&#39;
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="basic-http-auth">
+<h2>Basic HTTP Auth<a class="headerlink" href="#basic-http-auth" title="Link to this heading">¶</a></h2>
+<p>The easiest authentication method is
+based on the Basic HTTP authentication scheme.
+It is however <em>not recommended</em> for various reasons,
+such as its limited <em>security</em> measures.
+For example, if you are connecting to a back-end with a <code class="docutils literal notranslate"><span class="pre">http://</span></code> URL
+instead of a <code class="docutils literal notranslate"><span class="pre">https://</span></code> one, you should certainly not use basic HTTP auth.</p>
+<p>With these security related caveats out of the way, you authenticate
+using your username and password like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">(</span><span class="s2">&quot;john&quot;</span><span class="p">,</span> <span class="s2">&quot;j0hn123&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Subsequent usage of the connection object <code class="docutils literal notranslate"><span class="pre">connection</span></code> will
+use authenticated calls.
+For example, show information about the authenticated user:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">connection</span><span class="o">.</span><span class="n">describe_account</span><span class="p">()</span>
+<span class="go">{&#39;user_id&#39;: &#39;john&#39;}</span>
+</pre></div>
+</div>
+<section id="basic-http-auth-config">
+<h3>Basic HTTP Auth config<a class="headerlink" href="#basic-http-auth-config" title="Link to this heading">¶</a></h3>
+<p>With the <code class="docutils literal notranslate"><span class="pre">add-basic</span></code> subcommand you can add Basic HTTP Auth credentials
+for a given back-end to the config.
+It will interactively ask for username and password and
+try if these credentials work:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth add-basic https://openeo.example.com/
+Enter username and press enter: john
+Enter password and press enter:
+Trying to authenticate with &#39;https://openeo.example.com&#39;
+Successfully authenticated &#39;john&#39;
+Saved credentials to &#39;/home/john/.config/openeo-python-client/auth-config.json&#39;
+</pre></div>
+</div>
+<p>Now you can authenticate in your application without having to
+specify username and password explicitly:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">authenticate_basic</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="default-openeo-back-end-url-and-auto-authentication">
+<span id="default-url-and-auto-auth"></span><h2>Default openEO back-end URL and auto-authentication<a class="headerlink" href="#default-openeo-back-end-url-and-auto-authentication" title="Link to this heading">¶</a></h2>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.10.0.</span></p>
+</div>
+<p>If you often use the same openEO back-end URL and authentication scheme,
+it can be handy to put these in a configuration file as discussed at <a class="reference internal" href="configuration.html#configuration-files"><span class="std std-ref">Configuration files</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that <a class="reference internal" href="configuration.html#configuration-files"><span class="std std-ref">these general configuration files</span></a> are different
+from the auth config files discussed earlier under <a class="reference internal" href="#auth-configuration-files"><span class="std std-ref">Auth config files and openeo-auth helper tool</span></a>.
+The latter are for storing authentication related secrets
+and are mostly managed automatically (e.g. by the <code class="docutils literal notranslate"><span class="pre">oidc-auth</span></code> helper tool).
+The former are not for storing secrets and are usually edited manually.</p>
+</div>
+<p>For example, to define a default back-end and automatically use OpenID Connect authentication
+add these configuration options to the <a class="reference internal" href="configuration.html#configuration-file-locations"><span class="std std-ref">desired configuration file</span></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span>
+<span class="n">default_backend</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">cloud</span>
+<span class="n">default_backend</span><span class="o">.</span><span class="n">auto_authenticate</span> <span class="o">=</span> <span class="n">oidc</span>
+</pre></div>
+</div>
+<p>Getting an authenticated connection is now as simple as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+<span class="go">Loaded openEO client config from openeo-client-config.ini</span>
+<span class="go">Using default back-end URL &#39;openeo.cloud&#39; (from config)</span>
+<span class="go">Doing auto-authentication &#39;oidc&#39; (from config)</span>
+<span class="go">Authenticated using refresh token.</span>
+</pre></div>
+</div>
+</section>
+<section id="authentication-for-long-running-applications-and-non-interactive-contexts">
+<h2>Authentication for long-running applications and non-interactive contexts<a class="headerlink" href="#authentication-for-long-running-applications-and-non-interactive-contexts" title="Link to this heading">¶</a></h2>
+<p>With OpenID Connect authentication, the <em>access token</em>
+(which is used in the authentication headers)
+is typically short-lived (e.g. couple of minutes or hours).
+This practically means that an authenticated connection could expire and become unusable
+before a <strong>long-running script or application</strong> finishes its whole workflow.
+Luckily, OpenID Connect also includes usage of <em>refresh tokens</em>,
+which have a much longer expiry and allow request a new access token
+to re-authenticate the connection.
+Since version 0.10.1, the openEO Python Client Library will automatically
+attempt to re-authenticate a connection when access token expiry is detected
+and valid refresh tokens are available.</p>
+<p>Likewise, refresh tokens can also be used for authentication in cases
+where a script or application is <strong>run automatically in the background on regular basis</strong> (daily, weekly, …).
+If there is a non-expired refresh token available, the script can authenticate
+without user interaction.</p>
+<section id="guidelines-and-tips">
+<h3>Guidelines and tips<a class="headerlink" href="#guidelines-and-tips" title="Link to this heading">¶</a></h3>
+<p>Some guidelines to get long-term and non-interactive authentication working for your use case:</p>
+<ul>
+<li><p>If you run a workflow periodically, but the interval between runs
+is larger than the expiry time of the refresh token
+(e.g. a monthly job, while the refresh token expires after, say, 10 days),
+you could consider setting up a <em>custom OIDC client</em> with better suited
+refresh token timeout.
+The practical details of this heavily depend on the OIDC Identity Provider
+in play and are out of scope of this discussion.</p></li>
+<li><p>Obtaining a refresh token requires manual/interactive authentication,
+but once it is stored on the necessary machine(s)
+in the refresh token store as discussed in <a class="reference internal" href="#auth-configuration-files"><span class="std std-ref">Auth config files and openeo-auth helper tool</span></a>,
+no further manual interaction should be necessary
+during the lifetime of the refresh token.
+To do so, use one of the following methods:</p>
+<ul>
+<li><p>Use the <code class="docutils literal notranslate"><span class="pre">openeo-auth</span> <span class="pre">oidc-auth</span></code> cli tool, for example to authenticate
+for openeo back-end openeo.example.com:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth oidc-auth openeo.example.com
+...
+Stored refresh token in &#39;/home/john/.local/share/openeo-python-client/refresh-tokens.json&#39;
+</pre></div>
+</div>
+</li>
+<li><p>Use a Python snippet to authenticate and store the refresh token:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;openeo.example.com&quot;</span><span class="p">)</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">authenticate_oidc_device</span><span class="p">(</span><span class="n">store_refresh_token</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>To verify that (and where) the refresh token is stored, use <code class="docutils literal notranslate"><span class="pre">openeo-auth</span> <span class="pre">token-dump</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth token-dump
+### /home/john/.local/share/openeo-python-client/refresh-tokens.json #######
+{
+  &quot;https://oidc.example.net&quot;: {
+    &quot;default-client&quot;: {
+      &quot;date&quot;: &quot;2022-05-11T13:13:20Z&quot;,
+      &quot;refresh_token&quot;: &quot;&lt;redacted&gt;&quot;
+    },
+...
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="best-practices-and-troubleshooting-tips">
+<h2>Best Practices and Troubleshooting Tips<a class="headerlink" href="#best-practices-and-troubleshooting-tips" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Handle (OIDC) access and refresh tokens like secret, personal passwords.
+<strong>Never share your access or refresh tokens</strong> with other people,
+publicly, or for user support reasons.</p>
+</div>
+<section id="clear-the-refresh-token-file">
+<h3>Clear the refresh token file<a class="headerlink" href="#clear-the-refresh-token-file" title="Link to this heading">¶</a></h3>
+<p>When you have authentication or permission issues and you suspect
+that your (locally cached) refresh tokens are the culprit:
+remove your refresh token file in one of the following ways:</p>
+<ul>
+<li><p>Locate the file with the <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> command line tool:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth paths
+...
+openEO OpenID Connect refresh token store: /home/john/.local/share/openeo-python-client/refresh-tokens.json (perms: 0o600, size: 846B)
+</pre></div>
+</div>
+<p>and remove it.
+Or, if you know what you are doing: remove the desired section from this JSON file.</p>
+</li>
+<li><p>Remove it directly with the <code class="docutils literal notranslate"><span class="pre">token-clear</span></code> subcommand of the <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> command line tool:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ openeo-auth token-clear
+</pre></div>
+</div>
+</li>
+<li><p>Remove it with this Python snippet:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.auth.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RefreshTokenStore</span>
+<span class="n">RefreshTokenStore</span><span class="p">()</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Authentication and Account Management</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#openid-connect-based-authentication">OpenID Connect Based Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#oidc-authentication-device-code-flow">OIDC Authentication: Device Code Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#oidc-authentication-refresh-token-flow">OIDC Authentication: Refresh Token Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#oidc-authentication-client-credentials-flow">OIDC Authentication: Client Credentials Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#oidc-authentication-dynamic-method-selection">OIDC Authentication: Dynamic Method Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#auth-config-files-and-openeo-auth-helper-tool">Auth config files and <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> helper tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-http-auth">Basic HTTP Auth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#default-openeo-back-end-url-and-auto-authentication">Default openEO back-end URL and auto-authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#authentication-for-long-running-applications-and-non-interactive-contexts">Authentication for long-running applications and non-interactive contexts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices-and-troubleshooting-tips">Best Practices and Troubleshooting Tips</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="udp.html" title="previous chapter">User-Defined Processes (UDP)</a></li>
+      <li>Next: <a href="udf.html" title="next chapter">User-Defined Functions (UDF) explained</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/auth.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

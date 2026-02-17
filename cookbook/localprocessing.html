@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Client-side (local) processing &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Miscellaneous tips and tricks" href="tricks.html" />
+    <link rel="prev" title="Multi Backend Job Manager" href="job_manager.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="client-side-local-processing">
+<h1>Client-side (local) processing<a class="headerlink" href="#client-side-local-processing" title="Link to this heading">¶</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a new experimental feature and API, subject to change.</p>
+</div>
+<section id="background">
+<h2>Background<a class="headerlink" href="#background" title="Link to this heading">¶</a></h2>
+<p>The client-side processing functionality allows to test and use openEO with its processes locally, i.e. without any connection to an openEO back-end.
+It relies on the projects <a class="reference external" href="https://github.com/Open-EO/openeo-pg-parser-networkx">openeo-pg-parser-networkx</a>, which provides an openEO process graph parsing tool, and <a class="reference external" href="https://github.com/Open-EO/openeo-processes-dask">openeo-processes-dask</a>, which provides an Xarray and Dask implementation of most openEO processes.</p>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This feature requires <code class="docutils literal notranslate"><span class="pre">Python&gt;=3.9</span></code>.
+Tested with <code class="docutils literal notranslate"><span class="pre">openeo-pg-parser-networkx==2023.5.1</span></code> and
+<code class="docutils literal notranslate"><span class="pre">openeo-processes-dask==2023.7.1</span></code>.</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>openeo<span class="o">[</span>localprocessing<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
+<p>Every openEO process graph relies on data which is typically provided by a cloud infrastructure (the openEO back-end).
+The client-side processing adds the possibility to read and use local netCDFs, geoTIFFs, ZARR files, and remote STAC Collections or Items for your experiments.</p>
+<section id="stac-collections-and-items">
+<h3>STAC Collections and Items<a class="headerlink" href="#stac-collections-and-items" title="Link to this heading">¶</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The provided examples using STAC rely on third party STAC Catalogs, we can’t guarantee that the urls will remain valid.</p>
+</div>
+<p>With the <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> process it’s possible to load and use data provided by remote or local STAC Collections or Items.
+The following code snippet loads Sentinel-2 L2A data from a public STAC Catalog, using specific spatial and temporal extent, band name and also properties for cloud coverage.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.local</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalConnection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">local_conn</span> <span class="o">=</span> <span class="n">LocalConnection</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">spatial_extent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mi">46</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mi">47</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">temporal_extent</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;2019-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-06-15&quot;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;red&quot;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;eo:cloud_cover&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">lt</span><span class="o">=</span><span class="mi">50</span><span class="p">)}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s2_cube</span> <span class="o">=</span> <span class="n">local_conn</span><span class="o">.</span><span class="n">load_stac</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">spatial_extent</span><span class="o">=</span><span class="n">spatial_extent</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">bands</span><span class="o">=</span><span class="n">bands</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s2_cube</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">&lt;xarray.DataArray &#39;stackstac-08730b1b5458a4ed34edeee60ac79254&#39; (time: 177,</span>
+<span class="go">                                                                band: 1,</span>
+<span class="go">                                                                y: 11354,</span>
+<span class="go">                                                                x: 8025)&gt;</span>
+<span class="go">dask.array&lt;getitem, shape=(177, 1, 11354, 8025), dtype=float64, chunksize=(1, 1, 1024, 1024), chunktype=numpy.ndarray&gt;</span>
+<span class="go">Coordinates: (12/53)</span>
+<span class="go">  * time                                     (time) datetime64[ns] 2019-01-02...</span>
+<span class="go">    id                                       (time) &lt;U24 &#39;S2B_32TPR_20190102_...</span>
+<span class="go">  * band                                     (band) &lt;U3 &#39;red&#39;</span>
+<span class="go">  * x                                        (x) float64 6.52e+05 ... 7.323e+05</span>
+<span class="go">  * y                                        (y) float64 5.21e+06 ... 5.096e+06</span>
+<span class="go">    s2:product_uri                           (time) &lt;U65 &#39;S2B_MSIL2A_20190102...</span>
+<span class="go">    ...                                       ...</span>
+<span class="go">    raster:bands                             object {&#39;nodata&#39;: 0, &#39;data_type&#39;...</span>
+<span class="go">    gsd                                      int32 10</span>
+<span class="go">    common_name                              &lt;U3 &#39;red&#39;</span>
+<span class="go">    center_wavelength                        float64 0.665</span>
+<span class="go">    full_width_half_max                      float64 0.038</span>
+<span class="go">    epsg                                     int32 32632</span>
+<span class="go">Attributes:</span>
+<span class="go">    spec:        RasterSpec(epsg=32632, bounds=(600000.0, 4990200.0, 809760.0...</span>
+<span class="go">    crs:         epsg:32632</span>
+<span class="go">    transform:   | 10.00, 0.00, 600000.00|\n| 0.00,-10.00, 5300040.00|\n| 0.0...</span>
+<span class="go">    resolution:  10.0</span>
+</pre></div>
+</div>
+</section>
+<section id="local-collections">
+<h3>Local Collections<a class="headerlink" href="#local-collections" title="Link to this heading">¶</a></h3>
+<p>If you want to use our sample data, please clone this repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Open-EO/openeo-localprocessing-data.git
+</pre></div>
+</div>
+<p>With some sample data we can now check the STAC metadata for the local files by doing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.local</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalConnection</span>
+
+<span class="n">local_data_folders</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;./openeo-localprocessing-data/sample_netcdf&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;./openeo-localprocessing-data/sample_geotiff&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">local_conn</span> <span class="o">=</span> <span class="n">LocalConnection</span><span class="p">(</span><span class="n">local_data_folders</span><span class="p">)</span>
+<span class="n">local_conn</span><span class="o">.</span><span class="n">list_collections</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This code will parse the metadata content of each netCDF, geoTIFF or ZARR file in the provided folders and return a JSON object containing the STAC representation of the metadata.
+If this code is run in a Jupyter Notebook, the metadata will be rendered nicely.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The code expects local files to have a similar structure to the sample files
+provided at <a class="reference external" href="https://github.com/Open-EO/openeo-localprocessing-data">github.com/Open-EO/openeo-localprocessing-data</a>.
+If the code can not handle you special netCDF,
+you can still modify the function that reads the metadata from it (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/collections.py#L19">openeo/local/collections.py#L19</a>)
+and the function that reads the data (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/blob/90c0505fae47c56746e49c91476be5147be6e1d0/openeo/local/processing.py#L26">openeo/local/processing.py#L26</a>).</p>
+</div>
+</section>
+<section id="local-processing">
+<h3>Local Processing<a class="headerlink" href="#local-processing" title="Link to this heading">¶</a></h3>
+<p>Let’s start with the provided sample netCDF of Sentinel-2 data:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">local_collection</span> <span class="o">=</span> <span class="s2">&quot;openeo-localprocessing-data/sample_netcdf/S2_L2A_sample.nc&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s2_datacube</span> <span class="o">=</span> <span class="n">local_conn</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">local_collection</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Check if the data is loaded correctly</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s2_datacube</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">&lt;xarray.DataArray (bands: 5, t: 12, y: 705, x: 935)&gt;</span>
+<span class="go">dask.array&lt;stack, shape=(5, 12, 705, 935), dtype=float32, chunksize=(1, 12, 705, 935), chunktype=numpy.ndarray&gt;</span>
+<span class="go">Coordinates:</span>
+<span class="go">  * t        (t) datetime64[ns] 2022-06-02 2022-06-05 ... 2022-06-27 2022-06-30</span>
+<span class="go">  * x        (x) float64 6.75e+05 6.75e+05 6.75e+05 ... 6.843e+05 6.843e+05</span>
+<span class="go">  * y        (y) float64 5.155e+06 5.155e+06 5.155e+06 ... 5.148e+06 5.148e+06</span>
+<span class="go">    crs      |S1 ...</span>
+<span class="go">  * bands    (bands) object &#39;B04&#39; &#39;B03&#39; &#39;B02&#39; &#39;B08&#39; &#39;SCL&#39;</span>
+<span class="go">Attributes:</span>
+<span class="go">    Conventions:  CF-1.9</span>
+<span class="go">    institution:  openEO platform - Geotrellis backend: 0.9.5a1</span>
+<span class="go">    description:</span>
+<span class="go">    title:</span>
+</pre></div>
+</div>
+<p>As you can see in the previous example, we are using a call to execute() which will execute locally the generated openEO process graph.
+In this case, the process graph consist only in a single load_collection, which performs lazy loading of the data. With this first step you can check if the data is being read correctly by openEO.</p>
+<p>Looking at the metadata of this netCDF sample, we can see that it contains the bands B04, B03, B02, B08 and SCL.
+Additionally, we also see that it is composed by more than one element in time and that it covers the month of June 2022.</p>
+<p>We can now do a simple processing for demo purposes, let’s compute the median NDVI in time and visualize the result:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">b04</span> <span class="o">=</span> <span class="n">s2_datacube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;B04&quot;</span><span class="p">)</span>
+<span class="n">b08</span> <span class="o">=</span> <span class="n">s2_datacube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;B08&quot;</span><span class="p">)</span>
+<span class="n">ndvi</span> <span class="o">=</span> <span class="p">(</span><span class="n">b08</span> <span class="o">-</span> <span class="n">b04</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">b08</span> <span class="o">+</span> <span class="n">b04</span><span class="p">)</span>
+<span class="n">ndvi_median</span> <span class="o">=</span> <span class="n">ndvi</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">)</span>
+<span class="n">result_ndvi</span> <span class="o">=</span> <span class="n">ndvi_median</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="n">result_ndvi</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;Greens&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../_images/local_ndvi.jpg" src="../_images/local_ndvi.jpg" />
+<p>We can perform the same example using data provided by STAC Collection:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.local</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalConnection</span>
+
+<span class="n">local_conn</span> <span class="o">=</span> <span class="n">LocalConnection</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a&quot;</span>
+<span class="n">spatial_extent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">11.40</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">46.52</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">46.46</span><span class="p">,</span> <span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">11.25</span><span class="p">}</span>
+<span class="n">temporal_extent</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;2022-06-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-06-30&quot;</span><span class="p">]</span>
+<span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;nir&quot;</span><span class="p">]</span>
+<span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;eo:cloud_cover&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">lt</span><span class="o">=</span><span class="mi">80</span><span class="p">)}</span>
+<span class="n">s2_datacube</span> <span class="o">=</span> <span class="n">local_conn</span><span class="o">.</span><span class="n">load_stac</span><span class="p">(</span>
+    <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="n">spatial_extent</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="n">bands</span><span class="p">,</span>
+    <span class="n">properties</span><span class="o">=</span><span class="n">properties</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">b04</span> <span class="o">=</span> <span class="n">s2_datacube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+<span class="n">b08</span> <span class="o">=</span> <span class="n">s2_datacube</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">&quot;nir&quot;</span><span class="p">)</span>
+<span class="n">ndvi</span> <span class="o">=</span> <span class="p">(</span><span class="n">b08</span> <span class="o">-</span> <span class="n">b04</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">b08</span> <span class="o">+</span> <span class="n">b04</span><span class="p">)</span>
+<span class="n">ndvi_median</span> <span class="o">=</span> <span class="n">ndvi</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">&quot;median&quot;</span><span class="p">)</span>
+<span class="n">result_ndvi</span> <span class="o">=</span> <span class="n">ndvi_median</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ard.html">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spectral_indices.html">Spectral Indices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="job_manager.html">Multi Backend Job Manager</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">openEO CookBook</a><ul>
+      <li>Previous: <a href="job_manager.html" title="previous chapter">Multi Backend Job Manager</a></li>
+      <li>Next: <a href="tricks.html" title="next chapter">Miscellaneous tips and tricks</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/cookbook/localprocessing.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

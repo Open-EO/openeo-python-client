@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.metadata &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.metadata</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Iterable</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">NamedTuple</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pystac</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pystac.extensions.datacube</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pystac.extensions.eo</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pystac.extensions.item_assets</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_component</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Rfc3339</span><span class="p">,</span> <span class="n">deep_get</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.normalize</span><span class="w"> </span><span class="kn">import</span> <span class="n">normalize_resample_resolution</span><span class="p">,</span> <span class="n">unique</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MetadataException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DimensionAlreadyExistsException</span><span class="p">(</span><span class="n">MetadataException</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="c1"># TODO: make these dimension classes immutable data classes</span>
+<span class="c1"># TODO: align better with STAC datacube extension</span>
+<span class="c1"># TODO: align/adapt/integrate with pystac&#39;s datacube extension implementation?</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Dimension</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for dimensions.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{c}</span><span class="s2">(</span><span class="si">{f}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">c</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="n">f</span><span class="o">=</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{k!s}</span><span class="s2">=</span><span class="si">{v!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new dimension with new name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Dimension</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rename labels, if the type of dimension allows it.</span>
+
+<span class="sd">        :param target: List of target labels</span>
+<span class="sd">        :param source: Source labels, or empty list</span>
+<span class="sd">        :return: A new dimension with modified labels, or the same if no change is applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># In general, we don&#39;t have/manage label info here, so do nothing.</span>
+        <span class="k">return</span> <span class="n">Dimension</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SpatialDimension">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.SpatialDimension">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SpatialDimension</span><span class="p">(</span><span class="n">Dimension</span><span class="p">):</span>
+    <span class="c1"># TODO: align better with STAC datacube extension: e.g. support &quot;axis&quot; (x or y)</span>
+
+    <span class="n">DEFAULT_CRS</span> <span class="o">=</span> <span class="mi">4326</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">extent</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]],</span>
+        <span class="n">crs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="n">DEFAULT_CRS</span><span class="p">,</span>
+        <span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        @param name:</span>
+<span class="sd">        @param extent:</span>
+<span class="sd">        @param crs:</span>
+<span class="sd">        @param step: The space between the values. Use null for irregularly spaced steps.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;spatial&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extent</span> <span class="o">=</span> <span class="n">extent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">crs</span> <span class="o">=</span> <span class="n">crs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="n">step</span>
+
+<div class="viewcode-block" id="SpatialDimension.rename">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.SpatialDimension.rename">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="TemporalDimension">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.TemporalDimension">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TemporalDimension</span><span class="p">(</span><span class="n">Dimension</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">extent</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;temporal&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extent</span> <span class="o">=</span> <span class="n">extent</span>
+
+<div class="viewcode-block" id="TemporalDimension.rename">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.TemporalDimension.rename">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TemporalDimension.rename_labels">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.TemporalDimension.rename_labels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="c1"># TODO should we check if the extent has changed with the new labels?</span>
+        <span class="k">return</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Band</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple container class for band metadata.</span>
+<span class="sd">    Based on STAC-1.1 common band object</span>
+<span class="sd">    and https://github.com/stac-extensions/eo#band-object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Note: &quot;name&quot; is strictly speaking not required per spec,</span>
+    <span class="c1"># but it&#39;s probably assumed to be present in a lot of places.</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+    <span class="n">common_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># wavelength in micrometer</span>
+    <span class="n">wavelength_um</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># Note: &quot;aliases&quot; is non-standard band metadata (probably just VITO-specific).</span>
+    <span class="n">aliases</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># &quot;openeo:gsd&quot; field (https://github.com/Open-EO/openeo-stac-extensions#GSD-Object)</span>
+    <span class="n">gsd</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="BandDimension">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BandDimension</span><span class="p">(</span><span class="n">Dimension</span><span class="p">):</span>
+    <span class="c1"># TODO #575 support unordered bands and avoid assumption that band order is known.</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">bands</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Band</span><span class="p">]):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bands</span> <span class="o">=</span> <span class="n">bands</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_aliases</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">aliases</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">common_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">common_name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_alias_match</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Band</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up band by alias, return (index, Band) or None if not found.&quot;&quot;&quot;</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">)</span> <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">aliases</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">b</span><span class="o">.</span><span class="n">aliases</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">matches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Multiple alias matches for band </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">matches</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BandDimension.band_index">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.band_index">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resolve a given band (common) name/index to band index</span>
+
+<span class="sd">        :param band: band name, common name or index</span>
+<span class="sd">        :return int: band index</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">band</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_names</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">band</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">common_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_names</span>
+            <span class="c1"># First try common names if possible</span>
+            <span class="k">if</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">common_names</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">common_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">band_names</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">band_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+            <span class="c1"># Check band aliases to still support old band names</span>
+            <span class="k">if</span> <span class="n">alias_match</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_match</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">band</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">alias_match</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid band name/index </span><span class="si">{b!r}</span><span class="s2">. Valid names: </span><span class="si">{n!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="n">band</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">band_names</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.band_name">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.band_name">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">allow_common</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve (common) name or index to a valid (common) name&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">band</span>
+            <span class="k">elif</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">common_names</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">allow_common</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">band</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">common_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">band</span><span class="p">)]</span>
+            <span class="k">elif</span> <span class="n">alias_match</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alias_match</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">band</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">alias_match</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">band</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="n">band</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid band name/index </span><span class="si">{b!r}</span><span class="s2">. Valid names: </span><span class="si">{n!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="n">band</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.filter_bands">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.filter_bands">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bands</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">BandDimension</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct new BandDimension with subset of bands,</span>
+<span class="sd">        based on given band indices or (common) names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">BandDimension</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">band_index</span><span class="p">(</span><span class="n">b</span><span class="p">)]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bands</span><span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.append_band">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.append_band">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">append_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Band</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">BandDimension</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new BandDimension with appended band.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">band</span> <span class="o">=</span> <span class="n">Band</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">band</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">band</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Duplicate band </span><span class="si">{b!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="n">band</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">BandDimension</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">bands</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span> <span class="o">+</span> <span class="p">[</span><span class="n">band</span><span class="p">]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.rename_labels">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.rename_labels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">source</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;In rename_labels, `target` and `source` should have same number of labels, &quot;</span>
+                    <span class="s2">&quot;but got: `target` </span><span class="si">{t}</span><span class="s2"> and `source` </span><span class="si">{s}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">source</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="n">new_bands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">old_name</span><span class="p">,</span> <span class="n">new_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+                <span class="n">band_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_index</span><span class="p">(</span><span class="n">old_name</span><span class="p">)</span>
+                <span class="n">the_band</span> <span class="o">=</span> <span class="n">new_bands</span><span class="p">[</span><span class="n">band_index</span><span class="p">]</span>
+                <span class="n">new_bands</span><span class="p">[</span><span class="n">band_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">Band</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">new_name</span><span class="p">,</span>
+                    <span class="n">common_name</span><span class="o">=</span><span class="n">the_band</span><span class="o">.</span><span class="n">common_name</span><span class="p">,</span>
+                    <span class="n">wavelength_um</span><span class="o">=</span><span class="n">the_band</span><span class="o">.</span><span class="n">wavelength_um</span><span class="p">,</span>
+                    <span class="n">aliases</span><span class="o">=</span><span class="n">the_band</span><span class="o">.</span><span class="n">aliases</span><span class="p">,</span>
+                    <span class="n">gsd</span><span class="o">=</span><span class="n">the_band</span><span class="o">.</span><span class="n">gsd</span><span class="p">,</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">Band</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">target</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="n">new_bands</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.rename">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.rename">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BandDimension.contains_band">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.BandDimension.contains_band">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">contains_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if the given band name or index is present in the dimension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">band_index</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GeometryDimension</span><span class="p">(</span><span class="n">Dimension</span><span class="p">):</span>
+    <span class="c1"># TODO: how to model/store labels of geometry dimension?</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;geometry&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GeometryDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dimension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GeometryDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CubeMetadata</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Interface for metadata of a data cube.</span>
+
+<span class="sd">    Allows interaction with the cube dimensions and their labels (if available).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Original collection metadata (actual cube metadata might be altered through processes)</span>
+        <span class="c1"># TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,</span>
+        <span class="c1">#       but most usage actually assumes it is a list that can be iterated over.</span>
+        <span class="c1">#       Can we handle this more consistently and less error-prone?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">dimensions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_band_dimension</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_temporal_dimension</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">:</span>
+                <span class="c1"># TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?</span>
+                <span class="c1"># TODO: add spatial dimension handling?</span>
+                <span class="k">if</span> <span class="n">dim</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;bands&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">BandDimension</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_band_dimension</span> <span class="o">=</span> <span class="n">dim</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="s2">&quot;Invalid band dimension </span><span class="si">{d!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">=</span><span class="n">dim</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">dim</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;temporal&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">TemporalDimension</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_temporal_dimension</span> <span class="o">=</span> <span class="n">dim</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="s2">&quot;Invalid temporal dimension </span><span class="si">{d!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">=</span><span class="n">dim</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">==</span> <span class="n">o</span><span class="o">.</span><span class="n">_dimensions</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_band_dimension</span><span class="p">():</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(dimension_names=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span><span class="si">}</span><span class="s2">, band_names=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(dimension_names=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(dimensions=None)&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">bands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_band_dimension</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;no bands dimension&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;CubeMetadata(</span><span class="si">{</span><span class="n">bands</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_clone_and_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new instance (of same class) with copied/updated fields.&quot;&quot;&quot;</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">dimension_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># TODO: better solution for unknown dimensions?</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">assert_valid_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure given dimension name is valid.&quot;&quot;&quot;</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">dimension</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid dimension </span><span class="si">{</span><span class="n">dimension</span><span class="si">!r}</span><span class="s2">. Should be one of </span><span class="si">{</span><span class="n">names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dimension</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_band_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_dimension</span><span class="p">,</span> <span class="n">BandDimension</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BandDimension</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dimension corresponding to spectral/logic/thematic &quot;bands&quot;.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_band_dimension</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="s2">&quot;No band dimension&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_band_dimension</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_temporal_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_temporal_dimension</span><span class="p">,</span> <span class="n">TemporalDimension</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">temporal_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TemporalDimension</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_temporal_dimension</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="s2">&quot;No temporal dimension&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_temporal_dimension</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">spatial_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SpatialDimension</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">SpatialDimension</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_geometry_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">GeometryDimension</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">geometry_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GeometryDimension</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">GeometryDimension</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">d</span>
+        <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="s2">&quot;No geometry dimension&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Band</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get band metadata as list of Band metadata tuples&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span><span class="o">.</span><span class="n">bands</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get band names of band dimension&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span><span class="o">.</span><span class="n">band_names</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_common_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span><span class="o">.</span><span class="n">common_names</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_band_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="c1"># TODO: eliminate this shortcut for smaller API surface</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span><span class="o">.</span><span class="n">band_index</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create new `CubeMetadata` with filtered band dimension</span>
+<span class="sd">        :param band_names: list of band names/indices to keep</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">filter_bands</span><span class="p">(</span><span class="n">band_names</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">BandDimension</span><span class="p">)</span> <span class="k">else</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">append_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Band</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create new `CubeMetadata` with given band added to band dimension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">append_band</span><span class="p">(</span><span class="n">band</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">BandDimension</span><span class="p">)</span> <span class="k">else</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Renames the labels of the specified dimension from source to target.</span>
+
+<span class="sd">        :param dimension: Dimension name</span>
+<span class="sd">        :param target: The new names for the labels.</span>
+<span class="sd">        :param source: The names of the labels as they are currently in the data cube.</span>
+
+<span class="sd">        :return: Updated metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_valid_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">rename_labels</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">dimension</span> <span class="k">else</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rename_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rename source dimension into target, preserving other properties</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_valid_dimension</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">d</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">target</span><span class="p">)</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">source</span> <span class="k">else</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reduce_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new CubeMetadata object by collapsing/reducing a dimension.&quot;&quot;&quot;</span>
+        <span class="c1"># TODO: option to keep reduced dimension (with a single value)?</span>
+        <span class="c1"># TODO: rename argument to `name` for more internal consistency</span>
+        <span class="c1"># TODO: merge with drop_dimension (which does the same).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_valid_dimension</span><span class="p">(</span><span class="n">dimension_name</span><span class="p">)</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">dimension_name</span><span class="p">)</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">[:</span><span class="n">loc</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">[</span><span class="n">loc</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reduce_spatial</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new CubeMetadata object by reducing the spatial dimensions.&quot;&quot;&quot;</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">SpatialDimension</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new CubeMetadata object with added dimension&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">DimensionAlreadyExistsException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dimension with name </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> already exists&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;bands&quot;</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="n">Band</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">label</span><span class="p">)])</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;spatial&quot;</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="n">label</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;temporal&quot;</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="n">label</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s2">&quot;geometry&quot;</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="n">GeometryDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="n">Dimension</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="nb">type</span> <span class="ow">or</span> <span class="s2">&quot;other&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">+</span> <span class="p">[</span><span class="n">dim</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_band_dimension</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">bands</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Band</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span> <span class="n">warning</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create new CubeMetadata object, ensuring a band dimension with given bands.</span>
+<span class="sd">        This will override any existing band dimension, and is intended for</span>
+<span class="sd">        special cases where pragmatism necessitates to ignore the original metadata.</span>
+<span class="sd">        For example, to overrule badly/incomplete detected band names from STAC metadata.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            It is required to specify a warning message as this method is only intended</span>
+<span class="sd">            to be used as temporary stop-gap solution for use cases that are possibly not future-proof.</span>
+<span class="sd">            Enforcing a warning should make that clear and avoid that users unknowingly depend on</span>
+<span class="sd">            metadata handling behavior that is not guaranteed to be stable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warning</span> <span class="ow">or</span> <span class="s2">&quot;ensure_band_dimension: overriding band dimension metadata with user-defined bands.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Preserve original band dimension name if possible</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_dimension</span><span class="o">.</span><span class="n">name</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_band_dimension</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;bands&quot;</span>
+        <span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">Band</span><span class="p">)</span> <span class="k">else</span> <span class="n">Band</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bands</span><span class="p">]</span>
+        <span class="n">band_dimension</span> <span class="o">=</span> <span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="n">bands</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span>
+            <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">BandDimension</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="n">band_dimension</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">drop_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create new CubeMetadata object without dropped dimension with given name&quot;&quot;&quot;</span>
+        <span class="n">dimension_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dimension_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No dimension named </span><span class="si">{n!r}</span><span class="s2"> (valid names: </span><span class="si">{ns!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">ns</span><span class="o">=</span><span class="n">dimension_names</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">d</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">resample_spatial</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">resolution</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">projection</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+        <span class="n">resolution</span> <span class="o">=</span> <span class="n">normalize_resample_resolution</span><span class="p">(</span><span class="n">resolution</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Best-effort fallback to work with</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]),</span>
+                <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]),</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Make sure to work with a copy (to edit in-place)</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">)</span>
+
+        <span class="c1"># Find and replace spatial dimensions</span>
+        <span class="n">spatial_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">SpatialDimension</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">spatial_indices</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">MetadataException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected two spatial dimensions but found </span><span class="si">{</span><span class="n">spatial_indices</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">resolution</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">spatial_indices</span><span class="p">,</span> <span class="n">resolution</span><span class="p">):</span>
+            <span class="n">dim</span><span class="p">:</span> <span class="n">SpatialDimension</span> <span class="o">=</span> <span class="n">dimensions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">dimensions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">SpatialDimension</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">dim</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">extent</span><span class="o">=</span><span class="n">dim</span><span class="o">.</span><span class="n">extent</span><span class="p">,</span>
+                <span class="n">crs</span><span class="o">=</span><span class="n">projection</span> <span class="ow">or</span> <span class="n">dim</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
+                <span class="n">step</span><span class="o">=</span><span class="n">r</span> <span class="k">if</span> <span class="n">r</span> <span class="o">!=</span> <span class="mf">0.0</span> <span class="k">else</span> <span class="n">dim</span><span class="o">.</span><span class="n">step</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">resample_cube_spatial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">CubeMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+        <span class="c1"># Replace spatial dimensions with ones from target, but keep other dimensions</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="ow">or</span> <span class="p">[])</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">SpatialDimension</span><span class="p">)]</span>
+        <span class="n">dimensions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">spatial_dimensions</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clone_and_update</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="CollectionMetadata">
+<a class="viewcode-back" href="../../api.html#openeo.metadata.CollectionMetadata">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CollectionMetadata</span><span class="p">(</span><span class="n">CubeMetadata</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for EO Data Collection metadata.</span>
+
+<span class="sd">    Simplifies getting values from deeply nested mappings,</span>
+<span class="sd">    allows additional parsing and normalizing compatibility issues.</span>
+
+<span class="sd">    Metadata is expected to follow format defined by</span>
+<span class="sd">    https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection</span>
+<span class="sd">    (with partial support for older versions)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">_federation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+        <span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_federation</span> <span class="o">=</span> <span class="n">_federation</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_dimensions</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">complain</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract data cube dimension metadata from STAC-like description of a collection.</span>
+
+<span class="sd">        Dimension metadata comes from different places in spec:</span>
+<span class="sd">        - &#39;cube:dimensions&#39; has dimension names (e.g. &#39;x&#39;, &#39;y&#39;, &#39;t&#39;), dimension extent info</span>
+<span class="sd">            and band names for band dimensions</span>
+<span class="sd">        - &#39;eo:bands&#39; has more detailed band information like &quot;common&quot; name and wavelength info</span>
+
+<span class="sd">        This helper tries to normalize/combine these sources.</span>
+
+<span class="sd">        :param spec: STAC like collection metadata dict</span>
+<span class="sd">        :param complain: handler for warnings</span>
+<span class="sd">        :return list: list of `Dimension` objects</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)</span>
+        <span class="n">cube_dimensions</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;cube:dimensions&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">,</span> <span class="s2">&quot;cube:dimensions&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="p">{}</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cube_dimensions</span><span class="p">:</span>
+            <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;No cube:dimensions metadata&quot;</span><span class="p">)</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">cube_dimensions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">dim_type</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dim_type</span> <span class="o">==</span> <span class="s2">&quot;spatial&quot;</span><span class="p">:</span>
+                <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">SpatialDimension</span><span class="p">(</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                        <span class="n">extent</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;extent&quot;</span><span class="p">),</span>
+                        <span class="n">crs</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reference_system&quot;</span><span class="p">,</span> <span class="n">SpatialDimension</span><span class="o">.</span><span class="n">DEFAULT_CRS</span><span class="p">),</span>
+                        <span class="n">step</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;step&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">dim_type</span> <span class="o">==</span> <span class="s2">&quot;temporal&quot;</span><span class="p">:</span>
+                <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;extent&quot;</span><span class="p">)))</span>
+            <span class="k">elif</span> <span class="n">dim_type</span> <span class="o">==</span> <span class="s2">&quot;bands&quot;</span><span class="p">:</span>
+                <span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">Band</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">bands</span><span class="p">:</span>
+                    <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;No band names in dimension </span><span class="si">{d!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">d</span><span class="o">=</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="n">bands</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;Unknown dimension type </span><span class="si">{t!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">dim_type</span><span class="p">))</span>
+                <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">dim_type</span><span class="p">))</span>
+
+        <span class="c1"># Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)</span>
+        <span class="n">summaries_bands</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;summaries&quot;</span><span class="p">,</span> <span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;summaries&quot;</span><span class="p">,</span> <span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;summaries&quot;</span><span class="p">,</span> <span class="s2">&quot;raster:bands&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="c1"># TODO: drop this 0.4-style &quot;properties/eo:bands&quot;</span>
+            <span class="ow">or</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">,</span> <span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">summaries_bands</span><span class="p">:</span>
+            <span class="n">bands_detailed</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">Band</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">b</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                    <span class="n">common_name</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;eo:common_name&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;common_name&quot;</span><span class="p">),</span>
+                    <span class="c1"># center_wavelength is in micrometer according to spec</span>
+                    <span class="n">wavelength_um</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;eo:center_wavelength&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;center_wavelength&quot;</span><span class="p">),</span>
+                    <span class="n">aliases</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;aliases&quot;</span><span class="p">),</span>
+                    <span class="n">gsd</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;openeo:gsd&quot;</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">summaries_bands</span>
+            <span class="p">]</span>
+            <span class="c1"># Update band dimension with more detailed info</span>
+            <span class="n">band_dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimensions</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;bands&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_dimensions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">dim</span> <span class="o">=</span> <span class="n">band_dimensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Update band values from &#39;cube:dimensions&#39; with more detailed &#39;eo:bands&#39; info</span>
+                <span class="n">eo_band_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bands_detailed</span><span class="p">]</span>
+                <span class="n">cube_dimension_band_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">dim</span><span class="o">.</span><span class="n">bands</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">eo_band_names</span> <span class="o">==</span> <span class="n">cube_dimension_band_names</span><span class="p">:</span>
+                    <span class="n">dim</span><span class="o">.</span><span class="n">bands</span> <span class="o">=</span> <span class="n">bands_detailed</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;Band name mismatch: </span><span class="si">{a}</span><span class="s2"> != </span><span class="si">{b}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">cube_dimension_band_names</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">eo_band_names</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_dimensions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;Assuming name &#39;bands&#39; for anonymous band dimension.&quot;</span><span class="p">)</span>
+                    <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="n">bands_detailed</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;No &#39;bands&#39; dimension in &#39;cube:dimensions&#39; while having &#39;eo:bands&#39; or &#39;raster:bands&#39;&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">complain</span><span class="p">(</span><span class="s2">&quot;Multiple dimensions of type &#39;bands&#39;&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dimensions</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_clone_and_update</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dimensions</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dimension</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new instance (of same class) with copied/updated fields.</span>
+
+<span class="sd">        This overrides the method in `CubeMetadata` to keep the original metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span>
+        <span class="k">if</span> <span class="n">dimensions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dimensions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">deep_get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="c1"># TODO: is this currently used and relevant?</span>
+        <span class="c1"># TODO: check against extent metadata in dimensions</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;extent&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span><span class="s2">&quot;collection&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_orig_metadata</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_federation</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">bands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_band_dimension</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;no bands dimension&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;CollectionMetadata(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">extent</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">bands</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension_names</span><span class="p">()</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">metadata_from_stac</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CubeMetadata</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads the band metadata a static STAC catalog or a STAC API Collection and returns it as a :py:class:`CubeMetadata`</span>
+
+<span class="sd">    :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection</span>
+<span class="sd">    :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stac_object</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">href</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+    <span class="n">bands</span> <span class="o">=</span> <span class="n">_StacMetadataParser</span><span class="p">()</span><span class="o">.</span><span class="n">bands_from_stac_object</span><span class="p">(</span><span class="n">stac_object</span><span class="p">)</span>
+
+    <span class="c1"># At least assume there are spatial dimensions</span>
+    <span class="c1"># TODO #743: are there conditions in which we even should not assume the presence of spatial dimensions?</span>
+    <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]),</span>
+        <span class="n">SpatialDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]),</span>
+    <span class="p">]</span>
+
+    <span class="c1"># TODO #743: conditionally include band dimension when there was actual indication of band metadata?</span>
+    <span class="n">band_dimension</span> <span class="o">=</span> <span class="n">BandDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="n">bands</span><span class="p">)</span>
+    <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">band_dimension</span><span class="p">)</span>
+
+    <span class="c1"># TODO: is it possible to derive the actual name of temporal dimension that the backend will use?</span>
+    <span class="n">temporal_dimension</span> <span class="o">=</span> <span class="n">_StacMetadataParser</span><span class="p">()</span><span class="o">.</span><span class="n">get_temporal_dimension</span><span class="p">(</span><span class="n">stac_object</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">temporal_dimension</span><span class="p">:</span>
+        <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temporal_dimension</span><span class="p">)</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">CubeMetadata</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">metadata</span>
+
+<span class="c1"># Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)</span>
+<span class="c1"># TODO: remove this once support for Python 3.7 and 3.8 is dropped</span>
+<span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">,</span> <span class="s2">&quot;ext&quot;</span><span class="p">)</span>
+
+<span class="c1"># Sniff for PySTAC support for Collection.item_assets (in STAC core since 1.1)</span>
+<span class="c1"># (supported since PySTAC 1.12.0, which requires Python&gt;=3.10)</span>
+<span class="n">_PYSTAC_1_12_ITEM_ASSETS</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">,</span> <span class="s2">&quot;item_assets&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_BandList</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal wrapper for list of ``Band`` objects.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an internal, experimental helper, with an API that is subject to change.</span>
+<span class="sd">        Do not use/expose it directly in user (facing) code</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bands</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Band</span><span class="p">]):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">bands</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">band_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">band</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">merge</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">band_lists</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">_BandList</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Merge multiple lists of bands into a single list (unique by name).&quot;&quot;&quot;</span>
+        <span class="n">all_bands</span> <span class="o">=</span> <span class="p">(</span><span class="n">band</span> <span class="k">for</span> <span class="n">bands</span> <span class="ow">in</span> <span class="n">band_lists</span> <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">bands</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">unique</span><span class="p">(</span><span class="n">all_bands</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+
+<span class="n">_ON_EMPTY_WARN</span> <span class="o">=</span> <span class="s2">&quot;warn&quot;</span>
+<span class="n">_ON_EMPTY_IGNORE</span> <span class="o">=</span> <span class="s2">&quot;ignore&quot;</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_StacMetadataParser</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper to extract openEO metadata from STAC metadata resources (Collection, Item, Asset, etc.).</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This is an internal, experimental helper, with an API that is subject to change.</span>
+<span class="sd">        Do not use/expose it directly in user (facing) code</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: better, more compact name: StacMetadata is a bit redundant, technically we&#39;re also not &quot;parsing&quot; here either</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">_log</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span> <span class="n">supress_duplicate_warnings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="c1"># TODO: argument to set some kind of reference to a root document to improve logging messages?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span> <span class="o">=</span> <span class="n">log_level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">msg</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_level</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">msg</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="n">msg</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">supress_duplicate_warnings</span><span class="p">:</span>
+            <span class="c1"># Use caching trick to avoid duplicate warnings</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1000</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_temporal_dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stac_obj</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">STACObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">TemporalDimension</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract the temporal dimension from a STAC Collection/Item (if any)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: also extract temporal dimension from assets?</span>
+        <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;cube&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">stac_obj</span><span class="o">.</span><span class="n">ext</span><span class="p">,</span> <span class="s2">&quot;cube&quot;</span><span class="p">):</span>
+                <span class="n">temporal_dims</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">extent</span> <span class="ow">or</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">cube</span><span class="o">.</span><span class="n">dimensions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">dim_type</span> <span class="o">==</span> <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">datacube</span><span class="o">.</span><span class="n">DimensionType</span><span class="o">.</span><span class="n">TEMPORAL</span>
+                <span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">temporal_dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">name</span><span class="p">,</span> <span class="n">extent</span> <span class="o">=</span> <span class="n">temporal_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">return</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stac_obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">)</span> <span class="ow">and</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">extent</span><span class="o">.</span><span class="n">temporal</span><span class="p">:</span>
+                <span class="c1"># No explicit &quot;cube:dimensions&quot;: build fallback from &quot;extent.temporal&quot;,</span>
+                <span class="c1"># with dimension name &quot;t&quot; (openEO API recommendation).</span>
+                <span class="n">extent</span> <span class="o">=</span> <span class="p">[</span><span class="n">Rfc3339</span><span class="p">(</span><span class="n">propagate_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">extent</span><span class="o">.</span><span class="n">temporal</span><span class="o">.</span><span class="n">intervals</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="k">return</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stac_obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
+                <span class="n">cube_dimensions</span> <span class="o">=</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cube:dimensions&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stac_obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">):</span>
+                <span class="n">cube_dimensions</span> <span class="o">=</span> <span class="n">stac_obj</span><span class="o">.</span><span class="n">extra_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cube:dimensions&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cube_dimensions</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">temporal_dims</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;extent&quot;</span><span class="p">,</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]))</span> <span class="k">for</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="n">cube_dimensions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;temporal&quot;</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">temporal_dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">extent</span> <span class="o">=</span> <span class="n">temporal_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">TemporalDimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">eo</span><span class="o">.</span><span class="n">Band</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Band</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct band from metadata in eo v1.1 style&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">eo</span><span class="o">.</span><span class="n">Band</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Band</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">common_name</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">common_name</span><span class="p">,</span>
+                <span class="n">wavelength_um</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">center_wavelength</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Band</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+                <span class="n">common_name</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;common_name&quot;</span><span class="p">),</span>
+                <span class="n">wavelength_um</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;center_wavelength&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_band_from_common_bands_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Band</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct band from metadata dict in STAC 1.1 + eo v2 style metadata&quot;&quot;&quot;</span>
+        <span class="c1"># TODO: also support pystac wrapper when available (pystac v2?)</span>
+        <span class="k">return</span> <span class="n">Band</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+            <span class="n">common_name</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;eo:common_name&quot;</span><span class="p">),</span>
+            <span class="n">wavelength_um</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;eo:center_wavelength&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands_from_stac_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pystac</span><span class="o">.</span><span class="n">STACObject</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Asset</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC object (Collection, Catalog, Item or Asset).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note: first check for Collection, as it is a subclass of Catalog</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_collection</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Catalog</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_catalog</span><span class="p">(</span><span class="n">catalog</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_item</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Asset</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_asset</span><span class="p">(</span><span class="n">asset</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># TODO: also support dictionary with raw STAC metadata?</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported STAC object: </span><span class="si">{</span><span class="n">obj</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands_from_stac_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Catalog</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_empty</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC Catalog.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: &quot;eo:bands&quot; vs &quot;bands&quot; priority based on STAC and EO extension version information</span>
+        <span class="n">summaries</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">extra_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;summaries&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bands_from_stac_catalog with </span><span class="si">{</span><span class="n">summaries</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">=}</span><span class="s2"> (which is non-standard)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">catalog</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_warn_undeclared_metadata</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">on_empty</span> <span class="o">==</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;bands_from_stac_catalog: no band name source found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="p">([])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands_from_stac_collection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">collection</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">consult_items</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">consult_assets</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">on_empty</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC Collection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: &quot;eo:bands&quot; vs &quot;bands&quot; priority based on STAC and EO extension version information</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bands_from_stac_collection with </span><span class="si">{</span><span class="n">collection</span><span class="o">.</span><span class="n">summaries</span><span class="o">.</span><span class="n">lists</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># Look for band metadata in collection summaries</span>
+        <span class="k">if</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">summaries</span><span class="o">.</span><span class="n">lists</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">collection</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_warn_undeclared_metadata</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">summaries</span><span class="o">.</span><span class="n">lists</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">summaries</span><span class="o">.</span><span class="n">lists</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">summaries</span><span class="o">.</span><span class="n">lists</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">:</span>
+            <span class="c1"># TODO: is this actually valid and necessary to support? https://github.com/radiantearth/stac-spec/issues/1346</span>
+            <span class="c1"># TODO: avoid `extra_fields`, but built-in &quot;bands&quot; support seems to be scheduled for pystac V2</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+        <span class="c1"># Check item assets if available</span>
+        <span class="k">elif</span> <span class="n">_PYSTAC_1_12_ITEM_ASSETS</span> <span class="ow">and</span> <span class="n">collection</span><span class="o">.</span><span class="n">item_assets</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bands_from_item_assets</span><span class="p">(</span><span class="n">collection</span><span class="o">.</span><span class="n">item_assets</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span>
+            <span class="ow">and</span> <span class="n">collection</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;item_assets&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">collection</span><span class="o">.</span><span class="n">extra_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;item-assets&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">collection</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">item_assets</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bands_from_item_assets</span><span class="p">(</span><span class="n">collection</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">item_assets</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">collection</span><span class="o">.</span><span class="n">extra_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;item_assets&quot;</span><span class="p">):</span>
+            <span class="c1"># Workaround for lack of support for STAC 1.1 core item_assets with pystac &lt; 1.12</span>
+            <span class="n">item_assets</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">k</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">item_assets</span><span class="o">.</span><span class="n">AssetDefinition</span><span class="p">(</span><span class="n">properties</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">owner</span><span class="o">=</span><span class="n">collection</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">[</span><span class="s2">&quot;item_assets&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bands_from_item_assets</span><span class="p">(</span><span class="n">item_assets</span><span class="p">)</span>
+        <span class="c1"># If no band metadata so far: traverse items in collection</span>
+        <span class="k">elif</span> <span class="n">consult_items</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;bands_from_stac_collection: consulting items for band metadata&quot;</span><span class="p">)</span>
+            <span class="n">bands</span> <span class="o">=</span> <span class="n">_BandList</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_item</span><span class="p">(</span>
+                    <span class="n">item</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">consult_collection</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">consult_assets</span><span class="o">=</span><span class="n">consult_assets</span><span class="p">,</span> <span class="n">on_empty</span><span class="o">=</span><span class="n">_ON_EMPTY_IGNORE</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">get_items</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">bands</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">bands</span>
+
+        <span class="k">if</span> <span class="n">on_empty</span> <span class="o">==</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;bands_from_stac_collection: no band name source found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="p">([])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands_from_stac_item</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">item</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">consult_collection</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">consult_assets</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">on_empty</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC Item.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: &quot;eo:bands&quot; vs &quot;bands&quot; priority based on STAC and EO extension version information</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bands_from_stac_item with </span><span class="si">{</span><span class="n">item</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">consult_collection</span> <span class="ow">and</span> <span class="p">(</span><span class="n">parent_collection</span> <span class="o">:=</span> <span class="n">item</span><span class="o">.</span><span class="n">get_collection</span><span class="p">())</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_collection</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="n">parent_collection</span><span class="p">,</span> <span class="n">consult_items</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">consult_assets</span><span class="p">:</span>
+            <span class="c1"># TODO: filter on asset roles?</span>
+            <span class="n">bands</span> <span class="o">=</span> <span class="n">_BandList</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bands_from_stac_asset</span><span class="p">(</span><span class="n">asset</span><span class="o">=</span><span class="n">a</span><span class="p">,</span> <span class="n">on_empty</span><span class="o">=</span><span class="n">_ON_EMPTY_IGNORE</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">bands</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">bands</span>
+
+        <span class="k">if</span> <span class="n">on_empty</span> <span class="o">==</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;bands_from_stac_item: no band name source found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="p">([])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_warn_undeclared_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ext</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper to warn about using metadata from undeclared STAC extension&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using </span><span class="si">{</span><span class="n">field</span><span class="si">!r}</span><span class="s2"> metadata, but STAC extension </span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2"> was not declared.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bands_from_stac_asset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">asset</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Asset</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_empty</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC Asset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: &quot;eo:bands&quot; vs &quot;bands&quot; priority based on STAC and EO extension version information</span>
+        <span class="c1"># TODO: filter on asset roles?</span>
+        <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">owner</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">eo</span><span class="o">.</span><span class="n">bands</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">eo</span><span class="o">.</span><span class="n">bands</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">owner</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_warn_undeclared_metadata</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">:</span>
+            <span class="c1"># TODO: avoid `extra_fields`, but built-in &quot;bands&quot; support seems to be scheduled for pystac V2</span>
+            <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">extra_fields</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">on_empty</span> <span class="o">==</span> <span class="n">_ON_EMPTY_WARN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;bands_from_stac_asset: no band name source found&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="p">([])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_bands_from_item_asset_definition</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">asset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span>
+            <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">item_assets</span><span class="o">.</span><span class="n">AssetDefinition</span><span class="p">,</span>
+            <span class="s2">&quot;pystac.ItemAssetDefinition&quot;</span><span class="p">,</span>  <span class="c1"># TODO: non-string type hint once pystac dependency is bumped to at least 1.12</span>
+        <span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract band listing from a STAC Asset definition</span>
+<span class="sd">        (as used in the item-assets extension, or STAC 1.1 item-assets).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">asset</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">item_assets</span><span class="o">.</span><span class="n">AssetDefinition</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">owner</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_warn_undeclared_metadata</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">_PYSTAC_1_12_ITEM_ASSETS</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">asset</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">ItemAssetDefinition</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s2">&quot;bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_common_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="s2">&quot;eo:bands&quot;</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_PYSTAC_1_9_EXTENSION_INTERFACE</span> <span class="ow">and</span> <span class="n">asset</span><span class="o">.</span><span class="n">owner</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">asset</span><span class="o">.</span><span class="n">ext</span><span class="o">.</span><span class="n">has</span><span class="p">(</span><span class="s2">&quot;eo&quot;</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_warn_undeclared_metadata</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">,</span> <span class="n">ext</span><span class="o">=</span><span class="s2">&quot;eo&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_BandList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_band_from_eo_bands_metadata</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">asset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;eo:bands&quot;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_bands_from_item_asset_definition: unsupported </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">asset</span><span class="p">)</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="p">([])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_bands_from_item_assets</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">item_assets</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Union</span><span class="p">[</span>
+                <span class="n">pystac</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">item_assets</span><span class="o">.</span><span class="n">AssetDefinition</span><span class="p">,</span>
+                <span class="s2">&quot;pystac.ItemAssetDefinition&quot;</span><span class="p">,</span>  <span class="c1"># TODO: non-string type hint once pystac dependency is bumped to at least 1.12</span>
+            <span class="p">],</span>
+        <span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_BandList</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get bands extracted from assets defined under</span>
+<span class="sd">        a collection&#39;s &quot;item_assets&quot; field</span>
+
+<span class="sd">        Note that &quot;item_assets&quot; in STAC is a mapping, which means that the</span>
+<span class="sd">        band order might be ill-defined.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="s2">&quot;Deriving band listing from unordered `item_assets`&quot;</span><span class="p">)</span>
+        <span class="c1"># TODO: filter on asset roles?</span>
+        <span class="k">return</span> <span class="n">_BandList</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bands_from_item_asset_definition</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">item_assets</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

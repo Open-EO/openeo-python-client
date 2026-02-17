@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Finding and loading data &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Working with processes" href="processes.html" />
+    <link rel="prev" title="Getting Started" href="basics.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="finding-and-loading-data">
+<span id="data-access-chapter"></span><h1>Finding and loading data<a class="headerlink" href="#finding-and-loading-data" title="Link to this heading">¶</a></h1>
+<p>As illustrated in the basic concepts, most openEO scripts start with <code class="docutils literal notranslate"><span class="pre">load_collection</span></code>, but this skips the step of
+actually finding out which collection to load. This section dives a bit deeper into finding the right data, and some more
+advanced data loading use cases.</p>
+<section id="data-discovery">
+<h2>Data discovery<a class="headerlink" href="#data-discovery" title="Link to this heading">¶</a></h2>
+<p>To explore data in a given back-end, it is recommended to use a more visual tool like the openEO Hub
+(<a class="reference external" href="http://hub.openeo.org/">http://hub.openeo.org/</a>). This shows available collections, and metadata in a user-friendly manner.</p>
+<p>Next to that, the client also offers various <a class="reference internal" href="api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a> methods
+to explore collections and their metadata:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_collection_ids" title="openeo.rest.connection.Connection.list_collection_ids"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_collection_ids()</span></code></a>
+to list all collection ids provided by the back-end</p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_collections" title="openeo.rest.connection.Connection.list_collections"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_collections()</span></code></a>
+to list the basic metadata of all collections</p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.connection.Connection.describe_collection" title="openeo.rest.connection.Connection.describe_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">describe_collection()</span></code></a>
+to get the complete metadata of a particular collection</p></li>
+</ul>
+<p>When using these methods inside a Jupyter notebook, you should notice that the output is rendered in a user friendly way.</p>
+<p>In a regular script, these methods can be used to programmatically find a collection that matches specific criteria.</p>
+<p>As a user, make sure to carefully read the documentation for a given collection, as there can be important differences.
+You should also be aware of the data retention policy of a given collection: some data archives only retain the last 3 months
+for instance, making them only suitable for specific types of analysis. Such differences can have an impact on the reproducibility
+of your openEO scripts.</p>
+<p>Also note that the openEO metadata may use links to point to much more information for a particular collection. For instance
+technical specification on how the data was preprocessed, or viewers that allow you to visually explore the data. This can
+drastically improve your understanding of the dataset.</p>
+<p>Finally, licensing information is important to keep an eye on: not all data is free and open.</p>
+<section id="initial-exploration-of-an-openeo-collection">
+<h3>Initial exploration of an openEO collection<a class="headerlink" href="#initial-exploration-of-an-openeo-collection" title="Link to this heading">¶</a></h3>
+<p>A common question from users is about very specific details of a collection, we’d like to list some examples and solutions here:</p>
+<ul class="simple">
+<li><p>The collection data type, and range of values, can be determined by simply downloading a sample of data, as NetCDF or Geotiff. This can in fact be done at any point in the design of your script, to get a good idea of intermediate results.</p></li>
+<li><p>Data availability, and available timestamps can be retrieved by computing average values for your area of interest. Just construct a polygon, and retrieve those statistics. For optical data, this can also be used to get an idea on cloud statistics.</p></li>
+<li><p>Most collections have a native projection system, again a simple download will give you this information if its not clear from the metadata.</p></li>
+</ul>
+</section>
+</section>
+<section id="loading-a-data-cube-from-a-collection">
+<span id="data-loading-and-filtering"></span><h2>Loading a data cube from a collection<a class="headerlink" href="#loading-a-data-cube-from-a-collection" title="Link to this heading">¶</a></h2>
+<p>Many examples already illustrate the basic openEO <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process through a <a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_collection" title="openeo.rest.connection.Connection.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_collection()</span></code></a> call,
+with filters on space, time and bands.
+For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">3.75</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">4.08</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.29</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.39</span><span class="p">},</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2021-05-07&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-05-14&quot;</span><span class="p">],</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;B04&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">,</span> <span class="s2">&quot;B02&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The purpose of these filters in <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> is to reduce the amount of raw data that is loaded (and processed) by the back-end.
+This is essential to get a response to your processing request in reasonable time and keep processing costs low.
+It’s recommended to start initial exploration with a small spatio-temporal extent
+and gradually increase the scope once initial tests work out.</p>
+<p>Next to specifying filters inside the <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process,
+there are also possibilities to filter with separate filter processes, e.g. at a later stage in your process graph.
+For most openEO back-ends, the following example snippet should be equivalent to the previous:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="mf">3.75</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="mf">4.08</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="mf">51.29</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="mf">51.39</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2021-05-07&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-05-14&quot;</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_bands</span><span class="p">([</span><span class="s2">&quot;B04&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">,</span> <span class="s2">&quot;B02&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Another nice feature is that processes that work with geometries or vector features
+(e.g. aggregated statistics for a polygon, or masking by polygon)
+can also be used by a back-end to automatically infer an appropriate spatial extent.
+This way, you do not need to explicitly set these filters yourself.</p>
+<p>In the following sections, we want to dive a bit into details, and more advanced cases.</p>
+</section>
+<section id="filter-on-spatial-extent">
+<h2>Filter on spatial extent<a class="headerlink" href="#filter-on-spatial-extent" title="Link to this heading">¶</a></h2>
+<p>A spatial extent is a bounding box that specifies the minimum and and maximum longitude and latitude of the region of interest you want to process.</p>
+<p>By default these latitude and longitude values are expressed in the standard Coordinate Reference System for the world,
+which is EPSG:4326, also known as “WGS 84”, or just “lat-long”.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">5.14</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.17</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">5.17</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.19</span><span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="filter-on-temporal-extent">
+<span id="filtering-on-temporal-extent-section"></span><h2>Filter on temporal extent<a class="headerlink" href="#filter-on-temporal-extent" title="Link to this heading">¶</a></h2>
+<p>Usually you don’t need the complete time range provided by a collection
+and you should specify an appropriate time window to load
+as a <code class="docutils literal notranslate"><span class="pre">temporal_extent</span></code> pair containing a start and end date:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2021-05-07&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-05-14&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>In most use cases, day-level granularity is enough and you can just express the dates as strings in the format <code class="docutils literal notranslate"><span class="pre">&quot;yyyy-mm-dd&quot;</span></code>.
+You can also pass <code class="docutils literal notranslate"><span class="pre">datetime.date</span></code> objects (from Python standard library) if you already have your dates in that format.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When you need finer, time-level granularity, you can pass <code class="docutils literal notranslate"><span class="pre">datetime.datetime</span></code> objects.
+Or, when passed as a string, the openEO API requires date and time to be provided in RFC 3339 format.
+For example for for 2020-03-17 at 12:34:56 in UTC:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;2020-03-17T12:34:56Z&quot;</span>
+</pre></div>
+</div>
+</div>
+<section id="left-closed-intervals-start-included-end-excluded">
+<span id="left-closed-temporal-extent"></span><h3>Left-closed intervals: start included, end excluded<a class="headerlink" href="#left-closed-intervals-start-included-end-excluded" title="Link to this heading">¶</a></h3>
+<p>Time ranges in openEO processes like <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_temporal</span></code> are handled as left-closed (“half-open”) temporal intervals:
+the start instant is included in the interval, but the end instant is excluded from the interval.</p>
+<p>For example, the interval defined by <code class="docutils literal notranslate"><span class="pre">[&quot;2020-03-05&quot;,</span> <span class="pre">&quot;2020-03-15&quot;]</span></code> covers observations
+from 2020-03-05 up to (and including) 2020-03-14 (just before midnight),
+but does not include observations from 2020-03-15.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>          2020-03-05                             2020-03-14   2022-03-15
+________|____________|_________________________|____________|____________|_____
+
+        [--------------------------------------------------(O
+    including                                           excluding
+2020-03-05 00:00:00.000                             2020-03-15 00:00:00.000
+</pre></div>
+</div>
+<p>While this might look unintuitive at first,
+working with half-open intervals avoids common and hard to discover pitfalls when combining multiple intervals,
+like unintended window overlaps or double counting observations at interval borders.</p>
+</section>
+<section id="year-month-shorthand-notation">
+<span id="date-shorthand-handling"></span><h3>Year/month shorthand notation<a class="headerlink" href="#year-month-shorthand-notation" title="Link to this heading">¶</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Year/month shorthand notation handling is available since version 0.23.0.</p>
+</div>
+<section id="rounding-down-periods-to-dates">
+<h4>Rounding down periods to dates<a class="headerlink" href="#rounding-down-periods-to-dates" title="Link to this heading">¶</a></h4>
+<p>The openEO Python Client Library supports some shorthand notations for the temporal extent,
+which come in handy if you work with year/month based temporal intervals.
+Date strings that only consist of a year or a month will be automatically
+“rounded down” to the first day of that period. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;2023&quot;</span>    <span class="o">-&gt;</span> <span class="s2">&quot;2023-01-01&quot;</span>
+<span class="s2">&quot;2023-08&quot;</span> <span class="o">-&gt;</span> <span class="s2">&quot;2023-08-01&quot;</span>
+</pre></div>
+</div>
+<p>This approach fits best with <a class="reference internal" href="#left-closed-temporal-extent"><span class="std std-ref">left-closed interval handling</span></a>.</p>
+<p>For example, the following two <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> calls are equivalent:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Filter for observations in 2021 (left-closed interval).</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2021&quot;</span><span class="p">,</span> <span class="s2">&quot;2022&quot;</span><span class="p">],</span> <span class="o">...</span><span class="p">)</span>
+<span class="c1"># The above is shorthand for:</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2021-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-01-01&quot;</span><span class="p">],</span> <span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The same applies for <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_temporal" title="openeo.rest.datacube.DataCube.filter_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter_temporal()</span></code></a>,
+which has a couple of additional call forms.
+All these calls are equivalent:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Filter for March, April and May (left-closed interval)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2021-03&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-06&quot;</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">([</span><span class="s2">&quot;2021-03&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-06&quot;</span><span class="p">])</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">start_date</span><span class="o">=</span><span class="s2">&quot;2021-03&quot;</span><span class="p">,</span> <span class="n">end_date</span><span class="o">=</span><span class="s2">&quot;2021-06&quot;</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2021-03&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-06&quot;</span><span class="p">))</span>
+
+<span class="c1"># The above are shorthand for:</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2021-03-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-06-01&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="single-string-temporal-extents">
+<span id="id1"></span><h4>Single string temporal extents<a class="headerlink" href="#single-string-temporal-extents" title="Link to this heading">¶</a></h4>
+<p>Apart from rounding down year or month string, the openEO Python Client Library provides an additional
+<code class="docutils literal notranslate"><span class="pre">extent</span></code> handling feature in methods like
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_collection" title="openeo.rest.connection.Connection.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_collection(temporal_extent=...)</span></code></a>
+and <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.filter_temporal" title="openeo.rest.datacube.DataCube.filter_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.filter_temporal(extent=...)</span></code></a>.
+Normally, the <code class="docutils literal notranslate"><span class="pre">extent</span></code> argument should be a list or tuple containing start and end date,
+but if a single string is given, representing a year, month (or day) period,
+it is automatically expanded to the appropriate interval,
+again following the <a class="reference internal" href="#left-closed-temporal-extent"><span class="std std-ref">left-closed interval principle</span></a>.
+For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">extent</span><span class="o">=</span><span class="s2">&quot;2022&quot;</span>        <span class="o">-&gt;</span>  <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2022-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2023-01-01&quot;</span><span class="p">)</span>
+<span class="n">extent</span><span class="o">=</span><span class="s2">&quot;2022-05&quot;</span>     <span class="o">-&gt;</span>  <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2022-05-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-06-01&quot;</span><span class="p">)</span>
+<span class="n">extent</span><span class="o">=</span><span class="s2">&quot;2022-05-17&quot;</span>  <span class="o">-&gt;</span>  <span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2022-05-17&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-05-18&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The following snippet shows some examples of equivalent calls:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">temporal_extent</span><span class="o">=</span><span class="s2">&quot;2022&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="c1"># The above is shorthand for:</span>
+<span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="n">temporal_extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2022-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2023-01-01&quot;</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+
+
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="s2">&quot;2021-03&quot;</span><span class="p">)</span>
+<span class="c1"># The above are shorthand for:</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;2021-03-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-04-01&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="filter-on-collection-properties">
+<h2>Filter on collection properties<a class="headerlink" href="#filter-on-collection-properties" title="Link to this heading">¶</a></h2>
+<p>Although openEO presents data in a data cube, a lot of collections are still backed by a product based catalog. This
+allows filtering on properties of that catalog.</p>
+<p>A very common use case is to pre-filter Sentinel-2 products on cloud cover.
+This avoids loading clouded data unnecessarily and increases performance.
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_collection" title="openeo.rest.connection.Connection.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.load_collection()</span></code></a> provides
+a dedicated <code class="docutils literal notranslate"><span class="pre">max_cloud_cover</span></code> argument (shortcut for the <code class="docutils literal notranslate"><span class="pre">eo:cloud_cover</span></code> property) for that:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span>
+    <span class="o">...</span><span class="p">,</span>
+<span class="hll">    <span class="n">max_cloud_cover</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For more general cases, you can use the <code class="docutils literal notranslate"><span class="pre">properties</span></code> argument to filter on any collection property.
+For example, to filter on the relative orbit number of SAR data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL1_GRD&quot;</span><span class="p">,</span>
+    <span class="o">...</span><span class="p">,</span>
+<span class="hll">    <span class="n">properties</span><span class="o">=</span><span class="p">{</span>
+</span><span class="hll">        <span class="s2">&quot;relativeOrbitNumber&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">==</span> <span class="mi">116</span><span class="p">,</span>
+</span><span class="hll">    <span class="p">},</span>
+</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Version 0.26.0 of the openEO Python Client Library adds
+<a class="reference internal" href="api.html#openeo.rest.graph_building.collection_property" title="openeo.rest.graph_building.collection_property"><code class="xref py py-func docutils literal notranslate"><span class="pre">collection_property()</span></code></a>
+which makes defining such property filters more user-friendly by avoiding the <code class="docutils literal notranslate"><span class="pre">lambda</span></code> construct:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL1_GRD&quot;</span><span class="p">,</span>
+    <span class="o">...</span><span class="p">,</span>
+<span class="hll">    <span class="n">properties</span><span class="o">=</span><span class="p">[</span>
+</span><span class="hll">        <span class="n">openeo</span><span class="o">.</span><span class="n">collection_property</span><span class="p">(</span><span class="s2">&quot;relativeOrbitNumber&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">116</span><span class="p">,</span>
+</span><span class="hll">    <span class="p">],</span>
+</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that property names follow STAC metadata conventions, but some collections can have different names.</p>
+<p>Property filters in openEO are also specified by small process graphs, that allow the use of the same generic processes
+defined by openEO. This is the ‘lambda’ process that you see in the property dictionary. Do note that not all processes
+make sense for product filtering, and can not always be properly translated into the query language of the catalog.
+Hence, some experimentation may be needed to find a filter that works.</p>
+<p>One important caveat in this example is that ‘relativeOrbitNumber’ is a catalog specific property name. Meaning that
+different archives may choose a different name for a given property, and the properties that are available can depend
+on the collection and the catalog that is used by it. This is not a problem caused by openEO, but by the limited
+standardization between catalogs of EO data.</p>
+</section>
+<section id="handling-large-vector-data-sets">
+<h2>Handling large vector data sets<a class="headerlink" href="#handling-large-vector-data-sets" title="Link to this heading">¶</a></h2>
+<p>For simple use cases, it is common to directly embed geometries (vector data) in your openEO process graph.
+Unfortunately, with large vector data sets this leads to very large process graphs
+and you might hit certain limits,
+resulting in HTTP errors like <code class="docutils literal notranslate"><span class="pre">413</span> <span class="pre">Request</span> <span class="pre">Entity</span> <span class="pre">Too</span> <span class="pre">Large</span></code> or <code class="docutils literal notranslate"><span class="pre">413</span> <span class="pre">Payload</span> <span class="pre">Too</span> <span class="pre">Large</span></code>.</p>
+<p>This problem can be circumvented by first uploading your vector data to a file sharing service
+(like Google Drive, DropBox, GitHub, …)
+and use its public URL in the process graph instead
+through <a class="reference internal" href="api.html#openeo.rest.connection.Connection.vectorcube_from_paths" title="openeo.rest.connection.Connection.vectorcube_from_paths"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.vectorcube_from_paths</span></code></a>.
+For example, as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load vector data from URL</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://github.com/Open-EO/openeo-python-client/raw/master/tests/data/example_aoi.pq&quot;</span>
+<span class="n">parcels</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">vectorcube_from_paths</span><span class="p">([</span><span class="n">url</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;parquet&quot;</span><span class="p">)</span>
+
+<span class="c1"># Use the parcel vector data, for example to do aggregation.</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;B04&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">,</span> <span class="s2">&quot;B02&quot;</span><span class="p">],</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2021-05-12&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-06-01&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="n">aggregations</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">aggregate_spatial</span><span class="p">(</span>
+    <span class="n">geometries</span><span class="o">=</span><span class="n">parcels</span><span class="p">,</span>
+    <span class="n">reducer</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that while openEO back-ends typically support multiple vector formats, like GeoJSON and GeoParquet,
+it is usually recommended to use a compact format like GeoParquet, instead of GeoJSON. The list of supported formats
+is also advertised by the backend, and can be queried with
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_file_formats" title="openeo.rest.connection.Connection.list_file_formats"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.list_file_formats</span></code></a>.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Finding and loading data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#data-discovery">Data discovery</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#loading-a-data-cube-from-a-collection">Loading a data cube from a collection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filter-on-spatial-extent">Filter on spatial extent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filter-on-temporal-extent">Filter on temporal extent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filter-on-collection-properties">Filter on collection properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#handling-large-vector-data-sets">Handling large vector data sets</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="basics.html" title="previous chapter">Getting Started</a></li>
+      <li>Next: <a href="processes.html" title="next chapter">Working with processes</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/data_access.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

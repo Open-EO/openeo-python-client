@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>User-Defined Functions (UDF) explained &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="DataCube construction" href="datacube_construction.html" />
+    <link rel="prev" title="Authentication and Account Management" href="auth.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="user-defined-functions-udf-explained">
+<span id="user-defined-functions"></span><span id="index-1"></span><span id="index-0"></span><h1>User-Defined Functions (UDF) explained<a class="headerlink" href="#user-defined-functions-udf-explained" title="Link to this heading">¶</a></h1>
+<p>While openEO supports a wide range of pre-defined processes
+and allows to build more complex user-defined processes from them,
+you sometimes need operations or algorithms that are
+not (yet) available or standardized as openEO process.
+<strong>User-Defined Functions (UDF)</strong> is an openEO feature
+(through the <a class="reference external" href="https://processes.openeo.org/#run_udf">run_udf</a> process)
+that aims to fill that gap by allowing a user to express (a part of)
+an <strong>algorithm as a Python/R/… script to be run back-end side</strong>.</p>
+<p>There are a lot of details to cover,
+but here is a rudimentary example snippet
+to give you a quick impression of how to work with UDFs
+using the openEO Python Client library:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Basic UDF usage example snippet to rescale pixel values</span><a class="headerlink" href="#id1" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="c1"># Build a UDF object from an inline string with Python source code.</span>
+<span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="p">(</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">import xarray</span>
+
+<span class="sd">def apply_datacube(cube: xarray.DataArray, context: dict) -&gt; xarray.DataArray:</span>
+<span class="sd">    cube.values = 0.0001 * cube.values</span>
+<span class="sd">    return cube</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Or load the UDF code from a separate file.</span>
+<span class="c1"># udf = openeo.UDF.from_file(&quot;udf-code.py&quot;)</span>
+
+<span class="c1"># Apply the UDF to a cube.</span>
+<span class="n">rescaled_cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">process</span><span class="o">=</span><span class="n">udf</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Ideally, it allows you to embed existing Python/R/… implementations
+in an openEO workflow (with some necessary “glue code”).
+However, it is recommended to try to do as much pre- or postprocessing
+with pre-defined processes
+before blindly copy-pasting source code snippets as UDFs.
+Pre-defined processes are typically well-optimized by the backend,
+while UDFs can come with a performance penalty
+and higher development/debug/maintenance costs.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Don not confuse <strong>user-defined functions</strong> (abbreviated as UDF) with
+<strong>user-defined processes</strong> (sometimes abbreviated as UDP) in openEO,
+which is a way to define and use your own process graphs
+as reusable building blocks.
+See <a class="reference internal" href="udp.html#user-defined-processes"><span class="std std-ref">User-Defined Processes (UDP)</span></a> for more information.</p>
+</div>
+<section id="applicability-and-constraints">
+<h2>Applicability and Constraints<a class="headerlink" href="#applicability-and-constraints" title="Link to this heading">¶</a></h2>
+<p id="index-2">openEO is designed to work transparently on large data sets
+and your UDF has to follow a couple of guidelines to make that possible.
+First of all, as data cubes play a central role in openEO,
+your UDF should accept and return correct <strong>data cube structures</strong>,
+with proper dimensions, dimension labels, etc.
+Moreover, the back-end will typically divide your input data cube
+in smaller chunks and process these chunks separately (e.g. on isolated workers).
+Consequently, it’s important that your <strong>UDF algorithm operates correctly
+in such a chunked processing context</strong>.</p>
+<p>A very common mistake is to use index-based array indexing, rather than name based. The index based approach
+assumes that datacube dimension order is fixed, which is not guaranteed. Next to that, it also reduces the readability
+of your code. Label based indexing is a great feature of xarray, and should be used whenever possible.</p>
+<p>As a rule of thumb, the UDF should preserve the dimensions and shape of the input
+data cube. The datacube chunk that is passed on by the backend does not have a fixed
+specification, so the UDF needs to be able to accomodate different shapes and sizes of the data.</p>
+<p>There’s important exceptions to this rule, that depend on the context in which the UDF is used.
+For instance, a UDF used as a reducer should effectively remove the reduced dimension from the
+output chunk. These details are documented in the next sections.</p>
+<section id="udfs-as-apply-reduce-callbacks">
+<h3>UDFs as apply/reduce “callbacks”<a class="headerlink" href="#udfs-as-apply-reduce-callbacks" title="Link to this heading">¶</a></h3>
+<p>UDFs are typically used as “callback” processes for “meta” processes
+like <code class="docutils literal notranslate"><span class="pre">apply</span></code> or <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> (also see <a class="reference internal" href="processes.html#callbackfunctions"><span class="std std-ref">Processes with child “callbacks”</span></a>).
+These meta-processes make abstraction of a datacube as a whole
+and allow the callback to focus on a small slice of data or a single dimension.
+Their nature instructs the backend how the data should be processed
+and can be chunked:</p>
+<dl class="simple">
+<dt><a class="reference external" href="https://processes.openeo.org/#apply">apply</a></dt><dd><p>Applies a process on <em>each pixel separately</em>.
+The back-end has all freedom to choose chunking
+(e.g. chunk spatially and temporally).
+Dimensions and their labels are fully preserved.
+This function has limited practical use in combination with UDF’s.</p>
+</dd>
+<dt><a class="reference external" href="https://processes.openeo.org/#apply_dimension">apply_dimension</a></dt><dd><p>Applies a process to all pixels <em>along a given dimension</em>
+to produce a new series of values for that dimension.
+The back-end will not split your data on that dimension.
+For example, when working along the time dimension,
+your UDF is guaranteed to receive a full timeseries,
+but the data could be chunked spatially.
+All dimensions and labels are preserved,
+except for the dimension along which <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code> is applied:
+the number of dimension labels is allowed to change.</p>
+</dd>
+<dt><a class="reference external" href="https://processes.openeo.org/#reduce_dimension">reduce_dimension</a></dt><dd><p>Applies a process to all pixels <em>along a given dimension</em>
+to produce a single value, eliminating that dimension.
+Like with <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code>, the back-end will
+not split your data on that dimension.
+The dimension along which <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code> is applied must be removed
+from the output.
+For example, when applying <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> on a spatiotemporal cube
+along the time dimension,
+the UDF is guaranteed to receive full timeseries
+(but the data could be chunked spatially)
+and the output cube should only be a spatial cube, without a temporal dimension</p>
+</dd>
+<dt><a class="reference external" href="https://processes.openeo.org/#apply_neighborhood">apply_neighborhood</a></dt><dd><p>Applies a process to a neighborhood of pixels
+in a sliding-window fashion with (optional) overlap.
+Data chunking in this case is explicitly controlled by the user.
+Dimensions and number of labels are fully preserved. This is the most versatile
+and widely used function to work with UDF’s.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="udf-function-names-and-signatures">
+<h2>UDF function names and signatures<a class="headerlink" href="#udf-function-names-and-signatures" title="Link to this heading">¶</a></h2>
+<p>The UDF code you pass to the back-end is basically a Python script
+that contains one or more functions.
+Exactly one of these functions should have a proper UDF signature,
+as defined in the <a class="reference internal" href="#module-openeo.udf.udf_signatures" title="openeo.udf.udf_signatures"><code class="xref py py-mod docutils literal notranslate"><span class="pre">openeo.udf.udf_signatures</span></code></a> module,
+so that the back-end knows what the <em>entrypoint</em> function is
+of your UDF implementation.</p>
+<section id="module-openeo.udf.udf_signatures">
+<span id="module-openeo-udf-udf-signatures"></span><h3>Module <code class="docutils literal notranslate"><span class="pre">openeo.udf.udf_signatures</span></code><a class="headerlink" href="#module-openeo.udf.udf_signatures" title="Link to this heading">¶</a></h3>
+<p>This module defines a number of function signatures that can be implemented by UDF’s.
+Both the name of the function and the argument types are/can be used by the backend to validate if the provided UDF
+is compatible with the calling context of the process graph in which it is used.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.udf.udf_signatures.apply_datacube">
+<span class="sig-prename descclassname"><span class="pre">openeo.udf.udf_signatures.</span></span><span class="sig-name descname"><span class="pre">apply_datacube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/udf/udf_signatures.html#apply_datacube"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.udf.udf_signatures.apply_datacube" title="Link to this definition">¶</a></dt>
+<dd><p>Map a <a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">xarray.DataArray</span></code></a> to another <a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">xarray.DataArray</span></code></a>.</p>
+<p>Depending on the context in which this function is used, the <a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">xarray.DataArray</span></code></a> dimensions
+have to be retained or can be chained.
+For instance, in the context of a reducing operation along a dimension,
+that dimension will have to be reduced to a single value.
+In the context of a 1 to 1 mapping operation, all dimensions have to be retained.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a></span>) – input data array</p></li>
+<li><p><strong>context</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – A dictionary containing user context.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>output data array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.udf.udf_signatures.apply_metadata">
+<span class="sig-prename descclassname"><span class="pre">openeo.udf.udf_signatures.</span></span><span class="sig-name descname"><span class="pre">apply_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/udf/udf_signatures.html#apply_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.udf.udf_signatures.apply_metadata" title="Link to this definition">¶</a></dt>
+<dd><div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This signature is not yet fully standardized and subject to change.</p>
+</div>
+<p>Returns the expected cube metadata, after applying this UDF, based on input metadata.
+The provided metadata represents the whole raster or vector cube. This function does not need to be called for every data chunk.</p>
+<p>When this function is not implemented by the UDF, the backend may still be able to infer correct metadata by running the
+UDF, but this can result in reduced performance or errors.</p>
+<p>This function does not need to be provided when using the UDF in combination with processes that by design have a clear
+effect on cube metadata, such as <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.reduce_dimension" title="openeo.rest.datacube.DataCube.reduce_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reduce_dimension()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="api.html#openeo.metadata.CollectionMetadata" title="openeo.metadata.CollectionMetadata"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollectionMetadata</span></code></a></span>) – the collection metadata of the input data cube</p></li>
+<li><p><strong>context</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – A dictionary containing user context.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="api.html#openeo.metadata.CollectionMetadata" title="openeo.metadata.CollectionMetadata"><code class="xref py py-class docutils literal notranslate"><span class="pre">CollectionMetadata</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>output metadata: the expected metadata of the cube, after applying the udf</p>
+</dd>
+</dl>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h4>
+<p>An example for a UDF that is applied on the ‘bands’ dimension, and returns a new set of bands with different labels.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span><span class="w"> </span><span class="nf">apply_metadata</span><span class="p">(</span><span class="n">metadata</span><span class="p">:</span> <span class="n">CollectionMetadata</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">metadata</span><span class="o">.</span><span class="n">rename_labels</span><span class="p">(</span>
+<span class="gp">... </span>        <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span>
+<span class="gp">... </span>        <span class="n">target</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;computed_band_1&quot;</span><span class="p">,</span> <span class="s2">&quot;computed_band_2&quot;</span><span class="p">]</span>
+<span class="gp">... </span>    <span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.udf.udf_signatures.apply_timeseries">
+<span class="sig-prename descclassname"><span class="pre">openeo.udf.udf_signatures.</span></span><span class="sig-name descname"><span class="pre">apply_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/udf/udf_signatures.html#apply_timeseries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.udf.udf_signatures.apply_timeseries" title="Link to this definition">¶</a></dt>
+<dd><p>Process a timeseries of values, without changing the time instants.</p>
+<p>This can for instance be used for smoothing or gap-filling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>series</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Series</span></code></span>) – A Pandas Series object with a date-time index.</p></li>
+<li><p><strong>context</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – A dictionary containing user context.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Series</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A Pandas Series object with the same datetime index.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.udf.udf_signatures.apply_udf_data">
+<span class="sig-prename descclassname"><span class="pre">openeo.udf.udf_signatures.</span></span><span class="sig-name descname"><span class="pre">apply_udf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/udf/udf_signatures.html#apply_udf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.udf.udf_signatures.apply_udf_data" title="Link to this definition">¶</a></dt>
+<dd><p>Generic UDF function that directly manipulates a <code class="xref py py-class docutils literal notranslate"><span class="pre">UdfData</span></code> object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="api.html#openeo.udf.udf_data.UdfData" title="openeo.udf.udf_data.UdfData"><code class="xref py py-class docutils literal notranslate"><span class="pre">UdfData</span></code></a></span>) – <code class="xref py py-class docutils literal notranslate"><span class="pre">UdfData</span></code> object to manipulate in-place</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.udf.udf_signatures.apply_vectorcube">
+<span class="sig-prename descclassname"><span class="pre">openeo.udf.udf_signatures.</span></span><span class="sig-name descname"><span class="pre">apply_vectorcube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geometries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/udf/udf_signatures.html#apply_vectorcube"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.udf.udf_signatures.apply_vectorcube" title="Link to this definition">¶</a></dt>
+<dd><p>Map a vector cube to another vector cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>geometries</strong> (<span class="sphinx_autodoc_typehints-type">geopandas.geodataframe.GeoDataFrame</span>) – input geometries as a geopandas.GeoDataFrame. This contains the actual shapely geometries and optional properties.</p></li>
+<li><p><strong>cube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a></span>) – a data cube with dimensions (geometries, time, bands) where time and bands are optional.
+The coordinates for the geometry dimension are integers and match the index of the geometries in the geometries parameter.</p></li>
+<li><p><strong>context</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – A dictionary containing user context.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type">(geopandas.geodataframe.GeoDataFrame, <a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a>)</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>output geometries, output data cube</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="a-first-example-apply-with-an-udf-to-rescale-pixel-values">
+<span id="udf-example-apply"></span><h2>A first example: <code class="docutils literal notranslate"><span class="pre">apply</span></code> with an UDF to rescale pixel values<a class="headerlink" href="#a-first-example-apply-with-an-udf-to-rescale-pixel-values" title="Link to this heading">¶</a></h2>
+<p>In most of the examples here, we will start from an initial Sentinel2 data cube like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">s2_cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">4.00</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.04</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">4.10</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.1</span><span class="p">},</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2022-03-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-03-31&quot;</span><span class="p">],</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;B02&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">,</span> <span class="s2">&quot;B04&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The raw values in this initial <code class="docutils literal notranslate"><span class="pre">s2_cube</span></code> data cube are <strong>digital numbers</strong>
+(integer values ranging from 0 to several thousands)
+and to get <strong>physical reflectance</strong> values (float values, typically in the range between 0 and 0.5),
+we have to rescale them.
+This is a simple local transformation, without any interaction between pixels,
+which is the modus operandi of the <code class="docutils literal notranslate"><span class="pre">apply</span></code> processes.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In practice it will be a lot easier and more efficient to do this kind of rescaling
+with pre-defined openEO math processes, for example: <code class="docutils literal notranslate"><span class="pre">s2_cube.apply(lambda</span> <span class="pre">x:</span> <span class="pre">0.0001</span> <span class="pre">*</span> <span class="pre">x)</span></code>.
+This is just a very simple illustration to get started with UDFs. In fact, it’s very likely that
+you will never want to use a UDF with apply.</p>
+</div>
+<section id="udf-script">
+<h3>UDF script<a class="headerlink" href="#udf-script" title="Link to this heading">¶</a></h3>
+<p>The UDF code is this short script (the part that does the actual value rescaling is highlighted):</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">udf-code.py</span></code></span><a class="headerlink" href="#id2" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+<span class="linenos">2</span>
+<span class="linenos">3</span>
+<span class="linenos">4</span><span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="hll"><span class="linenos">5</span>    <span class="n">cube</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">cube</span><span class="o">.</span><span class="n">values</span>
+</span><span class="linenos">6</span>    <span class="k">return</span> <span class="n">cube</span>
+</pre></div>
+</div>
+</div>
+<p>Some details about this UDF script:</p>
+<ul class="simple">
+<li><p>line 1: We import <cite>xarray</cite> as we use this as exchange format.</p></li>
+<li><p>line 3: We define a function named <code class="docutils literal notranslate"><span class="pre">apply_datacube</span></code>,
+which receives and returns a <a class="reference external" href="https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray" title="(in xarray v2026.2.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code></a> instance.
+We follow here the <a class="reference internal" href="#openeo.udf.udf_signatures.apply_datacube" title="openeo.udf.udf_signatures.apply_datacube"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_datacube()</span></code></a> UDF function signature.</p></li>
+<li><p>line 4: Because our scaling operation is so simple, we can transform the <code class="docutils literal notranslate"><span class="pre">xarray.DataArray</span></code> values in-place.</p></li>
+<li><p>line 5: Consequently, because the values were updated in-place, we can return the same Xarray object.</p></li>
+</ul>
+</section>
+<section id="workflow-script">
+<h3>Workflow script<a class="headerlink" href="#workflow-script" title="Link to this heading">¶</a></h3>
+<p>In this first example, we’ll cite a full, standalone openEO workflow script,
+including creating the back-end connection, loading the initial data cube and downloading the result.
+The UDF-specific part is highlighted.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This implementation depends on <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a> improvements
+that were introduced in version 0.13.0 of the openeo Python Client Library.
+If you are currently stuck with working with an older version,
+check <a class="reference internal" href="#old-udf-api"><span class="std std-ref">openeo.UDF API and usage changes in version 0.13.0</span></a> for more information on the difference with the old API.</p>
+</div>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">UDF usage example snippet</span><a class="headerlink" href="#id3" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="c1"># Create connection to openEO back-end</span>
+<span class="linenos"> 4</span><span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;...&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="c1"># Load initial data cube.</span>
+<span class="linenos"> 7</span><span class="n">s2_cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+<span class="linenos"> 8</span>    <span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span>
+<span class="linenos"> 9</span>    <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">4.00</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.04</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">4.10</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.1</span><span class="p">},</span>
+<span class="linenos">10</span>    <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2022-03-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2022-03-31&quot;</span><span class="p">],</span>
+<span class="linenos">11</span>    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;B02&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">,</span> <span class="s2">&quot;B04&quot;</span><span class="p">],</span>
+<span class="linenos">12</span><span class="p">)</span>
+<span class="linenos">13</span>
+<span class="hll"><span class="linenos">14</span><span class="c1"># Create a UDF object from inline source code.</span>
+</span><span class="hll"><span class="linenos">15</span><span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="p">(</span>
+</span><span class="hll"><span class="linenos">16</span><span class="sd">&quot;&quot;&quot;</span>
+</span><span class="hll"><span class="linenos">17</span><span class="sd">import xarray</span>
+</span><span class="hll"><span class="linenos">18</span>
+</span><span class="hll"><span class="linenos">19</span><span class="sd">def apply_datacube(cube: xarray.DataArray, context: dict) -&gt; xarray.DataArray:</span>
+</span><span class="hll"><span class="linenos">20</span><span class="sd">    cube.values = 0.0001 * cube.values</span>
+</span><span class="hll"><span class="linenos">21</span><span class="sd">    return cube</span>
+</span><span class="hll"><span class="linenos">22</span><span class="sd">&quot;&quot;&quot;</span>
+</span><span class="hll"><span class="linenos">23</span><span class="p">)</span>
+</span><span class="hll"><span class="linenos">24</span>
+</span><span class="hll"><span class="linenos">25</span><span class="c1"># Pass UDF object as child process to `apply`.</span>
+</span><span class="linenos">26</span><span class="n">rescaled</span> <span class="o">=</span> <span class="n">s2_cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">process</span><span class="o">=</span><span class="n">udf</span><span class="p">)</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span><span class="n">rescaled</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;apply-udf-scaling.nc&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>In line 15, we build an <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a> object
+from an inline string with the UDF source code.
+This <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a> object encapsulates various aspects
+that are necessary to create a <code class="docutils literal notranslate"><span class="pre">run_udf</span></code> node in the process graph,
+and we can pass it directly in line 25 as the <code class="docutils literal notranslate"><span class="pre">process</span></code> argument
+to <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply" title="openeo.rest.datacube.DataCube.apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply()</span></code></a>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Instead of putting your UDF code in an inline string like in the example,
+it’s often a good idea to <strong>load the UDF code from a separate file</strong>,
+which is easier to maintain in your preferred editor or IDE.
+You can do that directly with the
+<a class="reference internal" href="api.html#openeo.rest._datacube.UDF.from_file" title="openeo.rest._datacube.UDF.from_file"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.UDF.from_file</span></code></a> method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;udf-code.py&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>After downloading the result, we can inspect the band values locally.
+Note see that they fall mainly in a range from 0 to 1 (in most cases even below 0.2),
+instead of the original digital number range (thousands):</p>
+<img alt="_images/apply-rescaled-histogram.png" src="_images/apply-rescaled-histogram.png" />
+</section>
+</section>
+<section id="udf-s-that-transform-cube-metadata">
+<h2>UDF’s that transform cube metadata<a class="headerlink" href="#udf-s-that-transform-cube-metadata" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a new/experimental feature so may still be subject to change.</p>
+</div>
+<p>In some cases, a UDF can have impact on the metadata of a cube, but this can not always
+be easily inferred by process graph evaluation logic without running the actual
+(expensive) UDF code. This limits the possibilities to validate process graphs,
+or for instance make an estimate of the size of a datacube after applying a UDF.</p>
+<p>To provide evaluation logic with this information, the user should implement the
+<a class="reference internal" href="#openeo.udf.udf_signatures.apply_metadata" title="openeo.udf.udf_signatures.apply_metadata"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_metadata()</span></code></a> function as part of the UDF.
+Please refer to the documentation of that function for more information.</p>
+<div class="literal-block-wrapper docutils container" id="spatial-udf">
+<div class="code-block-caption"><span class="caption-text">Example of a UDF that adjusts spatial metadata <code class="docutils literal notranslate"><span class="pre">udf_modify_spatial.py</span></code></span><a class="headerlink" href="#spatial-udf" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollectionMetadata</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.debug</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_metadata</span><span class="p">(</span><span class="n">input_metadata</span><span class="p">:</span> <span class="n">CollectionMetadata</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+    <span class="n">res</span><span class="o">=</span> <span class="p">[</span> <span class="n">d</span><span class="o">.</span><span class="n">step</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">input_metadata</span><span class="o">.</span><span class="n">spatial_dimensions</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">input_metadata</span><span class="o">.</span><span class="n">resample_spatial</span><span class="p">(</span><span class="n">resolution</span><span class="o">=</span><span class="n">res</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fancy_upsample_function</span><span class="p">(</span><span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+    <span class="k">assert</span> <span class="n">array</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span>
+    <span class="k">return</span> <span class="n">array</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+    <span class="n">cubearray</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="o">+</span> <span class="mi">60</span>
+
+    <span class="c1"># We make prediction and transform numpy array back to datacube</span>
+
+    <span class="c1"># Pixel size of the original image</span>
+    <span class="n">init_pixel_size_x</span> <span class="o">=</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">-</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+    <span class="n">init_pixel_size_y</span> <span class="o">=</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">-</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">cubearray</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">cubearray</span> <span class="o">=</span> <span class="n">cubearray</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">predicted_array</span> <span class="o">=</span> <span class="n">fancy_upsample_function</span><span class="p">(</span><span class="n">cubearray</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">inspect</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">predicted_array</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;predicted array&quot;</span><span class="p">)</span>
+    <span class="n">coord_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span>
+        <span class="n">start</span><span class="o">=</span><span class="n">cube</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+        <span class="n">stop</span><span class="o">=</span><span class="n">cube</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="n">init_pixel_size_x</span><span class="p">,</span>
+        <span class="n">num</span><span class="o">=</span><span class="n">predicted_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span>
+        <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">coord_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span>
+        <span class="n">start</span><span class="o">=</span><span class="n">cube</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+        <span class="n">stop</span><span class="o">=</span><span class="n">cube</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="n">init_pixel_size_y</span><span class="p">,</span>
+        <span class="n">num</span><span class="o">=</span><span class="n">predicted_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">endpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">predicted_cube</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span>
+        <span class="n">predicted_array</span><span class="p">,</span>
+        <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">],</span>
+        <span class="n">coords</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">coord_x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">coord_y</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">predicted_cube</span>
+</pre></div>
+</div>
+</div>
+<p>To invoke a UDF like this, the apply_neighborhood method is most suitable:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;udf_modify_spatial.py&quot;</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="s2">&quot;Python-Jep&quot;</span><span class="p">)</span>
+<span class="n">cube_updated</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">apply_neighborhood</span><span class="p">(</span>
+    <span class="n">udf</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">128</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">128</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+    <span class="p">],</span>
+    <span class="n">overlap</span><span class="o">=</span><span class="p">[],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-apply-dimension-with-a-udf">
+<h2>Example: <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code> with a UDF<a class="headerlink" href="#example-apply-dimension-with-a-udf" title="Link to this heading">¶</a></h2>
+<p>This is useful when running custom code over all band values for a given pixel or all observations per pixel.
+See section below ‘Smoothing timeseries with a user defined function’ for a concrete example.</p>
+</section>
+<section id="example-reduce-dimension-with-a-udf">
+<h2>Example: <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> with a UDF<a class="headerlink" href="#example-reduce-dimension-with-a-udf" title="Link to this heading">¶</a></h2>
+<p>The key element for a UDF invoked in the context of <cite>reduce_dimension</cite> is that it should actually return
+an Xarray DataArray _without_ the dimension that is specified to be reduced.</p>
+<p>So a reduce over time would receive a DataArray with <cite>bands,t,y,x</cite> dimensions, and return one with only <cite>bands,y,x</cite>.</p>
+</section>
+<section id="example-apply-neighborhood-with-a-udf">
+<h2>Example: <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code> with a UDF<a class="headerlink" href="#example-apply-neighborhood-with-a-udf" title="Link to this heading">¶</a></h2>
+<p>The apply_neighborhood process is generally used when working with complex AI models that require a
+spatiotemporal input stack with a fixed size. It supports the ability to specify overlap, to ensure that the model
+has sufficient border information to generate a spatially coherent output across chunks of the raster data cube.</p>
+<p>In the example below, the UDF will receive chunks of 128x128 pixels: 112 is the chunk size, while 2 times 8 pixels of
+overlap on each side of the chunk results in 128.</p>
+<p>The time and band dimensions are not specified, which means that all values along these dimensions are passed into
+the datacube.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">output_cube</span> <span class="o">=</span> <span class="n">inputs_cube</span><span class="o">.</span><span class="n">apply_neighborhood</span><span class="p">(</span>
+    <span class="n">my_udf</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">112</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">112</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+    <span class="p">],</span>
+    <span class="n">overlap</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;px&quot;</span><span class="p">},</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code> is the most versatile, but also most complex process. Make sure to keep an eye on the dimensions
+and the shape of the DataArray returned by your UDF. For instance, a very common error is to somehow ‘flip’ the spatial dimensions.
+Debugging the UDF locally can help, but then you will want to try and reproduce the input that you get also on the backend.
+This can typically be achieved by using logging to inspect the DataArrays passed into your UDF backend side.</p>
+</div>
+</section>
+<section id="example-smoothing-timeseries-with-a-user-defined-function-udf">
+<h2>Example: Smoothing timeseries with a user defined function (UDF)<a class="headerlink" href="#example-smoothing-timeseries-with-a-user-defined-function-udf" title="Link to this heading">¶</a></h2>
+<p>In this example, we start from the <code class="docutils literal notranslate"><span class="pre">evi_cube</span></code> that was created in the previous example, and want to
+apply a temporal smoothing on it. More specifically, we want to use the “Savitzky Golay” smoother
+that is available in the SciPy Python library.</p>
+<p>To ensure that openEO understand your function, it needs to follow some rules, the UDF specification.
+This is an example that follows those rules:</p>
+<div class="literal-block-wrapper docutils container" id="savgol-udf">
+<div class="code-block-caption"><span class="caption-text">Example UDF code <code class="docutils literal notranslate"><span class="pre">smooth_savitzky_golay.py</span></code></span><a class="headerlink" href="#savgol-udf" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">savgol_filter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">XarrayDataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply Savitzky-Golay smoothing to a timeseries datacube.</span>
+<span class="sd">    This UDF preserves dimensionality, and assumes an input</span>
+<span class="sd">    datacube with a temporal dimension &#39;t&#39; as input.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">get_array</span><span class="p">()</span>
+    <span class="n">filled</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">interpolate_na</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+    <span class="n">smoothed_array</span> <span class="o">=</span> <span class="n">savgol_filter</span><span class="p">(</span><span class="n">filled</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">XarrayDataCube</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span><span class="n">smoothed_array</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">array</span><span class="o">.</span><span class="n">dims</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">array</span><span class="o">.</span><span class="n">coords</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<p>The method signature of the UDF is very important, because the back-end will use it to detect
+the type of UDF.
+This particular example accepts a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> object as input and also returns a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> object.
+The type annotations and method name are actually used to detect how to invoke the UDF, so make sure they remain unchanged.</p>
+<p>Once the UDF is defined in a separate file, we load it
+and apply it along a dimension:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">smoothing_udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;smooth_savitzky_golay.py&quot;</span><span class="p">)</span>
+<span class="n">smoothed_evi</span> <span class="o">=</span> <span class="n">evi_cube_masked</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span><span class="n">smoothing_udf</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="downloading-a-datacube-and-executing-an-udf-locally">
+<h2>Downloading a datacube and executing an UDF locally<a class="headerlink" href="#downloading-a-datacube-and-executing-an-udf-locally" title="Link to this heading">¶</a></h2>
+<p>Sometimes it is advantageous to run a UDF on the client machine (for example when developing/testing that UDF).
+This is possible by using the convenience function <a class="reference internal" href="api.html#openeo.udf.run_code.execute_local_udf" title="openeo.udf.run_code.execute_local_udf"><code class="xref py py-func docutils literal notranslate"><span class="pre">openeo.udf.run_code.execute_local_udf()</span></code></a>.
+The steps to run a UDF (like the code from <code class="docutils literal notranslate"><span class="pre">smooth_savitzky_golay.py</span></code> above) are as follows:</p>
+<ul class="simple">
+<li><p>Run the processes (or process graph) preceding the UDF and download the result in ‘NetCDF’ or ‘JSON’ format.</p></li>
+<li><p>Run <a class="reference internal" href="api.html#openeo.udf.run_code.execute_local_udf" title="openeo.udf.run_code.execute_local_udf"><code class="xref py py-func docutils literal notranslate"><span class="pre">openeo.udf.run_code.execute_local_udf()</span></code></a> on the data file.</p></li>
+</ul>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">execute_local_udf</span>
+
+<span class="n">my_process</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="o">...</span>
+
+<span class="n">my_process</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s1">&#39;test_input.nc&#39;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;NetCDF&#39;</span><span class="p">)</span>
+
+<span class="n">smoothing_udf</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;smooth_savitzky_golay.py&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+<span class="n">execute_local_udf</span><span class="p">(</span><span class="n">smoothing_udf</span><span class="p">,</span> <span class="s1">&#39;test_input.nc&#39;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;netcdf&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note: this algorithm’s primary purpose is to aid client side development of UDFs using small datasets. It is not designed for large jobs.</p>
+</section>
+<section id="udf-dependency-management">
+<h2>UDF dependency management<a class="headerlink" href="#udf-dependency-management" title="Link to this heading">¶</a></h2>
+<p>UDFs usually have some dependencies on existing libraries, e.g. to implement complex algorithms.
+In case of Python UDFs, it can be assumed that common libraries like numpy and Xarray are readily available,
+not in the least because they underpin the Python UDF function signatures.
+More concretely, it is possible to inspect available libraries for the available UDF runtimes
+through <a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_udf_runtimes" title="openeo.rest.connection.Connection.list_udf_runtimes"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.list_udf_runtimes()</span></code></a>.
+For example, to list the available libraries for runtime “Python” (version “3”):</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">connection</span><span class="o">.</span><span class="n">list_udf_runtimes</span><span class="p">()[</span><span class="s2">&quot;Python&quot;</span><span class="p">][</span><span class="s2">&quot;versions&quot;</span><span class="p">][</span><span class="s2">&quot;3&quot;</span><span class="p">][</span><span class="s2">&quot;libraries&quot;</span><span class="p">]</span>
+<span class="go">{&#39;geopandas&#39;: {&#39;version&#39;: &#39;0.13.2&#39;},</span>
+<span class="go"> &#39;numpy&#39;: {&#39;version&#39;: &#39;1.22.4&#39;},</span>
+<span class="go"> &#39;xarray&#39;: {&#39;version&#39;: &#39;0.16.2&#39;},</span>
+<span class="go"> ...</span>
+</pre></div>
+</div>
+<p>Managing and using additional dependencies or libraries that are not provided out-of-the-box by a backend
+is a more challenging problem and the practical details can vary between backends.</p>
+<section id="standard-for-declaring-python-udf-dependencies">
+<span id="python-udf-dependency-declaration"></span><h3>Standard for declaring Python UDF dependencies<a class="headerlink" href="#standard-for-declaring-python-udf-dependencies" title="Link to this heading">¶</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is based on a fairly recent standard and it might not be supported by your chosen backend yet.</p>
+</div>
+<p><a class="reference external" href="https://peps.python.org/pep-0723/">PEP 723 “Inline script metadata”</a> defines a standard
+for <em>Python scripts</em> to declare dependencies inside a top-level comment block.
+If the openEO backend of your choice supports this standard, it is the preferred approach
+to declare the (<code class="docutils literal notranslate"><span class="pre">import</span></code>) dependencies of your Python UDF:</p>
+<ul class="simple">
+<li><p>It avoids all the overhead for the UDF developer
+to correctly and efficiently make desired dependencies available in the UDF.</p></li>
+<li><p>It allows the openEO backend to optimize dependencies handling.</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>An openEO backend might only support this automatic UDF dependency handling feature
+in batch jobs (because of their isolated nature),
+but not for synchronous processing requests.</p>
+</div>
+<section id="declaration-of-udf-dependencies">
+<h4>Declaration of UDF dependencies<a class="headerlink" href="#declaration-of-udf-dependencies" title="Link to this heading">¶</a></h4>
+<p>A basic example of how the UDF dependencies can be declared in top-level comment block of your Python UDF:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="c1"># /// script</span>
+</span><span class="hll"><span class="c1"># dependencies = [</span>
+</span><span class="hll"><span class="c1">#   &quot;geojson&quot;,</span>
+</span><span class="hll"><span class="c1">#   &quot;fancy-eo-library&quot;,</span>
+</span><span class="hll"><span class="c1"># ]</span>
+</span><span class="hll"><span class="c1"># ///</span>
+</span><span class="c1">#</span>
+<span class="c1"># This openEO UDF script implements ...</span>
+<span class="c1"># based on the fancy-eo-library ... using geosjon data ...</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">geojson</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">fancyeo</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>Some considerations to make sure you have a valid metadata block:</p>
+<ul class="simple">
+<li><p>Lines start with a single hash <code class="docutils literal notranslate"><span class="pre">#</span></code> and one space (the space can be omitted if the <code class="docutils literal notranslate"><span class="pre">#</span></code> is the only character on the line).</p></li>
+<li><p>The metadata block starts with a line <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">///</span> <span class="pre">script</span></code> and ends with <code class="docutils literal notranslate"><span class="pre">#</span> <span class="pre">///</span></code>.</p></li>
+<li><p>Between these delimiters you put the metadata fields in <a class="reference external" href="https://toml.io/en/">TOML format</a>,
+each line prefixed with <code class="docutils literal notranslate"><span class="pre">#</span></code> and a space.</p></li>
+<li><p>Declare your UDF’s dependencies in a <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> field as a TOML array.
+List each package on a separate line as shown above, or put them all on a single line.
+It is also allowed to include comments, as long as the whole construct is valid TOML.</p></li>
+<li><p>Each <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> entry must be a valid <a class="reference external" href="https://peps.python.org/pep-0508/">PEP 508</a> dependency specifier.
+This practically means to use the package names (optionally with version constraints)
+as expected by the <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> command.</p></li>
+</ul>
+<p>A more complex example to illustrate some more advanced aspects of the metadata block:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># /// script</span>
+<span class="c1"># dependencies = [</span>
+<span class="c1">#   # A comment about using at least version 2.5.0</span>
+<span class="c1">#   &#39;geojson&gt;=2.5.0&#39;,  # An inline comment</span>
+<span class="c1">#   # Note that TOML allows both single and double quotes for strings.</span>
+<span class="c1">#</span>
+<span class="c1">#   # Install a package &quot;fancyeo&quot; from a (ZIP) source archive URL.</span>
+<span class="c1">#   &quot;fancyeo @ https://github.com/fncy/fancyeo/archive/refs/tags/v3.2.0-alpha1.zip&quot;,</span>
+<span class="c1">#   # Or from a wheel URL, including a content hash to be verified before installing.</span>
+<span class="c1">#   &quot;lousyeo @ https://example.com/lousyeo-6.6.6-py3-none-any.whl#sha1=4bbb3c72a9234ee998a6de940a148e346a&quot;,</span>
+<span class="c1">#   # Note that the last entry may have a trailing comma.</span>
+<span class="c1"># ]</span>
+<span class="c1"># ///</span>
+</pre></div>
+</div>
+</section>
+<section id="verification">
+<h4>Verification<a class="headerlink" href="#verification" title="Link to this heading">¶</a></h4>
+<p>Use <a class="reference internal" href="api.html#openeo.udf.run_code.extract_udf_dependencies" title="openeo.udf.run_code.extract_udf_dependencies"><code class="xref py py-func docutils literal notranslate"><span class="pre">extract_udf_dependencies()</span></code></a> to verify
+that your metadata block can be parsed correctly:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.run_code</span><span class="w"> </span><span class="kn">import</span> <span class="n">extract_udf_dependencies</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">extract_udf_dependencies</span><span class="p">(</span><span class="n">udf_code</span><span class="p">)</span>
+<span class="go">[&#39;geojson&gt;=2.5.0&#39;,</span>
+<span class="go"> &#39;fancyeo @ https://github.com/fncy/fancyeo/archive/refs/tags/v3.2.0-alpha1.zip&#39;,</span>
+<span class="go"> &#39;lousyeo @ https://example.com/lousyeo-6.6.6-py3-none-any.whl#sha1=4bbb3c72a9234ee998a6de940a148e346a&#39;]</span>
+</pre></div>
+</div>
+<p>If no valid metadata block is found, <code class="docutils literal notranslate"><span class="pre">None</span></code> will be returned.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function won’t necessarily raise exceptions for syntax errors in the metadata block.
+It might just fail to reliably detect anything and skip it as regular comment lines.</p>
+</div>
+</section>
+</section>
+<section id="ad-hoc-dependency-handling">
+<h3>Ad-hoc dependency handling<a class="headerlink" href="#ad-hoc-dependency-handling" title="Link to this heading">¶</a></h3>
+<p>If dependency handling through standardized UDF declarations is not supported by the backend,
+there are still ways to manually handle additional dependencies in your UDF.
+The exact details can vary between backends, but we can give some general pointers here:</p>
+<ul class="simple">
+<li><p>Multiple Python dependencies can be packaged fairly easily by zipping a Python virtual environment.</p></li>
+<li><p>For some dependencies, it can be important that the Python major version of the virtual environment is the same as the one used by the backend.</p></li>
+<li><p>Python allows you to dynamically append (or prepend) libraries to the search path: <code class="docutils literal notranslate"><span class="pre">sys.path.append(&quot;unzipped_virtualenv_location&quot;)</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="profile-a-process-server-side">
+<h2>Profile a process server-side<a class="headerlink" href="#profile-a-process-server-side" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Experimental feature - This feature only works on back-ends running the Geotrellis implementation, and has not yet been
+adopted in the openEO API.</p>
+</div>
+<p>Sometimes users want to ‘profile’ their UDF on the back-end. While it’s recommended to first profile it offline, in the
+same manner as you can debug UDF’s, back-ends may support profiling directly.
+Note that this will only generate statistics over the python part of the execution, therefore it is only suitable for profiling UDFs.</p>
+<section id="usage">
+<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h3>
+<p>Only batch jobs are supported! In order to turn on profiling, set ‘profile’ to ‘true’ in job options:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">job_options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;profile&#39;</span><span class="p">:</span><span class="s1">&#39;true&#39;</span><span class="p">}</span>
+<span class="o">...</span> <span class="c1"># prepare the process</span>
+<span class="n">process</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span><span class="s1">&#39;result.tif&#39;</span><span class="p">,</span><span class="n">job_options</span><span class="o">=</span><span class="n">job_options</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When the process has finished, it will also download a file called ‘profile_dumps.tar.gz’:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">rdd_-1.pstats</span></code> is the profile data of the python driver,</p></li>
+<li><p>the rest are the profiling results of the individual rdd id-s (that can be correlated with the execution using the SPARK UI).</p></li>
+</ul>
+</section>
+<section id="viewing-profiling-information">
+<h3>Viewing profiling information<a class="headerlink" href="#viewing-profiling-information" title="Link to this heading">¶</a></h3>
+<p>The simplest way is to visualize the results with a graphical visualization tool called kcachegrind.
+In order to do that, install <a class="reference external" href="http://kcachegrind.sourceforge.net/">kcachegrind</a> packages (most linux distributions have it installed by default) and it’s python connector <a class="reference external" href="https://pypi.org/project/pyprof2calltree/">pyprof2calltree</a>.
+From command line run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pyprof2calltree</span> <span class="n">rdd_</span><span class="o">&lt;</span><span class="n">INTERESTING_RDD_ID</span><span class="o">&gt;.</span><span class="n">pstats</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>Another way is to use the builtin pstats functionality from within python:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pstats</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">pstats</span><span class="o">.</span><span class="n">Stats</span><span class="p">(</span><span class="s1">&#39;restats&#39;</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">print_stats</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h3>
+<p>An example code can be found <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/tree/master/examples/archive/profiling_example.py">here</a> .</p>
+</section>
+</section>
+<section id="logging-from-a-udf">
+<span id="udf-logging-with-inspect"></span><h2>Logging from a UDF<a class="headerlink" href="#logging-from-a-udf" title="Link to this heading">¶</a></h2>
+<p>From time to time, when things are not working as expected,
+you may want to log some additional debug information from your UDF, inspect the data that is being processed,
+or log warnings.
+This can be done using the <a class="reference internal" href="api.html#openeo.udf.debug.inspect" title="openeo.udf.debug.inspect"><code class="xref py py-class docutils literal notranslate"><span class="pre">inspect()</span></code></a> function.</p>
+<p>For example: to discover the shape of the data cube chunk that you receive in your UDF function:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Sample UDF code with <code class="docutils literal notranslate"><span class="pre">inspect()</span></code> logging</span><a class="headerlink" href="#id4" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect</span>
+</span><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+
+
+<span class="hll"><span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+</span>    <span class="n">inspect</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="p">[</span><span class="n">cube</span><span class="o">.</span><span class="n">shape</span><span class="p">],</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;UDF logging shape of my cube&quot;</span><span class="p">)</span>
+    <span class="n">cube</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">cube</span><span class="o">.</span><span class="n">values</span>
+    <span class="k">return</span> <span class="n">cube</span>
+</pre></div>
+</div>
+</div>
+<p>After the batch job is finished (or failed), you can find this information in the logs of the batch job.
+For example (as explained at <a class="reference internal" href="batch_jobs.html#batch-job-logs"><span class="std std-ref">Batch job logs</span></a>),
+use <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.logs" title="openeo.rest.job.BatchJob.logs"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob.logs()</span></code></a> in a Jupyter notebook session
+to retrieve and filter the logs interactively:</p>
+<img alt="_images/logging_arrayshape.png" src="_images/logging_arrayshape.png" />
+<p>Which reveals in this example a chunking shape of <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">256,</span> <span class="pre">256]</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not all kinds of data (types) are accepted/supported by the <code class="docutils literal notranslate"><span class="pre">data</span></code> argument of <a class="reference internal" href="api.html#openeo.udf.debug.inspect" title="openeo.udf.debug.inspect"><code class="xref py py-class docutils literal notranslate"><span class="pre">inspect</span></code></a>,
+so you might have to experiment a bit to make sure the desired debug information is logged as desired.</p>
+</div>
+</section>
+<section id="openeo-udf-api-and-usage-changes-in-version-0-13-0">
+<span id="old-udf-api"></span><h2><code class="docutils literal notranslate"><span class="pre">openeo.UDF</span></code> API and usage changes in version 0.13.0<a class="headerlink" href="#openeo-udf-api-and-usage-changes-in-version-0-13-0" title="Link to this heading">¶</a></h2>
+<p>Prior to version 0.13.0 of the openEO Python Client Library,
+loading and working with UDFs was a bit inconsistent and cumbersome.</p>
+<ul>
+<li><p>The old <code class="docutils literal notranslate"><span class="pre">openeo.UDF()</span></code> required an explicit <code class="docutils literal notranslate"><span class="pre">runtime</span></code> argument, which was usually <code class="docutils literal notranslate"><span class="pre">&quot;Python&quot;</span></code>.
+In the new <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a>, the <code class="docutils literal notranslate"><span class="pre">runtime</span></code> argument is optional,
+and it will be auto-detected (from the source code or file extension) when not given.</p></li>
+<li><p>The old <code class="docutils literal notranslate"><span class="pre">openeo.UDF()</span></code> required an explicit <code class="docutils literal notranslate"><span class="pre">data</span></code> argument, and figuring out the correct
+value (e.g. something like <code class="docutils literal notranslate"><span class="pre">{&quot;from_parameter&quot;:</span> <span class="pre">&quot;x&quot;}</span></code>) required good knowledge of the openEO API and processes.
+With the new <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a> it is not necessary anymore to provide
+the <code class="docutils literal notranslate"><span class="pre">data</span></code> argument. In fact, while the <code class="docutils literal notranslate"><span class="pre">data</span></code> argument is only still there for compatibility reasons,
+it is unused and it will be removed in a future version.
+A deprecation warning will be triggered when <code class="docutils literal notranslate"><span class="pre">data</span></code> is given a value.</p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_dimension" title="openeo.rest.datacube.DataCube.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code></a> has direct UDF support through
+<code class="docutils literal notranslate"><span class="pre">code</span></code> and <code class="docutils literal notranslate"><span class="pre">runtime</span></code> arguments, preceding the more generic and standard <code class="docutils literal notranslate"><span class="pre">process</span></code> argument, while
+comparable methods like <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply" title="openeo.rest.datacube.DataCube.apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply()</span></code></a>
+or <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.reduce_dimension" title="openeo.rest.datacube.DataCube.reduce_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.reduce_dimension()</span></code></a>
+only support a <code class="docutils literal notranslate"><span class="pre">process</span></code> argument with no dedicated arguments for UDFs.</p>
+<p>The goal is to improve uniformity across all these methods and use a generic <code class="docutils literal notranslate"><span class="pre">process</span></code> argument everywhere
+(that also supports a <a class="reference internal" href="api.html#openeo.rest._datacube.UDF" title="openeo.rest._datacube.UDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.UDF</span></code></a> object for UDF use cases).
+For now, the <code class="docutils literal notranslate"><span class="pre">code</span></code>, <code class="docutils literal notranslate"><span class="pre">runtime</span></code> and <code class="docutils literal notranslate"><span class="pre">version</span></code> arguments are still present
+in <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_dimension" title="openeo.rest.datacube.DataCube.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code></a>
+as before, but usage is deprecated.</p>
+<p>Simple example to sum it up:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">udf_code</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">...</span>
+<span class="s2">def apply_datacube(cube, ...</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># Legacy `apply_dimension` usage: still works for now,</span>
+<span class="c1"># but it will trigger a deprecation warning.</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">udf_code</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="s2">&quot;Python&quot;</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+
+<span class="c1"># New, preferred approach with a standard `process` argument.</span>
+<span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="p">(</span><span class="n">udf_code</span><span class="p">)</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span><span class="n">process</span><span class="o">=</span><span class="n">udf</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+
+<span class="c1"># Unchanged: usage of other apply/reduce/... methods</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">process</span><span class="o">=</span><span class="n">udf</span><span class="p">)</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">reducer</span><span class="o">=</span><span class="n">udf</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">User-Defined Functions (UDF) explained</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#applicability-and-constraints">Applicability and Constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#udf-function-names-and-signatures">UDF function names and signatures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-first-example-apply-with-an-udf-to-rescale-pixel-values">A first example: <code class="docutils literal notranslate"><span class="pre">apply</span></code> with an UDF to rescale pixel values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#udf-s-that-transform-cube-metadata">UDF’s that transform cube metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-apply-dimension-with-a-udf">Example: <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code> with a UDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-reduce-dimension-with-a-udf">Example: <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> with a UDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-apply-neighborhood-with-a-udf">Example: <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code> with a UDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-smoothing-timeseries-with-a-user-defined-function-udf">Example: Smoothing timeseries with a user defined function (UDF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#downloading-a-datacube-and-executing-an-udf-locally">Downloading a datacube and executing an UDF locally</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#udf-dependency-management">UDF dependency management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#profile-a-process-server-side">Profile a process server-side</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging-from-a-udf">Logging from a UDF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#openeo-udf-api-and-usage-changes-in-version-0-13-0"><code class="docutils literal notranslate"><span class="pre">openeo.UDF</span></code> API and usage changes in version 0.13.0</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="auth.html" title="previous chapter">Authentication and Account Management</a></li>
+      <li>Next: <a href="datacube_construction.html" title="next chapter">DataCube construction</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/udf.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

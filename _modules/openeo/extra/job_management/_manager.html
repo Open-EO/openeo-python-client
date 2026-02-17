@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.extra.job_management._manager &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.extra.job_management._manager</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">collections</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">threading</span><span class="w"> </span><span class="kn">import</span> <span class="n">Thread</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Mapping</span><span class="p">,</span>
+    <span class="n">NamedTuple</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">requests.adapters</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPAdapter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib3.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">Retry</span>
+
+<span class="c1"># TODO avoid this (circular) dependency on _job_db?</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">openeo.extra.job_management._job_db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo</span><span class="w"> </span><span class="kn">import</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">Connection</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management._interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobDatabaseInterface</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management._thread_worker</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_JobManagerWorkerThreadPool</span><span class="p">,</span>
+    <span class="n">_JobStartTask</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenEoApiError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.auth.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">BearerAuth</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">deep_get</span><span class="p">,</span> <span class="n">rfc3339</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># TODO: eliminate this module constant (should be part of some constructor interface)</span>
+<span class="n">MAX_RETRIES</span> <span class="o">=</span> <span class="mi">50</span>
+
+
+<span class="c1"># Sentinel value to indicate that a parameter was not set</span>
+<span class="n">_UNSET</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_start_job_default</span><span class="p">(</span><span class="n">row</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;No &#39;start_job&#39; callable provided&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_Backend</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for backend info/settings&quot;&quot;&quot;</span>
+
+    <span class="c1"># callable to create a backend connection</span>
+    <span class="n">get_connection</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Connection</span><span class="p">]</span>
+    <span class="c1"># Maximum number of jobs to allow in parallel on a backend</span>
+    <span class="n">parallel_jobs</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1"># Maximum number of jobs to allow in queue on a backend</span>
+    <span class="n">queueing_limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+
+
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_ColumnProperties</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Expected/required properties of a column in the job manager related dataframes&quot;&quot;&quot;</span>
+
+    <span class="n">dtype</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;object&quot;</span>
+    <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_ColumnRequirements</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper class to encapsulate the column requirements expected by MultiBackendJobManager.</span>
+<span class="sd">    The current implementation (e.g. _job_db) has some undesired coupling here,</span>
+<span class="sd">    but it turns out quite hard to eliminate.</span>
+<span class="sd">    The goal of this class is, currently, to at least make the coupling explicit</span>
+<span class="sd">    in a centralized way.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requirements</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_ColumnProperties</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_requirements</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">requirements</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">normalize_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Normalize given pandas dataframe (creating a new one):</span>
+<span class="sd">        ensure we have the required columns.</span>
+
+<span class="sd">        :param df: The dataframe to normalize.</span>
+<span class="sd">        :return: a new dataframe that is normalized.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_columns</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">default</span> <span class="k">for</span> <span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">req</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requirements</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">}</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="o">**</span><span class="n">new_columns</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">dtype_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get mapping of column name to expected dtype string, e.g. to be used with pandas.read_csv(dtype=...)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">dtype</span> <span class="k">for</span> <span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">req</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requirements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiBackendJobManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tracker for multiple jobs on multiple backends.</span>
+
+<span class="sd">    Usage example:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import logging</span>
+<span class="sd">        import pandas as pd</span>
+<span class="sd">        import openeo</span>
+<span class="sd">        from openeo.extra.job_management import MultiBackendJobManager</span>
+
+<span class="sd">        logging.basicConfig(</span>
+<span class="sd">            format=&#39;%(asctime)s - %(name)s - %(levelname)s - %(message)s&#39;,</span>
+<span class="sd">            level=logging.INFO</span>
+<span class="sd">        )</span>
+
+<span class="sd">        manager = MultiBackendJobManager()</span>
+<span class="sd">        manager.add_backend(&quot;foo&quot;, connection=openeo.connect(&quot;http://foo.test&quot;))</span>
+<span class="sd">        manager.add_backend(&quot;bar&quot;, connection=openeo.connect(&quot;http://bar.test&quot;))</span>
+
+<span class="sd">        jobs_df = pd.DataFrame(...)</span>
+<span class="sd">        output_file = &quot;jobs.csv&quot;</span>
+
+<span class="sd">        def start_job(</span>
+<span class="sd">            row: pd.Series,</span>
+<span class="sd">            connection: openeo.Connection,</span>
+<span class="sd">            **kwargs</span>
+<span class="sd">        ) -&gt; openeo.BatchJob:</span>
+<span class="sd">            year = row[&quot;year&quot;]</span>
+<span class="sd">            cube = connection.load_collection(</span>
+<span class="sd">                ...,</span>
+<span class="sd">                temporal_extent=[f&quot;{year}-01-01&quot;, f&quot;{year+1}-01-01&quot;],</span>
+<span class="sd">            )</span>
+<span class="sd">            ...</span>
+<span class="sd">            return cube.create_job(...)</span>
+
+<span class="sd">        manager.run_jobs(df=jobs_df, start_job=start_job, output_file=output_file)</span>
+
+<span class="sd">    See :py:meth:`.run_jobs` for more information on the ``start_job`` callable.</span>
+
+<span class="sd">    :param poll_sleep:</span>
+<span class="sd">        How many seconds to sleep between polls.</span>
+
+<span class="sd">    :param root_dir:</span>
+<span class="sd">        Root directory to save files for the jobs, e.g. metadata and error logs.</span>
+<span class="sd">        This defaults to &quot;.&quot; the current directory.</span>
+
+<span class="sd">        Each job gets its own subfolder in this root directory.</span>
+<span class="sd">        You can use the following methods to find the relevant paths,</span>
+<span class="sd">        based on the job ID:</span>
+
+<span class="sd">            - get_job_dir</span>
+<span class="sd">            - get_error_log_path</span>
+<span class="sd">            - get_job_metadata_path</span>
+
+<span class="sd">    :param download_results:</span>
+<span class="sd">        Whether to download job results automatically once the job is completed.</span>
+
+<span class="sd">    :param cancel_running_job_after:</span>
+<span class="sd">        Optional temporal limit (in seconds) after which running jobs should be canceled</span>
+<span class="sd">        by the job manager.</span>
+
+
+<span class="sd">    .. versionadded:: 0.14.0</span>
+
+<span class="sd">    .. versionchanged:: 0.32.0</span>
+<span class="sd">        Added ``cancel_running_job_after`` parameter.</span>
+
+<span class="sd">    .. versionchanged:: 0.47.0</span>
+<span class="sd">        Added ``download_results`` parameter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Expected columns in the job DB dataframes.</span>
+    <span class="c1"># TODO: make this part of public API when settled?</span>
+    <span class="c1"># TODO: move non official statuses to separate column (not_started, queued_for_start)</span>
+    <span class="n">_column_requirements</span><span class="p">:</span> <span class="n">_ColumnRequirements</span> <span class="o">=</span> <span class="n">_ColumnRequirements</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;backend_name&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;not_started&quot;</span><span class="p">),</span>
+            <span class="c1"># TODO: use proper date/time dtype instead of legacy str for start times?</span>
+            <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;running_start_time&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="c1"># TODO: these columns &quot;cpu&quot;, &quot;memory&quot;, &quot;duration&quot; are not referenced explicitly from MultiBackendJobManager,</span>
+            <span class="c1">#       but are indirectly coupled through handling of VITO-specific &quot;usage&quot; metadata in `_track_statuses`.</span>
+            <span class="c1">#       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?</span>
+            <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;str&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;costs&quot;</span><span class="p">:</span> <span class="n">_ColumnProperties</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;float64&quot;</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">poll_sleep</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">root_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">download_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">cancel_running_job_after</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a MultiBackendJobManager.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stop_thread</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_Backend</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poll_sleep</span> <span class="o">=</span> <span class="n">poll_sleep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connections</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_Backend</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># An explicit None or &quot;&quot; should also default to &quot;.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">root_dir</span> <span class="ow">or</span> <span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_results</span> <span class="o">=</span> <span class="n">download_results</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cancel_running_job_after</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">cancel_running_job_after</span><span class="p">)</span> <span class="k">if</span> <span class="n">cancel_running_job_after</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Generic cache</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="MultiBackendJobManager.add_backend">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.add_backend">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_backend</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">connection</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Connection</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Connection</span><span class="p">]],</span>
+        <span class="n">parallel_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a backend with a name and a :py:class:`Connection` getter.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">           For optimal throughput and responsiveness, it is recommended</span>
+<span class="sd">           to provide a :py:class:`Connection` instance without its own (blocking) retry behavior,</span>
+<span class="sd">           since the job manager will do retries in a non-blocking way,</span>
+<span class="sd">           allowing to take care of other tasks before retrying failed requests.</span>
+
+<span class="sd">        :param name:</span>
+<span class="sd">            Name of the backend.</span>
+<span class="sd">        :param connection:</span>
+<span class="sd">            Either a Connection to the backend, or a callable to create a backend connection.</span>
+<span class="sd">        :param parallel_jobs:</span>
+<span class="sd">            Maximum number of jobs to allow in parallel on a backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: Code might become simpler if we turn _Backend into class move this logic there.</span>
+        <span class="c1">#   We would need to keep add_backend here as part of the public API though.</span>
+        <span class="c1">#   But the amount of unrelated &quot;stuff to manage&quot; would be less (better cohesion)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">Connection</span><span class="p">):</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">connection</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">c</span>
+        <span class="k">assert</span> <span class="nb">callable</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+        <span class="c1"># TODO: expose queueing_limit?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_Backend</span><span class="p">(</span><span class="n">get_connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">parallel_jobs</span><span class="o">=</span><span class="n">parallel_jobs</span><span class="p">,</span> <span class="n">queueing_limit</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">resilient</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a connection for the backend and optionally make it resilient (adds retry behavior)</span>
+
+<span class="sd">        The default is to get a resilient connection, but if necessary you can turn it off with</span>
+<span class="sd">        resilient=False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO: Code could be simplified if _Backend is a class and this method is moved there.</span>
+        <span class="c1"># TODO: Is it better to make this a public method?</span>
+
+        <span class="c1"># Reuse the connection if we can, in order to avoid modifying the same connection several times.</span>
+        <span class="c1"># This is to avoid adding the retry HTTPAdapter multiple times.</span>
+        <span class="c1"># Remember that the get_connection attribute on _Backend can be a Connection object instead</span>
+        <span class="c1"># of a callable, so we don&#39;t want to assume it is a fresh connection that doesn&#39;t have the</span>
+        <span class="c1"># retry adapter yet.</span>
+        <span class="k">if</span> <span class="n">backend_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connections</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connections</span><span class="p">[</span><span class="n">backend_name</span><span class="p">]</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">[</span><span class="n">backend_name</span><span class="p">]</span><span class="o">.</span><span class="n">get_connection</span><span class="p">()</span>
+        <span class="c1"># If we really need it we can skip making it resilient, but by default it should be resilient.</span>
+        <span class="k">if</span> <span class="n">resilient</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_make_resilient</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connections</span><span class="p">[</span><span class="n">backend_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="k">return</span> <span class="n">connection</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_make_resilient</span><span class="p">(</span><span class="n">connection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add an HTTPAdapter that retries the request if it fails.</span>
+
+<span class="sd">        Retry for the following HTTP 50x statuses:</span>
+<span class="sd">        502 Bad Gateway</span>
+<span class="sd">        503 Service Unavailable</span>
+<span class="sd">        504 Gateway Timeout</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: migrate this to now built-in retry configuration of `Connection` or `openeo.util.http.retry_adapter`?</span>
+        <span class="n">status_forcelist</span> <span class="o">=</span> <span class="p">[</span><span class="mi">500</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">]</span>
+        <span class="n">retries</span> <span class="o">=</span> <span class="n">Retry</span><span class="p">(</span>
+            <span class="n">total</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+            <span class="n">read</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+            <span class="n">other</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">MAX_RETRIES</span><span class="p">,</span>
+            <span class="n">backoff_factor</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+            <span class="n">status_forcelist</span><span class="o">=</span><span class="n">status_forcelist</span><span class="p">,</span>
+            <span class="n">allowed_methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;HEAD&quot;</span><span class="p">,</span> <span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;OPTIONS&quot;</span><span class="p">,</span> <span class="s2">&quot;POST&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;https://&quot;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retries</span><span class="p">))</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retries</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_df</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deprecated, but kept for backwards compatibility</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_column_requirements</span><span class="o">.</span><span class="n">normalize_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiBackendJobManager.start_job_thread">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.start_job_thread">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_job_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_job</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">BatchJob</span><span class="p">],</span> <span class="n">job_db</span><span class="p">:</span> <span class="n">JobDatabaseInterface</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start running the jobs in a separate thread, returns afterwards.</span>
+
+<span class="sd">        :param start_job:</span>
+<span class="sd">            A callback which will be invoked with, amongst others,</span>
+<span class="sd">            the row of the dataframe for which a job should be created and/or started.</span>
+<span class="sd">            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.</span>
+
+<span class="sd">            The following parameters will be passed to ``start_job``:</span>
+
+<span class="sd">                ``row`` (:py:class:`pandas.Series`):</span>
+<span class="sd">                    The row in the pandas dataframe that stores the jobs state and other tracked data.</span>
+
+<span class="sd">                ``connection_provider``:</span>
+<span class="sd">                    A getter to get a connection by backend name.</span>
+<span class="sd">                    Typically, you would need either the parameter ``connection_provider``,</span>
+<span class="sd">                    or the parameter ``connection``, but likely you will not need both.</span>
+
+<span class="sd">                ``connection`` (:py:class:`Connection`):</span>
+<span class="sd">                    The :py:class:`Connection` itself, that has already been created.</span>
+<span class="sd">                    Typically, you would need either the parameter ``connection_provider``,</span>
+<span class="sd">                    or the parameter ``connection``, but likely you will not need both.</span>
+
+<span class="sd">                ``provider`` (``str``):</span>
+<span class="sd">                    The name of the backend that will run the job.</span>
+
+<span class="sd">            You do not have to define all the parameters described below, but if you leave</span>
+<span class="sd">            any of them out, then remember to include the ``*args`` and ``**kwargs`` parameters.</span>
+<span class="sd">            Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.</span>
+<span class="sd">        :param job_db:</span>
+<span class="sd">            Job database to load/store existing job status data and other metadata from/to.</span>
+<span class="sd">            Can be specified as a path to CSV or Parquet file,</span>
+<span class="sd">            or as a custom database object following the :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` interface.</span>
+
+<span class="sd">            .. note::</span>
+<span class="sd">                Support for Parquet files depends on the ``pyarrow`` package</span>
+<span class="sd">                as :ref:`optional dependency &lt;installation-optional-dependencies&gt;`.</span>
+
+<span class="sd">        .. versionadded:: 0.32.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Resume from existing db</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Resuming `run_jobs` from existing </span><span class="si">{</span><span class="n">job_db</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stop_thread</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span> <span class="o">=</span> <span class="n">_JobManagerWorkerThreadPool</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">run_loop</span><span class="p">():</span>
+            <span class="c1"># TODO: support user-provided `stats`</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+            <span class="k">while</span> <span class="p">(</span>
+                <span class="nb">sum</span><span class="p">(</span>
+                    <span class="n">job_db</span><span class="o">.</span><span class="n">count_by_status</span><span class="p">(</span>
+                        <span class="n">statuses</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;not_started&quot;</span><span class="p">,</span> <span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;queued_for_start&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="p">)</span>
+                <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_thread</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_job_update_loop</span><span class="p">(</span><span class="n">job_db</span><span class="o">=</span><span class="n">job_db</span><span class="p">,</span> <span class="n">start_job</span><span class="o">=</span><span class="n">start_job</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;run_jobs loop&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># Show current stats and sleep</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job status histogram: </span><span class="si">{</span><span class="n">job_db</span><span class="o">.</span><span class="n">count_by_status</span><span class="p">()</span><span class="si">}</span><span class="s2">. Run stats: </span><span class="si">{</span><span class="nb">dict</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">poll_sleep</span><span class="p">))):</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_thread</span><span class="p">:</span>
+                        <span class="k">break</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="o">=</span> <span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">run_loop</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.stop_job_thread">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.stop_job_thread">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stop_job_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">_UNSET</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stop the job polling thread.</span>
+
+<span class="sd">        :param timeout_seconds: The time to wait for the thread to stop.</span>
+<span class="sd">            By default, it will wait for 2 times the poll_sleep time.</span>
+<span class="sd">            Set to None to wait indefinitely.</span>
+
+<span class="sd">        .. versionadded:: 0.32.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stop_thread</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">timeout_seconds</span> <span class="ow">is</span> <span class="n">_UNSET</span><span class="p">:</span>
+                <span class="n">timeout_seconds</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">poll_sleep</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout_seconds</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Job thread did not stop after timeout&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;No job thread to stop&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.run_jobs">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.run_jobs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_jobs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">df</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">start_job</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">BatchJob</span><span class="p">]</span> <span class="o">=</span> <span class="n">_start_job_default</span><span class="p">,</span>
+        <span class="n">job_db</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">JobDatabaseInterface</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Runs jobs, specified in a dataframe, and tracks parameters.</span>
+
+<span class="sd">        :param df:</span>
+<span class="sd">            DataFrame that specifies the jobs, and tracks the jobs&#39; statuses. If None, the job_db has to be specified and will be used.</span>
+
+<span class="sd">        :param start_job:</span>
+<span class="sd">            A callback which will be invoked with, amongst others,</span>
+<span class="sd">            the row of the dataframe for which a job should be created and/or started.</span>
+<span class="sd">            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.</span>
+
+<span class="sd">            The following parameters will be passed to ``start_job``:</span>
+
+<span class="sd">                ``row`` (:py:class:`pandas.Series`):</span>
+<span class="sd">                    The row in the pandas dataframe that stores the jobs state and other tracked data.</span>
+
+<span class="sd">                ``connection_provider``:</span>
+<span class="sd">                    A getter to get a connection by backend name.</span>
+<span class="sd">                    Typically, you would need either the parameter ``connection_provider``,</span>
+<span class="sd">                    or the parameter ``connection``, but likely you will not need both.</span>
+
+<span class="sd">                ``connection`` (:py:class:`Connection`):</span>
+<span class="sd">                    The :py:class:`Connection` itself, that has already been created.</span>
+<span class="sd">                    Typically, you would need either the parameter ``connection_provider``,</span>
+<span class="sd">                    or the parameter ``connection``, but likely you will not need both.</span>
+
+<span class="sd">                ``provider`` (``str``):</span>
+<span class="sd">                    The name of the backend that will run the job.</span>
+
+<span class="sd">            You do not have to define all the parameters described below, but if you leave</span>
+<span class="sd">            any of them out, then remember to include the ``*args`` and ``**kwargs`` parameters.</span>
+<span class="sd">            Otherwise you will have an exception because :py:meth:`run_jobs` passes unknown parameters to ``start_job``.</span>
+
+<span class="sd">        :param job_db:</span>
+<span class="sd">            Job database to load/store existing job status data and other metadata from/to.</span>
+<span class="sd">            Can be specified as a path to CSV or Parquet file,</span>
+<span class="sd">            or as a custom database object following the :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` interface.</span>
+
+<span class="sd">            .. note::</span>
+<span class="sd">                Support for Parquet files depends on the ``pyarrow`` package</span>
+<span class="sd">                as :ref:`optional dependency &lt;installation-optional-dependencies&gt;`.</span>
+
+<span class="sd">        :return: dictionary with stats collected during the job running loop.</span>
+<span class="sd">            Note that the set of fields in this dictionary is experimental</span>
+<span class="sd">            and subject to change</span>
+
+<span class="sd">        .. versionchanged:: 0.31.0</span>
+<span class="sd">            Added support for persisting the job metadata in Parquet format.</span>
+
+<span class="sd">        .. versionchanged:: 0.31.0</span>
+<span class="sd">            Replace ``output_file`` argument with ``job_db`` argument,</span>
+<span class="sd">            which can be a path to a CSV or Parquet file,</span>
+<span class="sd">            or a user-defined :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface` object.</span>
+<span class="sd">            The deprecated ``output_file`` argument is still supported for now.</span>
+
+<span class="sd">        .. versionchanged:: 0.33.0</span>
+<span class="sd">            return a stats dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO Defining start_jobs as a Protocol might make its usage more clear, and avoid complicated docstrings,</span>
+
+        <span class="c1"># Backwards compatibility for deprecated `output_file` argument</span>
+        <span class="k">if</span> <span class="s2">&quot;output_file&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">job_db</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only one of `output_file` and `job_db` should be provided&quot;</span><span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;The `output_file` argument is deprecated. Use `job_db` instead.&quot;</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span>
+            <span class="p">)</span>
+            <span class="n">job_db</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;output_file&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Unexpected keyword arguments: </span><span class="si">{</span><span class="n">kwargs</span><span class="si">!r}</span><span class="s2">&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_db</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+            <span class="n">job_db</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">extra</span><span class="o">.</span><span class="n">job_management</span><span class="o">.</span><span class="n">_job_db</span><span class="o">.</span><span class="n">get_job_db</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">job_db</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_db</span><span class="p">,</span> <span class="n">JobDatabaseInterface</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported job_db </span><span class="si">{</span><span class="n">job_db</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">job_db</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="c1"># Resume from existing db</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Resuming `run_jobs` from existing </span><span class="si">{</span><span class="n">job_db</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># TODO: start showing deprecation warnings for this usage pattern?</span>
+            <span class="n">job_db</span><span class="o">.</span><span class="n">initialize_from_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="c1"># TODO: support user-provided `stats`</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span> <span class="o">=</span> <span class="n">_JobManagerWorkerThreadPool</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="p">(</span>
+            <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">job_db</span><span class="o">.</span><span class="n">count_by_status</span><span class="p">(</span>
+                    <span class="n">statuses</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;not_started&quot;</span><span class="p">,</span> <span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;queued_for_start&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job_update_loop</span><span class="p">(</span><span class="n">job_db</span><span class="o">=</span><span class="n">job_db</span><span class="p">,</span> <span class="n">start_job</span><span class="o">=</span><span class="n">start_job</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;run_jobs loop&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Show current stats and sleep</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job status histogram: </span><span class="si">{</span><span class="n">job_db</span><span class="o">.</span><span class="n">count_by_status</span><span class="p">()</span><span class="si">}</span><span class="s2">. Run stats: </span><span class="si">{</span><span class="nb">dict</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">poll_sleep</span><span class="p">)</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;sleep&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># TODO; run post process after shutdown once more to ensure completion?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">stats</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_job_update_loop</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">job_db</span><span class="p">:</span> <span class="n">JobDatabaseInterface</span><span class="p">,</span> <span class="n">start_job</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">BatchJob</span><span class="p">],</span> <span class="n">stats</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Inner loop logic of job management:</span>
+<span class="sd">        go through the necessary jobs to check for status updates,</span>
+<span class="sd">        trigger status events, start new jobs when there is room for them, etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No backends registered&quot;</span><span class="p">)</span>
+
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">stats</span> <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">ignore_connection_errors</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s2">&quot;get statuses&quot;</span><span class="p">):</span>
+            <span class="n">jobs_done</span><span class="p">,</span> <span class="n">jobs_error</span><span class="p">,</span> <span class="n">jobs_cancel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_track_statuses</span><span class="p">(</span><span class="n">job_db</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;track_statuses&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">not_started</span> <span class="o">=</span> <span class="n">job_db</span><span class="o">.</span><span class="n">get_by_status</span><span class="p">(</span><span class="n">statuses</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;not_started&quot;</span><span class="p">],</span> <span class="nb">max</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">not_started</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Check number of jobs queued/running at each backend</span>
+            <span class="c1"># TODO: should &quot;created&quot; be included in here? Calling this &quot;running&quot; is quite misleading then.</span>
+            <span class="c1">#       apparently (see #839/#840) this seemingly simple change makes a lot of MultiBackendJobManager tests flaky</span>
+            <span class="n">running</span> <span class="o">=</span> <span class="n">job_db</span><span class="o">.</span><span class="n">get_by_status</span><span class="p">(</span><span class="n">statuses</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;queued_for_start&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">])</span>
+            <span class="n">queued</span> <span class="o">=</span> <span class="n">running</span><span class="p">[</span><span class="n">running</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;queued&quot;</span><span class="p">]</span>
+            <span class="n">running_per_backend</span> <span class="o">=</span> <span class="n">running</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;backend_name&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+            <span class="n">queued_per_backend</span> <span class="o">=</span> <span class="n">queued</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;backend_name&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">running_per_backend</span><span class="si">=}</span><span class="s2"> </span><span class="si">{</span><span class="n">queued_per_backend</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">total_added</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">backend_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">:</span>
+                <span class="n">queue_capacity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">[</span><span class="n">backend_name</span><span class="p">]</span><span class="o">.</span><span class="n">queueing_limit</span> <span class="o">-</span> <span class="n">queued_per_backend</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">backend_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">run_capacity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backends</span><span class="p">[</span><span class="n">backend_name</span><span class="p">]</span><span class="o">.</span><span class="n">parallel_jobs</span> <span class="o">-</span> <span class="n">running_per_backend</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">backend_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">to_add</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">queue_capacity</span><span class="p">,</span> <span class="n">run_capacity</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">to_add</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">not_started</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">total_added</span> <span class="p">:</span> <span class="n">total_added</span> <span class="o">+</span> <span class="n">to_add</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_launch_job</span><span class="p">(</span><span class="n">start_job</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">not_started</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="n">backend_name</span><span class="o">=</span><span class="n">backend_name</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+                        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job launch&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                        <span class="n">job_db</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">not_started</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+                        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job_db persist&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">total_added</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_threadworker_updates</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span><span class="p">,</span> <span class="n">job_db</span><span class="o">=</span><span class="n">job_db</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+
+        <span class="c1"># TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?</span>
+        <span class="k">for</span> <span class="n">job</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">jobs_done</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_job_done</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">job</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">jobs_error</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_job_error</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">job</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">jobs_cancel</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_job_cancel</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_launch_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_job</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">backend_name</span><span class="p">,</span> <span class="n">stats</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper method for launching jobs</span>
+
+<span class="sd">        :param start_job:</span>
+<span class="sd">            A callback which will be invoked with the row of the dataframe for which a job should be started.</span>
+<span class="sd">            This callable should return a :py:class:`openeo.rest.job.BatchJob` object.</span>
+
+<span class="sd">            See also:</span>
+<span class="sd">            `MultiBackendJobManager.run_jobs` for the parameters and return type of this callable</span>
+
+<span class="sd">            Even though it is called here in `_launch_job` and that is where the constraints</span>
+<span class="sd">            really come from, the public method `run_jobs` needs to document `start_job` anyway,</span>
+<span class="sd">            so let&#39;s avoid duplication in the docstrings.</span>
+
+<span class="sd">        :param df:</span>
+<span class="sd">            DataFrame that specifies the jobs, and tracks the jobs&#39; statuses.</span>
+
+<span class="sd">        :param i:</span>
+<span class="sd">            index of the job&#39;s row in dataframe df</span>
+
+<span class="sd">        :param backend_name:</span>
+<span class="sd">            name of the backend that will execute the job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">stats</span> <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;backend_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend_name</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting job on backend </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_connection</span><span class="p">(</span><span class="n">backend_name</span><span class="p">,</span> <span class="n">resilient</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;start_job call&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">start_job</span><span class="p">(</span>
+                <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span>
+                <span class="n">connection_provider</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_connection</span><span class="p">,</span>
+                <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span>
+                <span class="n">provider</span><span class="o">=</span><span class="n">backend_name</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to start job for </span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;start_failed&quot;</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;start_job error&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;start_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">now_utc</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">job</span><span class="p">:</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job created: </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">ignore_connection_errors</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s2">&quot;get status&quot;</span><span class="p">):</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job get status&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span>
+                    <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;created&quot;</span><span class="p">:</span>
+                        <span class="c1"># start job if not yet done by callback</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">job_con</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">connection</span>
+                            <span class="c1"># Proactively refresh bearer token (because task in thread will not be able to do that)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_bearer_token</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">job_con</span><span class="p">)</span>
+                            <span class="n">task</span> <span class="o">=</span> <span class="n">_JobStartTask</span><span class="p">(</span>
+                                <span class="n">root_url</span><span class="o">=</span><span class="n">job_con</span><span class="o">.</span><span class="n">root_url</span><span class="p">,</span>
+                                <span class="n">bearer_token</span><span class="o">=</span><span class="n">job_con</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">bearer</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_con</span><span class="o">.</span><span class="n">auth</span><span class="p">,</span> <span class="n">BearerAuth</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="n">job_id</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
+                                <span class="n">df_idx</span><span class="o">=</span><span class="n">i</span><span class="p">,</span>
+                            <span class="p">)</span>
+                            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Submitting task </span><span class="si">{</span><span class="n">task</span><span class="si">}</span><span class="s2"> to thread pool&quot;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_worker_pool</span><span class="o">.</span><span class="n">submit_task</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+                            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job_queued_for_start&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;queued_for_start&quot;</span>
+                        <span class="k">except</span> <span class="n">OpenEoApiError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed submitting task </span><span class="si">{</span><span class="n">task</span><span class="si">}</span><span class="s2"> to thread pool with error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;queued_for_start_failed&quot;</span>
+                            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job queued for start failed&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># TODO: what is this &quot;skipping&quot; about actually?</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;skipped&quot;</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;start_job skipped&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_refresh_bearer_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">max_age</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper to proactively refresh the bearer (access) token of the connection</span>
+<span class="sd">        (but not too often, based on `max_age`).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: be smarter about timing, e.g. by inspecting expiry of current token?</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;connection:</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span><span class="si">}</span><span class="s2">:refresh-time&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">max_age</span> <span class="o">&lt;</span> <span class="n">now</span><span class="p">:</span>
+            <span class="n">refreshed</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">try_access_token_refresh</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">refreshed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to proactively refresh bearer token&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_threadworker_updates</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">worker_pool</span><span class="p">:</span> <span class="n">_JobManagerWorkerThreadPool</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">job_db</span><span class="p">:</span> <span class="n">JobDatabaseInterface</span><span class="p">,</span>
+        <span class="n">stats</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fetches completed TaskResult objects from the worker pool and applies</span>
+<span class="sd">        their db_update and stats_updates. Only existing DataFrame rows</span>
+<span class="sd">        (matched by df_idx) are upserted via job_db.persist(). Any results</span>
+<span class="sd">        targeting unknown df_idx indices are logged as errors but not persisted.</span>
+
+<span class="sd">        :param worker_pool: Thread-pool managing asynchronous Task executes</span>
+<span class="sd">        :param job_db:      Interface to append/upsert to the job database</span>
+<span class="sd">        :param stats:       Dictionary accumulating statistic counters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Retrieve completed task results immediately</span>
+        <span class="n">results</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">worker_pool</span><span class="o">.</span><span class="n">process_futures</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Collect update dicts</span>
+        <span class="n">updates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="c1"># Process database updates</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">db_update</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
+                            <span class="s2">&quot;df_idx&quot;</span><span class="p">:</span> <span class="n">res</span><span class="o">.</span><span class="n">df_idx</span><span class="p">,</span>
+                            <span class="o">**</span><span class="n">res</span><span class="o">.</span><span class="n">db_update</span><span class="p">,</span>
+                        <span class="p">}</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping invalid db_update </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">db_update</span><span class="si">!r}</span><span class="s2"> for job </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Process stats updates</span>
+            <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">stats_update</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">res</span><span class="o">.</span><span class="n">stats_update</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+                        <span class="n">stats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">count</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping invalid stats_update </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">stats_update</span><span class="si">!r}</span><span class="s2"> for job </span><span class="si">{</span><span class="n">res</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># No valid updates: nothing to persist</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">updates</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Build update DataFrame and persist</span>
+        <span class="n">df_updates</span> <span class="o">=</span> <span class="n">job_db</span><span class="o">.</span><span class="n">get_by_indices</span><span class="p">(</span><span class="n">indices</span><span class="o">=</span><span class="nb">set</span><span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="s2">&quot;df_idx&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">))</span>
+        <span class="n">df_updates</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;df_idx&quot;</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">job_db</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">df_updates</span><span class="p">)</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job_db persist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;job_db persist&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+<div class="viewcode-block" id="MultiBackendJobManager.on_job_done">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.on_job_done">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_job_done</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handles jobs that have finished. Can be overridden to provide custom behaviour.</span>
+
+<span class="sd">        Default implementation downloads the results into a folder containing the title.</span>
+
+<span class="sd">        :param job: The job that has finished.</span>
+<span class="sd">        :param row: DataFrame row containing the job&#39;s metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_results</span><span class="p">:</span>
+            <span class="n">job_metadata</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+            <span class="n">job_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_dir</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">metadata_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_metadata_path</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ensure_job_dir_exists</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">job_dir</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">metadata_path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">job_metadata</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.on_job_error">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.on_job_error">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_job_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.</span>
+
+<span class="sd">        Default implementation writes the error logs to a JSON file.</span>
+
+<span class="sd">        :param job: The job that has finished.</span>
+<span class="sd">        :param row: DataFrame row containing the job&#39;s metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?</span>
+
+        <span class="n">error_logs</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">)</span>
+        <span class="n">error_log_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_error_log_path</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">error_logs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ensure_job_dir_exists</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">error_log_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">error_logs</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.on_job_cancel">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.on_job_cancel">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_job_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handle a job that was cancelled. Can be overridden to provide custom behaviour.</span>
+
+<span class="sd">        Default implementation does not do anything.</span>
+
+<span class="sd">        :param job: The job that was canceled.</span>
+<span class="sd">        :param row: DataFrame row containing the job&#39;s metadata.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cancel_prolonged_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">row</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cancel the job if it has been running for too long.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Ensure running start time is valid</span>
+            <span class="n">job_running_start_time</span> <span class="o">=</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">parse_datetime</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;running_start_time&quot;</span><span class="p">),</span> <span class="n">with_timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Parse the current time into a datetime object with timezone info</span>
+            <span class="n">current_time</span> <span class="o">=</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">parse_datetime</span><span class="p">(</span><span class="n">rfc3339</span><span class="o">.</span><span class="n">now_utc</span><span class="p">(),</span> <span class="n">with_timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Calculate the elapsed time between job start and now</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">-</span> <span class="n">job_running_start_time</span>
+
+            <span class="k">if</span> <span class="n">elapsed</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cancel_running_job_after</span><span class="p">:</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Cancelling long-running job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> (after </span><span class="si">{</span><span class="n">elapsed</span><span class="si">}</span><span class="s2">, running since </span><span class="si">{</span><span class="n">job_running_start_time</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="p">)</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected error while handling job </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiBackendJobManager.get_job_dir">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.get_job_dir">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Path to directory where job metadata, results and error logs are be saved.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;job_</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.get_error_log_path">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.get_error_log_path">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_error_log_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Path where error log file for the job is saved.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_dir</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;job_</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">_errors.json&quot;</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.get_job_metadata_path">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.get_job_metadata_path">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_metadata_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Path where job metadata file is saved.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_dir</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;job_</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">.json&quot;</span></div>
+
+
+<div class="viewcode-block" id="MultiBackendJobManager.ensure_job_dir_exists">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.MultiBackendJobManager.ensure_job_dir_exists">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ensure_job_dir_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create the job folder if it does not exist yet.&quot;&quot;&quot;</span>
+        <span class="n">job_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_dir</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">job_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_track_statuses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_db</span><span class="p">:</span> <span class="n">JobDatabaseInterface</span><span class="p">,</span> <span class="n">stats</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">List</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tracks status (and stats) of running jobs (in place).</span>
+<span class="sd">        Optionally cancels jobs when running too long.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">stats</span> <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="n">active</span> <span class="o">=</span> <span class="n">job_db</span><span class="o">.</span><span class="n">get_by_status</span><span class="p">(</span><span class="n">statuses</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;queued_for_start&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">jobs_done</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">jobs_error</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">jobs_cancel</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">active</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="n">backend_name</span> <span class="o">=</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;backend_name&quot;</span><span class="p">]</span>
+            <span class="n">previous_status</span> <span class="o">=</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_connection</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span>
+                <span class="n">the_job</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="n">job_metadata</span> <span class="o">=</span> <span class="n">the_job</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job describe&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">new_status</span> <span class="o">=</span> <span class="n">job_metadata</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+
+                <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Status of job </span><span class="si">{</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> (on backend </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">) is </span><span class="si">{</span><span class="n">new_status</span><span class="si">!r}</span><span class="s2"> (previously </span><span class="si">{</span><span class="n">previous_status</span><span class="si">!r}</span><span class="s2">)&quot;</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">previous_status</span> <span class="o">!=</span> <span class="s2">&quot;finished&quot;</span> <span class="ow">and</span> <span class="n">new_status</span> <span class="o">==</span> <span class="s2">&quot;finished&quot;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job finished&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">jobs_done</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">the_job</span><span class="p">,</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="n">previous_status</span> <span class="o">!=</span> <span class="s2">&quot;error&quot;</span> <span class="ow">and</span> <span class="n">new_status</span> <span class="o">==</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job failed&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">jobs_error</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">the_job</span><span class="p">,</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="n">new_status</span> <span class="o">==</span> <span class="s2">&quot;canceled&quot;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job canceled&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">jobs_cancel</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">the_job</span><span class="p">,</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="n">previous_status</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;queued_for_start&quot;</span><span class="p">}</span> <span class="ow">and</span> <span class="n">new_status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+                    <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job started running&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;running_start_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">now_utc</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cancel_running_job_after</span> <span class="ow">and</span> <span class="n">new_status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;running_start_time&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;running_start_time&quot;</span><span class="p">]):</span>
+                        <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Unknown &#39;running_start_time&#39; for running job </span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">. Using current time as an approximation.&quot;</span>
+                        <span class="p">)</span>
+                        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job started running&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;running_start_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">now_utc</span><span class="p">()</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_cancel_prolonged_job</span><span class="p">(</span><span class="n">the_job</span><span class="p">,</span> <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+                <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_status</span>
+
+                <span class="c1"># TODO: there is well hidden coupling here with &quot;cpu&quot;, &quot;memory&quot; and &quot;duration&quot; from `_normalize_df`</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">job_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">active</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                        <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_format_usage_stat</span><span class="p">(</span><span class="n">job_metadata</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;costs&quot;</span> <span class="ow">in</span> <span class="n">job_metadata</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">active</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;costs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;costs&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="n">OpenEoApiError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># TODO: inspect status code and e.g. differentiate between 4xx/5xx</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job tracking error&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error while tracking status of job </span><span class="si">{</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> on backend </span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;job_db persist&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">job_db</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">active</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">jobs_done</span><span class="p">,</span> <span class="n">jobs_error</span><span class="p">,</span> <span class="n">jobs_cancel</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_usage_stat</span><span class="p">(</span><span class="n">job_metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">job_metadata</span><span class="p">,</span> <span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">job_metadata</span><span class="p">,</span> <span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="s2">&quot;unit&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">ignore_connection_errors</span><span class="p">(</span><span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sleep</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Context manager to ignore connection errors.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO: move this out of this module and make it a more public utility?</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ignoring connection error (context </span><span class="si">{</span><span class="n">context</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;n/a&#39;</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># Back off a bit</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Working with processes &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Batch Jobs" href="batch_jobs.html" />
+    <link rel="prev" title="Finding and loading data" href="data_access.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="working-with-processes">
+<h1>Working with processes<a class="headerlink" href="#working-with-processes" title="Link to this heading">¶</a></h1>
+<p>In openEO, a <strong>process</strong> is an operation that performs a specific task on
+a set of parameters and returns a result.
+For example, with the <code class="docutils literal notranslate"><span class="pre">add</span></code> process you can add two numbers, in openEO’s JSON notation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;process_id&quot;</span><span class="p">:</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A process is similar to a <em>function</em> in common programming languages,
+and likewise, multiple processes can be combined or chained together
+into new, more complex operations.</p>
+<section id="a-bit-of-terminology">
+<h2>A bit of terminology<a class="headerlink" href="#a-bit-of-terminology" title="Link to this heading">¶</a></h2>
+<p>A <strong>pre-defined process</strong> is a process provided out of the box by a given <em>back-end</em>.
+These are often the <a class="reference external" href="https://openeo.org/documentation/1.0/processes.html">centrally defined openEO processes</a>,
+such as common mathematical (<code class="docutils literal notranslate"><span class="pre">sum</span></code>, <code class="docutils literal notranslate"><span class="pre">divide</span></code>, <code class="docutils literal notranslate"><span class="pre">sqrt</span></code>, …),
+statistical (<code class="docutils literal notranslate"><span class="pre">mean</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code>, …) and
+image processing (<code class="docutils literal notranslate"><span class="pre">mask</span></code>, <code class="docutils literal notranslate"><span class="pre">apply_kernel</span></code>, …)
+operations.
+Back-ends are expected to support most of these standard ones,
+but are free to pre-define additional ones too.</p>
+<p>Processes can be combined into a larger pipeline, parameterized
+and stored on the back-end as a so called <strong>user-defined process</strong>.
+This allows you to build a library of reusable building blocks
+that can be be inserted easily in multiple other places.
+See <a class="reference internal" href="udp.html#user-defined-processes"><span class="std std-ref">User-Defined Processes (UDP)</span></a> for more information.</p>
+<p>How processes are combined into a larger unit
+is internally represented by a so-called <strong>process graph</strong>.
+It describes how the inputs and outputs of processes
+should be linked together.
+A user of the Python client should normally not worry about
+the details of a process graph structure, as most of these aspects
+are hidden behind regular Python functions, classes and methods.</p>
+</section>
+<section id="using-common-pre-defined-processes">
+<h2>Using common pre-defined processes<a class="headerlink" href="#using-common-pre-defined-processes" title="Link to this heading">¶</a></h2>
+<p>The listing of pre-defined processes provided by a back-end
+can be inspected with <a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_processes" title="openeo.rest.connection.Connection.list_processes"><code class="xref py py-func docutils literal notranslate"><span class="pre">list_processes()</span></code></a>.
+For example, to get a list of the process names (process ids):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">process_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">process</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">connection</span><span class="o">.</span><span class="n">list_processes</span><span class="p">()]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">process_ids</span><span class="p">[:</span><span class="mi">16</span><span class="p">])</span>
+<span class="go">[&#39;arccos&#39;, &#39;arcosh&#39;, &#39;power&#39;, &#39;last&#39;, &#39;subtract&#39;, &#39;not&#39;, &#39;cosh&#39;, &#39;artanh&#39;,</span>
+<span class="go">&#39;is_valid&#39;, &#39;first&#39;, &#39;median&#39;, &#39;eq&#39;, &#39;absolute&#39;, &#39;arctan2&#39;, &#39;divide&#39;,&#39;is_nan&#39;]</span>
+</pre></div>
+</div>
+<p>More information about the processes, like a description
+or expected parameters, can be queried like that,
+but it is often easier to look them up on the
+<a class="reference external" href="https://openeo.org/documentation/1.0/processes.html">official openEO process documentation</a></p>
+<p>A single pre-defined process can be retrieved with
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.describe_process" title="openeo.rest.connection.Connection.describe_process"><code class="xref py py-func docutils literal notranslate"><span class="pre">describe_process()</span></code></a>.</p>
+<section id="convenience-methods">
+<h3>Convenience methods<a class="headerlink" href="#convenience-methods" title="Link to this heading">¶</a></h3>
+<p>Most of the important pre-defined processes are covered directly by methods
+on classes like <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> or
+<a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube" title="openeo.rest.vectorcube.VectorCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">VectorCube</span></code></a>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference internal" href="process_mapping.html#openeo-process-mapping"><span class="std std-ref">openEO Process Mapping</span></a> for a mapping of openEO processes
+the corresponding methods in the openEO Python Client library.</p>
+</div>
+<p>For example, to apply the <code class="docutils literal notranslate"><span class="pre">filter_temporal</span></code> process to a raster data cube:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2020-02-20&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-06-06&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Being regular Python methods, you get usual function call features
+you’re accustomed to: default values, keyword arguments, <code class="docutils literal notranslate"><span class="pre">kwargs</span></code> usage, …
+For example, to use a bounding box dictionary with <code class="docutils literal notranslate"><span class="pre">kwargs</span></code>-expansion:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bbox</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;west&quot;</span><span class="p">:</span> <span class="mf">5.05</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">:</span> <span class="mf">51.20</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">:</span> <span class="mf">5.10</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">:</span> <span class="mf">51.23</span>
+<span class="p">}</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="o">**</span><span class="n">bbox</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that some methods try to be more flexible and convenient to use
+than how the official process definition prescribes.
+For example, the <code class="docutils literal notranslate"><span class="pre">filter_temporal</span></code> process expects an <code class="docutils literal notranslate"><span class="pre">extent</span></code> array
+with 2 items (the start and end date),
+but you can call the corresponding client method in multiple equivalent ways:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">)</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">([</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">start_date</span><span class="o">=</span><span class="s2">&quot;2019-07-01&quot;</span><span class="p">,</span> <span class="n">end_date</span><span class="o">=</span><span class="s2">&quot;2019-08-01&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-argument-tweaking">
+<h3>Advanced argument tweaking<a class="headerlink" href="#advanced-argument-tweaking" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.10.1.</span></p>
+</div>
+<p>In some situations, you may want to finetune what the (convenience) methods generate.
+For example, you want to play with non-standard, experimental arguments,
+or there is a problem with a automatic argument handling/conversion feature.</p>
+<p>You can tweak the arguments of your current result node as follows.
+Say, we want to add some non-standard <code class="docutils literal notranslate"><span class="pre">feature_flags</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process node.
+We first get the current result node with <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.result_node" title="openeo.rest.datacube.DataCube.result_node"><code class="xref py py-meth docutils literal notranslate"><span class="pre">result_node()</span></code></a> and use <a class="reference internal" href="api.html#openeo.internal.graph_building.PGNode.update_arguments" title="openeo.internal.graph_building.PGNode.update_arguments"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update_arguments()</span></code></a> to add an additional argument to it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># `Connection.load_collection` does not support `feature_flags` argument</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># Add `feature_flag` argument `load_collection` process graph node</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">result_node</span><span class="p">()</span><span class="o">.</span><span class="n">update_arguments</span><span class="p">(</span><span class="n">feature_flags</span><span class="o">=</span><span class="s2">&quot;rXPk&quot;</span><span class="p">)</span>
+
+<span class="c1"># The resulting process graph will now contain this non-standard argument:</span>
+<span class="c1">#     {</span>
+<span class="c1">#         &quot;process_id&quot;: &quot;load_collection&quot;,</span>
+<span class="c1">#         &quot;arguments&quot;: {</span>
+<span class="c1">#             ...</span>
+<span class="c1">#             &quot;feature_flags&quot;: &quot;rXPk&quot;,</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="generic-api-for-adding-processes">
+<h2>Generic API for adding processes<a class="headerlink" href="#generic-api-for-adding-processes" title="Link to this heading">¶</a></h2>
+<p>An openEO back-end may offer processes that are not part of the core API,
+or the client may not (yet) have a corresponding method
+for a process that you wish to use.
+In that case, you can fall back to a more generic API
+that allows you to add processes directly.</p>
+<section id="basics">
+<h3>Basics<a class="headerlink" href="#basics" title="Link to this heading">¶</a></h3>
+<p>To add a simple process to the graph, use
+the <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.process" title="openeo.rest.datacube.DataCube.process"><code class="xref py py-func docutils literal notranslate"><span class="pre">process()</span></code></a> method
+on a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>.
+You have to specify the process id and arguments
+(as a single dictionary or through keyword arguments <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code>).
+It will return a new DataCube with the new process appended
+to the internal process graph.</p>
+<p>A very simple example using the <code class="docutils literal notranslate"><span class="pre">mean</span></code> process and a
+literal list in an arguments dictionary:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">arguments</span><span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">}</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>or equivalently, leveraging keyword arguments:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">res</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="passing-data-cube-arguments">
+<h3>Passing data cube arguments<a class="headerlink" href="#passing-data-cube-arguments" title="Link to this heading">¶</a></h3>
+<p>The example above is a bit convoluted however in the sense that
+you start from a given data cube <code class="docutils literal notranslate"><span class="pre">cube</span></code>, you add a <code class="docutils literal notranslate"><span class="pre">mean</span></code> process
+that works on a given data array, while completely ignoring the original cube.
+In reality you typically want to apply the process on the cube.
+This is possible by passing a data cube object directly as argument,
+for example with the <code class="docutils literal notranslate"><span class="pre">ndvi</span></code> process that at least expects
+a data cube as <code class="docutils literal notranslate"><span class="pre">data</span></code> argument</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">res</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;ndvi&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">cube</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that you have to specify <code class="docutils literal notranslate"><span class="pre">cube</span></code> twice here:
+a first time to call the method and a second time as argument.
+Moreover, it requires you to define a Python variable for the data
+cube, which is annoying if you want to use a chained expressions.
+To solve these issues, you can use the <a class="reference internal" href="api.html#openeo.rest.datacube.THIS" title="openeo.rest.datacube.THIS"><code class="xref py py-const docutils literal notranslate"><span class="pre">THIS</span></code></a>
+constant as symbolic reference to the “current” cube:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.datacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">THIS</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">cube</span>
+        <span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;filter_bands&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">THIS</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">THIS</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;ndvi&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">THIS</span><span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="passing-results-from-other-process-calls-as-arguments">
+<h3>Passing results from other process calls as arguments<a class="headerlink" href="#passing-results-from-other-process-calls-as-arguments" title="Link to this heading">¶</a></h3>
+<p>Another use case of generically applying (custom) processes is
+passing a process result as argument to another process working on a cube.
+For example, assume we have a custom process <code class="docutils literal notranslate"><span class="pre">load_my_vector_cube</span></code>
+to load a vector cube from an online resource.
+We can use this vector cube as geometry for
+<a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_spatial" title="openeo.rest.datacube.DataCube.aggregate_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code></a>
+using <a class="reference internal" href="api.html#openeo.processes.process" title="openeo.processes.process"><code class="xref py py-func docutils literal notranslate"><span class="pre">openeo.processes.process()</span></code></a> as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">process</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">aggregate_spatial</span><span class="p">(</span>
+    <span class="n">geometries</span><span class="o">=</span><span class="n">process</span><span class="p">(</span><span class="s2">&quot;load_my_vector_cube&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s2">&quot;https://geo.example/features.db&quot;</span><span class="p">),</span>
+    <span class="n">reducer</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="processes-with-child-callbacks">
+<span id="callbackfunctions"></span><h2>Processes with child “callbacks”<a class="headerlink" href="#processes-with-child-callbacks" title="Link to this heading">¶</a></h2>
+<p>Some openEO processes expect some kind of sub-process
+to be invoked on a subset or slice of the datacube.
+For example:</p>
+<ul>
+<li><p>process <code class="docutils literal notranslate"><span class="pre">apply</span></code> requires a transformation that will be applied
+to each pixel in the cube (separately), e.g. in pseudocode</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>cube.apply(
+    given a pixel value
+    =&gt; scale it with factor 0.01
+)
+</pre></div>
+</div>
+</li>
+<li><p>process <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> requires an aggregation function to convert
+an array of pixel values (along a given dimension) to a single value,
+e.g. in pseudocode</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>cube.reduce_dimension(
+    given a pixel timeseries (array) for a (x,y)-location
+    =&gt; temporal mean of that array
+)
+</pre></div>
+</div>
+</li>
+<li><p>process <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> requires a function to aggregate the values
+in one or more geometries</p></li>
+</ul>
+<p>These transformation functions are usually called “<strong>callbacks</strong>”
+because instead of being called explicitly by the user,
+they are called and managed by their “parent” process
+(the <code class="docutils literal notranslate"><span class="pre">apply</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> and <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> in the examples)</p>
+<p>The openEO Python Client Library currently provides a couple of DataCube methods
+that expect such a callback, most commonly:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_spatial" title="openeo.rest.datacube.DataCube.aggregate_spatial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.aggregate_spatial()</span></code></a></p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.aggregate_temporal" title="openeo.rest.datacube.DataCube.aggregate_temporal"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.aggregate_temporal()</span></code></a></p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply" title="openeo.rest.datacube.DataCube.apply"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.apply()</span></code></a></p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_dimension" title="openeo.rest.datacube.DataCube.apply_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.apply_dimension()</span></code></a></p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.apply_neighborhood" title="openeo.rest.datacube.DataCube.apply_neighborhood"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.apply_neighborhood()</span></code></a></p></li>
+<li><p><a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.reduce_dimension" title="openeo.rest.datacube.DataCube.reduce_dimension"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.reduce_dimension()</span></code></a></p></li>
+</ul>
+<p>The openEO Python Client Library supports several ways
+to specify the desired callback for these functions:</p>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#callback-as-string" id="id1">Callback as string</a></p></li>
+<li><p><a class="reference internal" href="#callback-as-a-callable" id="id2">Callback as a callable</a></p></li>
+<li><p><a class="reference internal" href="#callback-as-pgnode" id="id3">Callback as <code class="docutils literal notranslate"><span class="pre">PGNode</span></code></a></p></li>
+</ul>
+</nav>
+<section id="callback-as-string">
+<h3><a class="toc-backref" href="#contents" role="doc-backlink">Callback as string</a><a class="headerlink" href="#callback-as-string" title="Link to this heading">¶</a></h3>
+<p>The easiest way is passing a process name as a string,
+for example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Take the absolute value of each pixel</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="s2">&quot;absolute&quot;</span><span class="p">)</span>
+
+<span class="c1"># Reduce a cube along the temporal dimension by taking the maximum value</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">reducer</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This approach is only possible if the desired transformation is available
+as a single process. If not, use one of the methods below.</p>
+<p>It’s also important to note that the “signature” of the provided callback process
+should correspond properly with what the parent process expects.
+For example: <code class="docutils literal notranslate"><span class="pre">apply</span></code> requires a callback process that receives a
+number and returns one (like <code class="docutils literal notranslate"><span class="pre">absolute</span></code> or <code class="docutils literal notranslate"><span class="pre">sqrt</span></code>),
+while <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> requires a callback process that receives
+an array of numbers and returns a single number (like <code class="docutils literal notranslate"><span class="pre">max</span></code> or <code class="docutils literal notranslate"><span class="pre">mean</span></code>).</p>
+</section>
+<section id="callback-as-a-callable">
+<span id="child-callback-callable"></span><h3><a class="toc-backref" href="#contents" role="doc-backlink">Callback as a callable</a><a class="headerlink" href="#callback-as-a-callable" title="Link to this heading">¶</a></h3>
+<p>You can also specify the callback as a “callable”:
+which is a fancy word for a Python object that can be called,
+but just think of it like a function you can call.</p>
+<p>You can use a regular Python function, like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span>
+
+<span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>or, more compactly, a “lambda”
+(a construct in Python to create anonymous inline functions):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The openEO Python Client Library implements most of the official openEO processes as
+<a class="reference internal" href="api-processes.html#openeo-processes-functions"><span class="std std-ref">functions in the “openeo.processes” module</span></a>,
+which can be used directly as callback:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">absolute</span><span class="p">,</span> <span class="nb">max</span>
+
+<span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">absolute</span><span class="p">)</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">reducer</span><span class="o">=</span><span class="nb">max</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The argument that will be passed to all these callback functions is
+a <a class="reference internal" href="api-processes.html#openeo.processes.ProcessBuilder" title="openeo.processes.ProcessBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBuilder</span></code></a> instance.
+This is a helper object with predefined methods for all standard openEO processes,
+allowing to use an object oriented coding style to define the callback.
+For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessBuilder</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">avg</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">ProcessBuilder</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">reducer</span><span class="o">=</span><span class="n">avg</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>These methods also return <a class="reference internal" href="api-processes.html#openeo.processes.ProcessBuilder" title="openeo.processes.ProcessBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBuilder</span></code></a> objects,
+which also allows writing callbacks in chained fashion:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">cos</span><span class="p">()</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mf">1.23</span><span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>All this gives a lot of flexibility to define callbacks compactly
+in a desired coding style.
+The following examples result in the same callback:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessBuilder</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">add</span>
+
+<span class="c1"># Chained methods</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">cos</span><span class="p">()</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mf">1.23</span><span class="p">),</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Functions</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">cos</span><span class="p">(</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">)),</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.23</span><span class="p">),</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Mixing methods, functions and operators</span>
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span>
+    <span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="n">cos</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">()))</span> <span class="o">+</span> <span class="mf">1.23</span><span class="p">,</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<section id="caveats">
+<h4>Caveats<a class="headerlink" href="#caveats" title="Link to this heading">¶</a></h4>
+<p>Specifying callbacks through Python functions (or lambdas)
+looks intuitive and straightforward, but it should be noted
+that not everything is allowed in these functions.
+You should just limit yourself to calling
+<a class="reference internal" href="api-processes.html#module-openeo.processes" title="openeo.processes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">openeo.processes</span></code></a> functions,
+<a class="reference internal" href="api-processes.html#openeo.processes.ProcessBuilder" title="openeo.processes.ProcessBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBuilder</span></code></a> methods
+and basic math operators.
+Don’t call functions from other libraries like numpy or scipy.
+Don’t use Python control flow statements like <code class="docutils literal notranslate"><span class="pre">if/else</span></code> constructs
+or <code class="docutils literal notranslate"><span class="pre">for</span></code> loops.</p>
+<p>The reason for this is that the openEO Python Client Library
+does not translate the function source code itself
+to an openEO process graph.
+Instead, when building the openEO process graph,
+it passes a special object to the function
+and keeps track of which <a class="reference internal" href="api-processes.html#module-openeo.processes" title="openeo.processes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">openeo.processes</span></code></a> functions
+were called to assemble the corresponding process graph.
+If you use control flow statements or use numpy functions for example,
+this procedure will incorrectly detect what you want to do in the callback.</p>
+<p>For example, if you mistakenly use the Python builtin <a class="reference external" href="https://docs.python.org/3/library/functions.html#sum" title="(in Python v3.14)"><code class="xref py py-func docutils literal notranslate"><span class="pre">sum()</span></code></a> function
+in a callback instead of <a class="reference internal" href="api-processes.html#openeo.processes.sum" title="openeo.processes.sum"><code class="xref py py-func docutils literal notranslate"><span class="pre">openeo.processes.sum()</span></code></a>, you will run into trouble.
+Luckily the openEO Python client Library should raise an error if it detects that:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Wrongly using builtin `sum` function</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="nb">sum</span><span class="p">)</span>
+<span class="go">RuntimeError: Exceeded ProcessBuilder iteration limit.</span>
+<span class="go">Are you mistakenly using a builtin like `sum()` or `all()` in a callback</span>
+<span class="go">instead of the appropriate helpers from `openeo.processes`?</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Explicit usage of `openeo.processes.sum`</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo.processes</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span><span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="n">openeo</span><span class="o">.</span><span class="n">processes</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+<span class="go">&lt;openeo.rest.datacube.DataCube at 0x7f6505a40d00&gt;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="callback-as-pgnode">
+<h3><a class="toc-backref" href="#contents" role="doc-backlink">Callback as <code class="docutils literal notranslate"><span class="pre">PGNode</span></code></a><a class="headerlink" href="#callback-as-pgnode" title="Link to this heading">¶</a></h3>
+<p>You can also pass a <a class="reference internal" href="api.html#openeo.internal.graph_building.PGNode" title="openeo.internal.graph_building.PGNode"><code class="xref py py-class docutils literal notranslate"><span class="pre">PGNode</span></code></a> object as callback.</p>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>This approach should generally not be used in normal use cases.
+The other options discussed above should be preferred.
+It’s mainly intended for internal use and an occasional, advanced use case.
+It requires in-depth knowledge of the openEO API
+and openEO Python Client Library to construct correctly.</p>
+</div>
+<p>Some examples:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.graph_building</span><span class="w"> </span><span class="kn">import</span> <span class="n">PGNode</span>
+
+<span class="n">cube</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">PGNode</span><span class="p">(</span>
+    <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="n">PGNode</span><span class="p">(</span>
+        <span class="s2">&quot;cos&quot;</span><span class="p">,</span>
+        <span class="n">x</span><span class="o">=</span><span class="n">PGNode</span><span class="p">(</span><span class="s2">&quot;absolute&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">})</span>
+    <span class="p">),</span>
+    <span class="n">y</span><span class="o">=</span><span class="mf">1.23</span>
+<span class="p">))</span>
+
+<span class="n">cube</span><span class="o">.</span><span class="n">reduce_dimension</span><span class="p">(</span>
+    <span class="n">reducer</span><span class="o">=</span><span class="n">PGNode</span><span class="p">(</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="s2">&quot;data&quot;</span><span class="p">}),</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Working with processes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#a-bit-of-terminology">A bit of terminology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-common-pre-defined-processes">Using common pre-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generic-api-for-adding-processes">Generic API for adding processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#processes-with-child-callbacks">Processes with child “callbacks”</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="data_access.html" title="previous chapter">Finding and loading data</a></li>
+      <li>Next: <a href="batch_jobs.html" title="next chapter">Batch Jobs</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/processes.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

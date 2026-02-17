@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Spectral Indices &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Multi Backend Job Manager" href="job_manager.html" />
+    <link rel="prev" title="Sharing of user-defined processes" href="udp_sharing.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="spectral-indices">
+<h1>Spectral Indices<a class="headerlink" href="#spectral-indices" title="Link to this heading">¶</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a new experimental API, subject to change.</p>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">openeo.extra.spectral_indices</span></code> is an auxiliary subpackage
+to simplify the calculation of common spectral indices
+used in various Earth observation applications (vegetation, water, urban etc.).
+It leverages the spectral indices defined in the
+<a class="reference external" href="https://awesome-ee-spectral-indices.readthedocs.io/">Awesome Spectral Indices</a> project
+by <a class="reference external" href="https://github.com/davemlz">David Montero Loaiza</a>.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.9.1.</span></p>
+</div>
+<section id="band-mapping">
+<h2>Band mapping<a class="headerlink" href="#band-mapping" title="Link to this heading">¶</a></h2>
+<p>The formulas provided by “Awesome Spectral Indices” are defined in terms of standardized variable names
+like “B” for blue, “R” for red, “N” for near-infrared, “WV” for water vapour, etc.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;NDVI&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">     </span><span class="nt">&quot;formula&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;(N - R)/(N + R)&quot;</span><span class="p">,</span>
+<span class="w">     </span><span class="nt">&quot;long_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Normalized Difference Vegetation Index&quot;</span><span class="p">,</span>
+</pre></div>
+</div>
+<p>Obviously, these formula variables have to be mapped properly to the band names of your cube.</p>
+<section id="automatic-band-mapping">
+<h3>Automatic band mapping<a class="headerlink" href="#automatic-band-mapping" title="Link to this heading">¶</a></h3>
+<p>In most simple cases, when there is enough collection metadata
+to automatically detect the satellite platform (Sentinel2, Landsat8, ..)
+and the original band names haven’t been renamed,
+this mapping will be handled automatically, e.g.:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;SENTINEL2_L2A&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="hll"><span class="n">indices</span> <span class="o">=</span> <span class="n">compute_indices</span><span class="p">(</span><span class="n">cube</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;NDVI&quot;</span><span class="p">,</span> <span class="s2">&quot;NDMI&quot;</span><span class="p">])</span>
+</span></pre></div>
+</div>
+</section>
+<section id="manual-band-mapping">
+<span id="spectral-indices-manual-band-mapping"></span><h3>Manual band mapping<a class="headerlink" href="#manual-band-mapping" title="Link to this heading">¶</a></h3>
+<p>In more complex cases, it might be necessary to specify some additional information to guide the band mapping.
+If the band names follow the standard, but it’s just the satellite platform can not be guessed
+from the collection metadata, it is typically enough to specify the platform explicitly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">indices</span> <span class="o">=</span> <span class="n">compute_indices</span><span class="p">(</span>
+    <span class="n">cube</span><span class="p">,</span>
+    <span class="n">indices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;NDVI&quot;</span><span class="p">,</span> <span class="s2">&quot;NDMI&quot;</span><span class="p">],</span>
+<span class="hll">    <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;SENTINEL2&quot;</span><span class="p">,</span>
+</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally, if the band names in your cube have been renamed, deviating from conventions, it is also
+possible to explicitly specify the band name to spectral index variable name mapping:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">indices</span> <span class="o">=</span> <span class="n">compute_indices</span><span class="p">(</span>
+    <span class="n">cube</span><span class="p">,</span>
+    <span class="n">indices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;NDVI&quot;</span><span class="p">,</span> <span class="s2">&quot;NDMI&quot;</span><span class="p">],</span>
+<span class="hll">    <span class="n">variable_map</span><span class="o">=</span><span class="p">{</span>
+</span><span class="hll">        <span class="s2">&quot;R&quot;</span><span class="p">:</span> <span class="s2">&quot;S2-red&quot;</span><span class="p">,</span>
+</span><span class="hll">        <span class="s2">&quot;N&quot;</span><span class="p">:</span> <span class="s2">&quot;S2-nir&quot;</span><span class="p">,</span>
+</span><span class="hll">        <span class="s2">&quot;S1&quot;</span><span class="p">:</span> <span class="s2">&quot;S2-swir&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="p">},</span>
+</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Function arguments <code class="docutils literal notranslate"><span class="pre">platform</span></code> and <code class="docutils literal notranslate"><span class="pre">variable_map</span></code> to fine-tune the band mapping.</p>
+</div>
+</section>
+</section>
+<section id="module-openeo.extra.spectral_indices">
+<span id="api"></span><h2>API<a class="headerlink" href="#module-openeo.extra.spectral_indices" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.append_and_rescale_indices">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">append_and_rescale_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_dict</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#append_and_rescale_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.append_and_rescale_indices" title="Link to this definition">¶</a></dt>
+<dd><p>Computes a list of indices from a datacube and appends them to the existing datacube</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datacube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span>) – input data cube</p></li>
+<li><p><strong>index_dict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – <p>a dictionary that contains the input- and output range of the collection on which you calculate the indices
+as well as the indices that you want to calculate with their responding input- and output ranges
+It follows the following format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">8000</span><span class="p">],</span>
+        <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">250</span><span class="p">]</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;indices&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;NDVI&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">250</span><span class="p">]</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>See <cite>list_indices()</cite> for supported indices.</p>
+</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data cube with appended indices</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>this “rescaled” index helper uses an experimental API (e.g. <cite>index_dict</cite> argument) that is subject to change.</p>
+</div>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.append_index">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">append_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#append_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.append_index" title="Link to this definition">¶</a></dt>
+<dd><p>Compute a single spectral index and append it to the given data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cube</strong> – input data cube</p></li>
+<li><p><strong>index</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – name of the index to compute and append. See <cite>list_indices()</cite> for supported indices.</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data cube with appended index</p>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.append_indices">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">append_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#append_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.append_indices" title="Link to this definition">¶</a></dt>
+<dd><p>Compute multiple spectral indices and append them to the given data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datacube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span>) – input data cube</p></li>
+<li><p><strong>indices</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – list of names of the indices to compute and append. See <cite>list_indices()</cite> for supported indices.</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data cube with appended indices</p>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.compute_and_rescale_indices">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">compute_and_rescale_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_dict</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#compute_and_rescale_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.compute_and_rescale_indices" title="Link to this definition">¶</a></dt>
+<dd><p>Computes a list of indices from a data cube</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datacube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span>) – input data cube</p></li>
+<li><p><strong>index_dict</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span>) – <p>a dictionary that contains the input- and output range of the collection on which you calculate the indices
+as well as the indices that you want to calculate with their responding input- and output ranges
+It follows the following format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">8000</span><span class="p">],</span>
+        <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">250</span><span class="p">]</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;indices&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;NDVI&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">250</span><span class="p">]</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If you don’t want to rescale your data, you can fill the input-, index- and output-range with <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>See <cite>list_indices()</cite> for supported indices.</p>
+</p></li>
+<li><p><strong>append</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – append the indices as bands to the given data cube
+instead of creating a new cube with only the calculated indices</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the datacube with the indices attached as bands</p>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>this “rescaled” index helper uses an experimental API (e.g. <cite>index_dict</cite> argument) that is subject to change.</p>
+</div>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.compute_index">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">compute_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#compute_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.compute_index" title="Link to this definition">¶</a></dt>
+<dd><p>Compute a single spectral index from a data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datacube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span>) – input data cube</p></li>
+<li><p><strong>index</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – name of the index to compute. See <cite>list_indices()</cite> for supported indices.</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data cube containing the index as band</p>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.compute_indices">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">compute_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datacube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#compute_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.compute_indices" title="Link to this definition">¶</a></dt>
+<dd><p>Compute multiple spectral indices from the given data cube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datacube</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span>) – input data cube</p></li>
+<li><p><strong>indices</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – list of names of the indices to compute and append. See <cite>list_indices()</cite> for supported indices.</p></li>
+<li><p><strong>append</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – append the indices as bands to the given data cube
+instead of creating a new cube with only the calculated indices</p></li>
+<li><p><strong>variable_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.
+To be specified if the given data cube has non-standard band names,
+or the satellite platform can not be recognized from the data cube metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+<li><p><strong>platform</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – optionally specify the satellite platform (to determine band name mapping)
+if the given data cube has no or an unhandled collection id in its metadata.
+See <a class="reference internal" href="#spectral-indices-manual-band-mapping"><span class="std std-ref">Manual band mapping</span></a> for more information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data cube containing the indices as bands</p>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.26.0: </span>Added <cite>variable_map</cite> and <cite>platform</cite> arguments.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.spectral_indices.list_indices">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">list_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/spectral_indices/spectral_indices.html#list_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.spectral_indices.list_indices" title="Link to this definition">¶</a></dt>
+<dd><p>List names of supported spectral indices</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ard.html">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Spectral Indices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="job_manager.html">Multi Backend Job Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localprocessing.html">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">openEO CookBook</a><ul>
+      <li>Previous: <a href="udp_sharing.html" title="previous chapter">Sharing of user-defined processes</a></li>
+      <li>Next: <a href="job_manager.html" title="next chapter">Multi Backend Job Manager</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/cookbook/spectral_indices.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

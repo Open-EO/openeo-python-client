@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.udp &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.udp</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.api.process</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.graph_building</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlatGraphableMixin</span><span class="p">,</span> <span class="n">as_flat_graph</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_component</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.processes.builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessBuilderBase</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">dict_no_none</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.connection</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+
+<div class="viewcode-block" id="build_process_dict">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.build_process_dict">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_process_dict</span><span class="p">(</span>
+    <span class="n">process_graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">FlatGraphableMixin</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">FlatGraphableMixin</span><span class="p">]],</span>
+    <span class="n">process_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">returns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">categories</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">examples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">links</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">default_synchronous_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">default_job_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">default_service_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Build a dictionary describing a process with metadata (`process_graph`, `parameters`, `description`, ...)</span>
+
+<span class="sd">    :param process_graph: dict or builder representing a process graph</span>
+<span class="sd">    :param process_id: identifier of the process</span>
+<span class="sd">    :param summary: short summary of what the process does</span>
+<span class="sd">    :param description: detailed description</span>
+<span class="sd">    :param parameters: list of process parameters (which have name, schema, default value, ...)</span>
+<span class="sd">    :param returns: description and schema of what the process returns</span>
+<span class="sd">    :param categories: list of categories</span>
+<span class="sd">    :param examples: list of examples, may be used for unit tests</span>
+<span class="sd">    :param links: list of links related to the process</span>
+<span class="sd">    :param default_synchronous_options: default processing options for synchronous processing</span>
+<span class="sd">        (per `Processing Parameters Extension &lt;https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters&gt;`_)</span>
+<span class="sd">    :param default_job_options: default options for batch job execution</span>
+<span class="sd">        (per `Processing Parameters Extension &lt;https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters&gt;`_)</span>
+<span class="sd">    :param default_service_options: default options for secondary service related processing</span>
+<span class="sd">        (per `Processing Parameters Extension &lt;https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters&gt;`_)</span>
+
+<span class="sd">    :return: dictionary in openEO &quot;process graph with metadata&quot; format</span>
+
+<span class="sd">    .. versionchanged:: 0.39.0</span>
+<span class="sd">        Added ``default_synchronous_options``, ``default_job_options`` and ``default_service_options`` arguments</span>
+<span class="sd">        (per `Processing Parameters Extension &lt;https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters&gt;`_)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="n">dict_no_none</span><span class="p">(</span>
+        <span class="n">process_graph</span><span class="o">=</span><span class="n">as_flat_graph</span><span class="p">(</span><span class="n">process_graph</span><span class="p">),</span>
+        <span class="nb">id</span><span class="o">=</span><span class="n">process_id</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+        <span class="n">returns</span><span class="o">=</span><span class="n">returns</span><span class="p">,</span>
+        <span class="n">categories</span><span class="o">=</span><span class="n">categories</span><span class="p">,</span>
+        <span class="n">examples</span><span class="o">=</span><span class="n">examples</span><span class="p">,</span>
+        <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">,</span>
+        <span class="n">default_synchronous_options</span><span class="o">=</span><span class="n">default_synchronous_options</span><span class="p">,</span>
+        <span class="n">default_job_options</span><span class="o">=</span><span class="n">default_job_options</span><span class="p">,</span>
+        <span class="n">default_service_options</span><span class="o">=</span><span class="n">default_service_options</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">parameters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">process</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">p</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span> <span class="k">else</span> <span class="n">Parameter</span><span class="p">(</span><span class="o">**</span><span class="n">p</span><span class="p">))</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameters</span>
+        <span class="p">]</span>
+    <span class="k">return</span> <span class="n">process</span></div>
+
+
+
+<div class="viewcode-block" id="RESTUserDefinedProcess">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.RESTUserDefinedProcess">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RESTUserDefinedProcess</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for a user-defined process stored (or to be stored) on an openEO back-end</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_defined_process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_defined_process_id</span> <span class="o">=</span> <span class="n">user_defined_process_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">assert_user_defined_process_support</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+        <span class="n">federation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="s2">&quot;process&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">process</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;show-graph&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;provide-download&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">federation</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="RESTUserDefinedProcess.store">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.RESTUserDefinedProcess.store">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">process_graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">FlatGraphableMixin</span><span class="p">],</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">public</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">summary</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">returns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">categories</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">examples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">links</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Store a process graph and its metadata on the backend as a user-defined process&quot;&quot;&quot;</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">build_process_dict</span><span class="p">(</span>
+            <span class="n">process_graph</span><span class="o">=</span><span class="n">process_graph</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span>
+            <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span> <span class="n">returns</span><span class="o">=</span><span class="n">returns</span><span class="p">,</span>
+            <span class="n">categories</span><span class="o">=</span><span class="n">categories</span><span class="p">,</span> <span class="n">examples</span><span class="o">=</span><span class="n">examples</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># TODO: this &quot;public&quot; flag is not standardized yet EP-3609, https://github.com/Open-EO/openeo-api/issues/310</span>
+        <span class="n">process</span><span class="p">[</span><span class="s2">&quot;public&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">public</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">_preflight_validation</span><span class="p">(</span><span class="n">pg_with_metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;process&quot;</span><span class="p">:</span> <span class="n">process</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
+            <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/process_graphs/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_defined_process_id</span><span class="p">),</span> <span class="n">json</span><span class="o">=</span><span class="n">process</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RESTUserDefinedProcess.update">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.RESTUserDefinedProcess.update">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span>
+        <span class="s2">&quot;Use `store` instead. Method `update` is misleading: OpenEO API does not provide (partial) updates&quot;</span>
+        <span class="s2">&quot; of user-defined processes, only fully overwriting &#39;store&#39; operations.&quot;</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.4.11&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">process_graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">ProcessBuilderBase</span><span class="p">],</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">public</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">process_graph</span><span class="o">=</span><span class="n">process_graph</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span> <span class="n">public</span><span class="o">=</span><span class="n">public</span><span class="p">,</span> <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
+                   <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RESTUserDefinedProcess.describe">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.RESTUserDefinedProcess.describe">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get metadata of this user-defined process.&quot;&quot;&quot;</span>
+        <span class="c1"># TODO: parse the &quot;parameters&quot; to Parameter objects?</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/process_graphs/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_defined_process_id</span><span class="p">))</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="RESTUserDefinedProcess.delete">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.udp.RESTUserDefinedProcess.delete">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove user-defined process from back-end&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/process_graphs/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_defined_process_id</span><span class="p">),</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

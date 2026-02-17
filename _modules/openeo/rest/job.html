@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.job &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.job</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.documentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">openeo_endpoint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">VisualDict</span><span class="p">,</span> <span class="n">render_component</span><span class="p">,</span> <span class="n">render_error</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span><span class="p">,</span> <span class="n">legacy_alias</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span>
+    <span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX</span><span class="p">,</span>
+    <span class="n">JobFailedException</span><span class="p">,</span>
+    <span class="n">OpenEoApiError</span><span class="p">,</span>
+    <span class="n">OpenEoApiPlainError</span><span class="p">,</span>
+    <span class="n">OpenEoClientException</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.general</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogsResponse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.logs</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_level_name</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_dir</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.http</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HTTP_408_REQUEST_TIMEOUT</span><span class="p">,</span>
+    <span class="n">HTTP_429_TOO_MANY_REQUESTS</span><span class="p">,</span>
+    <span class="n">HTTP_500_INTERNAL_SERVER_ERROR</span><span class="p">,</span>
+    <span class="n">HTTP_501_NOT_IMPLEMENTED</span><span class="p">,</span>
+    <span class="n">HTTP_502_BAD_GATEWAY</span><span class="p">,</span>
+    <span class="n">HTTP_503_SERVICE_UNAVAILABLE</span><span class="p">,</span>
+    <span class="n">HTTP_504_GATEWAY_TIMEOUT</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.connection</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">DEFAULT_JOB_RESULTS_FILENAME</span> <span class="o">=</span> <span class="s2">&quot;job-results.json&quot;</span>
+<span class="n">MAX_RETRIES_PER_RANGE</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">RETRIABLE_STATUSCODES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">HTTP_408_REQUEST_TIMEOUT</span><span class="p">,</span>
+    <span class="n">HTTP_429_TOO_MANY_REQUESTS</span><span class="p">,</span>
+    <span class="n">HTTP_500_INTERNAL_SERVER_ERROR</span><span class="p">,</span>
+    <span class="n">HTTP_501_NOT_IMPLEMENTED</span><span class="p">,</span>
+    <span class="n">HTTP_502_BAD_GATEWAY</span><span class="p">,</span>
+    <span class="n">HTTP_503_SERVICE_UNAVAILABLE</span><span class="p">,</span>
+    <span class="n">HTTP_504_GATEWAY_TIMEOUT</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="BatchJob">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BatchJob</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.</span>
+
+<span class="sd">    .. versionadded:: 0.11.0</span>
+<span class="sd">        This class originally had the more cryptic name :py:class:`RESTJob`,</span>
+<span class="sd">        which is still available as legacy alias,</span>
+<span class="sd">        but :py:class:`BatchJob` is recommended since version 0.11.0.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO #425 method to bootstrap `load_stac` directly from a BatchJob object</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unique identifier of the batch job (string).&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">{c}</span><span class="s1"> job_id=</span><span class="si">{i!r}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+        <span class="n">capabilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="s2">&quot;job&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;currency&quot;</span><span class="p">:</span> <span class="n">capabilities</span><span class="o">.</span><span class="n">currency</span><span class="p">(),</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">capabilities</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">(),</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.describe">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.describe">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">&quot;GET /jobs/</span><span class="si">{job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get detailed metadata about a submitted batch job</span>
+<span class="sd">        (title, process graph, status, progress, ...).</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`describe_job`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+    <span class="n">describe_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">describe</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;describe_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.20.0&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.status">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the status of the batch job</span>
+
+<span class="sd">        :return: batch job status, one of &quot;created&quot;, &quot;queued&quot;, &quot;running&quot;, &quot;canceled&quot;, &quot;finished&quot; or &quot;error&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.delete">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.delete">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">&quot;DELETE /jobs/</span><span class="si">{job_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete this batch job.</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`delete_job`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span></div>
+
+
+    <span class="n">delete_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">delete</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;delete_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.20.0&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.estimate">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.estimate">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">&quot;GET /jobs/</span><span class="si">{job_id}</span><span class="s2">/estimate&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate time/cost estimate for a job.&quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/estimate&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">currency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">currency</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s1">&#39;job-estimate&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;currency&#39;</span><span class="p">:</span> <span class="n">currency</span><span class="p">})</span></div>
+
+
+    <span class="n">estimate_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">estimate</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;estimate_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.20.0&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.start">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.start">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">&quot;POST /jobs/</span><span class="si">{job_id}</span><span class="s2">/results&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start this batch job.</span>
+
+<span class="sd">        :return: Started batch job</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`start_job`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">202</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="n">start_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;start_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.20.0&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.stop">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.stop">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">&quot;DELETE /jobs/</span><span class="si">{job_id}</span><span class="s2">/results&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stop this batch job.</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`stop_job`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results&quot;</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span></div>
+
+
+    <span class="n">stop_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">stop</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;stop_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.20.0&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;soft&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.get_results_metadata_url">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_results_metadata_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_results_metadata_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get results metadata URL&quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results&quot;</span>
+        <span class="k">if</span> <span class="n">full</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">build_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">url</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.list_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.list_results">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`~BatchJob.get_results` instead.&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.4.10&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get batch job results metadata.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.download_result">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.download_result">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download single job result to the target file path or into folder (current working dir by default).</span>
+
+<span class="sd">        Fails if there are multiple result files.</span>
+
+<span class="sd">        :param target: String or path where the file should be downloaded to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.download_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.download_results">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span>
+        <span class="s2">&quot;Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`&quot;</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.4.10&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download all job result files into given folder (current working dir by default).</span>
+
+<span class="sd">        The names of the files are taken directly from the backend.</span>
+
+<span class="sd">        :param target: String/path, folder where to put the result files.</span>
+<span class="sd">        :return: file_list: Dict containing the downloaded file path as value and asset metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="n">target</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.get_result">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_result">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`BatchJob.get_results` instead.&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.4.10&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_result</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_Result</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.get_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_results">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JobResults</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get handle to batch job results for result metadata inspection or downloading resulting assets.</span>
+
+<span class="sd">        .. versionadded:: 0.4.10</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">JobResults</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.logs">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.logs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LogsResponse</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve job logs.</span>
+
+<span class="sd">        :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.</span>
+
+<span class="sd">            If provided, the back-ends only sends the entries that occurred after the specified identifier.</span>
+<span class="sd">            If not provided or empty, start with the first entry.</span>
+
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">        :param level: Minimum log level to retrieve.</span>
+
+<span class="sd">            You can use either constants from Python&#39;s standard module ``logging``</span>
+<span class="sd">            or their names (case-insensitive).</span>
+
+<span class="sd">            For example:</span>
+<span class="sd">                ``logging.INFO``, ``&quot;info&quot;`` or ``&quot;INFO&quot;`` can all be used to show the messages</span>
+<span class="sd">                for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and</span>
+<span class="sd">                ``logging.ERROR`` will be included.</span>
+
+<span class="sd">            Default is to show all log levels, in other words ``logging.DEBUG``.</span>
+<span class="sd">            This is also the result when you explicitly pass log_level=None or log_level=&quot;&quot;.</span>
+
+<span class="sd">        :return: A list containing the log entries for the batch job.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs&quot;</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;level&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_level_name</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">LogsResponse</span><span class="p">(</span><span class="n">response_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.run_synchronous">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.run_synchronous">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use start_and_wait instead&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.39.0&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_synchronous</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outputfile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+        <span class="n">max_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+        <span class="n">connection_retry_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+        <span class="n">show_error_logs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start the job, wait for it to finish and download result</span>
+
+<span class="sd">        :param outputfile: (optional) output path to download to.</span>
+<span class="sd">        :param print: print/logging function to show progress/status</span>
+<span class="sd">        :param max_poll_interval: maximum number of seconds to sleep between job status polls</span>
+<span class="sd">        :param connection_retry_interval: how long to wait when status poll failed due to connection issue</span>
+<span class="sd">        :param show_error_logs: whether to automatically print error logs when the batch job failed.</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``show_error_logs``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">(</span>
+            <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+            <span class="n">max_poll_interval</span><span class="o">=</span><span class="n">max_poll_interval</span><span class="p">,</span>
+            <span class="n">connection_retry_interval</span><span class="o">=</span><span class="n">connection_retry_interval</span><span class="p">,</span>
+            <span class="n">show_error_logs</span><span class="o">=</span><span class="n">show_error_logs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># TODO #135 support multi file result sets too?</span>
+        <span class="k">if</span> <span class="n">outputfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">download_result</span><span class="p">(</span><span class="n">outputfile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.start_and_wait">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.start_and_wait">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_and_wait</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+        <span class="n">max_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+        <span class="n">connection_retry_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+        <span class="n">soft_error_max</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX</span><span class="p">,</span>
+        <span class="n">show_error_logs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">require_success</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start the batch job, poll its status and wait till it finishes (or fails)</span>
+
+<span class="sd">        :param print: print/logging function to show progress/status</span>
+<span class="sd">        :param max_poll_interval: maximum number of seconds to sleep between job status polls</span>
+<span class="sd">        :param connection_retry_interval: how long to wait when status poll failed due to connection issue</span>
+<span class="sd">        :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow</span>
+<span class="sd">        :param show_error_logs: whether to automatically print error logs when the batch job failed.</span>
+<span class="sd">        :param require_success: whether to raise an exception if the job did not finish successfully.</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``show_error_logs``.</span>
+
+<span class="sd">        .. versionchanged:: 0.42.0</span>
+<span class="sd">            All arguments must be specified as keyword arguments,</span>
+<span class="sd">            to eliminate the risk of positional mix-ups between heterogeneous arguments and flags.</span>
+
+<span class="sd">        .. versionchanged:: 0.42.0</span>
+<span class="sd">            Added argument ``require_success``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO rename `connection_retry_interval` to something more generic?</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">elapsed</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">))</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">print_status</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{t}</span><span class="s2"> Job </span><span class="si">{i!r}</span><span class="s2">: </span><span class="si">{m}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">elapsed</span><span class="p">(),</span> <span class="n">i</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="c1"># TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?</span>
+        <span class="n">print_status</span><span class="p">(</span><span class="s2">&quot;send &#39;start&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+        <span class="c1"># TODO: also add  `wait` method so you can track a job that already has started explicitly</span>
+        <span class="c1">#   or just rename this method to `wait` and automatically do start if not started yet?</span>
+
+        <span class="c1"># Start with fast polling.</span>
+        <span class="n">poll_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">_soft_error_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">soft_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Non breaking error (unless we had too much of them)&quot;&quot;&quot;</span>
+            <span class="k">nonlocal</span> <span class="n">_soft_error_count</span>
+            <span class="n">_soft_error_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">_soft_error_count</span> <span class="o">&gt;</span> <span class="n">soft_error_max</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;Excessive soft errors&quot;</span><span class="p">)</span>
+            <span class="n">print_status</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">connection_retry_interval</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># TODO: also allow a hard time limit on this infinite poll loop?</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">soft_error</span><span class="p">(</span><span class="s2">&quot;Connection error while polling job status: </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="k">except</span> <span class="n">OpenEoApiPlainError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">http_status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="n">HTTP_502_BAD_GATEWAY</span><span class="p">,</span> <span class="n">HTTP_503_SERVICE_UNAVAILABLE</span><span class="p">]:</span>
+                    <span class="n">soft_error</span><span class="p">(</span><span class="s2">&quot;Service availability error while polling job status: </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="n">job_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">)</span>
+
+            <span class="n">progress</span> <span class="o">=</span> <span class="n">job_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">progress</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">%&quot;</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">progress</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="s2">&quot;N/A&quot;</span>
+            <span class="n">print_status</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> (progress </span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;submitted&#39;</span><span class="p">,</span> <span class="s1">&#39;created&#39;</span><span class="p">,</span> <span class="s1">&#39;queued&#39;</span><span class="p">,</span> <span class="s1">&#39;running&#39;</span><span class="p">):</span>
+                <span class="k">break</span>
+
+            <span class="c1"># Sleep for next poll (and adaptively make polling less frequent)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">poll_interval</span><span class="p">)</span>
+            <span class="n">poll_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.25</span> <span class="o">*</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">require_success</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;finished&quot;</span><span class="p">:</span>
+            <span class="c1"># TODO: render logs jupyter-aware in a notebook context?</span>
+            <span class="k">if</span> <span class="n">show_error_logs</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Your batch job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> failed. Error logs:&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">))</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Full logs can be inspected in an openEO (web) editor or with `connection.job(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2">).logs()`.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">JobFailedException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Batch job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> didn&#39;t finish successfully. Status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> (after </span><span class="si">{</span><span class="n">elapsed</span><span class="p">()</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">,</span>
+                <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="RESTJob">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.RESTJob">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">&quot;Use :py:class:`BatchJob` instead&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.11.0&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RESTJob</span><span class="p">(</span><span class="n">BatchJob</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Legacy alias for :py:class:`BatchJob`.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="ResultAsset">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ResultAsset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Result asset of a batch job (e.g. a GeoTIFF or JSON file)</span>
+
+<span class="sd">    .. versionadded:: 0.4.10</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">href</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Asset name as advertised by the backend.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">href</span> <span class="o">=</span> <span class="n">href</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Download URL of the asset.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Asset metadata provided by the backend, possibly containing keys &quot;type&quot; (for media type), &quot;roles&quot;, &quot;title&quot;, &quot;description&quot;.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;ResultAsset </span><span class="si">{n!r}</span><span class="s2"> (type </span><span class="si">{t}</span><span class="s2">) at </span><span class="si">{h!r}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">),</span> <span class="n">h</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ResultAsset.download">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.download">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span> <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download asset to given location</span>
+
+<span class="sd">        :param target: download target path. Can be an existing folder</span>
+<span class="sd">            (in which case the filename advertised by backend will be used)</span>
+<span class="sd">            or full file name. By default, the working directory will be used.</span>
+<span class="sd">        :param chunk_size: chunk size for streaming response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">target</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloading Job result asset </span><span class="si">{n!r}</span><span class="s2"> from </span><span class="si">{h!s}</span><span class="s2"> to </span><span class="si">{t!s}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">target</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_to_file</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">range_size</span><span class="o">=</span><span class="n">range_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">target</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ResultAsset.load_json">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.load_json">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load asset in memory and parse as JSON.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.json&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;application/json&quot;</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Asset might not be JSON&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_response</span><span class="p">()</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ResultAsset.load_bytes">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.load_bytes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load asset in memory as raw bytes.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_response</span><span class="p">()</span><span class="o">.</span><span class="n">content</span></div>
+
+
+    <span class="c1"># TODO: more `load` methods e.g.: load GTiff asset directly as numpy array</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span> <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">):</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">head</span><span class="o">.</span><span class="n">ok</span> <span class="ow">and</span> <span class="n">head</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Accept-Ranges&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;bytes&quot;</span> <span class="ow">and</span> <span class="s1">&#39;Content-Length&#39;</span> <span class="ow">in</span> <span class="n">head</span><span class="o">.</span><span class="n">headers</span><span class="p">:</span>
+            <span class="n">file_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">head</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s1">&#39;Content-Length&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_download_ranged</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="n">file_size</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">range_size</span><span class="o">=</span><span class="n">range_size</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_download_all_at_once</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_ranged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">file_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span> <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">target</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">from_byte_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">file_size</span><span class="p">,</span> <span class="n">range_size</span><span class="p">):</span>
+                <span class="n">to_byte_index</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">from_byte_index</span> <span class="o">+</span> <span class="n">range_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">file_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">tries_left</span> <span class="o">=</span> <span class="n">MAX_RETRIES_PER_RANGE</span>
+                <span class="k">while</span> <span class="n">tries_left</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">range_headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Range&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;bytes=</span><span class="si">{</span><span class="n">from_byte_index</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">to_byte_index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+                        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">range_headers</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>
+                            <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+                            <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">):</span>
+                                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+                        <span class="k">break</span>
+                    <span class="k">except</span> <span class="n">OpenEoApiPlainError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                        <span class="n">tries_left</span> <span class="o">-=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">tries_left</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">error</span><span class="o">.</span><span class="n">http_status_code</span> <span class="ow">in</span> <span class="n">RETRIABLE_STATUSCODES</span><span class="p">:</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to retrieve chunk </span><span class="si">{</span><span class="n">from_byte_index</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">to_byte_index</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2"> (status </span><span class="si">{</span><span class="n">error</span><span class="o">.</span><span class="n">http_status_code</span><span class="si">}</span><span class="s2">) - retrying&quot;</span><span class="p">)</span>
+                            <span class="k">continue</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="n">error</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_all_at_once</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">target</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">):</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">block</span><span class="p">)</span></div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MultipleAssetException</span><span class="p">(</span><span class="n">OpenEoClientException</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="JobResults">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobResults</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Results of a batch job: listing of one or more output files (assets)</span>
+<span class="sd">    and some metadata.</span>
+
+<span class="sd">    .. versionadded:: 0.4.10</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;JobResults for job </span><span class="si">{j!r}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span><span class="s2">&quot;batch-job-result&quot;</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">OpenEoApiError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render_error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+
+<div class="viewcode-block" id="JobResults.get_metadata">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_metadata">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get batch job results metadata (parsed JSON)&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">get_results_metadata_url</span><span class="p">(),</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span></div>
+
+
+    <span class="c1"># TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?</span>
+
+<div class="viewcode-block" id="JobResults.get_assets">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_assets">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_assets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ResultAsset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all assets from the job results.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: add arguments to filter on metadata, e.g. to only get assets of type &quot;image/tiff&quot;</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+        <span class="c1"># API 1.0 style: dictionary mapping filenames to metadata dict (with at least a &quot;href&quot; field)</span>
+        <span class="n">assets</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;assets&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">assets</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No assets found in job result metadata.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">ResultAsset</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">href</span><span class="o">=</span><span class="n">asset</span><span class="p">[</span><span class="s2">&quot;href&quot;</span><span class="p">],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">asset</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="JobResults.get_asset">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_asset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_asset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResultAsset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get single asset by name or without name if there is only one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: also support getting a single asset by type or role?</span>
+        <span class="n">assets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">assets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;No assets in result.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">assets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">assets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">MultipleAssetException</span><span class="p">(</span><span class="s2">&quot;Multiple result assets for job </span><span class="si">{j}</span><span class="s2">: </span><span class="si">{a}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">j</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span><span class="p">]</span>
+                <span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span> <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span>
+                    <span class="s2">&quot;No asset </span><span class="si">{n!r}</span><span class="s2"> in: </span><span class="si">{a}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span><span class="p">])</span>
+                <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JobResults.download_file">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.download_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span> <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download single asset. Can be used when there is only one asset in the</span>
+<span class="sd">        :py:class:`JobResults`, or when the desired asset name is given explicitly.</span>
+
+<span class="sd">        :param target: path to download to. Can be an existing directory</span>
+<span class="sd">            (in which case the filename advertised by backend will be used)</span>
+<span class="sd">            or full file name. By default, the working directory will be used.</span>
+<span class="sd">        :param name: asset name to download (not required when there is only one asset)</span>
+<span class="sd">        :return: path of downloaded asset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_asset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">range_size</span><span class="o">=</span><span class="n">range_size</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">MultipleAssetException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span>
+                <span class="s2">&quot;Can not use `download_file` with multiple assets. Use `download_files` instead.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JobResults.download_files">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.download_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">include_stac_metadata</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download all assets to given folder.</span>
+
+<span class="sd">        :param target: path to folder to download to (must be a folder if it already exists)</span>
+<span class="sd">        :param include_stac_metadata: whether to download the job result metadata as a STAC (JSON) file.</span>
+<span class="sd">        :return: list of paths to the downloaded assets.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Target argument </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> exists but isn&#39;t a folder.&quot;</span><span class="p">)</span>
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+        <span class="n">downloaded</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()]</span>
+
+        <span class="k">if</span> <span class="n">include_stac_metadata</span><span class="p">:</span>
+            <span class="c1"># TODO #184: convention for metadata file name?</span>
+            <span class="n">metadata_file</span> <span class="o">=</span> <span class="n">target</span> <span class="o">/</span> <span class="n">DEFAULT_JOB_RESULTS_FILENAME</span>
+            <span class="c1"># TODO #184: rewrite references to locally downloaded assets?</span>
+            <span class="n">metadata_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()))</span>
+            <span class="n">downloaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">downloaded</span></div>
+</div>
+
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">&quot;Use :py:class:`JobResults` instead&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.4.10&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_Result</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper around `JobResults` to adapt old deprecated &quot;Result&quot; API.</span>
+
+<span class="sd">    .. deprecated:: 0.4.10</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: deprecated: remove this</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="n">JobResults</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Target argument </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> exists but isn&#39;t a folder.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">a</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="p">):</span> <span class="n">a</span><span class="o">.</span><span class="n">metadata</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_asset</span><span class="p">()</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_asset</span><span class="p">()</span><span class="o">.</span><span class="n">load_bytes</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

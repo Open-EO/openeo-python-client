@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Multi Backend Job Manager &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Client-side (local) processing" href="localprocessing.html" />
+    <link rel="prev" title="Spectral Indices" href="spectral_indices.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="multi-backend-job-manager">
+<span id="job-manager"></span><h1>Multi Backend Job Manager<a class="headerlink" href="#multi-backend-job-manager" title="Link to this heading">¶</a></h1>
+<section id="api">
+<h2>API<a class="headerlink" href="#api" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a new experimental API, subject to change.</p>
+</div>
+<dl class="py class">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.job_management.</span></span><span class="sig-name descname"><span class="pre">MultiBackendJobManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">poll_sleep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">download_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cancel_running_job_after</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager" title="Link to this definition">¶</a></dt>
+<dd><p>Tracker for multiple jobs on multiple backends.</p>
+<p>Usage example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiBackendJobManager</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>
+<span class="p">)</span>
+
+<span class="n">manager</span> <span class="o">=</span> <span class="n">MultiBackendJobManager</span><span class="p">()</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">add_backend</span><span class="p">(</span><span class="s2">&quot;foo&quot;</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;http://foo.test&quot;</span><span class="p">))</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">add_backend</span><span class="p">(</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;http://bar.test&quot;</span><span class="p">))</span>
+
+<span class="n">jobs_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">output_file</span> <span class="o">=</span> <span class="s2">&quot;jobs.csv&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">start_job</span><span class="p">(</span>
+    <span class="n">row</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+    <span class="n">connection</span><span class="p">:</span> <span class="n">openeo</span><span class="o">.</span><span class="n">Connection</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">openeo</span><span class="o">.</span><span class="n">BatchJob</span><span class="p">:</span>
+    <span class="n">year</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">]</span>
+    <span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+        <span class="o">...</span><span class="p">,</span>
+        <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">-01-01&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">year</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">-01-01&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="o">...</span>
+    <span class="k">return</span> <span class="n">cube</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">manager</span><span class="o">.</span><span class="n">run_jobs</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">jobs_df</span><span class="p">,</span> <span class="n">start_job</span><span class="o">=</span><span class="n">start_job</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="n">output_file</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="openeo.extra.job_management.MultiBackendJobManager.run_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_jobs()</span></code></a> for more information on the <code class="docutils literal notranslate"><span class="pre">start_job</span></code> callable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>poll_sleep</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – How many seconds to sleep between polls.</p></li>
+<li><p><strong>root_dir</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a>]</span>) – <p>Root directory to save files for the jobs, e.g. metadata and error logs.
+This defaults to “.” the current directory.</p>
+<p>Each job gets its own subfolder in this root directory.
+You can use the following methods to find the relevant paths,
+based on the job ID:</p>
+<blockquote>
+<div><ul>
+<li><p>get_job_dir</p></li>
+<li><p>get_error_log_path</p></li>
+<li><p>get_job_metadata_path</p></li>
+</ul>
+</div></blockquote>
+</p></li>
+<li><p><strong>download_results</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to download job results automatically once the job is completed.</p></li>
+<li><p><strong>cancel_running_job_after</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Optional temporal limit (in seconds) after which running jobs should be canceled
+by the job manager.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.14.0.</span></p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 0.32.0: </span>Added <code class="docutils literal notranslate"><span class="pre">cancel_running_job_after</span></code> parameter.</p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 0.47.0: </span>Added <code class="docutils literal notranslate"><span class="pre">download_results</span></code> parameter.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.add_backend">
+<span class="sig-name descname"><span class="pre">add_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">connection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_jobs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.add_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.add_backend" title="Link to this definition">¶</a></dt>
+<dd><p>Register a backend with a name and a <code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code> getter.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For optimal throughput and responsiveness, it is recommended
+to provide a <code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code> instance without its own (blocking) retry behavior,
+since the job manager will do retries in a non-blocking way,
+allowing to take care of other tasks before retrying failed requests.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Name of the backend.</p></li>
+<li><p><strong>connection</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference internal" href="../api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[], <a class="reference internal" href="../api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a>]]</span>) – Either a Connection to the backend, or a callable to create a backend connection.</p></li>
+<li><p><strong>parallel_jobs</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Maximum number of jobs to allow in parallel on a backend.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.ensure_job_dir_exists">
+<span class="sig-name descname"><span class="pre">ensure_job_dir_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.ensure_job_dir_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.ensure_job_dir_exists" title="Link to this definition">¶</a></dt>
+<dd><p>Create the job folder if it does not exist yet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.get_error_log_path">
+<span class="sig-name descname"><span class="pre">get_error_log_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.get_error_log_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.get_error_log_path" title="Link to this definition">¶</a></dt>
+<dd><p>Path where error log file for the job is saved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.get_job_dir">
+<span class="sig-name descname"><span class="pre">get_job_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.get_job_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.get_job_dir" title="Link to this definition">¶</a></dt>
+<dd><p>Path to directory where job metadata, results and error logs are be saved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.get_job_metadata_path">
+<span class="sig-name descname"><span class="pre">get_job_metadata_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.get_job_metadata_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.get_job_metadata_path" title="Link to this definition">¶</a></dt>
+<dd><p>Path where job metadata file is saved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.on_job_cancel">
+<span class="sig-name descname"><span class="pre">on_job_cancel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.on_job_cancel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.on_job_cancel" title="Link to this definition">¶</a></dt>
+<dd><p>Handle a job that was cancelled. Can be overridden to provide custom behaviour.</p>
+<p>Default implementation does not do anything.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a></span>) – The job that was canceled.</p></li>
+<li><p><strong>row</strong> – DataFrame row containing the job’s metadata.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.on_job_done">
+<span class="sig-name descname"><span class="pre">on_job_done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.on_job_done"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.on_job_done" title="Link to this definition">¶</a></dt>
+<dd><p>Handles jobs that have finished. Can be overridden to provide custom behaviour.</p>
+<p>Default implementation downloads the results into a folder containing the title.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a></span>) – The job that has finished.</p></li>
+<li><p><strong>row</strong> – DataFrame row containing the job’s metadata.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.on_job_error">
+<span class="sig-name descname"><span class="pre">on_job_error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">row</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.on_job_error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.on_job_error" title="Link to this definition">¶</a></dt>
+<dd><p>Handles jobs that stopped with errors. Can be overridden to provide custom behaviour.</p>
+<p>Default implementation writes the error logs to a JSON file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a></span>) – The job that has finished.</p></li>
+<li><p><strong>row</strong> – DataFrame row containing the job’s metadata.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.run_jobs">
+<span class="sig-name descname"><span class="pre">run_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_job</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;function</span> <span class="pre">_start_job_default&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_db</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.run_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="Link to this definition">¶</a></dt>
+<dd><p>Runs jobs, specified in a dataframe, and tracks parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>]</span>) – DataFrame that specifies the jobs, and tracks the jobs’ statuses. If None, the job_db has to be specified and will be used.</p></li>
+<li><p><strong>start_job</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[], <a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a>]</span>) – <p>A callback which will be invoked with, amongst others,
+the row of the dataframe for which a job should be created and/or started.
+This callable should return a <a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.rest.job.BatchJob</span></code></a> object.</p>
+<p>The following parameters will be passed to <code class="docutils literal notranslate"><span class="pre">start_job</span></code>:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">row</span></code> (<a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.Series</span></code></a>):</dt><dd><p>The row in the pandas dataframe that stores the jobs state and other tracked data.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>:</dt><dd><p>A getter to get a connection by backend name.
+Typically, you would need either the parameter <code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>,
+or the parameter <code class="docutils literal notranslate"><span class="pre">connection</span></code>, but likely you will not need both.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">connection</span></code> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code>):</dt><dd><p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code> itself, that has already been created.
+Typically, you would need either the parameter <code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>,
+or the parameter <code class="docutils literal notranslate"><span class="pre">connection</span></code>, but likely you will not need both.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">provider</span></code> (<code class="docutils literal notranslate"><span class="pre">str</span></code>):</dt><dd><p>The name of the backend that will run the job.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>You do not have to define all the parameters described below, but if you leave
+any of them out, then remember to include the <code class="docutils literal notranslate"><span class="pre">*args</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> parameters.
+Otherwise you will have an exception because <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="openeo.extra.job_management.MultiBackendJobManager.run_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_jobs()</span></code></a> passes unknown parameters to <code class="docutils literal notranslate"><span class="pre">start_job</span></code>.</p>
+</p></li>
+<li><p><strong>job_db</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a>, <a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a>]</span>) – <p>Job database to load/store existing job status data and other metadata from/to.
+Can be specified as a path to CSV or Parquet file,
+or as a custom database object following the <a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a> interface.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Support for Parquet files depends on the <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> package
+as <a class="reference internal" href="../installation.html#installation-optional-dependencies"><span class="std std-ref">optional dependency</span></a>.</p>
+</div>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dictionary with stats collected during the job running loop.
+Note that the set of fields in this dictionary is experimental
+and subject to change</p>
+</dd>
+</dl>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 0.31.0: </span>Added support for persisting the job metadata in Parquet format.</p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 0.31.0: </span>Replace <code class="docutils literal notranslate"><span class="pre">output_file</span></code> argument with <code class="docutils literal notranslate"><span class="pre">job_db</span></code> argument,
+which can be a path to a CSV or Parquet file,
+or a user-defined <a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a> object.
+The deprecated <code class="docutils literal notranslate"><span class="pre">output_file</span></code> argument is still supported for now.</p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 0.33.0: </span>return a stats dictionary</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.start_job_thread">
+<span class="sig-name descname"><span class="pre">start_job_thread</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_job</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_db</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.start_job_thread"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.start_job_thread" title="Link to this definition">¶</a></dt>
+<dd><p>Start running the jobs in a separate thread, returns afterwards.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_job</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[], <a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a>]</span>) – <p>A callback which will be invoked with, amongst others,
+the row of the dataframe for which a job should be created and/or started.
+This callable should return a <a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">openeo.rest.job.BatchJob</span></code></a> object.</p>
+<p>The following parameters will be passed to <code class="docutils literal notranslate"><span class="pre">start_job</span></code>:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">row</span></code> (<a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v3.0.0)"><code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.Series</span></code></a>):</dt><dd><p>The row in the pandas dataframe that stores the jobs state and other tracked data.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>:</dt><dd><p>A getter to get a connection by backend name.
+Typically, you would need either the parameter <code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>,
+or the parameter <code class="docutils literal notranslate"><span class="pre">connection</span></code>, but likely you will not need both.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">connection</span></code> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code>):</dt><dd><p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code> itself, that has already been created.
+Typically, you would need either the parameter <code class="docutils literal notranslate"><span class="pre">connection_provider</span></code>,
+or the parameter <code class="docutils literal notranslate"><span class="pre">connection</span></code>, but likely you will not need both.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">provider</span></code> (<code class="docutils literal notranslate"><span class="pre">str</span></code>):</dt><dd><p>The name of the backend that will run the job.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>You do not have to define all the parameters described below, but if you leave
+any of them out, then remember to include the <code class="docutils literal notranslate"><span class="pre">*args</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> parameters.
+Otherwise you will have an exception because <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="openeo.extra.job_management.MultiBackendJobManager.run_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_jobs()</span></code></a> passes unknown parameters to <code class="docutils literal notranslate"><span class="pre">start_job</span></code>.</p>
+</p></li>
+<li><p><strong>job_db</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a></span>) – <p>Job database to load/store existing job status data and other metadata from/to.
+Can be specified as a path to CSV or Parquet file,
+or as a custom database object following the <a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a> interface.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Support for Parquet files depends on the <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> package
+as <a class="reference internal" href="../installation.html#installation-optional-dependencies"><span class="std std-ref">optional dependency</span></a>.</p>
+</div>
+</p></li>
+</ul>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.32.0.</span></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.MultiBackendJobManager.stop_job_thread">
+<span class="sig-name descname"><span class="pre">stop_job_thread</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout_seconds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;object</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_manager.html#MultiBackendJobManager.stop_job_thread"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.MultiBackendJobManager.stop_job_thread" title="Link to this definition">¶</a></dt>
+<dd><p>Stop the job polling thread.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>timeout_seconds</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]</span>) – The time to wait for the thread to stop.
+By default, it will wait for 2 times the poll_sleep time.
+Set to None to wait indefinitely.</p>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.32.0.</span></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.job_management.</span></span><span class="sig-name descname"><span class="pre">JobDatabaseInterface</span></span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface" title="Link to this definition">¶</a></dt>
+<dd><p>Interface for a database of job metadata to use with the
+<a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager" title="openeo.extra.job_management._manager.MultiBackendJobManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>,
+allowing to regularly persist the job metadata while polling the job statuses
+and resume/restart the job tracking after it was interrupted.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.31.0.</span></p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface.count_by_status">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">count_by_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statuses</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface.count_by_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface.count_by_status" title="Link to this definition">¶</a></dt>
+<dd><p>Retrieve the number of jobs per status.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>statuses</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – List/set of statuses to include. If empty, all statuses are included.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dictionary with status as key and the count as value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface.exists">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">exists</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface.exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface.exists" title="Link to this definition">¶</a></dt>
+<dd><p>Does the job database already exist, to read job data from?</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface.get_by_indices">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_by_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indices</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface.get_by_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface.get_by_indices" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a dataframe with jobs based on their (dataframe) index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>indices</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – List of indices to include.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>DataFrame with jobs filtered by indices.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface.get_by_status">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_by_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statuses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface.get_by_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface.get_by_status" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a dataframe with jobs, filtered by status.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>statuses</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – List of statuses to include.</p></li>
+<li><p><strong>max</strong> – Maximum number of jobs to return.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>DataFrame with jobs filtered by status.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.JobDatabaseInterface.persist">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">persist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_interface.html#JobDatabaseInterface.persist"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.JobDatabaseInterface.persist" title="Link to this definition">¶</a></dt>
+<dd><p>Store (now or updated) job data to the database.</p>
+<p>The provided dataframe may only cover a subset of all the jobs (“rows”) of the whole database,
+so it should be merged with the existing data (if any) instead of overwriting it completely.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>df</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span>) – job data to store.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="openeo.extra.job_management.CsvJobDatabase">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.job_management.</span></span><span class="sig-name descname"><span class="pre">CsvJobDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_job_db.html#CsvJobDatabase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.CsvJobDatabase" title="Link to this definition">¶</a></dt>
+<dd><p>Persist/load job metadata with a CSV file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Implements<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>path</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a>]</span>) – Path to local CSV file.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Support for GeoPandas dataframes depends on the <code class="docutils literal notranslate"><span class="pre">geopandas</span></code> package
+as <a class="reference internal" href="../installation.html#installation-optional-dependencies"><span class="std std-ref">optional dependency</span></a>.</p>
+</div>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.31.0.</span></p>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="openeo.extra.job_management.ParquetJobDatabase">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.job_management.</span></span><span class="sig-name descname"><span class="pre">ParquetJobDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/_job_db.html#ParquetJobDatabase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.ParquetJobDatabase" title="Link to this definition">¶</a></dt>
+<dd><p>Persist/load job metadata with a Parquet file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Implements<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#openeo.extra.job_management.JobDatabaseInterface" title="openeo.extra.job_management._interface.JobDatabaseInterface"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code></a></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>path</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a>]</span>) – Path to the Parquet file.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Support for Parquet files depends on the <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> package
+as <a class="reference internal" href="../installation.html#installation-optional-dependencies"><span class="std std-ref">optional dependency</span></a>.</p>
+<p>Support for GeoPandas dataframes depends on the <code class="docutils literal notranslate"><span class="pre">geopandas</span></code> package
+as <a class="reference internal" href="../installation.html#installation-optional-dependencies"><span class="std std-ref">optional dependency</span></a>.</p>
+</div>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.31.0.</span></p>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="openeo.extra.job_management.process_based.ProcessBasedJobCreator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.job_management.process_based.</span></span><span class="sig-name descname"><span class="pre">ProcessBasedJobCreator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">process_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_defaults</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_column_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/process_based.html#ProcessBasedJobCreator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="Link to this definition">¶</a></dt>
+<dd><p>Batch job creator
+(to be used together with <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager" title="openeo.extra.job_management.MultiBackendJobManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>)
+that takes a parameterized openEO process definition
+(e.g a user-defined process (UDP) or a remote openEO process definition),
+and creates a batch job
+for each row of the dataframe managed by the <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager" title="openeo.extra.job_management.MultiBackendJobManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>
+by filling in the process parameters with corresponding row values.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference internal" href="#job-management-with-process-based-job-creator"><span class="std std-ref">Job creation based on parameterized processes</span></a>
+for more information and examples.</p>
+</div>
+<p>Process parameters are linked to dataframe columns by name.
+While this intuitive name-based matching should cover most use cases,
+there are additional options for overrides or fallbacks:</p>
+<ul>
+<li><p>When provided, <code class="docutils literal notranslate"><span class="pre">parameter_column_map</span></code> will be consulted
+for resolving a process parameter name (key in the dictionary)
+to a desired dataframe column name (corresponding value).</p></li>
+<li><p>One common case is handled automatically as convenience functionality.</p>
+<p>When:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">parameter_column_map</span></code> is not provided (or set to <code class="docutils literal notranslate"><span class="pre">None</span></code>),</p></li>
+<li><p>and there is a <em>single parameter</em> that accepts inline GeoJSON geometries,</p></li>
+<li><p>and the dataframe is a GeoPandas dataframe with a <em>single geometry</em> column,</p></li>
+</ul>
+<p>then this parameter and this geometries column will be linked automatically.</p>
+</li>
+<li><p>If a parameter can not be matched with a column by name as described above,
+a default value will be picked,
+first by looking in <code class="docutils literal notranslate"><span class="pre">parameter_defaults</span></code> (if provided),
+and then by looking up the default value from the parameter schema in the process definition.</p></li>
+<li><p>Finally if no (default) value can be determined and the parameter
+is not flagged as optional, an error will be raised.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>process_id</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – (optional) openEO process identifier.
+Can be omitted when working with a remote process definition
+that is fully defined with a URL in the <code class="docutils literal notranslate"><span class="pre">namespace</span></code> parameter.</p></li>
+<li><p><strong>namespace</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – (optional) openEO process namespace.
+Typically used to provide a URL to a remote process definition.</p></li>
+<li><p><strong>parameter_defaults</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>]</span>) – (optional) default values for process parameters,
+to be used when not available in the dataframe managed by
+<a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager" title="openeo.extra.job_management.MultiBackendJobManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>.</p></li>
+<li><p><strong>parameter_column_map</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>]</span>) – Optional overrides
+for linking process parameters to dataframe columns:
+mapping of process parameter names as key
+to dataframe column names as value.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.33.0.</span></p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is an experimental API subject to change,
+and we greatly welcome
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues">feedback and suggestions for improvement</a>.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.process_based.ProcessBasedJobCreator.__call__">
+<span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">arg</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/process_based.html#ProcessBasedJobCreator.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator.__call__" title="Link to this definition">¶</a></dt>
+<dd><p>Syntactic sugar for calling <a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator.start_job" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator.start_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">start_job()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="openeo.extra.job_management.process_based.ProcessBasedJobCreator.start_job">
+<span class="sig-name descname"><span class="pre">start_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">connection</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/openeo/extra/job_management/process_based.html#ProcessBasedJobCreator.start_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator.start_job" title="Link to this definition">¶</a></dt>
+<dd><p>Implementation of the <code class="docutils literal notranslate"><span class="pre">start_job</span></code> callable interface
+of <code class="xref py py-meth docutils literal notranslate"><span class="pre">MultiBackendJobManager.run_jobs()</span></code>
+to create a job based on given dataframe row</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>row</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Series</span></code></span>) – The row in the pandas dataframe that stores the jobs state and other tracked data.</p></li>
+<li><p><strong>connection</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></span>) – The connection to the backend.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="../api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="job-creation-based-on-parameterized-processes">
+<span id="job-management-with-process-based-job-creator"></span><h2>Job creation based on parameterized processes<a class="headerlink" href="#job-creation-based-on-parameterized-processes" title="Link to this heading">¶</a></h2>
+<p>The openEO API supports parameterized processes out of the box,
+which allows to work with flexible, reusable openEO building blocks
+in the form of <a class="reference internal" href="../udp.html#user-defined-processes"><span class="std std-ref">user-defined processes</span></a>
+or <a class="reference external" href="https://github.com/Open-EO/openeo-api/tree/draft/extensions/remote-process-definition">remote openEO process definitions</a>.
+This can also be leveraged for job creation in the context of the
+<a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager" title="openeo.extra.job_management.MultiBackendJobManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>:
+define a “template” job as a parameterized process
+and let the job manager fill in the parameters
+from a given data frame.</p>
+<p>The <a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a> helper class
+allows to do exactly that.
+Given a reference to a parameterized process,
+such as a user-defined process or remote process definition,
+it can be used directly as <code class="docutils literal notranslate"><span class="pre">start_job</span></code> callable to
+<a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="openeo.extra.job_management.MultiBackendJobManager.run_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_jobs()</span></code></a>
+which will fill in the process parameters from the dataframe.</p>
+<section id="basic-processbasedjobcreator-example">
+<h3>Basic <a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a> example<a class="headerlink" href="#basic-processbasedjobcreator-example" title="Link to this heading">¶</a></h3>
+<p>Basic usage example with a remote process definition:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Basic <a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a> example snippet</span><a class="headerlink" href="#id1" title="Link to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="linenos"> 2</span>    <span class="n">MultiBackendJobManager</span><span class="p">,</span>
+<span class="linenos"> 3</span>    <span class="n">create_job_db</span><span class="p">,</span>
+<span class="linenos"> 4</span><span class="p">)</span>
+<span class="linenos"> 5</span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management.process_based</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessBasedJobCreator</span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="c1"># Job creator, based on a parameterized openEO process</span>
+<span class="linenos"> 8</span><span class="c1"># (specified by the remote process definition at given URL)</span>
+<span class="linenos"> 9</span><span class="c1"># which has parameters &quot;start_date&quot; and &quot;bands&quot; for example.</span>
+<span class="hll"><span class="linenos">10</span><span class="n">job_starter</span> <span class="o">=</span> <span class="n">ProcessBasedJobCreator</span><span class="p">(</span>
+</span><span class="hll"><span class="linenos">11</span>    <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;https://example.com/my_process.json&quot;</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">12</span>    <span class="n">parameter_defaults</span><span class="o">=</span><span class="p">{</span>
+</span><span class="hll"><span class="linenos">13</span>        <span class="s2">&quot;bands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;B02&quot;</span><span class="p">,</span> <span class="s2">&quot;B03&quot;</span><span class="p">],</span>
+</span><span class="hll"><span class="linenos">14</span>    <span class="p">},</span>
+</span><span class="hll"><span class="linenos">15</span><span class="p">)</span>
+</span><span class="linenos">16</span>
+<span class="linenos">17</span><span class="c1"># Initialize job database from a dataframe,</span>
+<span class="linenos">18</span><span class="c1"># with desired parameter values to fill in.</span>
+<span class="linenos">19</span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+<span class="linenos">20</span>    <span class="p">{</span>
+<span class="linenos">21</span>        <span class="s2">&quot;start_date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;2021-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-02-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2021-03-01&quot;</span><span class="p">],</span>
+<span class="linenos">22</span>    <span class="p">}</span>
+<span class="linenos">23</span><span class="p">)</span>
+<span class="linenos">24</span><span class="n">job_db</span> <span class="o">=</span> <span class="n">create_job_db</span><span class="p">(</span><span class="s2">&quot;jobs.csv&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">initialize_from_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+<span class="linenos">25</span>
+<span class="linenos">26</span><span class="c1"># Create and run job manager,</span>
+<span class="linenos">27</span><span class="c1"># which will start a job for each of the `start_date` values in the dataframe</span>
+<span class="hll"><span class="linenos">28</span><span class="c1"># and use the default band list [&quot;B02&quot;, &quot;B03&quot;] for the &quot;bands&quot; parameter.</span>
+</span><span class="linenos">29</span><span class="n">job_manager</span> <span class="o">=</span> <span class="n">MultiBackendJobManager</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="linenos">30</span><span class="n">job_manager</span><span class="o">.</span><span class="n">run_jobs</span><span class="p">(</span><span class="n">job_db</span><span class="o">=</span><span class="n">job_db</span><span class="p">,</span> <span class="n">start_job</span><span class="o">=</span><span class="n">job_starter</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>In this example, a <a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a> is instantiated
+based on a remote process definition,
+which has parameters <code class="docutils literal notranslate"><span class="pre">start_date</span></code> and <code class="docutils literal notranslate"><span class="pre">bands</span></code>.
+When passed to <a class="reference internal" href="#openeo.extra.job_management.MultiBackendJobManager.run_jobs" title="openeo.extra.job_management.MultiBackendJobManager.run_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_jobs()</span></code></a>,
+a job for each row in the dataframe will be created,
+with parameter values based on matching columns in the dataframe:</p>
+<ul class="simple">
+<li><p>the <code class="docutils literal notranslate"><span class="pre">start_date</span></code> parameter will be filled in
+with the values from the “start_date” column of the dataframe,</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">bands</span></code> parameter has no corresponding column in the dataframe,
+and will get its value from the default specified in the <code class="docutils literal notranslate"><span class="pre">parameter_defaults</span></code> argument.</p></li>
+</ul>
+</section>
+<section id="processbasedjobcreator-with-geometry-handling">
+<h3><a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a> with geometry handling<a class="headerlink" href="#processbasedjobcreator-with-geometry-handling" title="Link to this heading">¶</a></h3>
+<p>Apart from the intuitive name-based parameter-column linking,
+<a class="reference internal" href="#openeo.extra.job_management.process_based.ProcessBasedJobCreator" title="openeo.extra.job_management.process_based.ProcessBasedJobCreator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code></a>
+also automatically links:</p>
+<ul class="simple">
+<li><p>a process parameters that accepts inline GeoJSON geometries/features
+(which practically means it has a schema like <code class="docutils literal notranslate"><span class="pre">{&quot;type&quot;:</span> <span class="pre">&quot;object&quot;,</span> <span class="pre">&quot;subtype&quot;:</span> <span class="pre">&quot;geojson&quot;}</span></code>,
+as produced by <a class="reference internal" href="../api.html#openeo.api.process.Parameter.geojson" title="openeo.api.process.Parameter.geojson"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Parameter.geojson</span></code></a>).</p></li>
+<li><p>with the geometry column in a <a class="reference external" href="https://geopandas.org/">GeoPandas</a> dataframe.</p></li>
+</ul>
+<p>even if the name of the parameter does not exactly match
+the name of the GeoPandas geometry column (<code class="docutils literal notranslate"><span class="pre">geometry</span></code> by default).
+This automatic liking is only done if there is only one
+GeoJSON parameter and one geometry column in the dataframe.</p>
+<div class="admonition-to-do admonition">
+<p class="admonition-title">to do</p>
+<p>Add example with geometry handling.</p>
+</div>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ard.html">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spectral_indices.html">Spectral Indices</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Multi Backend Job Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localprocessing.html">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">openEO CookBook</a><ul>
+      <li>Previous: <a href="spectral_indices.html" title="previous chapter">Spectral Indices</a></li>
+      <li>Next: <a href="localprocessing.html" title="next chapter">Client-side (local) processing</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/cookbook/job_manager.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

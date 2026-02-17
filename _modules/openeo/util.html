@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.util &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.util</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Various utilities and helpers.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># TODO #465 split this kitchen-sink in thematic submodules</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urljoin</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely.geometry.base</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">deprecated</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">legacy_alias</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="c1"># pyproj is an optional dependency</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pyproj</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">pyproj</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Rfc3339</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Formatter for dates according to RFC-3339.</span>
+
+<span class="sd">    Parses date(time)-like input and formats according to RFC-3339. Some examples:</span>
+
+<span class="sd">        &gt;&gt;&gt; rfc3339.date(&quot;2020:03:17&quot;)</span>
+<span class="sd">        &quot;2020-03-17&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.date(2020, 3, 17)</span>
+<span class="sd">        &quot;2020-03-17&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.datetime(&quot;2020/03/17/12/34/56&quot;)</span>
+<span class="sd">        &quot;2020-03-17T12:34:56Z&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.datetime([2020, 3, 17, 12, 34, 56])</span>
+<span class="sd">        &quot;2020-03-17T12:34:56Z&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.datetime(2020, 3, 17)</span>
+<span class="sd">        &quot;2020-03-17T00:00:00Z&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.datetime(datetime(2020, 3, 17, 12, 34, 56))</span>
+<span class="sd">        &quot;2020-03-17T12:34:56Z&quot;</span>
+
+<span class="sd">    Or just normalize (automatically preserve date/datetime resolution):</span>
+
+<span class="sd">        &gt;&gt;&gt; rfc3339.normalize(&quot;2020/03/17&quot;)</span>
+<span class="sd">        &quot;2020-03-17&quot;</span>
+<span class="sd">        &gt;&gt;&gt; rfc3339.normalize(&quot;2020-03-17-12-34-56&quot;)</span>
+<span class="sd">        &quot;2020-03-17T12:34:56Z&quot;</span>
+
+<span class="sd">    Also see https://tools.ietf.org/html/rfc3339#section-5.6</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: currently we hard code timezone &#39;Z&#39; for simplicity. Add real time zone support?</span>
+    <span class="n">_FMT_DATE</span> <span class="o">=</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span>
+    <span class="n">_FMT_TIME</span> <span class="o">=</span> <span class="s1">&#39;%H:%M:%SZ&#39;</span>
+    <span class="n">_FMT_DATETIME</span> <span class="o">=</span> <span class="n">_FMT_DATE</span> <span class="o">+</span> <span class="s2">&quot;T&quot;</span> <span class="o">+</span> <span class="n">_FMT_TIME</span>
+
+    <span class="n">_regex_datetime</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        ^(?P&lt;Y&gt;\d</span><span class="si">{4}</span><span class="s2">)[:/_-](?P&lt;m&gt;\d</span><span class="si">{2}</span><span class="s2">)[:/_-](?P&lt;d&gt;\d</span><span class="si">{2}</span><span class="s2">)[T :/_-]?</span>
+<span class="s2">        (?:(?P&lt;H&gt;\d</span><span class="si">{2}</span><span class="s2">)[:/_-](?P&lt;M&gt;\d</span><span class="si">{2}</span><span class="s2">)(?:[:/_-](?P&lt;S&gt;\d</span><span class="si">{2}</span><span class="s2">))?)?&quot;&quot;&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">propagate_none</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span> <span class="o">=</span> <span class="n">propagate_none</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">datetime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format given date(time)-like object as RFC-3339 datetime string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime</span><span class="p">((</span><span class="n">x</span><span class="p">,)</span> <span class="o">+</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_datetime</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_datetime</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_datetime</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">x</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format given date-like object as RFC-3339 date string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">((</span><span class="n">x</span><span class="p">,)</span> <span class="o">+</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_date</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_date</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_date</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">x</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format given date(time)-like object as RFC-3339 date or date-time string depending on given resolution</span>
+
+<span class="sd">            &gt;&gt;&gt; rfc3339.normalize(&quot;2020/03/17&quot;)</span>
+<span class="sd">            &quot;2020-03-17&quot;</span>
+<span class="sd">            &gt;&gt;&gt; rfc3339.normalize(&quot;2020/03/17/12/34/56&quot;)</span>
+<span class="sd">            &quot;2020-03-17T12:34:56Z&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">((</span><span class="n">x</span><span class="p">,)</span> <span class="o">+</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">3</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">3</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse given string as RFC3339 date.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_datetime</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">with_timezone</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse given string as RFC3339 date-time.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># TODO: Also support parsing other timezones than UTC (Z)</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;:\d+\.\d+&quot;</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.</span><span class="si">%f</span><span class="s2">Z&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">with_timezone</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tzinfo</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">res</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_date_or_datetime</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">with_timezone</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse given string as RFC3339 date or date-time.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">with_timezone</span><span class="o">=</span><span class="n">with_timezone</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_date</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_propagate_none</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_format_datetime</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format given datetime as RFC-3339 date-time string.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">tzinfo</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">d</span><span class="o">.</span><span class="n">tzinfo</span><span class="o">.</span><span class="n">tzname</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;UTC&quot;</span><span class="p">):</span>
+            <span class="c1"># TODO: add support for non-UTC timezones?</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No support for non-UTC timezone </span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">tzinfo</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_FMT_DATETIME</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_format_date</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format given datetime as RFC-3339 date-time string.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">d</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_FMT_DATE</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_datetime</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Try to parse string to a date(time) tuple&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_regex_datetime</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can not parse as date: </span><span class="si">{s}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">today</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Today (date) in RFC3339 format&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">now_utc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Current datetime (in UTC timezone) in RFC3339 format.&quot;&quot;&quot;</span>
+        <span class="c1"># Current time in UTC timezone (instead of naive `datetime.datetime.utcnow()`, per `datetime` documentation)</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tz</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="n">now</span><span class="p">)</span>
+
+    <span class="c1"># Legacy alias</span>
+    <span class="n">utcnow</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">now_utc</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;utcnow&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.41.0&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># Default RFC3339 date-time formatter</span>
+<span class="n">rfc3339</span> <span class="o">=</span> <span class="n">Rfc3339</span><span class="p">()</span>
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use `rfc3339.normalize`, `rfc3339.date` or `rfc3339.datetime` instead&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">date_to_rfc3339</span><span class="p">(</span><span class="n">d</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert date-like object to a RFC 3339 formatted date string</span>
+
+<span class="sd">    see https://tools.ietf.org/html/rfc3339#section-5.6</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">rfc3339</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dict_no_none</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper to build a dict containing given key-value pairs where the value is not None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="n">v</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">dict</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">first_not_none</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return first item from given arguments that is not None.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">item</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No not-None values given.&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ensure_dir</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create directory if it doesn&#39;t exist.&quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">path</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ensure_list</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert given data structure to a list.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ContextTimer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context manager to measure the &quot;wall clock&quot; time (in seconds) inside/for a block of code.</span>
+
+<span class="sd">    Usage example:</span>
+
+<span class="sd">        with ContextTimer() as timer:</span>
+<span class="sd">            # Inside code block: currently elapsed time</span>
+<span class="sd">            print(timer.elapsed())</span>
+
+<span class="sd">        # Outside code block: elapsed time when block ended</span>
+<span class="sd">        print(timer.elapsed())</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Function that returns current time in seconds (overridable for unit tests)</span>
+    <span class="n">_clock</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">elapsed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Elapsed time (in seconds) inside or at the end of wrapped context.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Timer not started.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Elapsed time when exiting context.</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Currently elapsed inside context.</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ContextTimer</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">()</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TimingLogger</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context manager for quick and easy logging of start time, end time and elapsed time of some block of code</span>
+
+<span class="sd">    Usage example:</span>
+
+<span class="sd">    &gt;&gt;&gt; with TimingLogger(&quot;Doing batch job&quot;):</span>
+<span class="sd">    ...     do_batch_job()</span>
+
+<span class="sd">    At start of the code block the current time will be logged</span>
+<span class="sd">    and at end of the code block the end time and elapsed time will be logged.</span>
+
+<span class="sd">    Can also be used as a function/method decorator, for example:</span>
+
+<span class="sd">    &gt;&gt;&gt; @TimingLogger(&quot;Calculation going on&quot;)</span>
+<span class="sd">    ... def add(x, y):</span>
+<span class="sd">    ...     return x + y</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Function that returns current datetime (overridable for unit tests)</span>
+    <span class="n">_now</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Timing&quot;</span><span class="p">,</span> <span class="n">logger</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param title: the title to use in the logging</span>
+<span class="sd">        :param logger: how the timing should be logged.</span>
+<span class="sd">            Can be specified as a logging.Logger object (in which case the INFO log level will be used),</span>
+<span class="sd">            as a string (name of the logging.Logger object to construct),</span>
+<span class="sd">            or as callable (e.g. to use the `print` function, or the `.debug` method of an existing logger)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">LoggerAdapter</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">info</span>
+        <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">logger</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid logger </span><span class="si">{l!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">logger</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_now</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{t}</span><span class="s2">: start </span><span class="si">{s}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_now</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{t}</span><span class="s2">: </span><span class="si">{s}</span><span class="s2"> </span><span class="si">{e}</span><span class="s2">, elapsed </span><span class="si">{d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">t</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">s</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span> <span class="k">if</span> <span class="n">exc_type</span> <span class="k">else</span> <span class="s2">&quot;end&quot;</span><span class="p">,</span>
+            <span class="n">e</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end_time</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elapsed</span>
+        <span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use TimingLogger as function/method decorator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DeepKeyError</span><span class="p">(</span><span class="ne">LookupError</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">keys</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DeepKeyError</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{k!r}</span><span class="s2"> (from deep key </span><span class="si">{s!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">keys</span><span class="p">))</span>
+
+
+<span class="c1"># Sentinel object for `default` argument of `deep_get`</span>
+<span class="n">_deep_get_default_undefined</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">deep_get</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">*</span><span class="n">keys</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">_deep_get_default_undefined</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get value deeply from nested dictionaries/lists/tuples</span>
+
+<span class="sd">    :param data: nested data structure of dicts, lists, tuples</span>
+<span class="sd">    :param keys: sequence of keys/indexes to traverse</span>
+<span class="sd">    :param default: default value when a key is missing.</span>
+<span class="sd">        By default a DeepKeyError will be raised.</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">key</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="n">_deep_get_default_undefined</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">DeepKeyError</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">default</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">deep_set</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">*</span><span class="n">keys</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set a value deeply in nested dictionary</span>
+
+<span class="sd">    :param data: nested data structure of dicts, lists, tuples</span>
+<span class="sd">    :param keys: sequence of keys/indexes to traverse</span>
+<span class="sd">    :param value: value to set</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">deep_set</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">OrderedDict</span><span class="p">()),</span> <span class="o">*</span><span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">deep_set</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="o">*</span><span class="n">keys</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No keys given&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">guess_format</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Guess the output format from a given filename and return the corrected format.</span>
+<span class="sd">    Any names not in the dict get passed through.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">extension</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">extension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">extension</span> <span class="o">=</span> <span class="n">extension</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+    <span class="n">format_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;gtiff&quot;</span><span class="p">:</span> <span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;geotiff&quot;</span><span class="p">:</span> <span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;geotif&quot;</span><span class="p">:</span> <span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tiff&quot;</span><span class="p">:</span> <span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tif&quot;</span><span class="p">:</span> <span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;nc&quot;</span><span class="p">:</span> <span class="s2">&quot;netCDF&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;netcdf&quot;</span><span class="p">:</span> <span class="s2">&quot;netCDF&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;geojson&quot;</span><span class="p">:</span> <span class="s2">&quot;GeoJSON&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">format_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">extension</span><span class="p">,</span> <span class="n">extension</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_json</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_json_resource">
+<a class="viewcode-back" href="../../api.html#openeo.util.load_json_resource">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_json_resource</span><span class="p">(</span><span class="n">src</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper to load some kind of JSON resource</span>
+
+<span class="sd">    :param src: a JSON resource: a raw JSON string,</span>
+<span class="sd">        a path to (local) JSON file, or a URL to a remote JSON resource</span>
+<span class="sd">    :return: data structured parsed from JSON</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">src</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">):</span>
+        <span class="c1"># Assume source is a raw JSON string</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^https?://&quot;</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">):</span>
+        <span class="c1"># URL to remote JSON resource</span>
+        <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">src</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">Path</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.json&quot;</span><span class="p">)):</span>
+        <span class="c1"># Assume source is a local JSON file path</span>
+        <span class="k">return</span> <span class="n">load_json</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">src</span><span class="p">)</span></div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">LazyLoadCache</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple cache that allows to (lazy) load on cache miss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">],</span> <span class="n">load</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">load</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">str_truncate</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span> <span class="n">ellipsis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shorten a string (with an ellipsis) if it is longer than certain length.&quot;&quot;&quot;</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">width</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">width</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">text</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ellipsis</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">width</span><span class="p">:</span>
+        <span class="n">ellipsis</span> <span class="o">=</span> <span class="n">ellipsis</span><span class="p">[:</span><span class="n">width</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">text</span><span class="p">[:</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">ellipsis</span><span class="p">)))]</span> <span class="o">+</span> <span class="n">ellipsis</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">repr_truncate</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span> <span class="n">ellipsis</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;...&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Do `repr` rendering of an object, but truncate string if it is too long .&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">ellipsis</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="c1"># Special case: put ellipsis inside quotes</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">str_truncate</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">obj</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ellipsis</span><span class="o">=</span><span class="n">ellipsis</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># General case: just put ellipsis at end</span>
+        <span class="k">return</span> <span class="n">str_truncate</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">repr</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">ellipsis</span><span class="o">=</span><span class="n">ellipsis</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">in_interactive_mode</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Detect if we are running in interactive mode (Jupyter/IPython/repl)&quot;&quot;&quot;</span>
+    <span class="c1"># Based on https://stackoverflow.com/a/64523765</span>
+    <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s2">&quot;ps1&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">InvalidBBoxException</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="BBoxDict">
+<a class="viewcode-back" href="../../api.html#openeo.util.BBoxDict">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BBoxDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Dictionary based helper to easily create/work with bounding box dictionaries</span>
+<span class="sd">    (having keys &quot;west&quot;, &quot;south&quot;, &quot;east&quot;, &quot;north&quot;, and optionally &quot;crs&quot;).</span>
+
+<span class="sd">    :param crs: value describing the coordinate reference system.</span>
+<span class="sd">        Typically just an int (interpreted as EPSG code, e.g. ``4326``)</span>
+<span class="sd">        or a string (handled as authority string, e.g. ``&quot;EPSG:4326&quot;``).</span>
+<span class="sd">        See :py:func:`openeo.util.normalize_crs` for more details about additional normalization that is applied to this argument.</span>
+
+<span class="sd">    .. versionadded:: 0.10.1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">west</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">south</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">east</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">north</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="n">west</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="n">south</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="n">east</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="n">north</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">crs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">crs</span><span class="o">=</span><span class="n">normalize_crs</span><span class="p">(</span><span class="n">crs</span><span class="p">))</span>
+
+    <span class="c1"># TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_any</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BBoxDict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">crs</span> <span class="ow">and</span> <span class="s2">&quot;crs&quot;</span> <span class="ow">in</span> <span class="n">x</span> <span class="ow">and</span> <span class="n">crs</span> <span class="o">!=</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;crs&quot;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Two CRS values specified: </span><span class="si">{</span><span class="n">crs</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;crs&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">({</span><span class="s2">&quot;crs&quot;</span><span class="p">:</span> <span class="n">crs</span><span class="p">,</span> <span class="o">**</span><span class="n">x</span><span class="p">})</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_sequence</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_sequence</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">)</span>
+        <span class="c1"># TODO: support other input? E.g.: WKT string, GeoJson-style dictionary (Polygon, FeatureCollection, ...)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can not construct BBoxDict from </span><span class="si">{</span><span class="n">x</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BBoxDict.from_dict">
+<a class="viewcode-back" href="../../api.html#openeo.util.BBoxDict.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BBoxDict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build from dictionary with at least keys &quot;west&quot;, &quot;south&quot;, &quot;east&quot;, and &quot;north&quot;.&quot;&quot;&quot;</span>
+        <span class="n">expected_fields</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;west&quot;</span><span class="p">,</span> <span class="s2">&quot;south&quot;</span><span class="p">,</span> <span class="s2">&quot;east&quot;</span><span class="p">,</span> <span class="s2">&quot;north&quot;</span><span class="p">}</span>
+        <span class="c1"># TODO: also support upper case fields?</span>
+        <span class="c1"># TODO: optional support for parameterized bbox fields?</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="n">expected_fields</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing bbox fields </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">invalid</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expected_fields</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))}</span>
+        <span class="k">if</span> <span class="n">invalid</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Non-numerical bbox fields </span><span class="si">{</span><span class="n">invalid</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;west&quot;</span><span class="p">],</span> <span class="n">south</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;south&quot;</span><span class="p">],</span> <span class="n">east</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;east&quot;</span><span class="p">],</span> <span class="n">north</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;north&quot;</span><span class="p">],</span> <span class="n">crs</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;crs&quot;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="BBoxDict.from_sequence">
+<a class="viewcode-back" href="../../api.html#openeo.util.BBoxDict.from_sequence">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_sequence</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">seq</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">],</span> <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BBoxDict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build from sequence of 4 bounds (west, south, east and north).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected sequence with 4 items, but got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="n">seq</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">south</span><span class="o">=</span><span class="n">seq</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">east</span><span class="o">=</span><span class="n">seq</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">north</span><span class="o">=</span><span class="n">seq</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="to_bbox_dict">
+<a class="viewcode-back" href="../../api.html#openeo.util.to_bbox_dict">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">to_bbox_dict</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BBoxDict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert given data or object to a bounding box dictionary</span>
+<span class="sd">    (having keys &quot;west&quot;, &quot;south&quot;, &quot;east&quot;, &quot;north&quot;, and optionally &quot;crs&quot;).</span>
+
+<span class="sd">    Supports various input types/formats:</span>
+
+<span class="sd">    - list/tuple (assumed to be in west-south-east-north order)</span>
+
+<span class="sd">        &gt;&gt;&gt; to_bbox_dict([3, 50, 4, 51])</span>
+<span class="sd">        {&#39;west&#39;: 3, &#39;south&#39;: 50, &#39;east&#39;: 4, &#39;north&#39;: 51}</span>
+
+<span class="sd">    - dictionary (unnecessary items will be stripped)</span>
+
+<span class="sd">        &gt;&gt;&gt; to_bbox_dict({</span>
+<span class="sd">        ...     &quot;color&quot;: &quot;red&quot;, &quot;shape&quot;: &quot;triangle&quot;,</span>
+<span class="sd">        ...     &quot;west&quot;: 1, &quot;south&quot;: 2, &quot;east&quot;: 3, &quot;north&quot;: 4, &quot;crs&quot;: &quot;EPSG:4326&quot;,</span>
+<span class="sd">        ... })</span>
+<span class="sd">        {&#39;west&#39;: 1, &#39;south&#39;: 2, &#39;east&#39;: 3, &#39;north&#39;: 4, &#39;crs&#39;: &#39;EPSG:4326&#39;}</span>
+
+<span class="sd">    - a shapely geometry</span>
+
+<span class="sd">    .. versionadded:: 0.10.1</span>
+
+<span class="sd">    :param x: input data that describes west-south-east-north bounds in some way, e.g. as a dictionary,</span>
+<span class="sd">        a list, a tuple, ashapely geometry, ...</span>
+<span class="sd">    :param crs: (optional) CRS field</span>
+<span class="sd">    :return: dictionary (subclass) with keys &quot;west&quot;, &quot;south&quot;, &quot;east&quot;, &quot;north&quot;, and optionally &quot;crs&quot;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">BBoxDict</span><span class="o">.</span><span class="n">from_any</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">url_join</span><span class="p">(</span><span class="n">root_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Join a base url and sub path properly.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">urljoin</span><span class="p">(</span><span class="n">root_url</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">clip</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">min</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">max</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Clip given value between minimum and maximum value&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">min</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="nb">min</span> <span class="k">else</span> <span class="p">(</span><span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="nb">max</span> <span class="k">else</span> <span class="nb">max</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SimpleProgressBar</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simple ASCII-based progress bar helper.&quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">,</span> <span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="s2">&quot;fill&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bar</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;#&quot;</span><span class="p">,</span> <span class="n">fill</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">left</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="p">,</span> <span class="n">right</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;]&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">width</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bar</span> <span class="o">=</span> <span class="n">bar</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fill</span> <span class="o">=</span> <span class="n">fill</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">left</span> <span class="o">=</span> <span class="n">left</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">right</span> <span class="o">=</span> <span class="n">right</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">left</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
+        <span class="n">bar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bar</span> <span class="o">*</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="n">clip</span><span class="p">(</span><span class="n">fraction</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">left</span><span class="si">}{</span><span class="n">bar</span><span class="si">:{</span><span class="bp">self</span><span class="o">.</span><span class="n">fill</span><span class="si">}</span><span class="s2">&lt;</span><span class="si">{</span><span class="n">width</span><span class="si">}</span><span class="s2">s</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">right</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="normalize_crs">
+<a class="viewcode-back" href="../../api.html#openeo.util.normalize_crs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize_crs</span><span class="p">(</span><span class="n">crs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_pyproj</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalize the given value (describing a CRS or Coordinate Reference System)</span>
+<span class="sd">    to an openEO compatible EPSG code (int) or WKT2 CRS string.</span>
+
+<span class="sd">    At minimum, the following input values are handled:</span>
+
+<span class="sd">    -   an integer value (e.g. ``4326``) is interpreted as an EPSG code</span>
+<span class="sd">    -   a string that just contains an integer (e.g. ``&quot;4326&quot;``)</span>
+<span class="sd">        or with and additional ``&quot;EPSG:&quot;`` prefix (e.g. ``&quot;EPSG:4326&quot;``)</span>
+<span class="sd">        will also be interpreted as an EPSG value</span>
+
+<span class="sd">    Additional support and behavior depends on the availability of the ``pyproj`` library:</span>
+
+<span class="sd">    -   When available, it will be used for parsing and validation:</span>
+<span class="sd">        everything supported by `pyproj.CRS.from_user_input &lt;https://pyproj4.github.io/pyproj/dev/api/crs/crs.html#pyproj.crs.CRS.from_user_input&gt;`_ is allowed.</span>
+<span class="sd">        See the ``pyproj`` docs for more details.</span>
+<span class="sd">    -   Otherwise, some best effort validation is done:</span>
+<span class="sd">        EPSG looking integer or string values will be parsed as such as discussed above.</span>
+<span class="sd">        Other strings will be assumed to be WKT2 already.</span>
+<span class="sd">        Other data structures will not be accepted.</span>
+
+<span class="sd">    :param crs: value that encodes a coordinate reference system, typically just an int (EPSG code) or string (authority string).</span>
+<span class="sd">        If the ``pyproj`` library is available, everything supported by it is allowed.</span>
+
+<span class="sd">    :param use_pyproj: whether ``pyproj`` should be leveraged at all</span>
+<span class="sd">        (mainly useful for testing the &quot;no pyproj available&quot; code path)</span>
+
+<span class="sd">    :return: EPSG code as int, or WKT2 string. Or None if input was empty.</span>
+
+<span class="sd">    :raises ValueError:</span>
+<span class="sd">        When the given CRS data can not be parsed/converted/normalized.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">crs</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="p">{}):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">pyproj</span> <span class="ow">and</span> <span class="n">use_pyproj</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># (if available:) let pyproj do the validation/parsing</span>
+            <span class="n">crs_obj</span> <span class="o">=</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span><span class="o">.</span><span class="n">from_user_input</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span>
+            <span class="c1"># Convert back to EPSG int or WKT2 string</span>
+            <span class="n">crs</span> <span class="o">=</span> <span class="n">crs_obj</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">()</span> <span class="ow">or</span> <span class="n">crs_obj</span><span class="o">.</span><span class="n">to_wkt</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">ProjError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to normalize CRS data with pyproj: </span><span class="si">{</span><span class="n">crs</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Best effort simple validation/normalization</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">crs</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">crs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Assume int is already valid EPSG code</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">crs</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># Parse as EPSG int code if it looks like that,</span>
+            <span class="c1"># otherwise: leave it as-is, assuming it is a valid WKT2 CRS string</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^(epsg:)?\d+$&quot;</span><span class="p">,</span> <span class="n">crs</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+                <span class="n">crs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">crs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="s2">&quot;GEOGCRS[&quot;</span> <span class="ow">in</span> <span class="n">crs</span><span class="p">:</span>
+                <span class="c1"># Very simple WKT2 CRS detection heuristic</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Assuming this is a valid WK2 CRS string: </span><span class="si">{</span><span class="n">repr_truncate</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can not normalize CRS string </span><span class="si">{</span><span class="n">repr_truncate</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can not normalize CRS data </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">crs</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.testing.results &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.testing.results</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Assert functions for comparing actual (batch job) results against expected reference data.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray.testing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataArray</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.job</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_JOB_RESULTS_FILENAME</span><span class="p">,</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">repr_truncate</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">_DEFAULT_RTOL</span> <span class="o">=</span> <span class="mf">1e-6</span>
+<span class="n">_DEFAULT_ATOL</span> <span class="o">=</span> <span class="mf">1e-6</span>
+<span class="n">_DEFAULT_PIXELTOL</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<span class="c1"># https://paulbourke.net/dataformats/asciiart</span>
+<span class="n">DEFAULT_GRAYSCALE_70_CHARACTERS</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;$@B%8&amp;WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1</span><span class="si">{}</span><span class="s2">[]?-_+~&lt;&gt;i!lI;:,</span><span class="se">\&quot;</span><span class="s2">^`&#39;. &quot;</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">DEFAULT_GRAYSCALE_10_CHARACTERS</span> <span class="o">=</span> <span class="s2">&quot; .:-=+*#%@&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_xarray_netcdf</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a netCDF file as Xarray Dataset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_load_xarray_netcdf: </span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">xarray</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_rioxarray_geotiff</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a GeoTIFF file as Xarray DataArray (using `rioxarray` extension).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_load_rioxarray_geotiff: </span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">rioxarray</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;This feature requires &#39;rioxarray` as optional dependency.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="k">return</span> <span class="n">rioxarray</span><span class="o">.</span><span class="n">open_rasterio</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_xarray</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generically load a netCDF/GeoTIFF file as Xarray Dataset/DataArray.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;.netcdf&quot;</span><span class="p">}:</span>
+        <span class="k">return</span> <span class="n">_load_xarray_netcdf</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;.tif&quot;</span><span class="p">,</span> <span class="s2">&quot;.tiff&quot;</span><span class="p">,</span> <span class="s2">&quot;.gtiff&quot;</span><span class="p">,</span> <span class="s2">&quot;.geotiff&quot;</span><span class="p">}:</span>
+        <span class="k">return</span> <span class="n">_load_rioxarray_geotiff</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported file type: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_json</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a JSON file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_xarray_dataset</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get data as Xarray Dataset (loading from file if needed).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">_load_xarray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="c1"># TODO auto-convert DataArray to Dataset?</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_xarray_dataarray</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a path to a NetCDF/GeoTIFF file to an Xarray DataArray.</span>
+
+<span class="sd">    :param data: path to a NetCDF/GeoTIFF file or Xarray DataArray</span>
+<span class="sd">    :return: Xarray DataArray</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">_load_xarray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="c1"># TODO: auto-convert Dataset to DataArray?</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ascii_art</span><span class="p">(</span>
+    <span class="n">diff_data</span><span class="p">:</span> <span class="n">DataArray</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">max_width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+    <span class="n">y_vs_x_aspect_ratio</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span>
+    <span class="n">grayscale_characters</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">DEFAULT_GRAYSCALE_70_CHARACTERS</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">max_grayscale_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">grayscale_characters</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">x_scale</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">max_width</span><span class="p">))</span>
+    <span class="n">y_scale</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">max_width</span> <span class="o">/</span> <span class="n">y_vs_x_aspect_ratio</span><span class="p">)))</span>
+    <span class="n">data_max</span> <span class="o">=</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">data_max</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">data_max</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">coarsened</span> <span class="o">=</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">coarsen</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">x_scale</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y_scale</span><span class="p">},</span> <span class="n">boundary</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">coarsened</span> <span class="o">=</span> <span class="n">coarsened</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="s2">&quot;┌&quot;</span> <span class="o">+</span> <span class="s2">&quot;─&quot;</span> <span class="o">*</span> <span class="n">coarsened</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;┐</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">bottom</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">└&quot;</span> <span class="o">+</span> <span class="s2">&quot;─&quot;</span> <span class="o">*</span> <span class="n">coarsened</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;┘&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pixel_char</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">numpy</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">v</span> <span class="o">*</span> <span class="n">max_grayscale_idx</span> <span class="o">/</span> <span class="n">data_max</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># don&#39;t show a blank for a difference above the threshold</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_grayscale_idx</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grayscale_characters</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">top</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;│&quot;</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">_pixel_char</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;│&quot;</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">coarsened</span><span class="p">])</span> <span class="o">+</span> <span class="n">bottom</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compare_xarray_dataarray_xy</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Additional compare for two compatible spatial xarray DataArrays with tolerance (rtol, atol)</span>
+<span class="sd">    :return: list of issues (empty if no issues)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">actual_as_float</span> <span class="o">=</span> <span class="n">actual</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">expected_as_float</span> <span class="o">=</span> <span class="n">expected</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="n">threshold</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">expected_as_float</span> <span class="o">*</span> <span class="n">rtol</span><span class="p">)</span> <span class="o">+</span> <span class="n">atol</span>
+    <span class="n">diff_exact</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">expected_as_float</span> <span class="o">-</span> <span class="n">actual_as_float</span><span class="p">)</span>
+    <span class="n">diff_mask</span> <span class="o">=</span> <span class="n">diff_exact</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+    <span class="n">diff_lenient</span> <span class="o">=</span> <span class="n">diff_exact</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">diff_mask</span><span class="p">)</span>
+
+    <span class="n">non_x_y_dims</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">expected_as_float</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="o">-</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">})</span>
+    <span class="n">value_mapping</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">expected_as_float</span><span class="p">[</span><span class="n">d</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">),</span> <span class="n">non_x_y_dims</span><span class="p">))</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">value_mapping</span><span class="p">[</span><span class="n">x</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">non_x_y_dims</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">shape_index</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndenumerate</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">(</span><span class="n">shape</span><span class="p">)):</span>
+        <span class="n">indexers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">value_index</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">shape_index</span><span class="p">):</span>
+            <span class="n">indexers</span><span class="p">[</span><span class="n">non_x_y_dims</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span> <span class="o">=</span> <span class="n">value_mapping</span><span class="p">[</span><span class="n">non_x_y_dims</span><span class="p">[</span><span class="n">index</span><span class="p">]][</span><span class="n">value_index</span><span class="p">]</span>
+        <span class="n">diff_data</span> <span class="o">=</span> <span class="n">diff_lenient</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">indexers</span><span class="o">=</span><span class="n">indexers</span><span class="p">)</span>
+        <span class="n">total_pixel_count</span> <span class="o">=</span> <span class="n">expected_as_float</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">indexers</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="n">diff_pixel_count</span> <span class="o">=</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">diff_pixel_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">diff_pixel_percentage</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff_pixel_count</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="n">total_pixel_count</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">diff_mean</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">diff_var</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">var</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="n">key</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;: &quot;</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">key</span> <span class="o">+=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">v1</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v1</span> <span class="ow">in</span> <span class="n">indexers</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+            <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: value difference exceeds tolerance (rtol </span><span class="si">{</span><span class="n">rtol</span><span class="si">}</span><span class="s2">, atol </span><span class="si">{</span><span class="n">atol</span><span class="si">}</span><span class="s2">), min:</span><span class="si">{</span><span class="n">diff_data</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">, max: </span><span class="si">{</span><span class="n">diff_data</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="si">}</span><span class="s2">, mean: </span><span class="si">{</span><span class="n">diff_mean</span><span class="si">}</span><span class="s2">, var: </span><span class="si">{</span><span class="n">diff_var</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Difference (ascii art) for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{</span><span class="n">_ascii_art</span><span class="p">(</span><span class="n">diff_data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">coord_grid</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">])</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">notnull</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">dims</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+            <span class="n">x_coords</span> <span class="o">=</span> <span class="n">coord_grid</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span>
+            <span class="n">y_coords</span> <span class="o">=</span> <span class="n">coord_grid</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span>
+
+            <span class="n">diff_bbox</span> <span class="o">=</span> <span class="p">((</span><span class="n">x_coords</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">y_coords</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()),</span> <span class="p">(</span><span class="n">x_coords</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">y_coords</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()))</span>
+            <span class="n">diff_area</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_coords</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">x_coords</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">*</span> <span class="p">(</span><span class="n">y_coords</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">y_coords</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+            <span class="n">total_area</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">-</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+                <span class="o">*</span> <span class="p">(</span><span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">-</span> <span class="n">diff_data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">area_percentage</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff_area</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="n">total_area</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: differing pixels: </span><span class="si">{</span><span class="n">diff_pixel_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">total_pixel_count</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">diff_pixel_percentage</span><span class="si">}</span><span class="s2">%), bbox </span><span class="si">{</span><span class="n">diff_bbox</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">area_percentage</span><span class="si">}</span><span class="s2">% of the area&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">issues</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compare_xarray_dataarray</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">pixel_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_PIXELTOL</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare two xarray DataArrays with tolerance and report mismatch issues (as strings)</span>
+
+<span class="sd">    Checks that are done (with tolerance):</span>
+<span class="sd">    - (optional) Check fraction of mismatching pixels (difference exceeding some tolerance).</span>
+<span class="sd">      If fraction is below a given threshold, ignore these mismatches in subsequent comparisons.</span>
+<span class="sd">      If fraction is above the threshold, report this issue.</span>
+<span class="sd">    - Compare actual and expected data with `xarray.testing.assert_allclose` and specified tolerances.</span>
+
+<span class="sd">    :return: list of issues (empty if no issues)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: make this a public function?</span>
+    <span class="c1"># TODO: option for nodata fill value?</span>
+    <span class="c1"># TODO: option to include data type check?</span>
+    <span class="c1"># TODO: option to cast to some data type (or even rescale) before comparison?</span>
+    <span class="c1"># TODO: also compare attributes of the DataArray?</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="n">_as_xarray_dataarray</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="n">_as_xarray_dataarray</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># `xarray.testing.assert_allclose` currently does not always</span>
+    <span class="c1"># provide detailed information about shape/dimension mismatches</span>
+    <span class="c1"># so we enrich the issue listing with some more details</span>
+    <span class="k">if</span> <span class="n">actual</span><span class="o">.</span><span class="n">dims</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
+        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dimension mismatch: </span><span class="si">{</span><span class="n">actual</span><span class="o">.</span><span class="n">dims</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">expected</span><span class="o">.</span><span class="n">dims</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">expected</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">actual</span><span class="o">.</span><span class="n">dims</span><span class="p">)):</span>
+        <span class="n">acs</span> <span class="o">=</span> <span class="n">actual</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">ecs</span> <span class="o">=</span> <span class="n">expected</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">acs</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">ecs</span><span class="o">.</span><span class="n">shape</span> <span class="ow">and</span> <span class="p">(</span><span class="n">acs</span> <span class="o">==</span> <span class="n">ecs</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
+            <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coordinates mismatch for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">acs</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">ecs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">actual</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shape mismatch: </span><span class="si">{</span><span class="n">actual</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">expected</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">compatible</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="n">is_numerical_data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">actual</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">number</span><span class="p">)</span> <span class="ow">and</span> <span class="n">numpy</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">expected</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">pixel_tolerance</span> <span class="ow">and</span> <span class="n">compatible</span> <span class="ow">and</span> <span class="n">is_numerical_data</span><span class="p">:</span>
+            <span class="n">threshold</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">expected</span> <span class="o">*</span> <span class="n">rtol</span><span class="p">)</span> <span class="o">+</span> <span class="n">atol</span>
+            <span class="n">bad_pixels</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">actual</span> <span class="o">*</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">expected</span> <span class="o">*</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+            <span class="n">percentage_bad_pixels</span> <span class="o">=</span> <span class="n">bad_pixels</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">percentage_bad_pixels</span> <span class="o">&lt;=</span> <span class="n">pixel_tolerance</span>
+            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Fraction significantly differing pixels: </span><span class="si">{</span><span class="n">percentage_bad_pixels</span><span class="si">}</span><span class="s2">% &gt; </span><span class="si">{</span><span class="n">pixel_tolerance</span><span class="si">}</span><span class="s2">%&quot;</span>
+            <span class="n">xarray</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span>
+                <span class="n">a</span><span class="o">=</span><span class="n">actual</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">bad_pixels</span><span class="p">),</span> <span class="n">b</span><span class="o">=</span><span class="n">expected</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">bad_pixels</span><span class="p">),</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xarray</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">actual</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">compatible</span> <span class="ow">and</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">}</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">expected</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+            <span class="n">issues</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                <span class="n">_compare_xarray_dataarray_xy</span><span class="p">(</span><span class="n">actual</span><span class="o">=</span><span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">issues</span>
+
+
+<div class="viewcode-block" id="assert_xarray_dataarray_allclose">
+<a class="viewcode-back" href="../../../api.html#openeo.testing.results.assert_xarray_dataarray_allclose">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">assert_xarray_dataarray_allclose</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assert that two Xarray ``DataArray`` instances are equal (with tolerance).</span>
+
+<span class="sd">    :param actual: actual data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.</span>
+<span class="sd">    :param expected: expected or reference data, provided as Xarray DataArray object or path to NetCDF/GeoTIFF file.</span>
+<span class="sd">    :param rtol: relative tolerance</span>
+<span class="sd">    :param atol: absolute tolerance</span>
+<span class="sd">    :raises AssertionError: if not equal within the given tolerance</span>
+
+<span class="sd">    .. versionadded:: 0.31.0</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is experimental and subject to change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_xarray_dataarray</span><span class="p">(</span><span class="n">actual</span><span class="o">=</span><span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">issues</span><span class="p">))</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compare_xarray_datasets</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">pixel_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_PIXELTOL</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare two xarray ``DataSet``s with tolerance and report mismatch issues (as strings)</span>
+
+<span class="sd">    :return: list of issues (empty if no issues)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: make this a public function?</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="n">_as_xarray_dataset</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="n">_as_xarray_dataset</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+
+    <span class="n">all_issues</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">actual_vars</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">actual</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+    <span class="n">expected_vars</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">expected</span><span class="o">.</span><span class="n">data_vars</span><span class="p">)</span>
+    <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_compare_xarray_datasets: actual_vars=</span><span class="si">{</span><span class="n">actual_vars</span><span class="si">!r}</span><span class="s2"> expected_vars=</span><span class="si">{</span><span class="n">expected_vars</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">actual_vars</span> <span class="o">!=</span> <span class="n">expected_vars</span><span class="p">:</span>
+        <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Xarray DataSet variables mismatch: </span><span class="si">{</span><span class="n">actual_vars</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">expected_vars</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">expected_vars</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">actual_vars</span><span class="p">):</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;_compare_xarray_datasets: comparing variable </span><span class="si">{</span><span class="n">var</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_xarray_dataarray</span><span class="p">(</span>
+            <span class="n">actual</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="n">expected</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">pixel_tolerance</span><span class="o">=</span><span class="n">pixel_tolerance</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">var</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+            <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issues for variable </span><span class="si">{</span><span class="n">var</span><span class="si">!r}</span><span class="s2">:&quot;</span><span class="p">)</span>
+            <span class="n">all_issues</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">all_issues</span>
+
+
+<div class="viewcode-block" id="assert_xarray_dataset_allclose">
+<a class="viewcode-back" href="../../../api.html#openeo.testing.results.assert_xarray_dataset_allclose">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">assert_xarray_dataset_allclose</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">pixel_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_PIXELTOL</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assert that two Xarray ``DataSet`` instances are equal (with tolerance).</span>
+
+<span class="sd">    :param actual: actual data, provided as Xarray Dataset object or path to NetCDF/GeoTIFF file</span>
+<span class="sd">    :param expected: expected or reference data, provided as Xarray Dataset object or path to NetCDF/GeoTIFF file.</span>
+<span class="sd">    :param rtol: relative tolerance</span>
+<span class="sd">    :param atol: absolute tolerance</span>
+<span class="sd">    :raises AssertionError: if not equal within the given tolerance</span>
+
+<span class="sd">    .. versionadded:: 0.31.0</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is experimental and subject to change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_xarray_datasets</span><span class="p">(</span>
+        <span class="n">actual</span><span class="o">=</span><span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">pixel_tolerance</span><span class="o">=</span><span class="n">pixel_tolerance</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">issues</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="assert_xarray_allclose">
+<a class="viewcode-back" href="../../../api.html#openeo.testing.results.assert_xarray_allclose">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">assert_xarray_allclose</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assert that two Xarray ``DataSet`` or ``DataArray`` instances are equal (with tolerance).</span>
+
+<span class="sd">    :param actual: actual data, provided as Xarray object or path to NetCDF/GeoTIFF file.</span>
+<span class="sd">    :param expected: expected or reference data, provided as Xarray object or path to NetCDF/GeoTIFF file.</span>
+<span class="sd">    :param rtol: relative tolerance</span>
+<span class="sd">    :param atol: absolute tolerance</span>
+<span class="sd">    :raises AssertionError: if not equal within the given tolerance</span>
+
+<span class="sd">    .. versionadded:: 0.31.0</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is experimental and subject to change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="n">actual</span> <span class="o">=</span> <span class="n">_load_xarray</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">_load_xarray</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+        <span class="n">assert_xarray_dataset_allclose</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+        <span class="n">assert_xarray_dataarray_allclose</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported types: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_job_results_download</span><span class="p">(</span>
+    <span class="n">job_results</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">tmp_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Produce a directory with downloaded job results assets and metadata.</span>
+
+<span class="sd">    :param job_results: a batch job, job results metadata object or a path</span>
+<span class="sd">    :param tmp_path: root temp path to download results if needed</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: support download/copy from other sources (e.g. S3, ...)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_results</span><span class="p">,</span> <span class="n">BatchJob</span><span class="p">):</span>
+        <span class="n">job_results</span> <span class="o">=</span> <span class="n">job_results</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_results</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">):</span>
+        <span class="n">download_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">tmp_path</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">job_results</span><span class="o">.</span><span class="n">get_job_id</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span><span class="p">)</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading results from job </span><span class="si">{</span><span class="n">job_results</span><span class="o">.</span><span class="n">get_job_id</span><span class="p">()</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">download_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">job_results</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">download_dir</span><span class="p">)</span>
+        <span class="n">job_results</span> <span class="o">=</span> <span class="n">download_dir</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_results</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">job_results</span> <span class="o">:=</span> <span class="n">Path</span><span class="p">(</span><span class="n">job_results</span><span class="p">))</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">job_results</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected a directory with job result assets, but got </span><span class="si">{</span><span class="n">job_results</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compare_job_results</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">pixel_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_PIXELTOL</span><span class="p">,</span>
+    <span class="n">tmp_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare two job results sets (directories with downloaded assets and metadata,</span>
+<span class="sd">    e.g. as produced by ``JobResults.download_files()``)</span>
+
+<span class="sd">    :return: list of issues (empty if no issues)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">actual_dir</span> <span class="o">=</span> <span class="n">_as_job_results_download</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">tmp_path</span><span class="o">=</span><span class="n">tmp_path</span><span class="p">)</span>
+    <span class="n">expected_dir</span> <span class="o">=</span> <span class="n">_as_job_results_download</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">tmp_path</span><span class="o">=</span><span class="n">tmp_path</span><span class="p">)</span>
+    <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Comparing job results: </span><span class="si">{</span><span class="n">actual_dir</span><span class="si">!r}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">expected_dir</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">all_issues</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">actual_filenames</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">actual_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">is_file</span><span class="p">())</span>
+    <span class="n">expected_filenames</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">expected_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">is_file</span><span class="p">())</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actual_filenames</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_filenames</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Empty actual/expected listing: </span><span class="si">{</span><span class="n">actual_filenames</span><span class="si">=}</span><span class="s2"> </span><span class="si">{</span><span class="n">expected_filenames</span><span class="si">=}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">actual_filenames</span> <span class="o">!=</span> <span class="n">expected_filenames</span><span class="p">:</span>
+        <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File set mismatch: </span><span class="si">{</span><span class="n">actual_filenames</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">expected_filenames</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">expected_filenames</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">actual_filenames</span><span class="p">):</span>
+        <span class="n">actual_path</span> <span class="o">=</span> <span class="n">actual_dir</span> <span class="o">/</span> <span class="n">filename</span>
+        <span class="n">expected_path</span> <span class="o">=</span> <span class="n">expected_dir</span> <span class="o">/</span> <span class="n">filename</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="o">==</span> <span class="n">DEFAULT_JOB_RESULTS_FILENAME</span><span class="p">:</span>
+            <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_job_result_metadata</span><span class="p">(</span><span class="n">actual</span><span class="o">=</span><span class="n">actual_path</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issues for metadata file </span><span class="si">{</span><span class="n">filename</span><span class="si">!r}</span><span class="s2">:&quot;</span><span class="p">)</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">expected_path</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;.netcdf&quot;</span><span class="p">}:</span>
+            <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_xarray_datasets</span><span class="p">(</span>
+                <span class="n">actual</span><span class="o">=</span><span class="n">actual_path</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected_path</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">pixel_tolerance</span><span class="o">=</span><span class="n">pixel_tolerance</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issues for file </span><span class="si">{</span><span class="n">filename</span><span class="si">!r}</span><span class="s2">:&quot;</span><span class="p">)</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">expected_path</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;.tif&quot;</span><span class="p">,</span> <span class="s2">&quot;.tiff&quot;</span><span class="p">,</span> <span class="s2">&quot;.gtiff&quot;</span><span class="p">,</span> <span class="s2">&quot;.geotiff&quot;</span><span class="p">}:</span>
+            <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_xarray_dataarray</span><span class="p">(</span>
+                <span class="n">actual</span><span class="o">=</span><span class="n">actual_path</span><span class="p">,</span> <span class="n">expected</span><span class="o">=</span><span class="n">expected_path</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">pixel_tolerance</span><span class="o">=</span><span class="n">pixel_tolerance</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Issues for file </span><span class="si">{</span><span class="n">filename</span><span class="si">!r}</span><span class="s2">:&quot;</span><span class="p">)</span>
+                <span class="n">all_issues</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unhandled job result asset </span><span class="si">{</span><span class="n">filename</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">all_issues</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compare_job_result_metadata</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">actual_metadata</span> <span class="o">=</span> <span class="n">_load_json</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="n">expected_metadata</span> <span class="o">=</span> <span class="n">_load_json</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+
+    <span class="c1"># Check &quot;derived_from&quot; links</span>
+    <span class="n">actual_derived_from</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">k</span><span class="p">[</span><span class="s2">&quot;href&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">actual_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">k</span><span class="p">[</span><span class="s2">&quot;rel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;derived_from&quot;</span><span class="p">)</span>
+    <span class="n">expected_derived_from</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">k</span><span class="p">[</span><span class="s2">&quot;href&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expected_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">k</span><span class="p">[</span><span class="s2">&quot;rel&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;derived_from&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">actual_derived_from</span> <span class="o">!=</span> <span class="n">expected_derived_from</span><span class="p">:</span>
+        <span class="n">actual_only</span> <span class="o">=</span> <span class="n">actual_derived_from</span> <span class="o">-</span> <span class="n">expected_derived_from</span>
+        <span class="n">expected_only</span> <span class="o">=</span> <span class="n">expected_derived_from</span> <span class="o">-</span> <span class="n">actual_derived_from</span>
+        <span class="n">common</span> <span class="o">=</span> <span class="n">actual_derived_from</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">expected_derived_from</span><span class="p">)</span>
+        <span class="n">issues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Differing &#39;derived_from&#39; links (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">common</span><span class="p">)</span><span class="si">}</span><span class="s2"> common, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">actual_only</span><span class="p">)</span><span class="si">}</span><span class="s2"> only in actual, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_only</span><span class="p">)</span><span class="si">}</span><span class="s2"> only in expected):</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;  only in actual: </span><span class="si">{</span><span class="n">repr_truncate</span><span class="p">(</span><span class="n">actual_only</span><span class="p">,</span><span class="w"> </span><span class="n">width</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;  only in expected: </span><span class="si">{</span><span class="n">repr_truncate</span><span class="p">(</span><span class="n">expected_only</span><span class="p">,</span><span class="w"> </span><span class="n">width</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># TODO: more metadata checks (e.g. spatial and temporal extents)?</span>
+
+    <span class="k">return</span> <span class="n">issues</span>
+
+
+<div class="viewcode-block" id="assert_job_results_allclose">
+<a class="viewcode-back" href="../../../api.html#openeo.testing.results.assert_job_results_allclose">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">assert_job_results_allclose</span><span class="p">(</span>
+    <span class="n">actual</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">expected</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">BatchJob</span><span class="p">,</span> <span class="n">JobResults</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_RTOL</span><span class="p">,</span>
+    <span class="n">atol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_ATOL</span><span class="p">,</span>
+    <span class="n">pixel_tolerance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">_DEFAULT_PIXELTOL</span><span class="p">,</span>
+    <span class="n">tmp_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assert that two job results sets are equal (with tolerance).</span>
+
+<span class="sd">    :param actual: actual job results, provided as :py:class:`~openeo.rest.job.BatchJob` object,</span>
+<span class="sd">        :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.</span>
+<span class="sd">    :param expected: expected job results, provided as :py:class:`~openeo.rest.job.BatchJob` object,</span>
+<span class="sd">        :py:meth:`~openeo.rest.job.JobResults` object or path to directory with downloaded assets.</span>
+<span class="sd">    :param rtol: relative tolerance</span>
+<span class="sd">    :param atol: absolute tolerance</span>
+<span class="sd">    :param pixel_tolerance: maximum fraction of pixels (in percent)</span>
+<span class="sd">        that is allowed to be significantly different (considering ``atol`` and ``rtol``)</span>
+<span class="sd">    :param tmp_path: root temp path to download results if needed.</span>
+<span class="sd">        It&#39;s recommended to pass pytest&#39;s `tmp_path` fixture here</span>
+<span class="sd">    :raises AssertionError: if not equal within the given tolerance</span>
+
+<span class="sd">    .. versionadded:: 0.31.0</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is experimental and subject to change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="n">_compare_job_results</span><span class="p">(</span>
+        <span class="n">actual</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">pixel_tolerance</span><span class="o">=</span><span class="n">pixel_tolerance</span><span class="p">,</span> <span class="n">tmp_path</span><span class="o">=</span><span class="n">tmp_path</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">issues</span><span class="p">))</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

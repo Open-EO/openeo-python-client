@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Changelog &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="openEO Federation Extension" href="federation-extension.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="changelog">
+<h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading">¶</a></h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a class="reference external" href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a class="reference external" href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<section id="unreleased">
+<h2>[Unreleased]<a class="headerlink" href="#unreleased" title="Link to this heading">¶</a></h2>
+<section id="added">
+<h3>Added<a class="headerlink" href="#added" title="Link to this heading">¶</a></h3>
+</section>
+<section id="changed">
+<h3>Changed<a class="headerlink" href="#changed" title="Link to this heading">¶</a></h3>
+</section>
+<section id="removed">
+<h3>Removed<a class="headerlink" href="#removed" title="Link to this heading">¶</a></h3>
+</section>
+<section id="fixed">
+<h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading">¶</a></h3>
+</section>
+</section>
+<section id="id1">
+<h2>[0.48.0] - 2026-02-17<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<section id="id2">
+<h3>Added<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Official support for Python 3.14 (include Python 3.14 in unit test matrix on GitHub Actions) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/801">#801</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">on_response_headers_sync</span></code> option to  <code class="docutils literal notranslate"><span class="pre">openeo.connect</span></code>/<code class="docutils literal notranslate"><span class="pre">Connection</span></code> to set default <code class="docutils literal notranslate"><span class="pre">on_response_headers</span></code> handler for sync requests at connection level.</p></li>
+</ul>
+</section>
+<section id="id3">
+<h3>Changed<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Harden STAC parsing of “bands”/”eo:bands” when “name” field is not present (which is technically not a required field) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/860">#860</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.rest.conversions.timeseries_json_to_pandas</span></code>: allow timeseries to be given as a raw JSON dump or path to JSON file.</p></li>
+</ul>
+</section>
+<section id="id4">
+<h3>Fixed<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Guard STAC metadata parsing against invalid “item_assets” usage (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/853">#853</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.testing.results</span></code>: only do <code class="docutils literal notranslate"><span class="pre">pixel_tolerance</span></code> check on numerical data (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/864">#864</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id5">
+<h2>[0.47.0] - 2025-12-17<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<section id="id6">
+<h3>Added<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: add <code class="docutils literal notranslate"><span class="pre">download_results</span></code> option to enable/disable the automated download of job results once completed by the job manager (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/744">#744</a>)</p></li>
+<li><p>Support UDF based spatial and temporal extents in <code class="docutils literal notranslate"><span class="pre">load_collection</span></code>, <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_temporal</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/831">#831</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: keep number of “queued” jobs below 10 for better CDSE compatibility (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/839">#839</a>, eu-cdse/openeo-cdse-infra#859)</p></li>
+</ul>
+</section>
+<section id="id7">
+<h3>Changed<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Internal reorganization of <code class="docutils literal notranslate"><span class="pre">openeo.extra.job_management</span></code> submodule to ease future development (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/741">#741</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.Connection</span></code>: add some more HTTP error codes to the default retry list: <code class="docutils literal notranslate"><span class="pre">502</span> <span class="pre">Bad</span> <span class="pre">Gateway</span></code>, <code class="docutils literal notranslate"><span class="pre">503</span> <span class="pre">Service</span> <span class="pre">Unavailable</span></code> and <code class="docutils literal notranslate"><span class="pre">504</span> <span class="pre">Gateway</span> <span class="pre">Timeout</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/835">#835</a>)</p></li>
+</ul>
+</section>
+<section id="id8">
+<h3>Removed<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove <code class="docutils literal notranslate"><span class="pre">Connection.load_disk_collection</span></code> (wrapper for non-standard <code class="docutils literal notranslate"><span class="pre">load_disk_data</span></code> process), deprecated since version 0.25.0 (related to <a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/issues/1457">Open-EO/openeo-geopyspark-driver#1457</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id9">
+<h2>[0.46.0] - 2025-10-31<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<section id="id10">
+<h3>Changed<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Move <code class="docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code> to own submodule <code class="docutils literal notranslate"><span class="pre">openeo.extra.job_management.process_based</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/741">#741</a>)</p></li>
+</ul>
+</section>
+<section id="id11">
+<h3>Removed<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove unused/outdated <code class="docutils literal notranslate"><span class="pre">XarrayDataCube.plot()</span></code> and its related matplotlib dependency (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/472">#472</a>)</p></li>
+</ul>
+</section>
+<section id="id12">
+<h3>Fixed<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.sar_backscatter()</span></code>: add corresponding band names to metadata when enabling “mask”, “contributing_area”, “local_incidence_angle” or “ellipsoid_incidence_angle” (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/804">#804</a>)</p></li>
+<li><p>Proactively refresh access/bearer token in <code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code> before launching a job start thread (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/817">#817</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.list_services()</span></code>: Fix list access error for federation extension</p></li>
+</ul>
+</section>
+</section>
+<section id="id13">
+<h2>[0.45.0] - 2025-09-17<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
+<section id="id14">
+<h3>Added<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Initial/experimental implementation of artifact upload helper (<a class="reference external" href="https://github.com/Open-EO/openeo-api/issues/566">Open-EO/openeo-api#566</a>)</p></li>
+</ul>
+</section>
+<section id="id15">
+<h3>Changed<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: starting of jobs (which can take long in some situations) is now done in side-threads to avoid blocking of the main job management thread, improving its responsiveness and allowing better overall throughput. To make this possible, a new method <code class="docutils literal notranslate"><span class="pre">get_by_indices()</span></code> was added to the <code class="docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code> API. Make sure to implement this method if you have a custom <code class="docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code> implementation that does not provide this yet. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/719">#719</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id16">
+<h2>[0.44.0] - 2025-08-20<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h2>
+<section id="id17">
+<h3>Added<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Official support for Python 3.13 (include Python 3.13 in unit test matrix on GitHub Actions) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/653">#653</a>)</p></li>
+</ul>
+</section>
+<section id="id18">
+<h3>Fixed<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">STACAPIJobDatabase.item_from()</span></code> use “datetime” from series instead of always taking “now” (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/797">#797</a>)</p></li>
+<li><p>Fix Python 3.13 compatibility issue in <code class="docutils literal notranslate"><span class="pre">openeo.extra.spectral_indices</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/799">#799</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id19">
+<h2>[0.43.0] - 2025-07-02<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h2>
+<section id="id20">
+<h3>Added<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>More extensive band detection for <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> use cases, including the common <code class="docutils literal notranslate"><span class="pre">bands</span></code> metadata introduced with STAC 1.1 (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/699">#699</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/692">#692</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/586">#586</a>).</p></li>
+<li><p>Improved support for Federation Extension in Jupyter notebook context (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/668">#668</a>)</p></li>
+</ul>
+</section>
+<section id="id21">
+<h3>Changed<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.UDF()</span></code>: automatically un-indent given UDF code (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/782">#782</a>)</p></li>
+</ul>
+</section>
+<section id="id22">
+<h3>Fixed<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix compatibility with PySTAC 1.12 (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/715">#715</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id23">
+<h2>[0.42.1] - 2025-06-06<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h2>
+<section id="id24">
+<h3>Changed<a class="headerlink" href="#id24" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Relax <code class="docutils literal notranslate"><span class="pre">urllib3</span></code> dependency constraint below 2.0.0 to unblock dependency resolution issues in some old (Python 3.8) build contexts</p></li>
+</ul>
+</section>
+</section>
+<section id="id25">
+<h2>[0.42.0] - 2025-05-28<a class="headerlink" href="#id25" title="Link to this heading">¶</a></h2>
+<section id="id26">
+<h3>Added<a class="headerlink" href="#id26" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.testing.io.TestDataLoader</span></code>: unit test utility to compactly load (and optionally preprocess) tests data (text/JSON/…)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">openeo.Connection</span></code>: automatically retry API requests on <code class="docutils literal notranslate"><span class="pre">429</span> <span class="pre">Too</span> <span class="pre">Many</span> <span class="pre">Requests</span></code> HTTP errors, with appropriate delay if possible (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/441">#441</a>)</p></li>
+<li><p>Introduced <code class="docutils literal notranslate"><span class="pre">pixel_tolerance</span></code> argument in <code class="docutils literal notranslate"><span class="pre">openeo.testing.results</span></code> helpers to specify the ignorable fraction of significantly differing pixels. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/776">#776</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BatchJob.start_and_wait()</span></code>: add <code class="docutils literal notranslate"><span class="pre">require_success</span></code> argument (on by default) to control whether an exception should be raised automatically on job failure.</p></li>
+</ul>
+</section>
+<section id="id27">
+<h3>Changed<a class="headerlink" href="#id27" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code>: not explicitly specifying the <code class="docutils literal notranslate"><span class="pre">dimension</span></code> argument is deprecated and will trigger warnings (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/774">#774</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BatchJob.start_and_wait()</span></code>: all arguments must be specified as keyword arguments to eliminate the risk of positional mix-ups between all its heterogeneous arguments and flags.</p></li>
+</ul>
+</section>
+</section>
+<section id="id28">
+<h2>[0.41.0] - 2025-05-14<a class="headerlink" href="#id28" title="Link to this heading">¶</a></h2>
+<section id="id29">
+<h3>Added<a class="headerlink" href="#id29" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">collection_property</span></code> based property filtering in <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/246">#246</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">validate()</span></code> method to <code class="docutils literal notranslate"><span class="pre">SaveResult</span></code>, <code class="docutils literal notranslate"><span class="pre">VectorCube</span></code>, <code class="docutils literal notranslate"><span class="pre">MlModel</span></code> and <code class="docutils literal notranslate"><span class="pre">StacResource</span></code> classes (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/766">#766</a>)</p></li>
+<li><p>Added more robust ranged download for large job result files (if supported by the server) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/747">#747</a>)</p></li>
+</ul>
+</section>
+<section id="id30">
+<h3>Changed<a class="headerlink" href="#id30" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Eliminate deprecated <code class="docutils literal notranslate"><span class="pre">utcnow</span></code> usage patterns. Introduce <code class="docutils literal notranslate"><span class="pre">Rfc3339.now_utc()</span></code> method (as replacement for deprecated <code class="docutils literal notranslate"><span class="pre">utcnow()</span></code> method) to simplify finding deprecated <code class="docutils literal notranslate"><span class="pre">utcnow</span></code> usage in user code. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/760">#760</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.list_jobs()</span></code>: change default <code class="docutils literal notranslate"><span class="pre">limit</span></code> to 100 (instead of fake “unlimited” which was arbitrarily capped in practice anyway) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/677">#677</a>)</p></li>
+</ul>
+</section>
+<section id="id31">
+<h3>Fixed<a class="headerlink" href="#id31" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Preserve original non-spatial dimensions in <code class="docutils literal notranslate"><span class="pre">CubeMetadata.resample_cube_spatial()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/397">Open-EO/openeo-python-driver#397</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id32">
+<h2>[0.40.0] - 2025-04-14<a class="headerlink" href="#id32" title="Link to this heading">¶</a></h2>
+<section id="id33">
+<h3>Added<a class="headerlink" href="#id33" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sar_backscatter</span></code>: try to retrieve coefficient options from backend (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/693">#693</a>)</p></li>
+<li><p>Improve error message when OIDC provider is unavailable (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/751">#751</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">on_response_headers</span></code> argument to <code class="docutils literal notranslate"><span class="pre">DataCube.download()</span></code> and related to handle (e.g. <code class="docutils literal notranslate"><span class="pre">print</span></code>) the response headers (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/560">#560</a>)</p></li>
+</ul>
+</section>
+<section id="id34">
+<h3>Changed<a class="headerlink" href="#id34" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>When the bands provided to <code class="docutils literal notranslate"><span class="pre">Connection.load_stac(...,</span> <span class="pre">bands=[...])</span></code> do not fully match the bands the client extracted from the STAC metadata, a warning will be triggered, but the provided band names will still be used during the client-side preparation of the process graph. This is a pragmatic approach to bridge the gap between differing interpretations of band detection in STAC. Note that this might produce process graphs that are technically invalid and might not work on other backends or future versions of the backend you currently use. It is recommended to consult with the provider of the STAC metadata and openEO backend on the correct and future-proof band names. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/752">#752</a>)</p></li>
+</ul>
+</section>
+<section id="id35">
+<h3>Fixed<a class="headerlink" href="#id35" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">STACAPIJobDatabase.get_by_status()</span></code> now always returns a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with an index compatible with <code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/707">#707</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id36">
+<h2>[0.39.1] - 2025-02-26<a class="headerlink" href="#id36" title="Link to this heading">¶</a></h2>
+<section id="id37">
+<h3>Fixed<a class="headerlink" href="#id37" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix legacy usage pattern to append <code class="docutils literal notranslate"><span class="pre">export_workspace</span></code> to <code class="docutils literal notranslate"><span class="pre">save_result</span></code> with generic <code class="docutils literal notranslate"><span class="pre">process()</span></code> helper method (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/742">#742</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id38">
+<h2>[0.39.0] - 2025-02-25<a class="headerlink" href="#id38" title="Link to this heading">¶</a></h2>
+<section id="id39">
+<h3>Added<a class="headerlink" href="#id39" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add support for <code class="docutils literal notranslate"><span class="pre">export_workspace</span></code> process (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/720">#720</a>)</p></li>
+<li><p>Add support for <a class="reference external" href="https://github.com/Open-EO/openeo-api/tree/draft/extensions/processing-parameters">processing parameter extension</a> (e.g. default job options) in <code class="docutils literal notranslate"><span class="pre">build_process_dict</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/731">#731</a>)</p></li>
+</ul>
+</section>
+<section id="id40">
+<h3>Changed<a class="headerlink" href="#id40" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.save_result()</span></code> (and related methods) now return a <code class="docutils literal notranslate"><span class="pre">SaveResult</span></code>/<code class="docutils literal notranslate"><span class="pre">StacResource</span></code> object instead of another <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> object to be more in line with the official <code class="docutils literal notranslate"><span class="pre">save_result</span></code> specification (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/402">#402</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/720">#720</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">datacube_from_flat_graph</span></code> now returns a <code class="docutils literal notranslate"><span class="pre">SaveResult</span></code> instead of a <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> when appropriate (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/402">#402</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/732">#732</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/733">#733</a>)</p></li>
+<li><p>Deprecate <code class="docutils literal notranslate"><span class="pre">BatchJob.run_synchronous</span></code> in favor of <code class="docutils literal notranslate"><span class="pre">BatchJob.start_and_wait</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/570">#570</a>).</p></li>
+</ul>
+</section>
+<section id="id41">
+<h3>Fixed<a class="headerlink" href="#id41" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix incompatibility problem when combining <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> and <code class="docutils literal notranslate"><span class="pre">resample_spatial</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/737">#737</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id42">
+<h2>[0.38.0] - 2025-02-12<a class="headerlink" href="#id42" title="Link to this heading">¶</a></h2>
+<section id="id43">
+<h3>Added<a class="headerlink" href="#id43" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add initial support for accessing <a class="reference external" href="https://github.com/Open-EO/openeo-api/tree/master/extensions/federation">Federation Extension</a> related metadata (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/668">#668</a>)</p></li>
+</ul>
+</section>
+<section id="id44">
+<h3>Changed<a class="headerlink" href="#id44" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Improved tracking of metadata changes with <code class="docutils literal notranslate"><span class="pre">resample_spatial</span></code> and <code class="docutils literal notranslate"><span class="pre">resample_cube_spatial</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/690">#690</a>)</p></li>
+<li><p>Move <code class="docutils literal notranslate"><span class="pre">ComparableVersion</span></code> to <code class="docutils literal notranslate"><span class="pre">openeo.utils.version</span></code> (related to <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/611">#611</a>)</p></li>
+<li><p>Deprecate <code class="docutils literal notranslate"><span class="pre">openeo.rest.rest_capabilities.RESTCapabilities</span></code> and introduce replacement <code class="docutils literal notranslate"><span class="pre">openeo.rest.capabilities.OpenEoCapabilities</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/611">#611</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/610">#610</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: start new jobs before downloading the results of finished jobs to use time more efficiently (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/633">#633</a>)</p></li>
+</ul>
+</section>
+<section id="id45">
+<h3>Removed<a class="headerlink" href="#id45" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove unnecessary base class <code class="docutils literal notranslate"><span class="pre">openeo.capabilities.Capabilities</span></code> <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/611">#611</a></p></li>
+</ul>
+</section>
+<section id="id46">
+<h3>Fixed<a class="headerlink" href="#id46" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">CsvJobDatabase</span></code>: workaround GeoPandas issue (on Python&gt;3.9) when there is a column named “crs” (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/714">#714</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="sap10-release">
+<h2>[0.37.0] - 2025-01-21 - “SAP10” release<a class="headerlink" href="#sap10-release" title="Link to this heading">¶</a></h2>
+<section id="id47">
+<h3>Added<a class="headerlink" href="#id47" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">show_error_logs</span></code> argument to <code class="docutils literal notranslate"><span class="pre">cube.execute_batch()</span></code>/<code class="docutils literal notranslate"><span class="pre">job.start_and_wait()</span></code>/… to toggle the automatic printing of error logs on failure (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/505">#505</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">Connection.web_editor()</span></code> to build link to the openEO backend in the openEO Web Editor</p></li>
+<li><p>Add support for <code class="docutils literal notranslate"><span class="pre">log_level</span></code> in <code class="docutils literal notranslate"><span class="pre">create_job()</span></code> and <code class="docutils literal notranslate"><span class="pre">execute_job()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/704">#704</a>)</p></li>
+<li><p>Add initial support for “geometry” dimension type in <code class="docutils literal notranslate"><span class="pre">CubeMetadata</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/705">#705</a>)</p></li>
+<li><p>Add support for parameterized <code class="docutils literal notranslate"><span class="pre">bands</span></code> argument in <code class="docutils literal notranslate"><span class="pre">load_stac()</span></code></p></li>
+<li><p>Argument <code class="docutils literal notranslate"><span class="pre">spatial_extent</span></code> in <code class="docutils literal notranslate"><span class="pre">load_collection()</span></code>/<code class="docutils literal notranslate"><span class="pre">load_stac()</span></code>: add support for Shapely objects, loading GeoJSON from a local path and loading geometry from GeoJSON/GeoParquet URL. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/678">#678</a>)</p></li>
+</ul>
+</section>
+<section id="id48">
+<h3>Changed<a class="headerlink" href="#id48" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Raise exception when providing empty bands array to <code class="docutils literal notranslate"><span class="pre">load_collection</span></code>/<code class="docutils literal notranslate"><span class="pre">load_stac</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/424">#424</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/372">Open-EO/openeo-processes#372</a>)</p></li>
+<li><p>Start showing deprecation warnings on usage of GeoJSON “GeometryCollection” (in <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code>, <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>, <code class="docutils literal notranslate"><span class="pre">chunk_polygon</span></code>, <code class="docutils literal notranslate"><span class="pre">mask_polygon</span></code>). Use a GeoJSON FeatureCollection instead. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/706">#706</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/389">Open-EO/openeo-processes#389</a>)</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">context</span></code> parameter is now used in <code class="docutils literal notranslate"><span class="pre">execute_local_udf</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/556">#556</a></p></li>
+</ul>
+</section>
+<section id="id49">
+<h3>Fixed<a class="headerlink" href="#id49" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Clear capabilities cache on login (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/254">#254</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id50">
+<h2>[0.36.0] - 2024-12-10<a class="headerlink" href="#id50" title="Link to this heading">¶</a></h2>
+<section id="id51">
+<h3>Added<a class="headerlink" href="#id51" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Automatically use <code class="docutils literal notranslate"><span class="pre">load_url</span></code> when providing a URL as geometries to <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.mask_polygon()</span></code>, etc. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/104">#104</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/457">#457</a>)</p></li>
+<li><p>Allow specifying <code class="docutils literal notranslate"><span class="pre">limit</span></code> when listing batch jobs with <code class="docutils literal notranslate"><span class="pre">Connection.list_jobs()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/677">#677</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">additional</span></code> and <code class="docutils literal notranslate"><span class="pre">job_options</span></code> arguments to <code class="docutils literal notranslate"><span class="pre">Connection.download()</span></code>, <code class="docutils literal notranslate"><span class="pre">Datacube.download()</span></code> and related (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/681">#681</a>)</p></li>
+</ul>
+</section>
+<section id="id52">
+<h3>Changed<a class="headerlink" href="#id52" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: costs has been added as a column in tracking databases ([<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/588">#588</a>])</p></li>
+<li><p>When passing a path/string as <code class="docutils literal notranslate"><span class="pre">geometry</span></code> to <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.mask_polygon()</span></code>, etc.:
+this is not translated automatically anymore to deprecated, non-standard <code class="docutils literal notranslate"><span class="pre">read_vector</span></code> usage.
+Instead, if it is a local GeoJSON file, the GeoJSON data will be loaded directly client-side.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/104">#104</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/457">#457</a>)</p></li>
+<li><p>Move <code class="docutils literal notranslate"><span class="pre">read()</span></code> method from general <code class="docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code> to more specific <code class="docutils literal notranslate"><span class="pre">FullDataFrameJobDatabase</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/680">#680</a>)</p></li>
+<li><p>Align <code class="docutils literal notranslate"><span class="pre">additional</span></code> and <code class="docutils literal notranslate"><span class="pre">job_options</span></code> arguments in <code class="docutils literal notranslate"><span class="pre">Connection.create_job()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.create_job()</span></code> and related.
+Also, follow official spec more closely. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/683">#683</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-api/issues/276">Open-EO/openeo-api#276</a>)</p></li>
+</ul>
+</section>
+<section id="id53">
+<h3>Fixed<a class="headerlink" href="#id53" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">load_stac</span></code>: use fallback temporal dimension when no “cube:dimensions” in STAC Collection (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/666">#666</a>)</p></li>
+<li><p>Fix usage of <code class="docutils literal notranslate"><span class="pre">Parameter.spatial_extent()</span></code> with <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_bbox</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/676">#676</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id54">
+<h2>[0.35.0] - 2024-11-19<a class="headerlink" href="#id54" title="Link to this heading">¶</a></h2>
+<section id="id55">
+<h3>Added<a class="headerlink" href="#id55" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">MultiResult</span></code> helper class to build process graphs with multiple result nodes (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/391">#391</a>)</p></li>
+</ul>
+</section>
+<section id="id56">
+<h3>Fixed<a class="headerlink" href="#id56" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: Fix issue with duplicate job starting across multiple backends (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/654">#654</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: Fix encoding issue of job metadata in <code class="docutils literal notranslate"><span class="pre">on_job_done</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/657">#657</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: Avoid <code class="docutils literal notranslate"><span class="pre">SettingWithCopyWarning</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/641">#641</a>)</p></li>
+<li><p>Avoid creating empty file if asset download request failed.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: avoid dtype loading mistakes in <code class="docutils literal notranslate"><span class="pre">CsvJobDatabase</span></code> on empty columns (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/656">#656</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: restore logging of job status histogram during <code class="docutils literal notranslate"><span class="pre">run_jobs</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/655">#655</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id57">
+<h2>[0.34.0] - 2024-10-31<a class="headerlink" href="#id57" title="Link to this heading">¶</a></h2>
+<section id="id58">
+<h3>Removed<a class="headerlink" href="#id58" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Drop support for Python 3.7 (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/578">#578</a>)</p></li>
+</ul>
+</section>
+<section id="id59">
+<h3>Fixed<a class="headerlink" href="#id59" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fixed broken support for <code class="docutils literal notranslate"><span class="pre">title</span></code> and <code class="docutils literal notranslate"><span class="pre">description</span></code> job properties in <code class="docutils literal notranslate"><span class="pre">execute_batch()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/652">#652</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id60">
+<h2>[0.33.0] - 2024-10-18<a class="headerlink" href="#id60" title="Link to this heading">¶</a></h2>
+<section id="id61">
+<h3>Added<a class="headerlink" href="#id61" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">DataCube.load_stac()</span></code> to also support creating a <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> based cube without a connection (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/638">#638</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: Added <code class="docutils literal notranslate"><span class="pre">initialize_from_df(df)</span></code> (to <code class="docutils literal notranslate"><span class="pre">CsvJobDatabase</span></code> and <code class="docutils literal notranslate"><span class="pre">ParquetJobDatabase</span></code>) to initialize (and persist) the job database from a given DataFrame.
+Also added <code class="docutils literal notranslate"><span class="pre">create_job_db()</span></code> factory to easily create a job database from a given dataframe and its type guessed from filename extension.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/635">#635</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager.run_jobs()</span></code> now returns a dictionary with counters/stats about various events during the full run of the job manager (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/645">#645</a>)</p></li>
+<li><p>Added (experimental) <code class="docutils literal notranslate"><span class="pre">ProcessBasedJobCreator</span></code> to be used as <code class="docutils literal notranslate"><span class="pre">start_job</span></code> callable with <code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code> to create multiple jobs from a single parameterized process (e.g. a UDP or remote process definition) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/604">#604</a>)</p></li>
+</ul>
+</section>
+<section id="id62">
+<h3>Fixed<a class="headerlink" href="#id62" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>When using <code class="docutils literal notranslate"><span class="pre">DataCube.load_collection()</span></code> without a connection, it is not necessary anymore to also explicitly set <code class="docutils literal notranslate"><span class="pre">fetch_metadata=False</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/638">#638</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id63">
+<h2>[0.32.0] - 2024-09-27<a class="headerlink" href="#id63" title="Link to this heading">¶</a></h2>
+<section id="id64">
+<h3>Added<a class="headerlink" href="#id64" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">load_stac</span></code>/<code class="docutils literal notranslate"><span class="pre">metadata_from_stac</span></code>: add support for extracting actual temporal dimension metadata (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/567">#567</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: add <code class="docutils literal notranslate"><span class="pre">cancel_running_job_after</span></code> option to automatically cancel jobs that are running for too long (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/590">#590</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">openeo.api.process.Parameter</span></code> helper to easily create a “spatial_extent” UDP parameter</p></li>
+<li><p>Wrap OIDC token request failure in more descriptive <code class="docutils literal notranslate"><span class="pre">OidcException</span></code> (related to <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/624">#624</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">auto_add_save_result</span></code> option (on by default) to disable automatic addition of <code class="docutils literal notranslate"><span class="pre">save_result</span></code> node on <code class="docutils literal notranslate"><span class="pre">download</span></code>/<code class="docutils literal notranslate"><span class="pre">create_job</span></code>/<code class="docutils literal notranslate"><span class="pre">execute_batch</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/513">#513</a>)</p></li>
+<li><p>Add support for <code class="docutils literal notranslate"><span class="pre">apply_vectorcube</span></code> UDF signature in <code class="docutils literal notranslate"><span class="pre">run_udf_code</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/issues/811">Open-EO/openeo-geopyspark-driver#881</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: add API to the update loop in a separate thread, allowing controlled interruption.</p></li>
+</ul>
+</section>
+<section id="id65">
+<h3>Changed<a class="headerlink" href="#id65" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: changed job metadata storage API, to enable working with large databases</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.apply_polygon()</span></code>: rename <code class="docutils literal notranslate"><span class="pre">polygons</span></code> argument to <code class="docutils literal notranslate"><span class="pre">geometries</span></code>, but keep support for legacy <code class="docutils literal notranslate"><span class="pre">polygons</span></code> for now (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/592">#592</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/511">#511</a>)</p></li>
+<li><p>Disallow ambiguous single string argument in <code class="docutils literal notranslate"><span class="pre">DataCube.filter_temporal()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/628">#628</a>)</p></li>
+<li><p>Automatic adding of <code class="docutils literal notranslate"><span class="pre">save_result</span></code> from <code class="docutils literal notranslate"><span class="pre">download()</span></code> or <code class="docutils literal notranslate"><span class="pre">create_job()</span></code>:
+inspect whole process graph for pre-existing <code class="docutils literal notranslate"><span class="pre">save_result</span></code> nodes
+(related to <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/623">#623</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/401">#401</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/583">#583</a>)</p></li>
+<li><p>Disallow ambiguity of combining explicit <code class="docutils literal notranslate"><span class="pre">save_result</span></code> nodes
+and implicit <code class="docutils literal notranslate"><span class="pre">save_result</span></code> addition from <code class="docutils literal notranslate"><span class="pre">download()</span></code>/<code class="docutils literal notranslate"><span class="pre">create_job()</span></code> calls with <code class="docutils literal notranslate"><span class="pre">format</span></code>
+(related to <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/623">#623</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/401">#401</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/583">#583</a>)</p></li>
+</ul>
+</section>
+<section id="id66">
+<h3>Fixed<a class="headerlink" href="#id66" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code> with a <code class="docutils literal notranslate"><span class="pre">target_dimension</span></code> argument was not correctly adjusting datacube metadata on the client side, causing a mismatch.</p></li>
+<li><p>Preserve non-spatial dimension metadata in <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/612">#612</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id67">
+<h2>[0.31.0] - 2024-07-26<a class="headerlink" href="#id67" title="Link to this heading">¶</a></h2>
+<section id="id68">
+<h3>Added<a class="headerlink" href="#id68" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add experimental <code class="docutils literal notranslate"><span class="pre">openeo.testing.results</span></code> subpackage with reusable test utilities for comparing batch job results with reference data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code>: add initial support for storing job metadata in Parquet file (instead of CSV) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/571">#571</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.authenticate_oidc_access_token()</span></code> to set up authorization headers with an access token that is obtained “out-of-band” (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/598">#598</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">JobDatabaseInterface</span></code> to allow custom job metadata storage with <code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/571">#571</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id69">
+<h2>[0.30.0] - 2024-06-18<a class="headerlink" href="#id69" title="Link to this heading">¶</a></h2>
+<section id="id70">
+<h3>Added<a class="headerlink" href="#id70" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">openeo.udf.run_code.extract_udf_dependencies()</span></code> to extract UDF dependency declarations from UDF code
+(related to <a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/issues/237">Open-EO/openeo-geopyspark-driver#237</a>)</p></li>
+<li><p>Document PEP 723 based Python UDF dependency declarations (<a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/issues/237">Open-EO/openeo-geopyspark-driver#237</a>)</p></li>
+<li><p>Added more <code class="docutils literal notranslate"><span class="pre">openeo.api.process.Parameter</span></code> helpers to easily create “bounding_box”, “date”, “datetime”, “geojson” and “temporal_interval” parameters for UDP construction.</p></li>
+<li><p>Added convenience method <code class="docutils literal notranslate"><span class="pre">Connection.load_stac_from_job(job)</span></code> to easily load the results of a batch job with the <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> process (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/566">#566</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_stac</span></code>/<code class="docutils literal notranslate"><span class="pre">metadata_from_stac</span></code>: add support for extracting band info from “item_assets” in collection metadata (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/573">#573</a>)</p></li>
+<li><p>Added initial <code class="docutils literal notranslate"><span class="pre">openeo.testing</span></code> submodule for reusable test utilities</p></li>
+</ul>
+</section>
+<section id="id71">
+<h3>Fixed<a class="headerlink" href="#id71" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Initial fix for broken <code class="docutils literal notranslate"><span class="pre">DataCube.reduce_temporal()</span></code> after <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/568">#568</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id72">
+<h2>[0.29.0] - 2024-05-03<a class="headerlink" href="#id72" title="Link to this heading">¶</a></h2>
+<section id="id73">
+<h3>Added<a class="headerlink" href="#id73" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Start depending on <code class="docutils literal notranslate"><span class="pre">pystac</span></code>, initially for better <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> support (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/133">#133</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/527">#527</a>)</p></li>
+</ul>
+</section>
+<section id="id74">
+<h3>Changed<a class="headerlink" href="#id74" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>OIDC device code flow: hide progress bar on completed (or timed out) authentication</p></li>
+</ul>
+</section>
+</section>
+<section id="id75">
+<h2>[0.28.0] - 2024-03-18<a class="headerlink" href="#id75" title="Link to this heading">¶</a></h2>
+<section id="id76">
+<h3>Added<a class="headerlink" href="#id76" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Introduced superclass <code class="docutils literal notranslate"><span class="pre">CubeMetadata</span></code> for <code class="docutils literal notranslate"><span class="pre">CollectionMetadata</span></code> for essential metadata handling (just dimensions for now) without collection-specific STAC metadata parsing. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/464">#464</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">VectorCube.vector_to_raster()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/550">#550</a>)</p></li>
+</ul>
+</section>
+<section id="id77">
+<h3>Changed<a class="headerlink" href="#id77" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Changed default <code class="docutils literal notranslate"><span class="pre">chunk_size</span></code> of various <code class="docutils literal notranslate"><span class="pre">download</span></code> functions from None to 10MB. This improves the handling of large downloads and reduces memory usage. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/528">#528</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.execute()</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.execute()</span></code> now have a <code class="docutils literal notranslate"><span class="pre">auto_decode</span></code> argument. If set to True (default) the response will be decoded as a JSON and throw an exception if this fails, if set to False the raw <code class="docutils literal notranslate"><span class="pre">requests.Response</span></code> object will be returned. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/499">#499</a>)</p></li>
+</ul>
+</section>
+<section id="id78">
+<h3>Fixed<a class="headerlink" href="#id78" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Preserve geo-referenced <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> coordinates in <code class="docutils literal notranslate"><span class="pre">execute_local_udf</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/549">#549</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id79">
+<h2>[0.27.0] - 2024-01-12<a class="headerlink" href="#id79" title="Link to this heading">¶</a></h2>
+<section id="id80">
+<h3>Added<a class="headerlink" href="#id80" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.filter_labels()</span></code></p></li>
+</ul>
+</section>
+<section id="id81">
+<h3>Changed<a class="headerlink" href="#id81" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Update autogenerated functions/methods in <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code> to definitions from openeo-processes project version 2.0.0-rc1.
+This removes <code class="docutils literal notranslate"><span class="pre">create_raster_cube</span></code>, <code class="docutils literal notranslate"><span class="pre">fit_class_random_forest</span></code>, <code class="docutils literal notranslate"><span class="pre">fit_regr_random_forest</span></code> and <code class="docutils literal notranslate"><span class="pre">save_ml_model</span></code>.
+Although removed from openeo-processes 2.0.0-rc1, support for <code class="docutils literal notranslate"><span class="pre">load_result</span></code>, <code class="docutils literal notranslate"><span class="pre">predict_random_forest</span></code> and <code class="docutils literal notranslate"><span class="pre">load_ml_model</span></code>
+is preserved but deprecated. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/424">#424</a>)</p></li>
+<li><p>Show more informative error message on <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">Forbidden</span></code> errors from CDSE firewall (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/512">#512</a>)</p></li>
+<li><p>Handle API error responses more strict and avoid hiding possibly important information in JSON-formatted but non-compliant error responses.</p></li>
+</ul>
+</section>
+<section id="id82">
+<h3>Fixed<a class="headerlink" href="#id82" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix band name support in <code class="docutils literal notranslate"><span class="pre">DataCube.band()</span></code> when no metadata is available (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/515">#515</a>)</p></li>
+<li><p>Support optional child callbacks in generated <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">merge_cubes</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/522">#522</a>)</p></li>
+<li><p>Fix broken pre-flight validation in <code class="docutils literal notranslate"><span class="pre">Connection.save_user_defined_process</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/526">#526</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="srr6-release">
+<h2>[0.26.0] - 2023-11-27 - “SRR6” release<a class="headerlink" href="#srr6-release" title="Link to this heading">¶</a></h2>
+<section id="id83">
+<h3>Added<a class="headerlink" href="#id83" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support new UDF signature: <code class="docutils literal notranslate"><span class="pre">def</span> <span class="pre">apply_datacube(cube:</span> <span class="pre">DataArray,</span> <span class="pre">context:</span> <span class="pre">dict)</span> <span class="pre">-&gt;</span> <span class="pre">DataArray</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/310">#310</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">collection_property()</span></code> helper to easily build collection metadata property filters for <code class="docutils literal notranslate"><span class="pre">Connection.load_collection()</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/331">#331</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.apply_polygon()</span></code> (standardized version of experimental <code class="docutils literal notranslate"><span class="pre">chunk_polygon</span></code>) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/424">#424</a>)</p></li>
+<li><p>Various improvements to band mapping with the Awesome Spectral Indices feature.
+Allow explicitly specifying the satellite platform for band name mapping (e.g. “Sentinel2” or “LANDSAT8”) if cube metadata lacks info.
+Follow the official band mapping from Awesome Spectral Indices better.
+Allow manually specifying the desired band mapping.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/485">#485</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/501">#501</a>)</p></li>
+<li><p>Also attempt to automatically refresh OIDC access token on a <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">TokenInvalid</span></code> response (in addition to <code class="docutils literal notranslate"><span class="pre">403</span> <span class="pre">TokenInvalid</span></code>) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/508">#508</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Parameter.object()</span></code> factory for <code class="docutils literal notranslate"><span class="pre">object</span></code> type parameters</p></li>
+</ul>
+</section>
+<section id="id84">
+<h3>Removed<a class="headerlink" href="#id84" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove custom spectral indices “NDGI”, “NDMI” and “S2WI” from “extra-indices-dict.json”
+that were shadowing the official definitions from Awesome Spectral Indices (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/501">#501</a>)</p></li>
+</ul>
+</section>
+<section id="id85">
+<h3>Fixed<a class="headerlink" href="#id85" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Initial support for “spectral indices” that use constants defined by Awesome Spectral Indices (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/501">#501</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id86">
+<h2>[0.25.0] - 2023-11-02<a class="headerlink" href="#id86" title="Link to this heading">¶</a></h2>
+<section id="id87">
+<h3>Changed<a class="headerlink" href="#id87" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Introduce <code class="docutils literal notranslate"><span class="pre">OpenEoApiPlainError</span></code> for API error responses that are not well-formed
+for better distinction with properly formed API error responses (<code class="docutils literal notranslate"><span class="pre">OpenEoApiError</span></code>).
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/491">#491</a>).</p></li>
+</ul>
+</section>
+<section id="id88">
+<h3>Fixed<a class="headerlink" href="#id88" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix missing <code class="docutils literal notranslate"><span class="pre">validate</span></code> support in <code class="docutils literal notranslate"><span class="pre">LocalConnection.execute</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/493">#493</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id89">
+<h2>[0.24.0] - 2023-10-27<a class="headerlink" href="#id89" title="Link to this heading">¶</a></h2>
+<section id="id90">
+<h3>Added<a class="headerlink" href="#id90" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.reduce_spatial()</span></code></p></li>
+<li><p>Added option (enabled by default) to automatically validate a process graph before execution.
+Validation issues just trigger warnings for now. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/404">#404</a>)</p></li>
+<li><p>Added “Sentinel1” band mapping support to “Awesome Spectral Indices” wrapper (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/484">#484</a>)</p></li>
+<li><p>Run tests in GitHub Actions against Python 3.12 as well</p></li>
+</ul>
+</section>
+<section id="id91">
+<h3>Changed<a class="headerlink" href="#id91" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Enforce <code class="docutils literal notranslate"><span class="pre">XarrayDataCube</span></code> dimension order in <code class="docutils literal notranslate"><span class="pre">execute_local_udf()</span></code> to (t, bands, y, x)
+to improve UDF interoperability with existing back-end implementations.</p></li>
+</ul>
+</section>
+</section>
+<section id="id92">
+<h2>[0.23.0] - 2023-10-02<a class="headerlink" href="#id92" title="Link to this heading">¶</a></h2>
+<section id="id93">
+<h3>Added<a class="headerlink" href="#id93" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support year/month shorthand date notations in temporal extent arguments of <code class="docutils literal notranslate"><span class="pre">Connection.load_collection</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.filter_temporal</span></code> and related (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/421">#421</a>)</p></li>
+<li><p>Support parameterized <code class="docutils literal notranslate"><span class="pre">bands</span></code> in <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/471">#471</a>)</p></li>
+<li><p>Allow specifying item schema in <code class="docutils literal notranslate"><span class="pre">Parameter.array()</span></code></p></li>
+<li><p>Support “subtype” and “format” schema options in <code class="docutils literal notranslate"><span class="pre">Parameter.string()</span></code></p></li>
+</ul>
+</section>
+<section id="id94">
+<h3>Changed<a class="headerlink" href="#id94" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Before doing user-defined process (UDP) listing/creation: verify that back-end supports that (through openEO capabilities document) to improve error message.</p></li>
+<li><p>Skip metadata-based normalization/validation and stop showing unhelpful warnings/errors
+like “No cube:dimensions metadata” or “Invalid dimension”
+when no metadata is available client-side anyway (e.g. when using <code class="docutils literal notranslate"><span class="pre">datacube_from_process</span></code>, parameterized cube building, …).
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/442">#442</a>)</p></li>
+</ul>
+</section>
+<section id="id95">
+<h3>Removed<a class="headerlink" href="#id95" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Bumped minimal supported Python version to 3.7 (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/460">#460</a>)</p></li>
+</ul>
+</section>
+<section id="id96">
+<h3>Fixed<a class="headerlink" href="#id96" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support handling of “callback” parameters in <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code> callables (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/470">#470</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id97">
+<h2>[0.22.0] - 2023-08-09<a class="headerlink" href="#id97" title="Link to this heading">¶</a></h2>
+<section id="id98">
+<h3>Added<a class="headerlink" href="#id98" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Processes that take a CRS as argument now try harder to normalize your input to
+a CRS representation that aligns with the openEO API (using <code class="docutils literal notranslate"><span class="pre">pyproj</span></code> library when available)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/259">#259</a>)</p></li>
+<li><p>Initial <code class="docutils literal notranslate"><span class="pre">load_geojson</span></code> support with <code class="docutils literal notranslate"><span class="pre">Connection.load_geojson()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/424">#424</a>)</p></li>
+<li><p>Initial <code class="docutils literal notranslate"><span class="pre">load_url</span></code> (for vector cubes) support with <code class="docutils literal notranslate"><span class="pre">Connection.load_url()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/424">#424</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">VectorCube.apply_dimension()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/197">Open-EO/openeo-python-driver#197</a>)</p></li>
+<li><p>Support lambda based property filtering in <code class="docutils literal notranslate"><span class="pre">Connection.load_stac()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/425">#425</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">VectorCube</span></code>: initial support for <code class="docutils literal notranslate"><span class="pre">filter_bands</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_bbox</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_labels</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_vector</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/459">#459</a>)</p></li>
+</ul>
+</section>
+<section id="id99">
+<h3>Changed<a class="headerlink" href="#id99" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection</span></code> based requests: always use finite timeouts by default (20 minutes in general, 30 minutes for synchronous execute requests)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/454">#454</a>)</p></li>
+</ul>
+</section>
+<section id="id100">
+<h3>Fixed<a class="headerlink" href="#id100" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix: MultibackendJobManager should stop when finished, also when job finishes with error (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/432">#452</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id101">
+<h2>[0.21.1] - 2023-07-19<a class="headerlink" href="#id101" title="Link to this heading">¶</a></h2>
+<section id="id102">
+<h3>Fixed<a class="headerlink" href="#id102" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">spatial_extent</span></code>/<code class="docutils literal notranslate"><span class="pre">temporal_extent</span></code> handling in “localprocessing” <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/451">#451</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id103">
+<h2>[0.21.0] - 2023-07-19<a class="headerlink" href="#id103" title="Link to this heading">¶</a></h2>
+<section id="id104">
+<h3>Added<a class="headerlink" href="#id104" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add support in <code class="docutils literal notranslate"><span class="pre">VectoCube.download()</span></code> and <code class="docutils literal notranslate"><span class="pre">VectorCube.execute_batch()</span></code> to guess output format from extension of a given filename
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/401">#401</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/449">#449</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> for Client Side Processing, based on the <a class="reference external" href="https://github.com/Open-EO/openeo-processes-dask/pull/127">openeo-processes-dask implementation</a></p></li>
+</ul>
+</section>
+<section id="id105">
+<h3>Changed<a class="headerlink" href="#id105" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Updated docs for Client Side Processing with <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> examples, available at https://open-eo.github.io/openeo-python-client/cookbook/localprocessing.html</p></li>
+</ul>
+</section>
+<section id="id106">
+<h3>Fixed<a class="headerlink" href="#id106" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Avoid double <code class="docutils literal notranslate"><span class="pre">save_result</span></code> nodes when combining <code class="docutils literal notranslate"><span class="pre">VectorCube.save_result()</span></code> and <code class="docutils literal notranslate"><span class="pre">.download()</span></code>.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/401">#401</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/448">#448</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id107">
+<h2>[0.20.0] - 2023-06-30<a class="headerlink" href="#id107" title="Link to this heading">¶</a></h2>
+<section id="id108">
+<h3>Added<a class="headerlink" href="#id108" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Added automatically renewal of access tokens with OIDC client credentials grant (<code class="docutils literal notranslate"><span class="pre">Connection.authenticate_oidc_client_credentials</span></code>)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/436">#436</a>)</p></li>
+</ul>
+</section>
+<section id="id109">
+<h3>Changed<a class="headerlink" href="#id109" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Simplified <code class="docutils literal notranslate"><span class="pre">BatchJob</span></code> methods <code class="docutils literal notranslate"><span class="pre">start()</span></code>, <code class="docutils literal notranslate"><span class="pre">stop()</span></code>, <code class="docutils literal notranslate"><span class="pre">describe()</span></code>, …
+Legacy aliases <code class="docutils literal notranslate"><span class="pre">start_job()</span></code>, <code class="docutils literal notranslate"><span class="pre">describe_job()</span></code>, … are still available and don’t trigger a deprecation warning for now.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/280">#280</a>)</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">openeo.extra.spectral_indices</span></code> to <a class="reference external" href="https://github.com/awesome-spectral-indices/awesome-spectral-indices/releases/tag/0.4.0">Awesome Spectral Indices v0.4.0</a></p></li>
+</ul>
+</section>
+</section>
+<section id="id110">
+<h2>[0.19.0] - 2023-06-16<a class="headerlink" href="#id110" title="Link to this heading">¶</a></h2>
+<section id="id111">
+<h3>Added<a class="headerlink" href="#id111" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Generalized support for setting (default) OIDC provider id through env var <code class="docutils literal notranslate"><span class="pre">OPENEO_AUTH_PROVIDER_ID</span></code>
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/419">#419</a></p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">OidcDeviceCodePollTimeout</span></code>: specific exception for OIDC device code flow poll timeouts</p></li>
+<li><p>On-demand preview: Added <code class="docutils literal notranslate"><span class="pre">DataCube.preview()</span></code> to generate a XYZ service with the process graph and display a map widget</p></li>
+</ul>
+</section>
+<section id="id112">
+<h3>Fixed<a class="headerlink" href="#id112" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix format option conflict between <code class="docutils literal notranslate"><span class="pre">save_result</span></code> and <code class="docutils literal notranslate"><span class="pre">create_job</span></code>
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/433">#433</a></p></li>
+<li><p>Ensure that OIDC device code link opens in a new tab/window <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/443">#443</a></p></li>
+</ul>
+</section>
+</section>
+<section id="id113">
+<h2>[0.18.0] - 2023-05-31<a class="headerlink" href="#id113" title="Link to this heading">¶</a></h2>
+<section id="id114">
+<h3>Added<a class="headerlink" href="#id114" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support OIDC client credentials grant from a generic <code class="docutils literal notranslate"><span class="pre">connection.authenticate_oidc()</span></code> call
+through environment variables
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/419">#419</a></p></li>
+</ul>
+</section>
+<section id="id115">
+<h3>Fixed<a class="headerlink" href="#id115" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fixed UDP parameter conversion issue in <code class="docutils literal notranslate"><span class="pre">build_process_dict</span></code> when using parameter in <code class="docutils literal notranslate"><span class="pre">context</span></code> of <code class="docutils literal notranslate"><span class="pre">run_udf</span></code>
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/431">#431</a></p></li>
+</ul>
+</section>
+</section>
+<section id="and-0-17-1-2023-05-16">
+<h2>[0.17.0] and [0.17.1] - 2023-05-16<a class="headerlink" href="#and-0-17-1-2023-05-16" title="Link to this heading">¶</a></h2>
+<section id="id116">
+<h3>Added<a class="headerlink" href="#id116" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.authenticate_oidc()</span></code>: add argument <code class="docutils literal notranslate"><span class="pre">max_poll_time</span></code> to set maximum device code flow poll time</p></li>
+<li><p>Show progress bar while waiting for OIDC authentication with device code flow,
+including special mode for in Jupyter notebooks.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/237">#237</a>)</p></li>
+<li><p>Basic support for <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> process with <code class="docutils literal notranslate"><span class="pre">Connection.load_stac()</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/425">#425</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial_window()</span></code></p></li>
+</ul>
+</section>
+<section id="id117">
+<h3>Fixed<a class="headerlink" href="#id117" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Include “scope” parameter in OIDC token request with client credentials grant.</p></li>
+<li><p>Support fractional seconds in <code class="docutils literal notranslate"><span class="pre">Rfc3339.parse_datetime</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/418">#418</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="srr5-release">
+<h2>[0.16.0] - 2023-04-17 - “SRR5” release<a class="headerlink" href="#srr5-release" title="Link to this heading">¶</a></h2>
+<section id="id118">
+<h3>Added<a class="headerlink" href="#id118" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Full support for user-uploaded files (<code class="docutils literal notranslate"><span class="pre">/files</span></code> endpoints)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/377">#377</a>)</p></li>
+<li><p>Initial, experimental “local processing” feature to use
+openEO Python Client Library functionality on local
+GeoTIFF/NetCDF files and also do the processing locally
+using the <code class="docutils literal notranslate"><span class="pre">openeo_processes_dask</span></code> package
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/338">#338</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">BatchJob.get_results_metadata_url()</span></code>.</p></li>
+</ul>
+</section>
+<section id="id119">
+<h3>Changed<a class="headerlink" href="#id119" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.list_files()</span></code> returns a list of <code class="docutils literal notranslate"><span class="pre">UserFile</span></code> objects instead of a list of metadata dictionaries.
+Use <code class="docutils literal notranslate"><span class="pre">UserFile.metadata</span></code> to get the original dictionary.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/377">#377</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code> returns a <code class="docutils literal notranslate"><span class="pre">VectorCube</span></code> now, instead of a <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/386">#386</a>).
+The (experimental) <code class="docutils literal notranslate"><span class="pre">fit_class_random_forest()</span></code> and <code class="docutils literal notranslate"><span class="pre">fit_regr_random_forest()</span></code> methods
+moved accordingly to the <code class="docutils literal notranslate"><span class="pre">VectorCube</span></code> class.</p></li>
+<li><p>Improved documentation on <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code> and <code class="docutils literal notranslate"><span class="pre">ProcessBuilder</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/390">#390</a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.create_job()</span></code> and <code class="docutils literal notranslate"><span class="pre">Connection.create_job()</span></code> now require
+keyword arguments for all but the first argument for clarity.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/412">#412</a>).</p></li>
+<li><p>Pass minimum log level to backend when retrieving batch job and secondary service logs.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-api/issues/485">Open-EO/openeo-api#485</a>,
+<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/170">Open-EO/openeo-python-driver#170</a>)</p></li>
+</ul>
+</section>
+<section id="id120">
+<h3>Removed<a class="headerlink" href="#id120" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Dropped support for pre-1.0.0 versions of the openEO API
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/134">#134</a>):</p>
+<ul>
+<li><p>Remove <code class="docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code> and related helpers
+(now unused leftovers from version 0.4.0 and earlier).
+(Also <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/100">#100</a>)</p></li>
+<li><p>Drop support for pre-1.0.0 job result metadata</p></li>
+<li><p>Require at least version 1.0.0 of the openEO API for a back-end in <code class="docutils literal notranslate"><span class="pre">Connection</span></code>
+and all its methods.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="id121">
+<h3>Fixed<a class="headerlink" href="#id121" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Reinstated old behavior of authentication related user files (e.g. refresh token store) on Windows: when <code class="docutils literal notranslate"><span class="pre">PrivateJsonFile</span></code> may be readable by others, just log a message instead of raising <code class="docutils literal notranslate"><span class="pre">PermissionError</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/387">387</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">VectorCube.create_job()</span></code> and <code class="docutils literal notranslate"><span class="pre">MlModel.create_job()</span></code> are properly aligned with <code class="docutils literal notranslate"><span class="pre">DataCube.create_job()</span></code>
+regarding setting job title, description, etc.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/412">#412</a>).</p></li>
+<li><p>More robust handling of billing currency/plans in capabilities
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/414">#414</a>)</p></li>
+<li><p>Avoid blindly adding a <code class="docutils literal notranslate"><span class="pre">save_result</span></code> node from <code class="docutils literal notranslate"><span class="pre">DataCube.execute_batch()</span></code> when there is already one
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/401">#401</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id122">
+<h2>[0.15.0] - 2023-03-03<a class="headerlink" href="#id122" title="Link to this heading">¶</a></h2>
+<section id="id123">
+<h3>Added<a class="headerlink" href="#id123" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The openeo Python client library can now also be installed with conda (conda-forge channel)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/176">#176</a>)</p></li>
+<li><p>Allow using a custom <code class="docutils literal notranslate"><span class="pre">requests.Session</span></code> in <code class="docutils literal notranslate"><span class="pre">openeo.rest.auth.oidc</span></code> logic</p></li>
+</ul>
+</section>
+<section id="id124">
+<h3>Changed<a class="headerlink" href="#id124" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Less verbose log printing on failed batch job <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/332">#332</a></p></li>
+<li><p>Improve (UTC) timezone handling in <code class="docutils literal notranslate"><span class="pre">openeo.util.Rfc3339</span></code> and add <code class="docutils literal notranslate"><span class="pre">rfc3339.today()</span></code>/<code class="docutils literal notranslate"><span class="pre">rfc3339.utcnow()</span></code>.</p></li>
+</ul>
+</section>
+</section>
+<section id="id125">
+<h2>[0.14.1] - 2023-02-06<a class="headerlink" href="#id125" title="Link to this heading">¶</a></h2>
+<section id="id126">
+<h3>Fixed<a class="headerlink" href="#id126" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fine-tuned <code class="docutils literal notranslate"><span class="pre">XarrayDataCube</span></code> tests for conda building and packaging (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/176">#176</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id127">
+<h2>[0.14.0] - 2023-02-01<a class="headerlink" href="#id127" title="Link to this heading">¶</a></h2>
+<section id="id128">
+<h3>Added<a class="headerlink" href="#id128" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Jupyter integration: show process graph visualization of <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> objects instead of generic <code class="docutils literal notranslate"><span class="pre">repr</span></code>.  (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/336">#336</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.vectorcube_from_paths()</span></code> to load a vector cube
+from files (on back-end) or URLs with <code class="docutils literal notranslate"><span class="pre">load_uploaded_files</span></code> process.</p></li>
+<li><p>Python 3.10 and 3.11 are now officially supported
+(test run now also for 3.10 and 3.11 in GitHub Actions, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/346">#346</a>)</p></li>
+<li><p>Support for simplified OIDC device code flow, (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/335">#335</a>)</p></li>
+<li><p>Added MultiBackendJobManager, based on implementation from openeo-classification project
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/361">#361</a>)</p></li>
+<li><p>Added resilience to MultiBackendJobManager for backend failures (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/365">#365</a>)</p></li>
+</ul>
+</section>
+<section id="id129">
+<h3>Changed<a class="headerlink" href="#id129" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">execute_batch</span></code> also skips temporal <code class="docutils literal notranslate"><span class="pre">502</span> <span class="pre">Bad</span> <span class="pre">Gateway</span> <span class="pre">errors</span></code>. <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/352">#352</a></p></li>
+</ul>
+</section>
+<section id="id130">
+<h3>Fixed<a class="headerlink" href="#id130" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fixed/improved math operator/process support for <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>s in “apply” mode (non-“band math”),
+allowing expressions like <code class="docutils literal notranslate"><span class="pre">10</span> <span class="pre">*</span> <span class="pre">cube.log10()</span></code> and <code class="docutils literal notranslate"><span class="pre">~(cube</span> <span class="pre">==</span> <span class="pre">0)</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/123">#123</a>)</p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">PrivateJsonFile</span></code> permissions properly on Windows, using oschmod library.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/198">#198</a>)</p></li>
+<li><p>Fixed some broken unit tests on Windows related to path (separator) handling.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/350">#350</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="udf-ux-release">
+<h2>[0.13.0] - 2022-10-10 - “UDF UX” release<a class="headerlink" href="#udf-ux-release" title="Link to this heading">¶</a></h2>
+<section id="id131">
+<h3>Added<a class="headerlink" href="#id131" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">max_cloud_cover</span></code> argument to <code class="docutils literal notranslate"><span class="pre">load_collection()</span></code> to simplify setting maximum cloud cover (property <code class="docutils literal notranslate"><span class="pre">eo:cloud_cover</span></code>) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/328">#328</a>)</p></li>
+</ul>
+</section>
+<section id="id132">
+<h3>Changed<a class="headerlink" href="#id132" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Improve default dimension metadata of a datacube created with <code class="docutils literal notranslate"><span class="pre">openeo.rest.datacube.DataCube.load_disk_collection</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.download()</span></code>: only automatically add <code class="docutils literal notranslate"><span class="pre">save_result</span></code> node when there is none yet.</p></li>
+<li><p>Deprecation warnings: make sure they are shown by default and can be hidden when necessary.</p></li>
+<li><p>Rework and improve <code class="docutils literal notranslate"><span class="pre">openeo.UDF</span></code> helper class for UDF usage
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/312">#312</a>).</p>
+<ul>
+<li><p>allow loading directly from local file or URL</p></li>
+<li><p>autodetect <code class="docutils literal notranslate"><span class="pre">runtime</span></code> from file/URL suffix or source code</p></li>
+<li><p>hide implementation details around <code class="docutils literal notranslate"><span class="pre">data</span></code> argument (e.g.<code class="docutils literal notranslate"><span class="pre">data={&quot;from_parameter&quot;:</span> <span class="pre">&quot;x&quot;}</span></code>)</p></li>
+<li><p>old usage patterns of <code class="docutils literal notranslate"><span class="pre">openeo.UDF</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code> still work but trigger deprecation warnings</p></li>
+</ul>
+</li>
+<li><p>Show warning when using <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> property filters that are not defined in the collection metadata (summaries).</p></li>
+</ul>
+</section>
+</section>
+<section id="id133">
+<h2>[0.12.1] - 2022-09-15<a class="headerlink" href="#id133" title="Link to this heading">¶</a></h2>
+<section id="id134">
+<h3>Changed<a class="headerlink" href="#id134" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Eliminate dependency on <code class="docutils literal notranslate"><span class="pre">distutils.version.LooseVersion</span></code> which started to trigger deprecation warnings  (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/316">#316</a>).</p></li>
+</ul>
+</section>
+<section id="id135">
+<h3>Removed<a class="headerlink" href="#id135" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove old <code class="docutils literal notranslate"><span class="pre">Connection.oidc_auth_user_id_token_as_bearer</span></code> workaround flag (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/300">#300</a>)</p></li>
+</ul>
+</section>
+<section id="id136">
+<h3>Fixed<a class="headerlink" href="#id136" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix refresh token handling in case of OIDC token request with refresh token grant (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/326">#326</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id137">
+<h2>[0.12.0] - 2022-09-09<a class="headerlink" href="#id137" title="Link to this heading">¶</a></h2>
+<section id="id138">
+<h3>Added<a class="headerlink" href="#id138" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Allow passing raw JSON string, JSON file path or URL to <code class="docutils literal notranslate"><span class="pre">Connection.download()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Connection.execute()</span></code> and <code class="docutils literal notranslate"><span class="pre">Connection.create_job()</span></code></p></li>
+<li><p>Add support for reverse math operators on DataCube in <code class="docutils literal notranslate"><span class="pre">apply</span></code> mode (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/323">#323</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.print_json()</span></code> to simplify exporting process graphs in Jupyter or other interactive environments (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/324">#324</a>)</p></li>
+<li><p>Raise <code class="docutils literal notranslate"><span class="pre">DimensionAlreadyExistsException</span></code> when trying to <code class="docutils literal notranslate"><span class="pre">add_dimension()</span></code> a dimension with existing name (<a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/issues/205">Open-EO/openeo-geopyspark-driver#205</a>)</p></li>
+</ul>
+</section>
+<section id="id139">
+<h3>Changed<a class="headerlink" href="#id139" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.execute_batch()</span></code> now also guesses the output format from the filename,
+and allows using <code class="docutils literal notranslate"><span class="pre">format</span></code> argument next to the current <code class="docutils literal notranslate"><span class="pre">out_format</span></code>
+to align with the <code class="docutils literal notranslate"><span class="pre">DataCube.download()</span></code> method. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/240">#240</a>)</p></li>
+<li><p>Better client-side handling of merged band name metadata in <code class="docutils literal notranslate"><span class="pre">DataCube.merge_cubes()</span></code></p></li>
+</ul>
+</section>
+<section id="id140">
+<h3>Removed<a class="headerlink" href="#id140" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove legacy <code class="docutils literal notranslate"><span class="pre">DataCube.graph</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.flatten()</span></code> to prevent usage patterns that cause interoperability issues
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/155">#155</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/209">#209</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/324">#324</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id141">
+<h2>[0.11.0] - 2022-07-02<a class="headerlink" href="#id141" title="Link to this heading">¶</a></h2>
+<section id="id142">
+<h3>Added<a class="headerlink" href="#id142" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add support for passing a PGNode/VectorCube as geometry to <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>, <code class="docutils literal notranslate"><span class="pre">mask_polygon</span></code>, …</p></li>
+<li><p>Add support for second order callbacks e.g. <code class="docutils literal notranslate"><span class="pre">is_valid</span></code> in <code class="docutils literal notranslate"><span class="pre">count</span></code> in <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/317">#317</a>)</p></li>
+</ul>
+</section>
+<section id="id143">
+<h3>Changed<a class="headerlink" href="#id143" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Rename <code class="docutils literal notranslate"><span class="pre">RESTJob</span></code> class name to less cryptic and more user-friendly <code class="docutils literal notranslate"><span class="pre">BatchJob</span></code>.
+Original <code class="docutils literal notranslate"><span class="pre">RESTJob</span></code> is still available as deprecated alias.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/280">#280</a>)</p></li>
+<li><p>Dropped default reducer (“max”) from <code class="docutils literal notranslate"><span class="pre">DataCube.reduce_temporal_simple()</span></code></p></li>
+<li><p>Various documentation improvements:</p>
+<ul>
+<li><p>general styling, landing page and structure tweaks (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/285">#285</a>)</p></li>
+<li><p>batch job docs (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/286">#286</a>)</p></li>
+<li><p>getting started docs (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/308">#308</a>)</p></li>
+<li><p>part of UDF docs (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/309">#309</a>)</p></li>
+<li><p>added process-to-method mapping docs</p></li>
+</ul>
+</li>
+<li><p>Drop hardcoded <code class="docutils literal notranslate"><span class="pre">h5netcdf</span></code> engine from <code class="docutils literal notranslate"><span class="pre">XarrayIO.from_netcdf_file()</span></code>
+and <code class="docutils literal notranslate"><span class="pre">XarrayIO.to_netcdf_file()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/314">#314</a>)</p></li>
+<li><p>Changed argument name of <code class="docutils literal notranslate"><span class="pre">Connection.describe_collection()</span></code> from <code class="docutils literal notranslate"><span class="pre">name</span></code> to <code class="docutils literal notranslate"><span class="pre">collection_id</span></code>
+to be more in line with other methods/functions.</p></li>
+</ul>
+</section>
+<section id="id144">
+<h3>Fixed<a class="headerlink" href="#id144" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">context</span></code>/<code class="docutils literal notranslate"><span class="pre">condition</span></code> confusion bug with <code class="docutils literal notranslate"><span class="pre">count</span></code> callback in <code class="docutils literal notranslate"><span class="pre">DataCube.reduce_dimension()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/317">#317</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="lps22-release">
+<h2>[0.10.1] - 2022-05-18 - “LPS22” release<a class="headerlink" href="#lps22-release" title="Link to this heading">¶</a></h2>
+<section id="id145">
+<h3>Added<a class="headerlink" href="#id145" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">context</span></code> parameter to <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.apply_dimension()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DataCube.apply_neighborhood()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.apply()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.merge_cubes()</span></code>.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/291">#291</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.fit_regr_random_forest()</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/293">#293</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">PGNode.update_arguments()</span></code>, which combined with <code class="docutils literal notranslate"><span class="pre">DataCube.result_node()</span></code> allows to do advanced process graph argument tweaking/updating without using <code class="docutils literal notranslate"><span class="pre">._pg</span></code> hacks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">JobResults.download_files()</span></code>: also download (by default) the job result metadata as STAC JSON file (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/184">#184</a>)</p></li>
+<li><p>OIDC handling in <code class="docutils literal notranslate"><span class="pre">Connection</span></code>: try to automatically refresh access token when expired (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/298">#298</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection.create_job</span></code> raises exception if response does not contain a valid job_id</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">openeo.udf.debug.inspect</span></code> for using the openEO <code class="docutils literal notranslate"><span class="pre">inspect</span></code> process in a UDF (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/302">#302</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">openeo.util.to_bbox_dict()</span></code> to simplify building a openEO style bbox dictionary, e.g. from a list or shapely geometry (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/304">#304</a>)</p></li>
+</ul>
+</section>
+<section id="id146">
+<h3>Removed<a class="headerlink" href="#id146" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Removed deprecated (and non-functional) <code class="docutils literal notranslate"><span class="pre">zonal_statistics</span></code> method from old <code class="docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code> API. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/144">#144</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="srr3-release">
+<h2>[0.10.0] - 2022-04-08 - “SRR3” release<a class="headerlink" href="#srr3-release" title="Link to this heading">¶</a></h2>
+<section id="id147">
+<h3>Added<a class="headerlink" href="#id147" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add support for comparison operators (<code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>) in callback process building</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">Connection.describe_process()</span></code> to retrieve and show a single process</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">DataCube.flatten_dimensions()</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.unflatten_dimension</span></code>
+(<a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/308">Open-EO/openeo-processes#308</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/pull/316">Open-EO/openeo-processes#316</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">VectorCube.run_udf</span></code> (to avoid non-standard <code class="docutils literal notranslate"><span class="pre">process_with_node(UDF(...))</span></code> usage)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">DataCube.fit_class_random_forest()</span></code> and <code class="docutils literal notranslate"><span class="pre">Connection.load_ml_model()</span></code> to train and load Machine Learning models
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/279">#279</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">DataCube.predict_random_forest()</span></code> to easily use <code class="docutils literal notranslate"><span class="pre">reduce_dimension</span></code> with a <code class="docutils literal notranslate"><span class="pre">predict_random_forest</span></code> reducer
+using a <code class="docutils literal notranslate"><span class="pre">MlModel</span></code> (trained with <code class="docutils literal notranslate"><span class="pre">fit_class_random_forest</span></code>)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/279">#279</a>)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">DataCube.resample_cube_temporal</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/284">#284</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">target_dimension</span></code> argument to <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/288">#288</a>)</p></li>
+<li><p>Add basic configuration file system to define a default back-end URL and enable auto-authentication (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/264">#264</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/187">#187</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">context</span></code> argument to <code class="docutils literal notranslate"><span class="pre">DataCube.chunk_polygon()</span></code></p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.version_info()</span></code> to list version information about the client, the API and the back-end</p></li>
+</ul>
+</section>
+<section id="id148">
+<h3>Changed<a class="headerlink" href="#id148" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Include openEO API error id automatically in exception message to simplify user support and post-mortem analysis.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">Connection.default_timeout</span></code> (when set) also on version discovery request</p></li>
+<li><p>Drop <code class="docutils literal notranslate"><span class="pre">ImageCollection</span></code> from <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>’s class hierarchy.
+This practically removes very old (pre-0.4.0) methods like <code class="docutils literal notranslate"><span class="pre">date_range_filter</span></code> and <code class="docutils literal notranslate"><span class="pre">bbox_filter</span></code> from <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>.
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/100">#100</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/278">#278</a>)</p></li>
+<li><p>Deprecate <code class="docutils literal notranslate"><span class="pre">DataCube.send_job</span></code> in favor of <code class="docutils literal notranslate"><span class="pre">DataCube.create_job</span></code> for better consistency (internally and with other libraries) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/276">#276</a>)</p></li>
+<li><p>Update (autogenerated) <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code> module to 1.2.0 release (2021-12-13) of openeo-processes</p></li>
+<li><p>Update (autogenerated) <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code> module to draft version of 2022-03-16 (e4df8648) of openeo-processes</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">openeo.extra.spectral_indices</span></code> to a post-0.0.6 version of <a class="reference external" href="https://awesome-ee-spectral-indices.readthedocs.io/en/latest/">Awesome Spectral Indices</a></p></li>
+</ul>
+</section>
+<section id="id149">
+<h3>Removed<a class="headerlink" href="#id149" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Removed deprecated <code class="docutils literal notranslate"><span class="pre">zonal_statistics</span></code> method from <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/144">#144</a>)</p></li>
+<li><p>Deprecate old-style <code class="docutils literal notranslate"><span class="pre">DataCube.polygonal_mean_timeseries()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.polygonal_histogram_timeseries()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DataCube.polygonal_median_timeseries()</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.polygonal_standarddeviation_timeseries()</span></code></p></li>
+</ul>
+</section>
+<section id="id150">
+<h3>Fixed<a class="headerlink" href="#id150" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">rename_labels</span></code> on temporal dimension (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/274">#274</a>)</p></li>
+<li><p>Basic support for mixing <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> and <code class="docutils literal notranslate"><span class="pre">ProcessBuilder</span></code> objects/processing (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/275">#275</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id151">
+<h2>[0.9.2] - 2022-01-14<a class="headerlink" href="#id151" title="Link to this heading">¶</a></h2>
+<section id="id152">
+<h3>Added<a class="headerlink" href="#id152" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add experimental support for <code class="docutils literal notranslate"><span class="pre">chunk_polygon</span></code> process (<a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/287">Open-EO/openeo-processes#287</a>)</p></li>
+<li><p>Add support for <code class="docutils literal notranslate"><span class="pre">spatial_extent</span></code>, <code class="docutils literal notranslate"><span class="pre">temporal_extent</span></code> and <code class="docutils literal notranslate"><span class="pre">bands</span></code> to <code class="docutils literal notranslate"><span class="pre">Connection.load_result()</span></code></p></li>
+<li><p>Setting the environment variable <code class="docutils literal notranslate"><span class="pre">OPENEO_BASEMAP_URL</span></code> allows to set a new templated URL to a XYZ basemap for the Vue Components library,  <code class="docutils literal notranslate"><span class="pre">OPENEO_BASEMAP_ATTRIBUTION</span></code> allows to set the attribution for the basemap (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/260">#260</a>)</p></li>
+<li><p>Initial support for experimental “federation:missing” flag on partial openEO Platform user job listings (<a class="reference external" href="https://github.com/Open-EO/openeo-api/pull/419">Open-EO/openeo-api#419</a>)</p></li>
+<li><p>Best effort detection of mistakenly using Python builtin <code class="docutils literal notranslate"><span class="pre">sum</span></code> or <code class="docutils literal notranslate"><span class="pre">all</span></code> functions in callbacks (<a class="reference external" href="https://discuss.eodc.eu/t/reducing-masks-in-openeo/113">Forum #113</a>)</p></li>
+<li><p>Automatically print batch job logs when job doesn’t finish successfully (using <code class="docutils literal notranslate"><span class="pre">execute_batch/run_synchronous/start_and_wait</span></code>).</p></li>
+</ul>
+</section>
+</section>
+<section id="id153">
+<h2>[0.9.1] - 2021-11-16<a class="headerlink" href="#id153" title="Link to this heading">¶</a></h2>
+<section id="id154">
+<h3>Added<a class="headerlink" href="#id154" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">options</span></code> argument to <code class="docutils literal notranslate"><span class="pre">DataCube.atmospheric_correction</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/91">Open-EO/openeo-python-driver#91</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">atmospheric_correction_options</span></code> and <code class="docutils literal notranslate"><span class="pre">cloud_detection_options</span></code> arguments to <code class="docutils literal notranslate"><span class="pre">DataCube.ard_surface_reflectance</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/91">Open-EO/openeo-python-driver#91</a>)</p></li>
+<li><p>UDP storing: add support for “returns”, “categories”, “examples” and “links” properties (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/242">#242</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">openeo.extra.spectral_indices</span></code>: experimental API to easily compute spectral indices (vegetation, water, urban, …)
+on a <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>, using the index definitions from <a class="reference external" href="https://awesome-ee-spectral-indices.readthedocs.io/en/latest/">Awesome Spectral Indices</a></p></li>
+</ul>
+</section>
+<section id="id155">
+<h3>Changed<a class="headerlink" href="#id155" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Batch job status poll loop: ignore (temporary) “service unavailable” errors (<a class="reference external" href="https://github.com/Open-EO/openeo-python-driver/issues/96">Open-EO/openeo-python-driver#96</a>)</p></li>
+<li><p>Batch job status poll loop: fail when there are too many soft errors (temporary connection/availability issues)</p></li>
+</ul>
+</section>
+<section id="id156">
+<h3>Fixed<a class="headerlink" href="#id156" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">DataCube.ard_surface_reflectance()</span></code> to use process <code class="docutils literal notranslate"><span class="pre">ard_surface_reflectance</span></code> instead of <code class="docutils literal notranslate"><span class="pre">atmospheric_correction</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="id157">
+<h2>[0.9.0] - 2021-10-11<a class="headerlink" href="#id157" title="Link to this heading">¶</a></h2>
+<section id="id158">
+<h3>Added<a class="headerlink" href="#id158" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add command line tool <code class="docutils literal notranslate"><span class="pre">openeo-auth</span> <span class="pre">token-clear</span></code> to remove OIDC refresh token cache</p></li>
+<li><p>Add support for OIDC device authorization grant without PKCE nor client secret,
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/225">#225</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-api/issues/410">openeo-api#410</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.dimension_labels()</span></code> (EP-4008)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.load_result()</span></code> (EP-4008)</p></li>
+<li><p>Add proper support for child callbacks in <code class="docutils literal notranslate"><span class="pre">fit_curve</span></code> and <code class="docutils literal notranslate"><span class="pre">predict_curve</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/229">#229</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ProcessBuilder</span></code>: Add support for <code class="docutils literal notranslate"><span class="pre">array_element(data,</span> <span class="pre">n)</span></code> through <code class="docutils literal notranslate"><span class="pre">data[n]</span></code> syntax (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/228">#228</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ProcessBuilder</span></code>: Add support for <code class="docutils literal notranslate"><span class="pre">eq</span></code> and <code class="docutils literal notranslate"><span class="pre">neq</span></code> through <code class="docutils literal notranslate"><span class="pre">==</span></code> and <code class="docutils literal notranslate"><span class="pre">!=</span></code> operators (EP-4011)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.validate()</span></code> for process graph validation (EP-4012 related)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.as_curl()</span></code> for generating curl command to evaluate a process graph or <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> from the command line</p></li>
+<li><p>Add support in <code class="docutils literal notranslate"><span class="pre">DataCube.download()</span></code> to guess output format from extension of a given filename</p></li>
+</ul>
+</section>
+<section id="id159">
+<h3>Changed<a class="headerlink" href="#id159" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Improve default handling of <code class="docutils literal notranslate"><span class="pre">crs</span></code> (and <code class="docutils literal notranslate"><span class="pre">base</span></code>/<code class="docutils literal notranslate"><span class="pre">height</span></code>) in <code class="docutils literal notranslate"><span class="pre">filter_bbox</span></code>: avoid explicitly sending <code class="docutils literal notranslate"><span class="pre">null</span></code> unnecessarily
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/233">#233</a>).</p></li>
+<li><p>Update documentation/examples/tests: EPSG CRS in <code class="docutils literal notranslate"><span class="pre">filter_bbox</span></code> should be integer code, not string
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/233">#233</a>).</p></li>
+<li><p>Raise <code class="docutils literal notranslate"><span class="pre">ProcessGraphVisitException</span></code> from <code class="docutils literal notranslate"><span class="pre">ProcessGraphVisitor.resolve_from_node()</span></code> (instead of generic <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.linear_scale_range</span></code> is now a shortcut for <code class="docutils literal notranslate"><span class="pre">DataCube.apply(lambda</span>&#160; <span class="pre">x:x.x.linear_scale_range(</span> <span class="pre">input_min,</span> <span class="pre">input_max,</span> <span class="pre">output_min,</span> <span class="pre">output_max))</span></code>.
+Instead of creating an invalid process graph that tries to invoke linear_scale_range on a datacube directly.</p></li>
+<li><p>Nicer error message when back-end does not support basic auth (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/247">#247</a>)</p></li>
+</ul>
+</section>
+<section id="id160">
+<h3>Removed<a class="headerlink" href="#id160" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove unused and outdated (0.4-style) <code class="docutils literal notranslate"><span class="pre">File</span></code>/<code class="docutils literal notranslate"><span class="pre">RESTFile</span></code> classes (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/115">#115</a>)</p></li>
+<li><p>Deprecate usage of <code class="docutils literal notranslate"><span class="pre">DataCube.graph</span></code> property (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/209">#209</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id161">
+<h2>[0.8.2] - 2021-08-24<a class="headerlink" href="#id161" title="Link to this heading">¶</a></h2>
+<p>Minor release to address version packaging issue.</p>
+</section>
+<section id="id162">
+<h2>[0.8.1] - 2021-08-24<a class="headerlink" href="#id162" title="Link to this heading">¶</a></h2>
+<section id="id163">
+<h3>Added<a class="headerlink" href="#id163" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Support nested callbacks inside array arguments, for instance in <code class="docutils literal notranslate"><span class="pre">array_modify</span></code>, <code class="docutils literal notranslate"><span class="pre">array_create</span></code></p></li>
+<li><p>Support <code class="docutils literal notranslate"><span class="pre">array_concat</span></code></p></li>
+<li><p>add <code class="docutils literal notranslate"><span class="pre">ProcessGraphUnflattener</span></code> and <code class="docutils literal notranslate"><span class="pre">PGNodeGraphUnflattener</span></code> to unflatten a flat dict representation of a process
+graph to a <code class="docutils literal notranslate"><span class="pre">PGNode</span></code> graph (EP-3609)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.datacube_from_flat_graph</span></code> and <code class="docutils literal notranslate"><span class="pre">Connection.datacube_from_json</span></code> to construct a <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>
+from flat process graph representation (e.g. JSON file or JSON URL) (EP-3609)</p></li>
+<li><p>Add documentation about UDP unflattening and sharing (EP-3609)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">fit_curve</span></code> and <code class="docutils literal notranslate"><span class="pre">predict_curve</span></code>, two methods used in change detection</p></li>
+</ul>
+</section>
+<section id="id164">
+<h3>Changed<a class="headerlink" href="#id164" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">processes.py</span></code> based on 1.1.0 release op openeo-processes project</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">processes.py</span></code>: include all processes from “proposals” folder of openeo-processes project</p></li>
+<li><p>Jupyter integration: Visual rendering for process graphs shown instead of a plain JSON representation.</p></li>
+<li><p>Migrate from Travis CI to GitHub Actions for documentation building and unit tests (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/178">#178</a>, EP-3645)</p></li>
+</ul>
+</section>
+<section id="id165">
+<h3>Removed<a class="headerlink" href="#id165" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Removed unit test runs for Python 3.5 (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/210">#210</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id166">
+<h2>[0.8.0] - 2021-06-25<a class="headerlink" href="#id166" title="Link to this heading">¶</a></h2>
+<section id="id167">
+<h3>Added<a class="headerlink" href="#id167" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Allow, but raise warning when specifying a CRS for the geometry passed to <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> and <code class="docutils literal notranslate"><span class="pre">mask_polygon</span></code>,
+which is non-standard/experimental feature, only supported by specific back-ends
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/204">#204</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">optional</span></code> argument to <code class="docutils literal notranslate"><span class="pre">Parameter</span></code> and fix re-encoding parameters with default value. (EP-3846)</p></li>
+<li><p>Add support to test strict equality with <code class="docutils literal notranslate"><span class="pre">ComparableVersion</span></code></p></li>
+<li><p>Jupyter integration: add rich HTML rendering for more backend metadata (Job, Job Estimate, Logs, Services, User-Defined Processes)</p></li>
+<li><p>Add support for <a class="reference external" href="https://processes.openeo.org/#filter_spatial">filter_spatial</a></p></li>
+<li><p>Add support for <a class="reference external" href="https://processes.openeo.org/#aggregate_temporal_period">aggregate_temporal_period</a></p></li>
+<li><p>Added class <code class="docutils literal notranslate"><span class="pre">Service</span></code> for secondary web-services</p></li>
+<li><p>Added a method <code class="docutils literal notranslate"><span class="pre">service</span></code> to <code class="docutils literal notranslate"><span class="pre">Connection</span></code></p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Rfc3339.parse_date</span></code> and <code class="docutils literal notranslate"><span class="pre">Rfc3339.parse_date_or_datetime</span></code></p></li>
+</ul>
+</section>
+<section id="id168">
+<h3>Changed<a class="headerlink" href="#id168" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Disallow redirects on POST/DELETE/… requests and require status code 200 on <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/result</span></code> requests.
+This improves error information where <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/result</span></code> would involve a redirect. (EP-3889)</p></li>
+<li><p>Class <code class="docutils literal notranslate"><span class="pre">JobLogEntry</span></code> got replaced with a more complete and re-usable <code class="docutils literal notranslate"><span class="pre">LogEntry</span></code> dict</p></li>
+<li><p>The following methods return a <code class="docutils literal notranslate"><span class="pre">Service</span></code> class instead of a dict: <code class="docutils literal notranslate"><span class="pre">tiled_viewing_service</span></code> in <code class="docutils literal notranslate"><span class="pre">ImageCollection</span></code>, <code class="docutils literal notranslate"><span class="pre">ImageCollectionClient</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube</span></code>, <code class="docutils literal notranslate"><span class="pre">create_service</span></code> in <code class="docutils literal notranslate"><span class="pre">Connection</span></code></p></li>
+</ul>
+</section>
+<section id="deprecated">
+<h3>Deprecated<a class="headerlink" href="#deprecated" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The method <code class="docutils literal notranslate"><span class="pre">remove_service</span></code> in <code class="docutils literal notranslate"><span class="pre">Connection</span></code> has been deprecated in favor of <code class="docutils literal notranslate"><span class="pre">delete_service</span></code> in the <code class="docutils literal notranslate"><span class="pre">Service</span></code> class</p></li>
+</ul>
+</section>
+</section>
+<section id="id169">
+<h2>[0.7.0] - 2021-04-21<a class="headerlink" href="#id169" title="Link to this heading">¶</a></h2>
+<section id="id170">
+<h3>Added<a class="headerlink" href="#id170" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add dependency on <code class="docutils literal notranslate"><span class="pre">xarray</span></code> package (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/159">#159</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/190">#190</a>, EP-3578)</p></li>
+<li><p>Add support for default OIDC clients advertised by backend (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/192">#192</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-api/pull/366">Open-EO/openeo-api#366</a>)</p></li>
+<li><p>Add support for default OIDC provider (based on provider order advertised by backend) (<a class="reference external" href="https://github.com/Open-EO/openeo-api/pull/373">Open-EO/openeo-api#373</a>)</p></li>
+</ul>
+</section>
+<section id="id171">
+<h3>Changed<a class="headerlink" href="#id171" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Eliminate development/optional dependency on <code class="docutils literal notranslate"><span class="pre">openeo_udf</span></code> project
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/159">#159</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/190">#190</a>, EP-3578).
+Now the openEO client library itself contains the necessary classes and implementation to run UDF code locally.</p></li>
+</ul>
+</section>
+<section id="id172">
+<h3>Fixed<a class="headerlink" href="#id172" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Connection</span></code>: don’t send default auth headers to non-backend domains (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/201">#201</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id173">
+<h2>[0.6.1] - 2021-03-29<a class="headerlink" href="#id173" title="Link to this heading">¶</a></h2>
+<section id="id174">
+<h3>Changed<a class="headerlink" href="#id174" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Improve OpenID Connect usability on Windows: don’t raise exception on file permissions
+that can not be changed (by <code class="docutils literal notranslate"><span class="pre">os.chmod</span></code> on Windows) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/198">#198</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id175">
+<h2>[0.6.0] - 2021-03-26<a class="headerlink" href="#id175" title="Link to this heading">¶</a></h2>
+<section id="id176">
+<h3>Added<a class="headerlink" href="#id176" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add initial/experimental support for OIDC device code flow with PKCE (alternative for client secret) (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/191">#191</a> / EP-3700)</p></li>
+<li><p>When creating a connection: use “https://” by default when no protocol is specified</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCube.mask_polygon</span></code>: support <code class="docutils literal notranslate"><span class="pre">Parameter</span></code> argument for <code class="docutils literal notranslate"><span class="pre">mask</span></code></p></li>
+<li><p>Add initial/experimental support for default OIDC client (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/192">#192</a>, <a class="reference external" href="https://github.com/Open-EO/openeo-api/pull/366">Open-EO/openeo-api#366</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">Connection.authenticate_oidc</span></code> for user-friendlier OIDC authentication: first try refresh token and fall back on device code flow</p></li>
+<li><p>Add experimental support for <code class="docutils literal notranslate"><span class="pre">array_modify</span></code> process (<a class="reference external" href="https://github.com/Open-EO/openeo-processes/issues/202">Open-EO/openeo-processes#202</a>)</p></li>
+</ul>
+</section>
+<section id="id177">
+<h3>Removed<a class="headerlink" href="#id177" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove old/deprecated <code class="docutils literal notranslate"><span class="pre">Connection.authenticate_OIDC()</span></code></p></li>
+</ul>
+</section>
+</section>
+<section id="id178">
+<h2>[0.5.0] - 2021-03-17<a class="headerlink" href="#id178" title="Link to this heading">¶</a></h2>
+<section id="id179">
+<h3>Added<a class="headerlink" href="#id179" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add namespace support to <code class="docutils literal notranslate"><span class="pre">DataCube.process</span></code>, <code class="docutils literal notranslate"><span class="pre">PGNode</span></code>, <code class="docutils literal notranslate"><span class="pre">ProcessGraphVisitor</span></code> (minor API breaking change) and related.
+Allows building process graphs with processes from non-“backend” namespaces
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/182">#182</a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">collection_items</span></code> to request collection items through a STAC API</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">paginate</span></code> as a basic method to support link-based pagination</p></li>
+<li><p>Add namespace support to <code class="docutils literal notranslate"><span class="pre">Connection.datacube_from_process</span></code></p></li>
+<li><p>Add basic support for band name aliases in <code class="docutils literal notranslate"><span class="pre">metadata.Band</span></code> for band index lookup (EP-3670)</p></li>
+</ul>
+</section>
+<section id="id180">
+<h3>Changed<a class="headerlink" href="#id180" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">OpenEoApiError</span></code> moved from <code class="docutils literal notranslate"><span class="pre">openeo.rest.connection</span></code> to <code class="docutils literal notranslate"><span class="pre">openeo.rest</span></code></p></li>
+<li><p>Added HTML representation for <code class="docutils literal notranslate"><span class="pre">list_jobs</span></code>, <code class="docutils literal notranslate"><span class="pre">list_services</span></code>, <code class="docutils literal notranslate"><span class="pre">list_files</span></code> and for job results</p></li>
+<li><p>Improve refresh token handling in OIDC logic: avoid requesting refresh token
+(which can fail if OIDC client is not set up for that) when not necessary (EP-3700)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">RESTJob.start_and_wait</span></code>: add status line when sending “start” request, and drop microsecond resolution from status lines</p></li>
+</ul>
+</section>
+<section id="id181">
+<h3>Fixed<a class="headerlink" href="#id181" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Updated Vue Components library (solves issue with loading from slower back-ends where no result was shown)</p></li>
+</ul>
+</section>
+</section>
+<section id="id182">
+<h2>[0.4.10] - 2021-02-26<a class="headerlink" href="#id182" title="Link to this heading">¶</a></h2>
+<section id="id183">
+<h3>Added<a class="headerlink" href="#id183" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add “reflected” operator support to <code class="docutils literal notranslate"><span class="pre">ProcessBuilder</span></code></p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">RESTJob.get_results()</span></code>, <code class="docutils literal notranslate"><span class="pre">JobResults</span></code> and <code class="docutils literal notranslate"><span class="pre">ResultAsset</span></code> for more fine-grained batch job result handling. (EP-3739)</p></li>
+<li><p>Add documentation on batch job result (asset) handling and downloading</p></li>
+</ul>
+</section>
+<section id="id184">
+<h3>Changed<a class="headerlink" href="#id184" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Mark <code class="docutils literal notranslate"><span class="pre">Connection.imagecollection</span></code> more clearly as deprecated/legacy alias of <code class="docutils literal notranslate"><span class="pre">Connection.load_collection</span></code></p></li>
+<li><p>Deprecated <code class="docutils literal notranslate"><span class="pre">job_results()</span></code> and <code class="docutils literal notranslate"><span class="pre">job_logs()</span></code> on <code class="docutils literal notranslate"><span class="pre">Connection</span></code> object, it’s better to work through <code class="docutils literal notranslate"><span class="pre">RESTJob</span></code> object.</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">DataCube.sar_backscatter</span></code> to the latest process spec: add <code class="docutils literal notranslate"><span class="pre">coefficient</span></code> argument
+and remove <code class="docutils literal notranslate"><span class="pre">orthorectify</span></code>, <code class="docutils literal notranslate"><span class="pre">rtc</span></code>. (<a class="reference external" href="https://github.com/Open-EO/openeo-processes/pull/210">openeo-processes#210</a>)</p></li>
+</ul>
+</section>
+<section id="id185">
+<h3>Removed<a class="headerlink" href="#id185" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove outdated batch job result download logic left-overs</p></li>
+<li><p>Remove (outdated) abstract base class <code class="docutils literal notranslate"><span class="pre">openeo.job.Job</span></code>: did not add value, only caused maintenance overhead. (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/115">#115</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id186">
+<h2>[0.4.9] - 2021-01-29<a class="headerlink" href="#id186" title="Link to this heading">¶</a></h2>
+<section id="id187">
+<h3>Added<a class="headerlink" href="#id187" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Make <code class="docutils literal notranslate"><span class="pre">DataCube.filter_bbox()</span></code> easier to use: allow passing a bbox tuple, list, dict or even shapely geometry directly as first positional argument or as <code class="docutils literal notranslate"><span class="pre">bbox</span></code> keyword argument.
+Handling of the legacy non-standard west-east-north-south positional argument order is preserved for now (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/136">#136</a>)</p></li>
+<li><p>Add “band math” methods <code class="docutils literal notranslate"><span class="pre">DataCube.ln()</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.logarithm(base)</span></code>, <code class="docutils literal notranslate"><span class="pre">DataCube.log10()</span></code> and <code class="docutils literal notranslate"><span class="pre">DataCube.log2()</span></code></p></li>
+<li><p>Improved support for creating and handling parameters when defining user-defined processes (EP-3698)</p></li>
+<li><p>Initial Jupyter integration: add rich HTML rendering of backend metadata (collections, file formats, UDF runtimes, …)
+(<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/170">#170</a>)</p></li>
+<li><p>add <code class="docutils literal notranslate"><span class="pre">resolution_merge</span></code> process (experimental) (EP-3687, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/pull/221">openeo-processes#221</a>)</p></li>
+<li><p>add <code class="docutils literal notranslate"><span class="pre">sar_backscatter</span></code> process (experimental) (EP-3612, <a class="reference external" href="https://github.com/Open-EO/openeo-processes/pull/210">openeo-processes#210</a>)</p></li>
+</ul>
+</section>
+<section id="id188">
+<h3>Fixed<a class="headerlink" href="#id188" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fixed ‘Content-Encoding’ handling in <code class="docutils literal notranslate"><span class="pre">Connection.download</span></code>: client did not automatically decompress <code class="docutils literal notranslate"><span class="pre">/result</span></code>
+responses when necessary (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/issues/175">#175</a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="id189">
+<h2>[0.4.8] - 2020-11-17<a class="headerlink" href="#id189" title="Link to this heading">¶</a></h2>
+<section id="id190">
+<h3>Added<a class="headerlink" href="#id190" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_spatial()</span></code></p></li>
+</ul>
+</section>
+<section id="id191">
+<h3>Changed<a class="headerlink" href="#id191" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Get/create default <code class="docutils literal notranslate"><span class="pre">RefreshTokenStore</span></code> lazily in <code class="docutils literal notranslate"><span class="pre">Connection</span></code></p></li>
+<li><p>Various documentation tweaks</p></li>
+</ul>
+</section>
+</section>
+<section id="id192">
+<h2>[0.4.7] - 2020-10-22<a class="headerlink" href="#id192" title="Link to this heading">¶</a></h2>
+<section id="id193">
+<h3>Added<a class="headerlink" href="#id193" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add support for <code class="docutils literal notranslate"><span class="pre">title</span></code>/<code class="docutils literal notranslate"><span class="pre">description</span></code>/<code class="docutils literal notranslate"><span class="pre">plan</span></code>/<code class="docutils literal notranslate"><span class="pre">budget</span></code> in <code class="docutils literal notranslate"><span class="pre">DataCube.send_job</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/157">#157</a> / <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/158">#158</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.to_json()</span></code> to easily get JSON representation of a DataCube</p></li>
+<li><p>Allow to subclass <code class="docutils literal notranslate"><span class="pre">CollectionMetadata</span></code> and preserve original type when “cloning”</p></li>
+</ul>
+</section>
+<section id="id194">
+<h3>Changed<a class="headerlink" href="#id194" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Changed <code class="docutils literal notranslate"><span class="pre">execute_batch</span></code> to support downloading multiple files (within EP-3359, support profiling)</p></li>
+<li><p>Don’t send None-valued <code class="docutils literal notranslate"><span class="pre">title</span></code>/<code class="docutils literal notranslate"><span class="pre">description</span></code>/<code class="docutils literal notranslate"><span class="pre">plan</span></code>/<code class="docutils literal notranslate"><span class="pre">budget</span></code> fields from <code class="docutils literal notranslate"><span class="pre">DataCube.send_job</span></code> (<a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/157">#157</a> / <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/158">#158</a>)</p></li>
+</ul>
+</section>
+<section id="id195">
+<h3>Removed<a class="headerlink" href="#id195" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove duplicate and broken <code class="docutils literal notranslate"><span class="pre">Connection.list_processgraphs</span></code></p></li>
+</ul>
+</section>
+<section id="id196">
+<h3>Fixed<a class="headerlink" href="#id196" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Various documentation fixes and tweaks</p></li>
+<li><p>Avoid <code class="docutils literal notranslate"><span class="pre">merge_cubes</span></code> warning when using non-band-math <code class="docutils literal notranslate"><span class="pre">DataCube</span></code> operators</p></li>
+</ul>
+</section>
+</section>
+<section id="id197">
+<h2>[0.4.6] - 2020-10-15<a class="headerlink" href="#id197" title="Link to this heading">¶</a></h2>
+<section id="id198">
+<h3>Added<a class="headerlink" href="#id198" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">DataCube.aggregate_temporal</span></code></p></li>
+<li><p>Add initial support to download profiling information</p></li>
+</ul>
+</section>
+<section id="id199">
+<h3>Changed<a class="headerlink" href="#id199" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Deprecated legacy functions/methods are better documented as such and link to a recommended alternative (EP-3617).</p></li>
+<li><p>Get/create default <code class="docutils literal notranslate"><span class="pre">AuthConfig</span></code> in Connection lazily (allows client to run in environments without existing (default) config folder)</p></li>
+</ul>
+</section>
+<section id="id200">
+<h3>Deprecated<a class="headerlink" href="#id200" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Deprecate <code class="docutils literal notranslate"><span class="pre">zonal_statistics</span></code> in favor of <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code></p></li>
+</ul>
+</section>
+<section id="id201">
+<h3>Removed<a class="headerlink" href="#id201" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Remove support for old, non-standard <code class="docutils literal notranslate"><span class="pre">stretch_colors</span></code> process (Use <code class="docutils literal notranslate"><span class="pre">linear_scale_range</span></code> instead).</p></li>
+</ul>
+</section>
+</section>
+<section id="id202">
+<h2>[0.4.5] - 2020-10-01<a class="headerlink" href="#id202" title="Link to this heading">¶</a></h2>
+<section id="id203">
+<h3>Added<a class="headerlink" href="#id203" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Also handle <code class="docutils literal notranslate"><span class="pre">dict</span></code> arguments in <code class="docutils literal notranslate"><span class="pre">dereference_from_node_arguments</span></code> (EP-3509)</p></li>
+<li><p>Add support for less/greater than and equal operators</p></li>
+<li><p>Raise warning when user defines a UDP with same id as a pre-defined one (EP-3544, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/147">#147</a>)</p></li>
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">rename_labels</span></code> support in metadata (EP-3585)</p></li>
+<li><p>Improve “callback” handling (sub-process graphs): add predefined callbacks for all official processes and functionality to assemble these (EP-3555, <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/pull/153">#153</a>)</p></li>
+<li><p>Moved datacube write/save/plot utilities from udf to client (EP-3456)</p></li>
+<li><p>Add documentation on OpenID Connect authentication (EP-3485)</p></li>
+</ul>
+</section>
+<section id="id204">
+<h3>Fixed<a class="headerlink" href="#id204" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix <code class="docutils literal notranslate"><span class="pre">kwargs</span></code> handling in <code class="docutils literal notranslate"><span class="pre">TimingLogger</span></code> decorator</p></li>
+</ul>
+</section>
+</section>
+<section id="id205">
+<h2>[0.4.4] - 2020-08-20<a class="headerlink" href="#id205" title="Link to this heading">¶</a></h2>
+<section id="id206">
+<h3>Added<a class="headerlink" href="#id206" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">openeo-auth</span></code> command line tool to manage OpenID Connect (and basic auth) related configs (EP-3377/EP-3493)</p></li>
+<li><p>Support for using config files for OpenID Connect and basic auth based authentication, instead of hardcoding credentials (EP-3377/EP-3493)</p></li>
+</ul>
+</section>
+<section id="id207">
+<h3>Fixed<a class="headerlink" href="#id207" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Fix target_band handling in <code class="docutils literal notranslate"><span class="pre">DataCube.ndvi</span></code> (EP-3496)</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#unreleased">[Unreleased]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id1">[0.48.0] - 2026-02-17</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">[0.47.0] - 2025-12-17</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id9">[0.46.0] - 2025-10-31</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id13">[0.45.0] - 2025-09-17</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id16">[0.44.0] - 2025-08-20</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id19">[0.43.0] - 2025-07-02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id23">[0.42.1] - 2025-06-06</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id25">[0.42.0] - 2025-05-28</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id28">[0.41.0] - 2025-05-14</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id32">[0.40.0] - 2025-04-14</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id36">[0.39.1] - 2025-02-26</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id38">[0.39.0] - 2025-02-25</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id42">[0.38.0] - 2025-02-12</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sap10-release">[0.37.0] - 2025-01-21 - “SAP10” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id50">[0.36.0] - 2024-12-10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id54">[0.35.0] - 2024-11-19</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id57">[0.34.0] - 2024-10-31</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id60">[0.33.0] - 2024-10-18</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id63">[0.32.0] - 2024-09-27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id67">[0.31.0] - 2024-07-26</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id69">[0.30.0] - 2024-06-18</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id72">[0.29.0] - 2024-05-03</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id75">[0.28.0] - 2024-03-18</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id79">[0.27.0] - 2024-01-12</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#srr6-release">[0.26.0] - 2023-11-27 - “SRR6” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id86">[0.25.0] - 2023-11-02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id89">[0.24.0] - 2023-10-27</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id92">[0.23.0] - 2023-10-02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id97">[0.22.0] - 2023-08-09</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id101">[0.21.1] - 2023-07-19</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id103">[0.21.0] - 2023-07-19</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id107">[0.20.0] - 2023-06-30</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id110">[0.19.0] - 2023-06-16</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id113">[0.18.0] - 2023-05-31</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#and-0-17-1-2023-05-16">[0.17.0] and [0.17.1] - 2023-05-16</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#srr5-release">[0.16.0] - 2023-04-17 - “SRR5” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id122">[0.15.0] - 2023-03-03</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id125">[0.14.1] - 2023-02-06</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id127">[0.14.0] - 2023-02-01</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#udf-ux-release">[0.13.0] - 2022-10-10 - “UDF UX” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id133">[0.12.1] - 2022-09-15</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id137">[0.12.0] - 2022-09-09</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id141">[0.11.0] - 2022-07-02</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lps22-release">[0.10.1] - 2022-05-18 - “LPS22” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#srr3-release">[0.10.0] - 2022-04-08 - “SRR3” release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id151">[0.9.2] - 2022-01-14</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id153">[0.9.1] - 2021-11-16</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id157">[0.9.0] - 2021-10-11</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id161">[0.8.2] - 2021-08-24</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id162">[0.8.1] - 2021-08-24</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id166">[0.8.0] - 2021-06-25</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id169">[0.7.0] - 2021-04-21</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id173">[0.6.1] - 2021-03-29</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id175">[0.6.0] - 2021-03-26</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id178">[0.5.0] - 2021-03-17</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id182">[0.4.10] - 2021-02-26</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id186">[0.4.9] - 2021-01-29</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id189">[0.4.8] - 2020-11-17</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id192">[0.4.7] - 2020-10-22</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id197">[0.4.6] - 2020-10-15</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id202">[0.4.5] - 2020-10-01</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id205">[0.4.4] - 2020-08-20</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="federation-extension.html" title="previous chapter">openEO Federation Extension</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/changelog.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

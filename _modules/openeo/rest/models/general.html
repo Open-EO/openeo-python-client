@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.models.general &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.models.general</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_component</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">federation_extension</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.logs</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogEntry</span><span class="p">,</span> <span class="n">normalize_log_level</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.connection</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+<div class="viewcode-block" id="Link">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.Link">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Link</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for (web) link data, used throughout the openEO API,</span>
+<span class="sd">    to point to alternate representations, a license, extra detailed information, and more.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">rel</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">href</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Link.from_dict">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.Link.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Link</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build :py:class:`Link` from dictionary (e.g. parsed JSON representation).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">rel</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;rel&quot;</span><span class="p">],</span> <span class="n">href</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;href&quot;</span><span class="p">],</span> <span class="nb">type</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">))</span></div>
+</div>
+
+
+    <span class="c1"># TODO: add _html_repr_ for Jupyter integration</span>
+    <span class="c1"># TODO: also provide container for list of links with methods to easily look up by `rel` or `type`</span>
+
+
+<div class="viewcode-block" id="CollectionListingResponse">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.CollectionListingResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CollectionListingResponse</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for collection metadata listing received</span>
+<span class="sd">    from a ``GET /collections`` request.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This object mimics, for backward compatibility reasons,</span>
+<span class="sd">        the interface of simple list of collection metadata dictionaries (``List[dict]``),</span>
+<span class="sd">        which was the original return API of</span>
+<span class="sd">        :py:meth:`~openeo.rest.connection.Connection.list_collections()`,</span>
+<span class="sd">        but now also provides methods/properties to access additional response data.</span>
+
+<span class="sd">    :param response_data: response data from a ``GET /collections`` request</span>
+<span class="sd">    :param connection: optional connection object to use for federation extension</span>
+
+<span class="sd">    .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_collections()`</span>
+
+<span class="sd">    .. versionadded:: 0.38.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_data&quot;</span><span class="p">,</span> <span class="s2">&quot;_connection&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">response_data</span>
+        <span class="c1"># Mimic original list of collection metadata dictionaries</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;collections&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(</span><span class="n">auto_warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">federation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="n">component</span><span class="o">=</span><span class="s2">&quot;collections&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;missing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(),</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">federation</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">links</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get links related to this resource.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Link</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+
+<div class="viewcode-block" id="CollectionListingResponse.ext_federation_missing">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.CollectionListingResponse.ext_federation_missing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ext_federation_missing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">auto_warn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of backends IDs (from the federation)</span>
+<span class="sd">        that were not available during the resource listing request.</span>
+
+<span class="sd">        :param auto_warn: whether to automatically log a warning if missing federation components are detected.</span>
+
+<span class="sd">        .. seealso:: :ref:`federation-extension`</span>
+
+<span class="sd">        .. warning:: this API is experimental and subject to change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">federation_extension</span><span class="o">.</span><span class="n">get_federation_missing</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">resource_name</span><span class="o">=</span><span class="s2">&quot;collection listing&quot;</span><span class="p">,</span> <span class="n">auto_warn</span><span class="o">=</span><span class="n">auto_warn</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ProcessListingResponse">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.ProcessListingResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProcessListingResponse</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for process metadata listing received</span>
+<span class="sd">    from a ``GET /processes`` request.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This object mimics, for backward compatibility reasons,</span>
+<span class="sd">        the interface of simple list of process metadata dictionaries (``List[dict]``),</span>
+<span class="sd">        :py:meth:`~openeo.rest.connection.Connection.list_processes()`,</span>
+<span class="sd">        but now also provides methods/properties to access additional response data.</span>
+
+<span class="sd">    :param response_data: response data from a ``GET /processes`` request</span>
+<span class="sd">    :param connection: optional connection object to use for federation extension</span>
+
+<span class="sd">    .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_processes()`</span>
+
+<span class="sd">    .. versionadded:: 0.38.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_data&quot;</span><span class="p">,</span> <span class="s2">&quot;_connection&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">response_data</span>
+        <span class="c1"># Mimic original list of process metadata dictionaries</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;processes&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(</span><span class="n">auto_warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">federation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="n">component</span><span class="o">=</span><span class="s2">&quot;processes&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;show-graph&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;provide-download&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;missing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(),</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">federation</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">links</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get links related to this resource.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Link</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+
+<div class="viewcode-block" id="ProcessListingResponse.ext_federation_missing">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.ProcessListingResponse.ext_federation_missing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ext_federation_missing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">auto_warn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of backends IDs (from the federation)</span>
+<span class="sd">        that were not available during the resource listing request.</span>
+
+<span class="sd">        :param auto_warn: whether to automatically log a warning if missing federation components are detected.</span>
+
+<span class="sd">        .. seealso:: :ref:`federation-extension`</span>
+
+<span class="sd">        .. warning:: this API is experimental and subject to change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">federation_extension</span><span class="o">.</span><span class="n">get_federation_missing</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">resource_name</span><span class="o">=</span><span class="s2">&quot;process listing&quot;</span><span class="p">,</span> <span class="n">auto_warn</span><span class="o">=</span><span class="n">auto_warn</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="JobListingResponse">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.JobListingResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobListingResponse</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for job metadata listing received</span>
+<span class="sd">    from a ``GET /jobs`` request.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This object mimics, for backward compatibility reasons,</span>
+<span class="sd">        the interface of simple list of job metadata dictionaries (``List[dict]``),</span>
+<span class="sd">        which was the original return API of</span>
+<span class="sd">        :py:meth:`~openeo.rest.connection.Connection.list_jobs()`,</span>
+<span class="sd">        but now also provides methods/properties to access additional response data.</span>
+
+<span class="sd">    :param response_data: response data from a ``GET /jobs`` request</span>
+<span class="sd">    :param connection: optional connection object to use for federation extension</span>
+
+<span class="sd">    .. seealso:: :py:meth:`openeo.rest.connection.Connection.list_jobs()`</span>
+
+<span class="sd">    .. versionadded:: 0.38.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_data&quot;</span><span class="p">,</span> <span class="s2">&quot;_connection&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">response_data</span>
+        <span class="c1"># Mimic original list of process metadata dictionaries</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;jobs&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(</span><span class="n">auto_warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">federation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="n">component</span><span class="o">=</span><span class="s2">&quot;data-table&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;columns&quot;</span><span class="p">:</span> <span class="s2">&quot;jobs&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;missing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(),</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">federation</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">links</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get links related to this resource.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Link</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+
+<div class="viewcode-block" id="JobListingResponse.ext_federation_missing">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.JobListingResponse.ext_federation_missing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ext_federation_missing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">auto_warn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of backends IDs (from the federation)</span>
+<span class="sd">        that were not available during the resource listing request.</span>
+
+<span class="sd">        :param auto_warn: whether to automatically log a warning if missing federation components are detected.</span>
+
+<span class="sd">        .. seealso:: :ref:`federation-extension`</span>
+
+<span class="sd">        .. warning:: this API is experimental and subject to change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">federation_extension</span><span class="o">.</span><span class="n">get_federation_missing</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">resource_name</span><span class="o">=</span><span class="s2">&quot;job listing&quot;</span><span class="p">,</span> <span class="n">auto_warn</span><span class="o">=</span><span class="n">auto_warn</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="LogsResponse">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.LogsResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LogsResponse</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for job/service logs as received</span>
+<span class="sd">    from a ``GET /jobs/{job_id}/logs`` or ``GET /services/{service_id}/logs`` request.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This object mimics, for backward compatibility reasons,</span>
+<span class="sd">        the interface of a simple list (``List[LogEntry]``)</span>
+<span class="sd">        which was the original return API of</span>
+<span class="sd">        :py:meth:`~openeo.rest.job.BatchJob.logs()`</span>
+<span class="sd">        and :py:meth:`~openeo.rest.service.Service.logs()`,</span>
+<span class="sd">        but now also provides methods/properties to access additional response data.</span>
+
+<span class="sd">    :param response_data: response data from a ``GET /jobs/{job_id}/logs``</span>
+<span class="sd">        or ``GET /services/{service_id}/logs`` request.</span>
+<span class="sd">    :param connection: optional connection object to use for federation extension</span>
+
+<span class="sd">    .. seealso:: :py:meth:`~openeo.rest.job.BatchJob.logs()`</span>
+<span class="sd">        and :py:meth:`~openeo.rest.service.Service.logs()`</span>
+
+<span class="sd">    .. versionadded:: 0.38.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_data&quot;</span><span class="p">,</span> <span class="s2">&quot;_connection&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">response_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">log_level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">response_data</span>
+
+        <span class="n">logs</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logs&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="c1"># Extra client-side level filtering (in case the back-end does not support that)</span>
+        <span class="k">if</span> <span class="n">log_level</span><span class="p">:</span>
+
+            <span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">accept_level</span><span class="p">(</span><span class="n">level</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">normalize_log_level</span><span class="p">(</span><span class="n">level</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">normalize_log_level</span><span class="p">(</span><span class="n">log_level</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="c1"># Backend does not list effective lowest level</span>
+                <span class="s2">&quot;level&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response_data</span>
+                <span class="c1"># Or effective lowest level is still too low</span>
+                <span class="ow">or</span> <span class="ow">not</span> <span class="n">accept_level</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;level&quot;</span><span class="p">])</span>
+            <span class="p">):</span>
+                <span class="n">logs</span> <span class="o">=</span> <span class="p">(</span><span class="n">log</span> <span class="k">for</span> <span class="n">log</span> <span class="ow">in</span> <span class="n">logs</span> <span class="k">if</span> <span class="n">accept_level</span><span class="p">(</span><span class="n">log</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;level&quot;</span><span class="p">)))</span>
+        <span class="n">logs</span> <span class="o">=</span> <span class="p">[</span><span class="n">LogEntry</span><span class="p">(</span><span class="n">log</span><span class="p">)</span> <span class="k">for</span> <span class="n">log</span> <span class="ow">in</span> <span class="n">logs</span><span class="p">]</span>
+
+        <span class="c1"># Mimic original list of process metadata dictionaries</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">logs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(</span><span class="n">auto_warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">federation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="n">component</span><span class="o">=</span><span class="s2">&quot;logs&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;missing&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_federation_missing</span><span class="p">(),</span>
+                <span class="s2">&quot;federation&quot;</span><span class="p">:</span> <span class="n">federation</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">LogEntry</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the log entries.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">links</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get links related to this resource.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Link</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;links&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+
+<div class="viewcode-block" id="LogsResponse.ext_federation_missing">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.LogsResponse.ext_federation_missing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ext_federation_missing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">auto_warn</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of backends IDs (from the federation)</span>
+<span class="sd">        that were not available during the resource listing request.</span>
+
+<span class="sd">        :param auto_warn: whether to automatically log a warning if missing federation components are detected.</span>
+
+<span class="sd">        .. seealso:: :ref:`federation-extension`</span>
+
+<span class="sd">        .. warning:: this API is experimental and subject to change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">federation_extension</span><span class="o">.</span><span class="n">get_federation_missing</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">resource_name</span><span class="o">=</span><span class="s2">&quot;log listing&quot;</span><span class="p">,</span> <span class="n">auto_warn</span><span class="o">=</span><span class="n">auto_warn</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ValidationResponse">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.ValidationResponse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ValidationResponse</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for process metadata listing received</span>
+<span class="sd">    from a ``POST /validation`` request.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This object mimics, for backward compatibility reasons,</span>
+<span class="sd">        the interface of simple list of validation error dictionaries (``List[dict]``),</span>
+<span class="sd">        :py:meth:`~openeo.rest.connection.Connection.validate_process_graph()`,</span>
+<span class="sd">        but now also provides methods/properties to access additional response data.</span>
+
+<span class="sd">    :param response_data: response data from a ``POST /validation`` request</span>
+
+<span class="sd">    .. seealso:: :py:meth:`openeo.rest.connection.Connection.validate_process_graph()`</span>
+
+<span class="sd">    .. versionadded:: 0.38.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_data&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">response_data</span>
+        <span class="c1"># Mimic original list of validation error dictionaries</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;errors&quot;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="ValidationResponse.ext_federation_backends">
+<a class="viewcode-back" href="../../../../api.html#openeo.rest.models.general.ValidationResponse.ext_federation_backends">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ext_federation_backends</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get &quot;federation:backends&quot; value from validation response.</span>
+
+<span class="sd">        .. seealso:: :ref:`federation-extension`</span>
+
+<span class="sd">        .. warning:: this API is experimental and subject to change.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">federation_extension</span><span class="o">.</span><span class="n">get_federation_backends</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

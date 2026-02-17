@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Batch Jobs &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=ad3dbffd" />
+    <script src="_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User-Defined Processes (UDP)" href="udp.html" />
+    <link rel="prev" title="Working with processes" href="processes.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="batch-jobs">
+<span id="batch-jobs-chapter"></span><span id="index-0"></span><h1>Batch Jobs<a class="headerlink" href="#batch-jobs" title="Link to this heading">¶</a></h1>
+<p>Most of the simple, basic openEO usage examples show <strong>synchronous</strong> downloading of results:
+you submit a process graph with a (HTTP POST) request and receive the result
+as direct response of that same request.
+This only works properly if the processing doesn’t take too long (order of seconds, or a couple of minutes at most).</p>
+<p>For the heavier work (larger regions of interest, larger time series, more intensive processing, …)
+you have to use <strong>batch jobs</strong>, which are supported in the openEO API through separate HTTP requests, corresponding to these steps:</p>
+<ul class="simple">
+<li><p>you create a job (providing a process graph and some other metadata like title, description, …)</p></li>
+<li><p>you start the job</p></li>
+<li><p>you wait for the job to finish, periodically polling its status</p></li>
+<li><p>when the job finished successfully: get the listing of result assets</p></li>
+<li><p>you download the result assets (or use them in an other way)</p></li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>This documentation mainly discusses how to <strong>programmatically</strong>
+create and interact with batch job using the openEO Python client library.
+The openEO API however does not enforce usage of the same tool
+for each step in the batch job life cycle.</p>
+<p>For example: if you prefer a graphical, web-based <strong>interactive environment</strong>
+to manage and monitor your batch jobs,
+feel free to <em>switch to an openEO web editor</em>
+like <a class="reference external" href="https://editor.openeo.org/">editor.openeo.org</a>
+or <a class="reference external" href="https://editor.openeo.cloud/">editor.openeo.cloud</a>
+at any time.
+After logging in with the same account you use in your Python scripts,
+you should see your batch jobs listed under the “Data Processing” tab:</p>
+<img alt="_images/batchjobs-webeditor-listing.png" src="_images/batchjobs-webeditor-listing.png" />
+<p>With the “action” buttons on the right, you can for example
+inspect batch job details, start/stop/delete jobs,
+download their results, get batch job logs, etc.</p>
+</div>
+<section id="create-a-batch-job">
+<span id="index-1"></span><h2>Create a batch job<a class="headerlink" href="#create-a-batch-job" title="Link to this heading">¶</a></h2>
+<p>In the openEO Python Client Library, if you have a (raster) data cube, you can easily
+create a batch job with the <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.create_job" title="openeo.rest.datacube.DataCube.create_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.create_job()</span></code></a> method.
+It’s important to specify in what <em>format</em> the result should be stored,
+which can be done with an explicit <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.save_result" title="openeo.rest.datacube.DataCube.save_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DataCube.save_result()</span></code></a> call before creating the job:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="o">...</span>
+<span class="c1"># Store raster data as GeoTIFF files</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">create_job</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>or directly in <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.create_job" title="openeo.rest.datacube.DataCube.create_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job.create_job()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="o">...</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">out_format</span><span class="o">=</span><span class="s2">&quot;GTiff)</span>
+</pre></div>
+</div>
+<p>While not necessary, it is also recommended to give your batch job a descriptive title
+so it’s easier to identify in your job listing, e.g.:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;NDVI timeseries 2022&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="batch-job-object">
+<span id="index-2"></span><h2>Batch job object<a class="headerlink" href="#batch-job-object" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">job</span></code> object returned by <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.create_job" title="openeo.rest.datacube.DataCube.create_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_job()</span></code></a>
+is a <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> object.
+It is basically a <em>client-side reference</em> to a batch job that <em>exists on the back-end</em>
+and allows to interact with that batch job
+(see the <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> API docs for
+available methods).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> class originally had
+the more cryptic name <a class="reference internal" href="api.html#openeo.rest.job.RESTJob" title="openeo.rest.job.RESTJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">RESTJob</span></code></a>,
+which is still available as legacy alias,
+but <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> is (available and) recommended since version 0.11.0.</p>
+</div>
+<p>A batch job on a back-end is fully identified by its
+<a class="reference internal" href="api.html#openeo.rest.job.BatchJob.job_id" title="openeo.rest.job.BatchJob.job_id"><code class="xref py py-data docutils literal notranslate"><span class="pre">job_id</span></code></a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+<span class="go">&#39;d5b8b8f2-74ce-4c2e-b06d-bff6f9b14b8d&#39;</span>
+</pre></div>
+</div>
+<section id="reconnecting-to-a-batch-job">
+<h3>Reconnecting to a batch job<a class="headerlink" href="#reconnecting-to-a-batch-job" title="Link to this heading">¶</a></h3>
+<p>Depending on your situation or use case:
+make sure to properly take note of the batch job id.
+It allows you to “reconnect” to your job on the back-end,
+even if it was created at another time,
+by another script/notebook or even with another openEO client.</p>
+<p>Given a back-end connection and the batch job id,
+use <a class="reference internal" href="api.html#openeo.rest.connection.Connection.job" title="openeo.rest.connection.Connection.job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.job()</span></code></a>
+to create a <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> object for an existing batch job:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job_id</span> <span class="o">=</span> <span class="s2">&quot;5d806224-fe79-4a54-be04-90757893795b&quot;</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="jupyter-integration">
+<h3>Jupyter integration<a class="headerlink" href="#jupyter-integration" title="Link to this heading">¶</a></h3>
+<p><a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> objects have basic Jupyter notebook integration.
+Put your <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> object as last statement
+in a notebook cell and you get an overview of your batch jobs,
+including job id, status, title and even process graph visualization:</p>
+<img alt="_images/batchjobs-jupyter-created.png" src="_images/batchjobs-jupyter-created.png" />
+</section>
+</section>
+<section id="list-your-batch-jobs">
+<span id="index-3"></span><h2>List your batch jobs<a class="headerlink" href="#list-your-batch-jobs" title="Link to this heading">¶</a></h2>
+<p>You can list your batch jobs on the back-end with
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_jobs" title="openeo.rest.connection.Connection.list_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.list_jobs()</span></code></a>, which returns a list of job metadata:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">connection</span><span class="o">.</span><span class="n">list_jobs</span><span class="p">()</span>
+<span class="go">[{&#39;title&#39;: &#39;NDVI timeseries 2022&#39;, &#39;status&#39;: &#39;created&#39;, &#39;id&#39;: &#39;d5b8b8f2-74ce-4c2e-b06d-bff6f9b14b8d&#39;, &#39;created&#39;: &#39;2022-06-08T08:58:11Z&#39;},</span>
+<span class="go"> {&#39;title&#39;: &#39;NDVI timeseries 2021&#39;, &#39;status&#39;: &#39;finished&#39;, &#39;id&#39;: &#39;4e720e70-88bd-40bc-92db-a366985ebd67&#39;, &#39;created&#39;: &#39;2022-06-04T14:46:06Z&#39;},</span>
+<span class="go"> ...</span>
+</pre></div>
+</div>
+<p>The listing returned by <a class="reference internal" href="api.html#openeo.rest.connection.Connection.list_jobs" title="openeo.rest.connection.Connection.list_jobs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.list_jobs()</span></code></a>
+has Jupyter notebook integration:</p>
+<img alt="_images/batchjobs-jupyter-listing.png" src="_images/batchjobs-jupyter-listing.png" />
+</section>
+<section id="run-a-batch-job">
+<span id="index-4"></span><h2>Run a batch job<a class="headerlink" href="#run-a-batch-job" title="Link to this heading">¶</a></h2>
+<p>Starting a batch job is pretty straightforward with the
+<a class="reference internal" href="api.html#openeo.rest.job.BatchJob.start" title="openeo.rest.job.BatchJob.start"><code class="xref py py-meth docutils literal notranslate"><span class="pre">start()</span></code></a> method:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>If this didn’t raise any errors or exceptions your job
+should now have started (status “running”)
+or be queued for processing (status “queued”).</p>
+<section id="wait-for-a-batch-job-to-finish">
+<span id="index-5"></span><h3>Wait for a batch job to finish<a class="headerlink" href="#wait-for-a-batch-job-to-finish" title="Link to this heading">¶</a></h3>
+<p>A batch job typically takes some time to finish,
+and you can check its status with the <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.status" title="openeo.rest.job.BatchJob.status"><code class="xref py py-meth docutils literal notranslate"><span class="pre">status()</span></code></a> method:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+<span class="go">&quot;running&quot;</span>
+</pre></div>
+</div>
+<p>The possible batch job status values, defined by the openEO API, are
+“created”, “queued”, “running”, “canceled”, “finished” and “error”.</p>
+<p>Usually, you can only reliably get results from your job,
+as discussed in <a class="reference internal" href="#batch-job-results"><span class="std std-ref">Download batch job results</span></a>,
+when it reaches status “finished”.</p>
+</section>
+<section id="create-start-and-wait-in-one-go">
+<span id="index-6"></span><h3>Create, start and wait in one go<a class="headerlink" href="#create-start-and-wait-in-one-go" title="Link to this heading">¶</a></h3>
+<p>You could, depending on your situation, manually check your job’s status periodically
+or set up a <strong>polling loop</strong> system to keep an eye on your job.
+The openEO Python client library also provides helpers to do that for you.</p>
+<p>Working from an existing <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> instance</p>
+<blockquote>
+<div><p>If you have a batch job that is already created as shown above, you can use
+the <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.start_and_wait" title="openeo.rest.job.BatchJob.start_and_wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job.start_and_wait()</span></code></a> method
+to start it and periodically poll its status until it reaches status “finished” (or fails with status “error”).
+Along the way it will print some progress messages.</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">()</span>
+<span class="go">0:00:00 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: send &#39;start&#39;</span>
+<span class="go">0:00:36 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: queued (progress N/A)</span>
+<span class="go">0:01:35 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: queued (progress N/A)</span>
+<span class="go">0:02:19 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: running (progress N/A)</span>
+<span class="go">0:02:50 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: running (progress N/A)</span>
+<span class="go">0:03:28 Job &#39;b0e8adcf-087f-41de-afe6-b3c0ea88ff38&#39;: finished (progress N/A)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Working from a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> instance</p>
+<blockquote>
+<div><p>If you didn’t create the batch job yet from a given <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a>
+you can do the job creation, starting and waiting in one go
+with <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.execute_batch" title="openeo.rest.datacube.DataCube.execute_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cube.execute_batch()</span></code></a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">()</span>
+<span class="go">0:00:00 Job &#39;f9f4e3d3-bc13-441b-b76a-b7bfd3b59669&#39;: send &#39;start&#39;</span>
+<span class="go">0:00:23 Job &#39;f9f4e3d3-bc13-441b-b76a-b7bfd3b59669&#39;: queued (progress N/A)</span>
+<span class="go">...</span>
+</pre></div>
+</div>
+<p>Note that <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.execute_batch" title="openeo.rest.datacube.DataCube.execute_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cube.execute_batch()</span></code></a>
+returns a <a class="reference internal" href="api.html#openeo.rest.job.BatchJob" title="openeo.rest.job.BatchJob"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchJob</span></code></a> instance pointing to
+the newly created batch job.</p>
+</div></blockquote>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>You can fine-tune the details of the polling loop (the poll frequency,
+how the progress is printed, …).
+See <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.start_and_wait" title="openeo.rest.job.BatchJob.start_and_wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job.start_and_wait()</span></code></a>
+or <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.execute_batch" title="openeo.rest.datacube.DataCube.execute_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cube.execute_batch()</span></code></a>
+for more information.</p>
+</div>
+</section>
+</section>
+<section id="batch-job-logs">
+<span id="index-7"></span><span id="id1"></span><h2>Batch job logs<a class="headerlink" href="#batch-job-logs" title="Link to this heading">¶</a></h2>
+<p>Batch jobs in openEO have <strong>logs</strong> to help with <em>monitoring and debugging</em> batch jobs.
+The back-end typically uses this to dump information during data processing
+that may be relevant for the user (e.g. warnings, resource stats, …).
+Moreover, openEO processes like <code class="docutils literal notranslate"><span class="pre">inspect</span></code> allow users to log their own information.</p>
+<p>Batch job logs can be fetched with <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.logs" title="openeo.rest.job.BatchJob.logs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job.logs()</span></code></a></p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
+<span class="go">[{&#39;id&#39;: &#39;log001&#39;, &#39;level&#39;: &#39;info&#39;, &#39;message&#39;: &#39;Job started with 4 workers&#39;},</span>
+<span class="go"> {&#39;id&#39;: &#39;log002&#39;, &#39;level&#39;: &#39;debug&#39;, &#39;message&#39;: &#39;Loading 5x3x6 tiles&#39;},</span>
+<span class="go"> {&#39;id&#39;: &#39;log003&#39;, &#39;level&#39;: &#39;error&#39;, &#39;message&#39;: &quot;Failed to load data cube: corrupt data for tile &#39;J9A7K2&#39;.&quot;},</span>
+<span class="go">...</span>
+</pre></div>
+</div>
+<p>In a Jupyter notebook environment, this also comes with Jupyter integration:</p>
+<img alt="_images/batchjobs-jupyter-logs.png" src="_images/batchjobs-jupyter-logs.png" />
+<section id="automatic-batch-job-log-printing">
+<h3>Automatic batch job log printing<a class="headerlink" href="#automatic-batch-job-log-printing" title="Link to this heading">¶</a></h3>
+<p>When using
+<a class="reference internal" href="api.html#openeo.rest.job.BatchJob.start_and_wait" title="openeo.rest.job.BatchJob.start_and_wait"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job.start_and_wait()</span></code></a>
+or <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube.execute_batch" title="openeo.rest.datacube.DataCube.execute_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">cube.execute_batch()</span></code></a>
+to run a batch job and it fails,
+the openEO Python client library will print (by default)
+the batch job’s error logs and instructions to help with further investigation:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">job</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">()</span>
+<span class="go">0:00:00 Job &#39;68caccff-54ee-470f-abaa-559ed2d4e53c&#39;: send &#39;start&#39;</span>
+<span class="go">0:00:01 Job &#39;68caccff-54ee-470f-abaa-559ed2d4e53c&#39;: running (progress N/A)</span>
+<span class="go">0:00:07 Job &#39;68caccff-54ee-470f-abaa-559ed2d4e53c&#39;: error (progress N/A)</span>
+
+<span class="go">Your batch job &#39;68caccff-54ee-470f-abaa-559ed2d4e53c&#39; failed.</span>
+<span class="go">Logs can be inspected in an openEO (web) editor</span>
+<span class="go">or with `connection.job(&#39;68caccff-54ee-470f-abaa-559ed2d4e53c&#39;).logs()`.</span>
+
+<span class="go">Printing logs:</span>
+<span class="go">[{&#39;id&#39;: &#39;log001&#39;, &#39;level&#39;: &#39;info&#39;, &#39;message&#39;: &#39;Job started with 4 workers&#39;},</span>
+<span class="go">{&#39;id&#39;: &#39;log002&#39;, &#39;level&#39;: &#39;debug&#39;, &#39;message&#39;: &#39;Loading 5x3x6 tiles&#39;},</span>
+<span class="go">{&#39;id&#39;: &#39;log003&#39;, &#39;level&#39;: &#39;error&#39;, &#39;message&#39;: &quot;Failed to load data cube: corrupt data for tile &#39;J9A7K2&#39;.&quot;}]</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="download-batch-job-results">
+<span id="batch-job-results"></span><span id="index-8"></span><h2>Download batch job results<a class="headerlink" href="#download-batch-job-results" title="Link to this heading">¶</a></h2>
+<p>Once a batch job is finished you can get a handle to the results
+(which can be a single file or multiple files) and metadata
+with <a class="reference internal" href="api.html#openeo.rest.job.BatchJob.get_results" title="openeo.rest.job.BatchJob.get_results"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_results()</span></code></a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">results</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">results</span>
+<span class="go">&lt;JobResults for job &#39;57da31da-7fd4-463a-9d7d-c9c51646b6a4&#39;&gt;</span>
+</pre></div>
+</div>
+<p>The result metadata describes the spatio-temporal properties of the result
+and is in fact a valid STAC item:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">results</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+<span class="go">{</span>
+<span class="go">    &#39;bbox&#39;: [3.5, 51.0, 3.6, 51.1],</span>
+<span class="go">    &#39;geometry&#39;: {&#39;coordinates&#39;: [[[3.5, 51.0], [3.5, 51.1], [3.6, 51.1], [3.6, 51.0], [3.5, 51.0]]], &#39;type&#39;: &#39;Polygon&#39;},</span>
+<span class="go">    &#39;assets&#39;: {</span>
+<span class="go">        &#39;res001.tiff&#39;: {</span>
+<span class="go">            &#39;href&#39;: &#39;https://openeo.example/download/432f3b3ef3a.tiff&#39;,</span>
+<span class="go">            &#39;type&#39;: &#39;image/tiff; application=geotiff&#39;,</span>
+<span class="go">            ...</span>
+<span class="go">        &#39;res002.tiff&#39;: {</span>
+<span class="go">            ...</span>
+</pre></div>
+</div>
+<section id="download-all-assets">
+<h3>Download all assets<a class="headerlink" href="#download-all-assets" title="Link to this heading">¶</a></h3>
+<p>In the general case, when you have one or more result files (also called “assets”),
+the easiest option to download them is
+using <a class="reference internal" href="api.html#openeo.rest.job.JobResults.download_files" title="openeo.rest.job.JobResults.download_files"><code class="xref py py-meth docutils literal notranslate"><span class="pre">download_files()</span></code></a> (plural)
+where you just specify a download folder
+(otherwise the current working directory will be used by default):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="s2">&quot;data/out&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The resulting files will be named as they are advertised in the results metadata
+(e.g. <code class="docutils literal notranslate"><span class="pre">res001.tiff</span></code> and <code class="docutils literal notranslate"><span class="pre">res002.tiff</span></code> in case of the metadata example above).</p>
+</section>
+<section id="download-single-asset">
+<h3>Download single asset<a class="headerlink" href="#download-single-asset" title="Link to this heading">¶</a></h3>
+<p>If you know that there is just a single result file, you can also download it directly with
+<a class="reference internal" href="api.html#openeo.rest.job.JobResults.download_file" title="openeo.rest.job.JobResults.download_file"><code class="xref py py-meth docutils literal notranslate"><span class="pre">download_file()</span></code></a> (singular) with the desired file name:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="s2">&quot;data/out/result.tiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This will fail however if there are multiple assets in the job result
+(like in the metadata example above).
+In that case you can still download a single by specifying which one you
+want to download with the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="s2">&quot;data/out/result.tiff&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;res002.tiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="fine-grained-asset-downloads">
+<h3>Fine-grained asset downloads<a class="headerlink" href="#fine-grained-asset-downloads" title="Link to this heading">¶</a></h3>
+<p>If you need a bit more control over which asset to download and how,
+you can iterate over the result assets explicitly
+and download these <a class="reference internal" href="api.html#openeo.rest.job.ResultAsset" title="openeo.rest.job.ResultAsset"><code class="xref py py-class docutils literal notranslate"><span class="pre">ResultAsset</span></code></a> instances
+with <a class="reference internal" href="api.html#openeo.rest.job.ResultAsset.download" title="openeo.rest.job.ResultAsset.download"><code class="xref py py-meth docutils literal notranslate"><span class="pre">download()</span></code></a>, like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">get_assets</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">asset</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;image/tiff&quot;</span><span class="p">):</span>
+        <span class="n">asset</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;data/out/result-v2-&quot;</span> <span class="o">+</span> <span class="n">asset</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="directly-load-batch-job-results">
+<h2>Directly load batch job results<a class="headerlink" href="#directly-load-batch-job-results" title="Link to this heading">¶</a></h2>
+<p>If you want to skip downloading an asset to disk, you can also load it directly.
+For example, load a JSON asset with <a class="reference internal" href="api.html#openeo.rest.job.ResultAsset.load_json" title="openeo.rest.job.ResultAsset.load_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_json()</span></code></a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">asset</span><span class="o">.</span><span class="n">metadata</span>
+<span class="go">{&quot;type&quot;: &quot;application/json&quot;, &quot;href&quot;: &quot;https://openeo.example/download/432f3b3ef3a.json&quot;}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="n">asset</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span>
+<span class="go">{&quot;2021-02-24T10:59:23Z&quot;: [[3, 2, 5], [3, 4, 5]], ....}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Batch Jobs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-batch-job">Create a batch job</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-job-object">Batch job object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#list-your-batch-jobs">List your batch jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-a-batch-job">Run a batch job</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-job-logs">Batch job logs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#download-batch-job-results">Download batch job results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#directly-load-batch-job-results">Directly load batch job results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="processes.html" title="previous chapter">Working with processes</a></li>
+      <li>Next: <a href="udp.html" title="next chapter">User-Defined Processes (UDP)</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/batch_jobs.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

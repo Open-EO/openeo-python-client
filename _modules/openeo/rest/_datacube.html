@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest._datacube &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest._datacube</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">textwrap</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.graph_building</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlatGraphableMixin</span><span class="p">,</span> <span class="n">PGNode</span><span class="p">,</span> <span class="n">_FromNodeMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_component</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.processes.builder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">convert_callable_to_pgnode</span><span class="p">,</span>
+    <span class="n">get_parameter_names</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UserDeprecationWarning</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenEoClientException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.general</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationResponse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">dict_no_none</span><span class="p">,</span> <span class="n">str_truncate</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.connection</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Sentinel object to refer to &quot;current&quot; cube in chained cube processing expressions.</span>
+<span class="n">THIS</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_ProcessGraphAbstraction</span><span class="p">(</span><span class="n">_FromNodeMixin</span><span class="p">,</span> <span class="n">FlatGraphableMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for client-side abstractions/wrappers</span>
+<span class="sd">    for structures that are represented by a openEO process graph:</span>
+<span class="sd">    raster data cubes, vector cubes, ML models, ...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pgnode</span><span class="p">:</span> <span class="n">PGNode</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Connection</span><span class="p">,</span> <span class="kc">None</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pg</span> <span class="o">=</span> <span class="n">pgnode</span>
+        <span class="c1"># TODO: now that connection can officially be None:</span>
+        <span class="c1">#       improve exceptions in cases where is it still assumed to be a real connection (download, create_job, ...)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{t}</span><span class="s2">(</span><span class="si">{pg}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">pg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_pg</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">flat_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the process graph in internal flat dict representation.</span>
+
+<span class="sd">        .. warning:: This method is mainly intended for internal use.</span>
+<span class="sd">            It is not recommended for general use and is *subject to change*.</span>
+
+<span class="sd">            Instead, it is recommended to use</span>
+<span class="sd">            :py:meth:`to_json()` or :py:meth:`print_json()`</span>
+<span class="sd">            to obtain a standardized, interoperable JSON representation of the process graph.</span>
+<span class="sd">            See :ref:`process_graph_export` for more information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: wrap in {&quot;process_graph&quot;:...} by default/optionally?</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pg</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_api_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">api_version_check</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">connection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Connection</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">result_node</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PGNode</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the current result node (:py:class:`PGNode`) of the process graph.</span>
+
+<span class="sd">        .. versionadded:: 0.10.1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pg</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_node</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># _FromNodeMixin API</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pg</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_pgnode</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PGNode</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper to build a PGNode from given argument dict and/or kwargs,</span>
+<span class="sd">        and possibly resolving the `THIS` reference.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="n">THIS</span><span class="p">:</span>
+                <span class="n">arguments</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+            <span class="c1"># TODO: also necessary to traverse lists/dictionaries?</span>
+        <span class="k">return</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="n">process_id</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+
+    <span class="c1"># TODO #278 also move process graph &quot;execution&quot; methods here: `download`, `execute`, `execute_batch`, `create_job`, `save_udf`,  ...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValidationResponse</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate a process graph without executing it.</span>
+
+<span class="sd">        :return: container of validation of errors (dictionaries with &quot;code&quot; and &quot;message&quot; fields)</span>
+
+<span class="sd">        .. versionadded:: 0.41.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">validate_process_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;process_graph&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">()}</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">,</span>
+            <span class="s2">&quot;explicit-zoom&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">&quot;height&quot;</span><span class="p">:</span> <span class="s2">&quot;400px&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span><span class="s2">&quot;model-builder&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">process</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="UDF">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.datacube.UDF">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UDF</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper class to load UDF code (e.g. from file) and embed them as &quot;callback&quot; or child process in a process graph.</span>
+
+<span class="sd">    Usage example:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        udf = UDF.from_file(&quot;my-udf-code.py&quot;)</span>
+<span class="sd">        cube = cube.apply(process=udf)</span>
+
+
+<span class="sd">    .. versionchanged:: 0.13.0</span>
+<span class="sd">        Added auto-detection of ``runtime``.</span>
+<span class="sd">        Specifying the ``data`` argument is not necessary anymore, and actually deprecated.</span>
+<span class="sd">        Added :py:meth:`from_file` to simplify loading UDF code from a file.</span>
+<span class="sd">        See :ref:`old_udf_api` for more background about the changes.</span>
+
+<span class="sd">    .. versionchanged:: 0.43.0</span>
+<span class="sd">        Automatically un-indent given UDF code,</span>
+<span class="sd">        to simplify writing valid and properly formatted inline UDF code.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: eliminate dependency on `openeo.rest.connection` and move to somewhere under `openeo.internal`?</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;code&quot;</span><span class="p">,</span> <span class="s2">&quot;_runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="s2">&quot;_source&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">runtime</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># TODO #181 remove `data` argument</span>
+        <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_dedent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct a UDF object from given code string and other argument related to the ``run_udf`` process.</span>
+
+<span class="sd">        :param code: UDF source code string (Python, R, ...)</span>
+<span class="sd">        :param runtime: optional UDF runtime identifier, will be autodetected from source code if omitted.</span>
+<span class="sd">        :param data: unused leftover from old API. Don&#39;t use this argument, it will be removed in a future release.</span>
+<span class="sd">        :param version: optional UDF runtime version string</span>
+<span class="sd">        :param context: optional additional UDF context data</span>
+<span class="sd">        :param _source: (for internal use) source identifier</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">auto_dedent</span><span class="p">:</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">textwrap</span><span class="o">.</span><span class="n">dedent</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runtime</span> <span class="o">=</span> <span class="n">runtime</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">_source</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># TODO #181 remove `data` argument</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The `data` argument of `</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">` is deprecated, unused and will be removed in a future release.&quot;</span><span class="p">,</span>
+                <span class="n">category</span><span class="o">=</span><span class="n">UserDeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> runtime=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_runtime</span><span class="si">!r}</span><span class="s2"> code=</span><span class="si">{</span><span class="n">str_truncate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">width</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="si">!r}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_runtime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_runtime</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guess_runtime</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UDF.from_file">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.datacube.UDF.from_file">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_file</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
+        <span class="n">runtime</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UDF</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a UDF from a local file.</span>
+
+<span class="sd">        .. seealso::</span>
+<span class="sd">            :py:meth:`from_url` for loading from a URL.</span>
+
+<span class="sd">        :param path: path to the local file with UDF source code</span>
+<span class="sd">        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.</span>
+<span class="sd">        :param version: optional UDF runtime version string</span>
+<span class="sd">        :param context: optional additional UDF context data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span> <span class="n">_source</span><span class="o">=</span><span class="n">path</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="UDF.from_url">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.datacube.UDF.from_url">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_url</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">runtime</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UDF</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a UDF from a URL.</span>
+
+<span class="sd">        .. seealso::</span>
+<span class="sd">            :py:meth:`from_file` for loading from a local file.</span>
+
+<span class="sd">        :param url: URL path to load the UDF source code from</span>
+<span class="sd">        :param runtime: optional UDF runtime identifier, will be auto-detected from source code if omitted.</span>
+<span class="sd">        :param version: optional UDF runtime version string</span>
+<span class="sd">        :param context: optional additional UDF context data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span> <span class="n">_source</span><span class="o">=</span><span class="n">url</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_guess_runtime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Guess UDF runtime from UDF source (path) or source code.&quot;&quot;&quot;</span>
+        <span class="c1"># First, guess UDF language</span>
+        <span class="n">language</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">):</span>
+            <span class="n">language</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guess_runtime_from_suffix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">url_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+                <span class="sa">r</span><span class="s2">&quot;https?://.*?(?P&lt;suffix&gt;\.\w+)([&amp;#].*)?$&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">url_match</span><span class="p">:</span>
+                <span class="n">language</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guess_runtime_from_suffix</span><span class="p">(</span><span class="n">url_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;suffix&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">language</span><span class="p">:</span>
+            <span class="c1"># Guess language from UDF code</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^def [\w0-9_]+\(&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">):</span>
+                <span class="n">language</span> <span class="o">=</span> <span class="s2">&quot;Python&quot;</span>
+            <span class="c1"># TODO: detection heuristics for R and other languages?</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">language</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">&quot;Failed to detect language of UDF code.&quot;</span><span class="p">)</span>
+        <span class="n">runtime</span> <span class="o">=</span> <span class="n">language</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="p">:</span>
+            <span class="c1"># Some additional best-effort validation/normalization of the runtime</span>
+            <span class="c1"># TODO: this just does some case-normalization, just drop that all together to eliminate</span>
+            <span class="c1">#       the dependency on a connection object. See https://github.com/Open-EO/openeo-api/issues/510</span>
+            <span class="n">runtimes</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">connection</span><span class="o">.</span><span class="n">list_udf_runtimes</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+            <span class="n">runtime</span> <span class="o">=</span> <span class="n">runtimes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">runtime</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">runtime</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">runtime</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_guess_runtime_from_suffix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;.py&quot;</span><span class="p">:</span> <span class="s2">&quot;Python&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;.r&quot;</span><span class="p">:</span> <span class="s2">&quot;R&quot;</span><span class="p">,</span>
+        <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+<div class="viewcode-block" id="UDF.get_run_udf_callback">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.datacube.UDF.get_run_udf_callback">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_run_udf_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">data_parameter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;data&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PGNode</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For internal use: construct `run_udf` node to be used as callback in `apply`, `reduce_dimension`, ...</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">dict_no_none</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="n">data_parameter</span><span class="p">},</span>
+            <span class="n">udf</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">,</span>
+            <span class="n">runtime</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_runtime</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">),</span>
+            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+            <span class="n">context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;run_udf&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_child_callback</span><span class="p">(</span>
+    <span class="n">process</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PGNode</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Callable</span><span class="p">,</span> <span class="n">UDF</span><span class="p">],</span>
+    <span class="n">parent_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">connection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Connection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Build a &quot;callback&quot; process: a user defined process that is used by another process (such</span>
+<span class="sd">    as `apply`, `apply_dimension`, `reduce`, ....)</span>
+
+<span class="sd">    :param process: process id string, PGNode or callable that uses the ProcessBuilder mechanism to build a process</span>
+<span class="sd">    :param parent_parameters: list of parameter names defined for child process</span>
+<span class="sd">    :param connection: optional connection object to improve runtime validation for UDFs</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: move this to more generic process graph building utility module</span>
+    <span class="c1"># TODO: autodetect the parameters defined by parent process?</span>
+    <span class="c1"># TODO: eliminate need for connection object (also see `UDF._guess_runtime`)</span>
+    <span class="c1"># TODO: when `openeo.rest` deps are gone: move this helper to somewhere under `openeo.internal`</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="n">PGNode</span><span class="p">):</span>
+        <span class="c1"># Assume this is already a valid callback process</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">process</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Assume given reducer is a simple predefined reduce process_id</span>
+        <span class="c1"># TODO: avoid local import (workaround for circular import issue)</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">openeo.processes</span>
+        <span class="k">if</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">openeo</span><span class="o">.</span><span class="n">processes</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+            <span class="n">process_params</span> <span class="o">=</span> <span class="n">get_parameter_names</span><span class="p">(</span><span class="n">openeo</span><span class="o">.</span><span class="n">processes</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">process</span><span class="p">])</span>
+            <span class="c1"># TODO: switch to &quot;Callable&quot; handling here</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Best effort guess</span>
+            <span class="n">process_params</span> <span class="o">=</span> <span class="n">parent_parameters</span>
+        <span class="k">if</span> <span class="n">parent_parameters</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">process_params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">process_params</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]):</span>
+            <span class="c1"># Special case: wrap all parent parameters in an array</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="p">{</span><span class="n">process_params</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="p">[{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="n">p</span><span class="p">}</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parent_parameters</span><span class="p">]}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Only pass parameters that correspond with an arg name</span>
+            <span class="n">common</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">process_params</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">parent_parameters</span><span class="p">)</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="n">p</span><span class="p">}</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">common</span><span class="p">}</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="n">process</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Callable</span><span class="p">):</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">convert_callable_to_pgnode</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="n">parent_parameters</span><span class="o">=</span><span class="n">parent_parameters</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="n">UDF</span><span class="p">):</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">get_run_udf_callback</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">data_parameter</span><span class="o">=</span><span class="n">parent_parameters</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;process_graph&quot;</span><span class="p">),</span> <span class="n">PGNode</span><span class="p">):</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">process</span><span class="p">[</span><span class="s2">&quot;process_graph&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">process</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">PGNode</span><span class="o">.</span><span class="n">to_process_graph_argument</span><span class="p">(</span><span class="n">pg</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Analysis Ready Data generation &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dataset sampling" href="sampling.html" />
+    <link rel="prev" title="openEO CookBook" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="analysis-ready-data-generation">
+<span id="ard"></span><h1>Analysis Ready Data generation<a class="headerlink" href="#analysis-ready-data-generation" title="Link to this heading">¶</a></h1>
+<p>For certain use cases, the preprocessed data collections available in the openEO back-ends are not sufficient or simply not
+available. For that case, openEO supports a few very common preprocessing scenario:</p>
+<ul class="simple">
+<li><p>Atmospheric correction of optical data</p></li>
+<li><p>SAR backscatter computation</p></li>
+</ul>
+<p>These processes also offer a number of parameters to customize the processing. There’s also variants with a default
+parametrization that results in data that is compliant with CEOS CARD4L specifications <a class="reference external" href="https://ceos.org/ard/">https://ceos.org/ard/</a>.</p>
+<p>We should note that these operations can be computationally expensive, so certainly affect overall processing time and
+cost of your final algorithm. Hence, make sure to make an informed decision when you decide to use these methods.</p>
+<section id="atmospheric-correction">
+<h2>Atmospheric correction<a class="headerlink" href="#atmospheric-correction" title="Link to this heading">¶</a></h2>
+<p>The <a class="reference external" href="https://processes.openeo.org/draft/#atmospheric_correction">atmospheric correction</a> process can apply a chosen
+method on raw ‘L1C’ data. The supported methods and input datasets depend on the back-end, because not every method is
+validated or works on any dataset, and different back-ends try to offer a variety of options. This gives you as a user
+more options to run and compare different methods, and select the most suitable one for your case.</p>
+<p>To perform an <a class="reference external" href="https://processes.openeo.org/draft/#atmospheric_correction">atmospheric correction</a>, the user has to
+load an uncorrected L1C optical dataset. On the resulting datacube, the <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.atmospheric_correction" title="openeo.rest.datacube.DataCube.atmospheric_correction"><code class="xref py py-func docutils literal notranslate"><span class="pre">atmospheric_correction()</span></code></a>
+method can be invoked. Note that it may not be possible to apply certain processes to the raw input data: preprocessing
+algorithms can be tightly coupled with the raw data, making it hard or impossible for the back-end to perform operations
+in between loading and correcting the data.</p>
+<p>The CARD4L variant of this process is: <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_surface_reflectance" title="openeo.rest.datacube.DataCube.ard_surface_reflectance"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_surface_reflectance()</span></code></a>. This process follows
+CEOS specifications, and thus can additional processing steps, like a BRDF correction, that are not yet available as a
+separate process.</p>
+<section id="reference-implementations">
+<h3>Reference implementations<a class="headerlink" href="#reference-implementations" title="Link to this heading">¶</a></h3>
+<p>This section shows a few working examples for these processes.</p>
+<section id="eodc-back-end">
+<h4>EODC back-end<a class="headerlink" href="#eodc-back-end" title="Link to this heading">¶</a></h4>
+<p>EODC (<a class="reference external" href="https://openeo.eodc.eu/v1.0">https://openeo.eodc.eu/v1.0</a>) supports ard_surface_reflectance, based on the FORCE toolbox. (<a class="reference external" href="https://github.com/davidfrantz/force">https://github.com/davidfrantz/force</a>)</p>
+</section>
+<section id="geotrellis-back-end">
+<h4>Geotrellis back-end<a class="headerlink" href="#geotrellis-back-end" title="Link to this heading">¶</a></h4>
+<p>The geotrellis back-end (<a class="reference external" href="https://openeo.vito.be">https://openeo.vito.be</a>) supports <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.atmospheric_correction" title="openeo.rest.datacube.DataCube.atmospheric_correction"><code class="xref py py-func docutils literal notranslate"><span class="pre">atmospheric_correction()</span></code></a> with iCor and SMAC as methods.
+The version of iCor only offers basic atmoshperic correction features, without special options for water products: <a class="reference external" href="https://remotesensing.vito.be/case/icor">https://remotesensing.vito.be/case/icor</a>
+SMAC is implemented based on: <a class="reference external" href="https://github.com/olivierhagolle/SMAC">https://github.com/olivierhagolle/SMAC</a>
+Both methods have been tested with Sentinel-2 as input. The viewing and sun angles need to be selected by the user to make them
+available for the algorithm.</p>
+<p>This is an example of applying iCor:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l1c</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;SENTINEL2_L1C_SENTINELHUB&quot;</span><span class="p">,</span>
+        <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;west&#39;</span><span class="p">:</span><span class="mf">3.758216409030558</span><span class="p">,</span><span class="s1">&#39;east&#39;</span><span class="p">:</span><span class="mf">4.087806252</span><span class="p">,</span><span class="s1">&#39;south&#39;</span><span class="p">:</span><span class="mf">51.291835566</span><span class="p">,</span><span class="s1">&#39;north&#39;</span><span class="p">:</span><span class="mf">51.3927399</span><span class="p">},</span>
+        <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2017-03-07&quot;</span><span class="p">,</span><span class="s2">&quot;2017-03-07&quot;</span><span class="p">],</span><span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;B04&#39;</span><span class="p">,</span><span class="s1">&#39;B03&#39;</span><span class="p">,</span><span class="s1">&#39;B02&#39;</span><span class="p">,</span><span class="s1">&#39;B09&#39;</span><span class="p">,</span><span class="s1">&#39;B8A&#39;</span><span class="p">,</span><span class="s1">&#39;B11&#39;</span><span class="p">,</span><span class="s1">&#39;sunAzimuthAngles&#39;</span><span class="p">,</span><span class="s1">&#39;sunZenithAngles&#39;</span><span class="p">,</span><span class="s1">&#39;viewAzimuthMean&#39;</span><span class="p">,</span><span class="s1">&#39;viewZenithMean&#39;</span><span class="p">]</span> <span class="p">)</span>
+<span class="n">l1c</span><span class="o">.</span><span class="n">atmospheric_correction</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;iCor&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;rgb-icor.geotiff&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="sar-backscatter">
+<h2>SAR backscatter<a class="headerlink" href="#sar-backscatter" title="Link to this heading">¶</a></h2>
+<p>Data from synthetic aperture radar sensors requires significant preprocessing to be calibrated and normalized for terrain.
+This is referred to as backscatter computation, and supported by
+<a class="reference external" href="https://processes.openeo.org/draft/#sar_backscatter">sar_backscatter</a> and the CARD4L compliant variant
+<a class="reference external" href="https://processes.openeo.org/draft/#ard_normalized_radar_backscatter">ard_normalized_radar_backscatter</a></p>
+<p>The user should load a datacube containing raw SAR data, such as Sentinel-1 GRD. On the resulting datacube, the
+<a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.sar_backscatter" title="openeo.rest.datacube.DataCube.sar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">sar_backscatter()</span></code></a> method can be invoked. The CEOS CARD4L variant is:
+<a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter" title="openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_normalized_radar_backscatter()</span></code></a>. These processes are tightly coupled to
+metadata from specific sensors, so it is not possible to apply other processes to the datacube first,
+with the exception of specifying filters in space and time.</p>
+<section id="id4">
+<h3>Reference implementations<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<p>This section shows a few working examples for these processes.</p>
+<section id="id5">
+<h4>EODC back-end<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h4>
+<p>EODC (<a class="reference external" href="https://openeo.eodc.eu/v1.0">https://openeo.eodc.eu/v1.0</a>) supports sar_backscatter, based on the Sentinel-1 toolbox. (<a class="reference external" href="https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1">https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</a>)</p>
+</section>
+<section id="id6">
+<h4>Geotrellis back-end<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h4>
+<p>When working with the Sentinelhub SENTINEL1_GRD collection, both sar processes can be used. The underlying implementation is
+provided by Sentinelhub, (<a class="reference external" href="https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options">https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options</a>), and offers full
+CARD4L compliant processing options.</p>
+<p>This is an example of <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter" title="openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_normalized_radar_backscatter()</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s1grd</span> <span class="o">=</span> <span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s1">&#39;SENTINEL1_GRD&#39;</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;VH&#39;</span><span class="p">,</span> <span class="s1">&#39;VV&#39;</span><span class="p">])</span>
+ <span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="mf">2.59003</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="mf">2.8949</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="mf">51.2206</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="mf">51.069</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2019-10-10&quot;</span><span class="p">,</span><span class="s2">&quot;2019-10-10&quot;</span><span class="p">]))</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">s1grd</span><span class="o">.</span><span class="n">ard_normalized_radar_backscatter</span><span class="p">()</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">get_assets</span><span class="p">():</span>
+    <span class="n">asset</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>When working with other GRD data, an implementation based on Orfeo Toolbox is used:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.orfeo-toolbox.org/CookBook/Applications/app_SARCalibration.html">Orfeo docs</a></p></li>
+<li><p><a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/blob/master/openeogeotrellis/collections/s1backscatter_orfeo.py">Implementation</a></p></li>
+</ul>
+<p>The Orfeo implementation currently only supports sigma0 computation, and is not CARD4L compliant.</p>
+</section>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spectral_indices.html">Spectral Indices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="job_manager.html">Multi Backend Job Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localprocessing.html">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">openEO CookBook</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">openEO CookBook</a></li>
+      <li>Next: <a href="sampling.html" title="next chapter">Dataset sampling</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="../_sources/cookbook/ard.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

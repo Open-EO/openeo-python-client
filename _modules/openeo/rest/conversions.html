@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.conversions &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.conversions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Helpers for data conversions between Python ecosystem data types and openEO data structures.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_json_resource</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+
+
+<div class="viewcode-block" id="InvalidTimeSeriesException">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.conversions.InvalidTimeSeriesException">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InvalidTimeSeriesException</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="timeseries_json_to_pandas">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.conversions.timeseries_json_to_pandas">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">timeseries_json_to_pandas</span><span class="p">(</span>
+    <span class="n">timeseries</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="n">auto_collapse</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a timeseries JSON object as returned by the `aggregate_spatial` process to a pandas DataFrame object</span>
+
+<span class="sd">    This timeseries data has three dimensions in general: date, polygon index and band index.</span>
+<span class="sd">    One of these will be used as index of the resulting dataframe (as specified by the `index` argument),</span>
+<span class="sd">    and the other two will be used as multilevel columns.</span>
+<span class="sd">    When there is just a single polygon or band in play, the dataframe will be simplified</span>
+<span class="sd">    by removing the corresponding dimension if `auto_collapse` is enabled (on by default).</span>
+
+<span class="sd">    :param timeseries: dictionary, JSON dump, or path to JSON file as returned by `aggregate_spatial`</span>
+<span class="sd">    :param index: which dimension should be used for the DataFrame index: &#39;date&#39; or &#39;polygon&#39;</span>
+<span class="sd">    :param auto_collapse: whether single band or single polygon cases should be simplified automatically</span>
+
+<span class="sd">    :return: pandas DataFrame or Series</span>
+
+<span class="sd">    .. versionchanged:: 0.48.0</span>
+<span class="sd">        The `timeseries` argument to also be a JSON dump or a path to a JSON file, in addition to a dictionary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># The input timeseries dictionary is assumed to have this structure:</span>
+    <span class="c1">#       {dict mapping date -&gt; [list with one item per polygon: [list with one float/None per band or empty list]]}</span>
+    <span class="c1"># TODO is this format of `aggregate_spatial` standardized across backends? Or can we detect the structure?</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timeseries</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">timeseries</span> <span class="o">=</span> <span class="n">load_json_resource</span><span class="p">(</span><span class="n">timeseries</span><span class="p">)</span>
+
+    <span class="c1"># Some quick checks</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">timeseries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;Empty data set&quot;</span><span class="p">)</span>
+    <span class="n">polygon_counts</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">polygon_data</span><span class="p">)</span> <span class="k">for</span> <span class="n">polygon_data</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">polygon_counts</span> <span class="o">==</span> <span class="p">{</span><span class="mi">0</span><span class="p">}:</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;No polygon data for each date&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="mi">0</span> <span class="ow">in</span> <span class="n">polygon_counts</span><span class="p">:</span>
+        <span class="c1"># TODO: still support this use case?</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;No polygon data for some dates (</span><span class="si">{p}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">polygon_counts</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">polygon_counts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;Inconsistent polygon counts: </span><span class="si">{p}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">polygon_counts</span><span class="p">))</span>
+    <span class="c1"># Count the number of bands in the timeseries, so we can provide a fallback array for missing data</span>
+    <span class="n">band_counts</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">band_data</span><span class="p">)</span> <span class="k">for</span> <span class="n">polygon_data</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">band_data</span> <span class="ow">in</span> <span class="n">polygon_data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">band_counts</span> <span class="o">==</span> <span class="p">{</span><span class="mi">0</span><span class="p">}:</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;Zero bands everywhere&quot;</span><span class="p">)</span>
+    <span class="n">band_counts</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_counts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">InvalidTimeSeriesException</span><span class="p">(</span><span class="s2">&quot;Inconsistent band counts: </span><span class="si">{b}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">b</span><span class="o">=</span><span class="n">band_counts</span><span class="p">))</span>
+    <span class="n">band_count</span> <span class="o">=</span> <span class="n">band_counts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">band_data_fallback</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span> <span class="o">*</span> <span class="n">band_count</span>
+    <span class="c1"># Load the timeseries data in a pandas Series with multi-index [&quot;date&quot;, &quot;polygon&quot;, &quot;band&quot;]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span>
+        <span class="p">(</span>
+            <span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">polygon_index</span><span class="p">,</span> <span class="n">band_index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">polygon_data</span><span class="p">)</span> <span class="ow">in</span> <span class="n">timeseries</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">polygon_index</span><span class="p">,</span> <span class="n">band_data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">polygon_data</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">band_index</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">band_data</span> <span class="ow">or</span> <span class="n">band_data_fallback</span><span class="p">)</span>
+        <span class="p">),</span>
+        <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;polygon&quot;</span><span class="p">,</span> <span class="s2">&quot;band&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">],</span>
+        <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;polygon&quot;</span><span class="p">,</span> <span class="s2">&quot;band&quot;</span><span class="p">]</span>
+    <span class="p">)[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="c1"># TODO convert date to real date index?</span>
+
+    <span class="k">if</span> <span class="n">auto_collapse</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">levshape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Single band case</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;band&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">levshape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Single polygon case</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="s2">&quot;polygon&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Reshape as desired</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="s2">&quot;date&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">s</span>
+    <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="s2">&quot;polygon&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="s2">&quot;polygon&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="datacube_from_file">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.conversions.datacube_from_file">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`XarrayDataCube.from_file` instead.&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">datacube_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;netcdf&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">XarrayDataCube</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+    <span class="k">return</span> <span class="n">XarrayDataCube</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="datacube_to_file">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.conversions.datacube_to_file">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`XarrayDataCube.save_to_file` instead.&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">datacube_to_file</span><span class="p">(</span><span class="n">datacube</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;netcdf&quot;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">datacube</span><span class="o">.</span><span class="n">save_to_file</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">)</span></div>
+
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`XarrayIO.to_json_file` instead&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_save_DataArray_to_JSON</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayIO</span>
+    <span class="k">return</span> <span class="n">XarrayIO</span><span class="o">.</span><span class="n">to_json_file</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">array</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`XarrayIO.to_netcdf_file` instead&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_save_DataArray_to_NetCDF</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayIO</span>
+    <span class="k">return</span> <span class="n">XarrayIO</span><span class="o">.</span><span class="n">to_netcdf_file</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">array</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="datacube_plot">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.conversions.datacube_plot">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use :py:meth:`XarrayDataCube.plot` instead.&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">datacube_plot</span><span class="p">(</span><span class="n">datacube</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">datacube</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

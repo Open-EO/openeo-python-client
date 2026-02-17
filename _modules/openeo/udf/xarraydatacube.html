@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.udf.xarraydatacube &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.udf.xarraydatacube</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">collections</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenEoUdfException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">deep_get</span><span class="p">,</span> <span class="n">dict_no_none</span>
+
+
+<div class="viewcode-block" id="XarrayDataCube">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">XarrayDataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a thin wrapper around :py:class:`xarray.DataArray`</span>
+<span class="sd">    providing a basic &quot;DataCube&quot; interface for openEO UDF usage around multi-dimensional data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO #472 This class, just wrapping an array.DataArray, seems to make things more complicated/confusing than necessary.</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">OpenEoUdfException</span><span class="p">(</span><span class="s2">&quot;Argument data must be of type xarray.DataArray&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_array</span> <span class="o">=</span> <span class="n">array</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> shape:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_array</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+
+<div class="viewcode-block" id="XarrayDataCube.get_array">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube.get_array">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_array</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the :py:class:`xarray.DataArray` that contains the data and dimension definition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array</span></div>
+
+
+    <span class="n">array</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">fget</span><span class="o">=</span><span class="n">get_array</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array</span><span class="o">.</span><span class="n">name</span>
+
+<div class="viewcode-block" id="XarrayDataCube.to_dict">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube.to_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert this hypercube into a dictionary that can be converted into</span>
+<span class="sd">        a valid JSON representation</span>
+
+<span class="sd">        &gt;&gt;&gt; example = {</span>
+<span class="sd">        ...     &quot;id&quot;: &quot;test_data&quot;,</span>
+<span class="sd">        ...     &quot;data&quot;: [</span>
+<span class="sd">        ...         [[0.0, 0.1], [0.2, 0.3]],</span>
+<span class="sd">        ...         [[0.0, 0.1], [0.2, 0.3]],</span>
+<span class="sd">        ...     ],</span>
+<span class="sd">        ...     &quot;dimension&quot;: [</span>
+<span class="sd">        ...         {&quot;name&quot;: &quot;time&quot;, &quot;coordinates&quot;: [&quot;2001-01-01&quot;, &quot;2001-01-02&quot;]},</span>
+<span class="sd">        ...         {&quot;name&quot;: &quot;X&quot;, &quot;coordinates&quot;: [50.0, 60.0]},</span>
+<span class="sd">        ...         {&quot;name&quot;: &quot;Y&quot;},</span>
+<span class="sd">        ...     ],</span>
+<span class="sd">        ... }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">dict_no_none</span><span class="p">({</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">xd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">xd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">deep_get</span><span class="p">(</span><span class="n">xd</span><span class="p">,</span> <span class="s2">&quot;attrs&quot;</span><span class="p">,</span> <span class="s2">&quot;description&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
+            <span class="s2">&quot;dimensions&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="n">dict_no_none</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+                    <span class="n">coordinates</span><span class="o">=</span><span class="n">deep_get</span><span class="p">(</span><span class="n">xd</span><span class="p">,</span> <span class="s2">&quot;coords&quot;</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">xd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dims&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="p">]</span>
+        <span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="XarrayDataCube.from_dict">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">xdc_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">XarrayDataCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a :py:class:`XarrayDataCube` from a Python dictionary that was created from</span>
+<span class="sd">        the JSON definition of the data cube</span>
+
+<span class="sd">        :param data: The dictionary that contains the data cube definition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s2">&quot;data&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">xdc_dict</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoUdfException</span><span class="p">(</span><span class="s2">&quot;Missing data in dictionary&quot;</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">xdc_dict</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s2">&quot;dimensions&quot;</span> <span class="ow">in</span> <span class="n">xdc_dict</span><span class="p">:</span>
+            <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">dim</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">xdc_dict</span><span class="p">[</span><span class="s2">&quot;dimensions&quot;</span><span class="p">]]</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="p">{</span><span class="n">dim</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]:</span> <span class="n">dim</span><span class="p">[</span><span class="s2">&quot;coordinates&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">xdc_dict</span><span class="p">[</span><span class="s2">&quot;dimensions&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;coordinates&quot;</span> <span class="ow">in</span> <span class="n">dim</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dims</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">dims</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">xdc_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="s2">&quot;description&quot;</span> <span class="ow">in</span> <span class="n">xdc_dict</span><span class="p">:</span>
+            <span class="n">x</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xdc_dict</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">x</span><span class="p">)</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_guess_format</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Guess file format from file name.&quot;&quot;&quot;</span>
+        <span class="n">suffix</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;.netcdf&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="s2">&quot;netcdf&quot;</span>
+        <span class="k">elif</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;.json&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="s2">&quot;json&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can not guess format of </span><span class="si">{p}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">path</span><span class="p">))</span>
+
+<div class="viewcode-block" id="XarrayDataCube.from_file">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube.from_file">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">XarrayDataCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load data file as :py:class:`XarrayDataCube` in memory</span>
+
+<span class="sd">        :param path: the file on disk</span>
+<span class="sd">        :param fmt: format to load from, e.g. &quot;netcdf&quot; or &quot;json&quot;</span>
+<span class="sd">            (will be auto-detected when not specified)</span>
+
+<span class="sd">        :return: loaded data cube</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="n">fmt</span> <span class="ow">or</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_guess_format</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;netcdf&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">XarrayIO</span><span class="o">.</span><span class="n">from_netcdf_file</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">XarrayIO</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;invalid format </span><span class="si">{f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">=</span><span class="n">fmt</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="XarrayDataCube.save_to_file">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.xarraydatacube.XarrayDataCube.save_to_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Store :py:class:`XarrayDataCube` to file</span>
+
+<span class="sd">        :param path: destination file on disk</span>
+<span class="sd">        :param fmt: format to save as, e.g. &quot;netcdf&quot; or &quot;json&quot;</span>
+<span class="sd">            (will be auto-detected when not specified)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="n">fmt</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guess_format</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;netcdf&#39;</span><span class="p">:</span>
+            <span class="n">XarrayIO</span><span class="o">.</span><span class="n">to_netcdf_file</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_array</span><span class="p">(),</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+            <span class="n">XarrayIO</span><span class="o">.</span><span class="n">to_json_file</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_array</span><span class="p">(),</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">XarrayIO</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helpers to load/store :py:cass:`xarray.DataArray` objects,</span>
+<span class="sd">    with some conventions about expected dimensions/bands</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_json_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_json</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+        <span class="n">d</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;dtype&#39;</span><span class="p">]))</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># prepare coordinate</span>
+            <span class="n">d</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;dtype&#39;</span><span class="p">])</span>
+            <span class="c1"># remove dtype and shape, because that is included for helping the user</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;attrs&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;attrs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">d</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;attrs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;shape&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># remove dtype and shape, because that is included for helping the user</span>
+        <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;attrs&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;dtype&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">d</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;shape&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># convert to xarray</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+        <span class="c1"># build dimension list in proper order</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="o">!=</span> <span class="s1">&#39;t&#39;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">!=</span> <span class="s1">&#39;bands&#39;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">!=</span> <span class="s1">&#39;x&#39;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">!=</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;t&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span> <span class="n">dims</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;t&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;bands&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span> <span class="n">dims</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;bands&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span> <span class="n">dims</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;y&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span> <span class="n">dims</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+        <span class="c1"># return the resulting data array</span>
+        <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">*</span><span class="n">dims</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_netcdf_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">engine</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+        <span class="c1"># load the dataset and convert to data array</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">xarray</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
+
+        <span class="c1"># Skip non-numerical variables (like &quot;crs&quot;)</span>
+        <span class="n">band_vars</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">data_vars</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;i&quot;</span><span class="p">,</span> <span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">}</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">band_vars</span><span class="p">]</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">to_array</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s1">&#39;bands&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Reorder dims to proper order (t-bands-x-y at the end)</span>
+        <span class="n">expected_order</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">)</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">expected_order</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">expected_order</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">dims</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">*</span><span class="n">dims</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_json_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]):</span>
+        <span class="c1"># to deserialized json</span>
+        <span class="n">jsonarray</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="c1"># add attributes that needed for re-creating xarray from json</span>
+        <span class="n">jsonarray</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;dtype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">jsonarray</span><span class="p">[</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;shape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">array</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">jsonarray</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">i</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;dtype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">jsonarray</span><span class="p">[</span><span class="s1">&#39;coords&#39;</span><span class="p">][</span><span class="n">i</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;attrs&#39;</span><span class="p">][</span><span class="s1">&#39;shape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="c1"># custom print so resulting json file is humanly easy to read</span>
+        <span class="c1"># TODO: make this human friendly JSON format optional and allow compact JSON too.</span>
+        <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">custom_print</span><span class="p">(</span><span class="n">data_structure</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">needs_comma</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data_structure</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">needs_comma</span><span class="p">:</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;,</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">needs_comma</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;  &#39;</span> <span class="o">*</span> <span class="n">indent</span> <span class="o">+</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                        <span class="n">custom_print</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">indent</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;  &#39;</span> <span class="o">*</span> <span class="p">(</span><span class="n">indent</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;}&quot;</span><span class="p">)</span>
+
+            <span class="n">custom_print</span><span class="p">(</span><span class="n">jsonarray</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_netcdf_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">engine</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># temp reference to avoid modifying the original array</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">array</span>
+        <span class="c1"># rearrange in a basic way because older xarray versions have a bug and ellipsis don&#39;t work in xarray.transpose()</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;x&#39;</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">dims</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">]))</span>
+        <span class="c1"># turn it into a dataset where each band becomes a variable</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;bands&#39;</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">({</span><span class="s1">&#39;bands&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;band_0&#39;</span><span class="p">]}))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;bands&#39;</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">coords</span><span class="p">:</span>
+                <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;band_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">dims</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;bands&#39;</span><span class="p">)])]</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">(</span><span class="n">bands</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">(</span><span class="s1">&#39;bands&#39;</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

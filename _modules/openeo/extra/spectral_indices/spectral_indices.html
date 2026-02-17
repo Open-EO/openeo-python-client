@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.extra.spectral_indices.spectral_indices &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.extra.spectral_indices.spectral_indices</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Set</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseOpenEoException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollectionMetadata</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessBuilder</span><span class="p">,</span> <span class="n">array_create</span><span class="p">,</span> <span class="n">array_modify</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.datacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataCube</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">importlib_resources</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">importlib_resources</span>
+
+
+<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_indices</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load set of supported spectral indices.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?</span>
+    <span class="n">specs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="p">[</span>
+        <span class="s2">&quot;resources/awesome-spectral-indices/spectral-indices-dict.json&quot;</span><span class="p">,</span>
+        <span class="c1"># TODO #506 Deprecate extra-indices-dict.json as a whole</span>
+        <span class="c1">#      and provide an alternative mechanism to work with custom indices</span>
+        <span class="s2">&quot;resources/extra-indices-dict.json&quot;</span><span class="p">,</span>
+    <span class="p">]:</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">importlib_resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="s2">&quot;openeo.extra.spectral_indices&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">path</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf8&quot;</span><span class="p">))</span>
+        <span class="n">overwrites</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">specs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;SpectralIndices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">overwrites</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Duplicate spectral indices: </span><span class="si">{</span><span class="n">overwrites</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">specs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;SpectralIndices&quot;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">specs</span>
+
+
+<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_constants</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load constants defined by Awesome Spectral Indices.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?</span>
+    <span class="n">resource</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">importlib_resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="s2">&quot;openeo.extra.spectral_indices&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;resources/awesome-spectral-indices/constants.json&quot;</span>
+    <span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf8&quot;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;default&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;default&quot;</span><span class="p">],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))}</span>
+
+
+<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_bands</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load band name mapping defined by Awesome Spectral Indices.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?</span>
+    <span class="n">resource</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">importlib_resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="s2">&quot;openeo.extra.spectral_indices&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;resources/awesome-spectral-indices/bands.json&quot;</span>
+    <span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf8&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">BandMappingException</span><span class="p">(</span><span class="n">BaseOpenEoException</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Failure to determine band-variable mapping.&quot;&quot;&quot;</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_BandMapping</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper class to extract mappings between band names and variable names used in Awesome Spectral Indices formulas.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_EXTRA</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;sentinel1&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;HH&quot;</span><span class="p">:</span> <span class="s2">&quot;HH&quot;</span><span class="p">,</span> <span class="s2">&quot;HV&quot;</span><span class="p">:</span> <span class="s2">&quot;HV&quot;</span><span class="p">,</span> <span class="s2">&quot;VH&quot;</span><span class="p">:</span> <span class="s2">&quot;VH&quot;</span><span class="p">,</span> <span class="s2">&quot;VV&quot;</span><span class="p">:</span> <span class="s2">&quot;VV&quot;</span><span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Load bands.json from Awesome Spectral Indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_band_data</span> <span class="o">=</span> <span class="n">_load_bands</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_platform</span><span class="p">(</span><span class="n">platform</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">platform</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;sentinel2a&quot;</span><span class="p">,</span> <span class="s2">&quot;sentinel2b&quot;</span><span class="p">}:</span>
+            <span class="n">platform</span> <span class="o">=</span> <span class="s2">&quot;sentinel2&quot;</span>
+        <span class="k">return</span> <span class="n">platform</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_band_name</span><span class="p">(</span><span class="n">band_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">band_name</span> <span class="o">=</span> <span class="n">band_name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="c1"># Normalize band names like &quot;B01&quot; to &quot;B1&quot;</span>
+        <span class="n">band_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^B0+(\d+)$&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;B\1&quot;</span><span class="p">,</span> <span class="n">band_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">band_name</span>
+
+    <span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_platforms</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get list of supported (normalized) satellite platforms.&quot;&quot;&quot;</span>
+        <span class="n">platforms</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span> <span class="k">for</span> <span class="n">var_data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_band_data</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">var_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;platforms&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+        <span class="n">platforms</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXTRA</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">platforms</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">_normalize_platform</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">platforms</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">platforms</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">guess_platform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Guess platform from given collection id or name.&quot;&quot;&quot;</span>
+        <span class="c1"># First check original id, then retry with removed separators as last resort.</span>
+        <span class="k">for</span> <span class="n">haystack</span> <span class="ow">in</span> <span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;[_ -]&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">())]:</span>
+            <span class="k">for</span> <span class="n">platform</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_platforms</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">platform</span> <span class="ow">in</span> <span class="n">haystack</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">platform</span>
+        <span class="k">raise</span> <span class="n">BandMappingException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to guess satellite platform from id </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">variable_to_band_name_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">platform</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build mapping from Awesome Spectral Indices variable names to (normalized) band names for given satellite platform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">platform_normalized</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_platform</span><span class="p">(</span><span class="n">platform</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">platform_normalized</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_EXTRA</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_EXTRA</span><span class="p">[</span><span class="n">platform_normalized</span><span class="p">]</span>
+
+        <span class="n">var_to_band</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">var</span><span class="p">:</span> <span class="n">pf_data</span><span class="p">[</span><span class="s2">&quot;band&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">var_data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_band_data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">pf</span><span class="p">,</span> <span class="n">pf_data</span> <span class="ow">in</span> <span class="n">var_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;platforms&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_platform</span><span class="p">(</span><span class="n">pf</span><span class="p">)</span> <span class="o">==</span> <span class="n">platform_normalized</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">var_to_band</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BandMappingException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Empty band mapping derived for satellite platform </span><span class="si">{</span><span class="n">platform</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">var_to_band</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">actual_band_name_to_variable_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">platform</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">band_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build mapping from actual band names (as given) to Awesome Spectral Indices variable names.&quot;&quot;&quot;</span>
+        <span class="n">var_to_band</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_to_band_name_map</span><span class="p">(</span><span class="n">platform</span><span class="o">=</span><span class="n">platform</span><span class="p">)</span>
+        <span class="n">band_to_var</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">band_name</span><span class="p">:</span> <span class="n">var</span>
+            <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">normalized_band_name</span> <span class="ow">in</span> <span class="n">var_to_band</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">band_names</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_band_name</span><span class="p">(</span><span class="n">band_name</span><span class="p">)</span> <span class="o">==</span> <span class="n">normalized_band_name</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">band_to_var</span>
+
+
+<div class="viewcode-block" id="list_indices">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.list_indices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">list_indices</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;List names of supported spectral indices&quot;&quot;&quot;</span>
+    <span class="n">specs</span> <span class="o">=</span> <span class="n">load_indices</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">specs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_params</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="n">range_vals</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;input_range&quot;</span><span class="p">,</span> <span class="s2">&quot;output_range&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">range_vals</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;You have set the parameters </span><span class="si">{</span><span class="n">params</span><span class="si">}</span><span class="s2"> on </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2">, while the following are required </span><span class="si">{</span><span class="n">range_vals</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="n">range_vals</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">rng</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The list of provided values </span><span class="si">{</span><span class="n">params</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span><span class="si">}</span><span class="s2"> for parameter </span><span class="si">{</span><span class="n">rng</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2"> is not of length 2&quot;</span>
+            <span class="p">)</span>
+        <span class="c1"># TODO: allow float too?</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="n">rng</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The ranges you supplied are not all of type int&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;input_range&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;output_range&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The index_range and output_range of </span><span class="si">{</span><span class="n">item</span><span class="si">}</span><span class="s2"> should either be both supplied, or both None&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_validity_index_dict</span><span class="p">(</span><span class="n">index_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">index_specs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="c1"># TODO: this `index_dict` API needs some more rethinking:</span>
+    <span class="c1">#   - the dictionary has no explicit order of indices, which can be important for end user</span>
+    <span class="c1">#   - allow &quot;collection&quot; to be missing (e.g. if no rescaling is desired, or input data is not kept)?</span>
+    <span class="c1">#   - option to define default output range, instead of having it to specify it for each index?</span>
+    <span class="c1">#   - keep &quot;rescaling&quot; feature separate/orthogonal from &quot;spectral indices&quot; feature. It could be useful as</span>
+    <span class="c1">#       a more generic machine learning data preparation feature</span>
+    <span class="n">input_vals</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">,</span> <span class="s2">&quot;indices&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">index_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">input_vals</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;The first level of the dictionary should contain the keys &#39;collection&#39; and &#39;indices&#39;, but they contain </span><span class="si">{</span><span class="n">index_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="n">_check_params</span><span class="p">(</span><span class="s2">&quot;collection&quot;</span><span class="p">,</span> <span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">index_specs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Index &quot;</span> <span class="o">+</span> <span class="n">index</span> <span class="o">+</span> <span class="s2">&quot; is not supported.&quot;</span><span class="p">)</span>
+        <span class="n">_check_params</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_callback</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">ProcessBuilder</span><span class="p">,</span>
+    <span class="n">index_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">index_specs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">append</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">band_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">band_to_var</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProcessBuilder</span><span class="p">:</span>
+    <span class="n">index_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">x_res</span> <span class="o">=</span> <span class="n">x</span>
+
+    <span class="c1"># TODO: use `label` parameter of `array_element` to avoid index based band references</span>
+    <span class="n">variables</span> <span class="o">=</span> <span class="p">{</span><span class="n">band_to_var</span><span class="p">[</span><span class="n">bn</span><span class="p">]:</span> <span class="n">x</span><span class="o">.</span><span class="n">array_element</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">band_names</span><span class="p">)</span> <span class="k">if</span> <span class="n">bn</span> <span class="ow">in</span> <span class="n">band_to_var</span><span class="p">}</span>
+    <span class="n">eval_globals</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="o">**</span><span class="n">load_constants</span><span class="p">(),</span>
+        <span class="o">**</span><span class="n">variables</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="c1"># TODO: user might want to control order of indices, which is tricky through a dictionary.</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">index_result</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">index_specs</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="s2">&quot;formula&quot;</span><span class="p">],</span> <span class="n">eval_globals</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;input_range&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">index_result</span> <span class="o">=</span> <span class="n">index_result</span><span class="o">.</span><span class="n">linear_scale_range</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;input_range&quot;</span><span class="p">],</span> <span class="o">*</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;output_range&quot;</span><span class="p">])</span>
+        <span class="n">index_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index_result</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">][</span><span class="s2">&quot;input_range&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x_res</span> <span class="o">=</span> <span class="n">x_res</span><span class="o">.</span><span class="n">linear_scale_range</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">][</span><span class="s2">&quot;input_range&quot;</span><span class="p">],</span> <span class="o">*</span><span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">][</span><span class="s2">&quot;output_range&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">append</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">array_modify</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">x_res</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">index_values</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">band_names</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">array_create</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">index_values</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="compute_and_rescale_indices">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.compute_and_rescale_indices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_and_rescale_indices</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span>
+    <span class="n">index_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">append</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes a list of indices from a data cube</span>
+
+<span class="sd">    :param datacube: input data cube</span>
+<span class="sd">    :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices</span>
+<span class="sd">        as well as the indices that you want to calculate with their responding input- and output ranges</span>
+<span class="sd">        It follows the following format::</span>
+
+<span class="sd">            {</span>
+<span class="sd">                &quot;collection&quot;: {</span>
+<span class="sd">                    &quot;input_range&quot;: [0,8000],</span>
+<span class="sd">                    &quot;output_range&quot;: [0,250]</span>
+<span class="sd">                },</span>
+<span class="sd">                &quot;indices&quot;: {</span>
+<span class="sd">                    &quot;NDVI&quot;: {</span>
+<span class="sd">                        &quot;input_range&quot;: [-1,1],</span>
+<span class="sd">                        &quot;output_range&quot;: [0,250]</span>
+<span class="sd">                    },</span>
+<span class="sd">                }</span>
+<span class="sd">            }</span>
+
+<span class="sd">        If you don&#39;t want to rescale your data, you can fill the input-, index- and output-range with ``None``.</span>
+
+<span class="sd">        See `list_indices()` for supported indices.</span>
+
+<span class="sd">    :param append: append the indices as bands to the given data cube</span>
+<span class="sd">        instead of creating a new cube with only the calculated indices</span>
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: the datacube with the indices attached as bands</span>
+
+<span class="sd">    .. warning:: this &quot;rescaled&quot; index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">index_specs</span> <span class="o">=</span> <span class="n">load_indices</span><span class="p">()</span>
+
+    <span class="n">_check_validity_index_dict</span><span class="p">(</span><span class="n">index_dict</span><span class="p">,</span> <span class="n">index_specs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">variable_map</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Automatic band mapping</span>
+        <span class="n">band_mapping</span> <span class="o">=</span> <span class="n">_BandMapping</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">platform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">CollectionMetadata</span><span class="p">)</span> <span class="ow">and</span> <span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">):</span>
+                <span class="n">platform</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">guess_platform</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">BandMappingException</span><span class="p">(</span><span class="s2">&quot;Unable to determine satellite platform from data cube metadata&quot;</span><span class="p">)</span>
+        <span class="n">band_to_var</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">actual_band_name_to_variable_map</span><span class="p">(</span>
+            <span class="n">platform</span><span class="o">=</span><span class="n">platform</span><span class="p">,</span> <span class="n">band_names</span><span class="o">=</span><span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">band_names</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">band_to_var</span> <span class="o">=</span> <span class="p">{</span><span class="n">b</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">variable_map</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="n">res</span> <span class="o">=</span> <span class="n">datacube</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span>
+        <span class="n">dimension</span><span class="o">=</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span>
+        <span class="n">process</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">_callback</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span>
+            <span class="n">index_dict</span><span class="o">=</span><span class="n">index_dict</span><span class="p">,</span>
+            <span class="n">index_specs</span><span class="o">=</span><span class="n">index_specs</span><span class="p">,</span>
+            <span class="n">append</span><span class="o">=</span><span class="n">append</span><span class="p">,</span>
+            <span class="n">band_names</span><span class="o">=</span><span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">band_names</span><span class="p">,</span>
+            <span class="n">band_to_var</span><span class="o">=</span><span class="n">band_to_var</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">append</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">res</span><span class="o">.</span><span class="n">rename_labels</span><span class="p">(</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">datacube</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">band_names</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">res</span><span class="o">.</span><span class="n">rename_labels</span><span class="p">(</span><span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">index_dict</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span></div>
+
+
+
+<div class="viewcode-block" id="append_and_rescale_indices">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.append_and_rescale_indices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">append_and_rescale_indices</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span>
+    <span class="n">index_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes a list of indices from a datacube and appends them to the existing datacube</span>
+
+<span class="sd">    :param datacube: input data cube</span>
+<span class="sd">    :param index_dict: a dictionary that contains the input- and output range of the collection on which you calculate the indices</span>
+<span class="sd">        as well as the indices that you want to calculate with their responding input- and output ranges</span>
+<span class="sd">        It follows the following format::</span>
+
+<span class="sd">            {</span>
+<span class="sd">                &quot;collection&quot;: {</span>
+<span class="sd">                    &quot;input_range&quot;: [0,8000],</span>
+<span class="sd">                    &quot;output_range&quot;: [0,250]</span>
+<span class="sd">                },</span>
+<span class="sd">                &quot;indices&quot;: {</span>
+<span class="sd">                    &quot;NDVI&quot;: {</span>
+<span class="sd">                        &quot;input_range&quot;: [-1,1],</span>
+<span class="sd">                        &quot;output_range&quot;: [0,250]</span>
+<span class="sd">                    },</span>
+<span class="sd">                }</span>
+<span class="sd">            }</span>
+
+<span class="sd">        See `list_indices()` for supported indices.</span>
+
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: data cube with appended indices</span>
+
+<span class="sd">    .. warning:: this &quot;rescaled&quot; index helper uses an experimental API (e.g. `index_dict` argument) that is subject to change.</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">compute_and_rescale_indices</span><span class="p">(</span>
+        <span class="n">datacube</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">index_dict</span><span class="o">=</span><span class="n">index_dict</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">variable_map</span><span class="o">=</span><span class="n">variable_map</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="n">platform</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_indices">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.compute_indices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_indices</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span>
+    <span class="n">indices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">append</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute multiple spectral indices from the given data cube.</span>
+
+<span class="sd">    :param datacube: input data cube</span>
+<span class="sd">    :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.</span>
+<span class="sd">    :param append: append the indices as bands to the given data cube</span>
+<span class="sd">        instead of creating a new cube with only the calculated indices</span>
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: data cube containing the indices as bands</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: it&#39;s bit weird to have to specify all these None&#39;s in this structure</span>
+    <span class="n">index_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;indices&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">index</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;input_range&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;output_range&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">},</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">compute_and_rescale_indices</span><span class="p">(</span>
+        <span class="n">datacube</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">index_dict</span><span class="o">=</span><span class="n">index_dict</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="n">append</span><span class="p">,</span> <span class="n">variable_map</span><span class="o">=</span><span class="n">variable_map</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="n">platform</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="append_indices">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.append_indices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">append_indices</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span>
+    <span class="n">indices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute multiple spectral indices and append them to the given data cube.</span>
+
+<span class="sd">    :param datacube: input data cube</span>
+<span class="sd">    :param indices: list of names of the indices to compute and append. See `list_indices()` for supported indices.</span>
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: data cube with appended indices</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">compute_indices</span><span class="p">(</span>
+        <span class="n">datacube</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">variable_map</span><span class="o">=</span><span class="n">variable_map</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="n">platform</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="compute_index">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.compute_index">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_index</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute a single spectral index from a data cube.</span>
+
+<span class="sd">    :param datacube: input data cube</span>
+<span class="sd">    :param index: name of the index to compute. See `list_indices()` for supported indices.</span>
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: data cube containing the index as band</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: option to compute the index with `reduce_dimension` instead of `apply_dimension`?</span>
+    <span class="k">return</span> <span class="n">compute_indices</span><span class="p">(</span>
+        <span class="n">datacube</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">append</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">variable_map</span><span class="o">=</span><span class="n">variable_map</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="n">platform</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="append_index">
+<a class="viewcode-back" href="../../../../cookbook/spectral_indices.html#openeo.extra.spectral_indices.append_index">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">append_index</span><span class="p">(</span>
+    <span class="n">datacube</span><span class="p">:</span> <span class="n">DataCube</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">variable_map</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">platform</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute a single spectral index and append it to the given data cube.</span>
+
+<span class="sd">    :param cube: input data cube</span>
+<span class="sd">    :param index: name of the index to compute and append. See `list_indices()` for supported indices.</span>
+<span class="sd">    :param variable_map: (optional) mapping from Awesome Spectral Indices formula variable to actual cube band names.</span>
+<span class="sd">        To be specified if the given data cube has non-standard band names,</span>
+<span class="sd">        or the satellite platform can not be recognized from the data cube metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+<span class="sd">    :param platform: optionally specify the satellite platform (to determine band name mapping)</span>
+<span class="sd">        if the given data cube has no or an unhandled collection id in its metadata.</span>
+<span class="sd">        See :ref:`spectral_indices_manual_band_mapping` for more information.</span>
+
+<span class="sd">    :return: data cube with appended index</span>
+
+<span class="sd">    .. versionadded:: 0.26.0</span>
+<span class="sd">        Added `variable_map` and `platform` arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">compute_indices</span><span class="p">(</span>
+        <span class="n">datacube</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">variable_map</span><span class="o">=</span><span class="n">variable_map</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="n">platform</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

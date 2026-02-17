@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.udf.udf_signatures &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.udf.udf_signatures</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module defines a number of function signatures that can be implemented by UDF&#39;s.</span>
+<span class="sd">Both the name of the function and the argument types are/can be used by the backend to validate if the provided UDF</span>
+<span class="sd">is compatible with the calling context of the process graph in which it is used.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">deprecated</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="kn">import</span> <span class="n">Series</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollectionMetadata</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.udf_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">UdfData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="c1"># Geopandas is an optional dependency, but one of the signatures uses it as type annotation</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="apply_timeseries">
+<a class="viewcode-back" href="../../../udf.html#openeo.udf.udf_signatures.apply_timeseries">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_timeseries</span><span class="p">(</span><span class="n">series</span><span class="p">:</span> <span class="n">Series</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process a timeseries of values, without changing the time instants.</span>
+
+<span class="sd">    This can for instance be used for smoothing or gap-filling.</span>
+
+<span class="sd">    :param series: A Pandas Series object with a date-time index.</span>
+<span class="sd">    :param context: A dictionary containing user context.</span>
+<span class="sd">    :return: A Pandas Series object with the same datetime index.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: do we need geospatial coordinates for the series?</span>
+    <span class="k">return</span> <span class="n">series</span></div>
+
+
+<span class="nd">@deprecated</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">XarrayDataCube</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map a :py:class:`XarrayDataCube` to another :py:class:`XarrayDataCube`.</span>
+
+<span class="sd">    Deprecated: use the signature with xarray.DataArray instead.</span>
+
+<span class="sd">    Depending on the context in which this function is used, the :py:class:`XarrayDataCube` dimensions</span>
+<span class="sd">    have to be retained or can be chained.</span>
+<span class="sd">    For instance, in the context of a reducing operation along a dimension,</span>
+<span class="sd">    that dimension will have to be reduced to a single value.</span>
+<span class="sd">    In the context of a 1 to 1 mapping operation, all dimensions have to be retained.</span>
+
+<span class="sd">    :param cube: input data cube</span>
+<span class="sd">    :param context: A dictionary containing user context.</span>
+<span class="sd">    :return: output data cube</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">cube</span>
+
+<div class="viewcode-block" id="apply_datacube">
+<a class="viewcode-back" href="../../../udf.html#openeo.udf.udf_signatures.apply_datacube">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_datacube</span><span class="p">(</span><span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map a :py:class:`xarray.DataArray` to another :py:class:`xarray.DataArray`.</span>
+
+<span class="sd">    Depending on the context in which this function is used, the :py:class:`xarray.DataArray` dimensions</span>
+<span class="sd">    have to be retained or can be chained.</span>
+<span class="sd">    For instance, in the context of a reducing operation along a dimension,</span>
+<span class="sd">    that dimension will have to be reduced to a single value.</span>
+<span class="sd">    In the context of a 1 to 1 mapping operation, all dimensions have to be retained.</span>
+
+<span class="sd">    :param cube: input data array</span>
+<span class="sd">    :param context: A dictionary containing user context.</span>
+<span class="sd">    :return: output data array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">cube</span></div>
+
+
+
+<div class="viewcode-block" id="apply_udf_data">
+<a class="viewcode-back" href="../../../udf.html#openeo.udf.udf_signatures.apply_udf_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_udf_data</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">UdfData</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generic UDF function that directly manipulates a :py:class:`UdfData` object</span>
+
+<span class="sd">    :param data: :py:class:`UdfData` object to manipulate in-place</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="apply_metadata">
+<a class="viewcode-back" href="../../../udf.html#openeo.udf.udf_signatures.apply_metadata">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_metadata</span><span class="p">(</span><span class="n">metadata</span><span class="p">:</span> <span class="n">CollectionMetadata</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. warning::</span>
+<span class="sd">        This signature is not yet fully standardized and subject to change.</span>
+
+<span class="sd">    Returns the expected cube metadata, after applying this UDF, based on input metadata.</span>
+<span class="sd">    The provided metadata represents the whole raster or vector cube. This function does not need to be called for every data chunk.</span>
+
+<span class="sd">    When this function is not implemented by the UDF, the backend may still be able to infer correct metadata by running the</span>
+<span class="sd">    UDF, but this can result in reduced performance or errors.</span>
+
+<span class="sd">    This function does not need to be provided when using the UDF in combination with processes that by design have a clear</span>
+<span class="sd">    effect on cube metadata, such as :py:meth:`~openeo.rest.datacube.DataCube.reduce_dimension()`</span>
+
+<span class="sd">    :param metadata: the collection metadata of the input data cube</span>
+<span class="sd">    :param context: A dictionary containing user context.</span>
+
+<span class="sd">    :return: output metadata: the expected metadata of the cube, after applying the udf</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    An example for a UDF that is applied on the &#39;bands&#39; dimension, and returns a new set of bands with different labels.</span>
+
+<span class="sd">    &gt;&gt;&gt; def apply_metadata(metadata: CollectionMetadata, context: dict) -&gt; CollectionMetadata:</span>
+<span class="sd">    ...     return metadata.rename_labels(</span>
+<span class="sd">    ...         dimension=&quot;bands&quot;,</span>
+<span class="sd">    ...         target=[&quot;computed_band_1&quot;, &quot;computed_band_2&quot;]</span>
+<span class="sd">    ...     )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="apply_vectorcube">
+<a class="viewcode-back" href="../../../udf.html#openeo.udf.udf_signatures.apply_vectorcube">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_vectorcube</span><span class="p">(</span>
+    <span class="n">geometries</span><span class="p">:</span> <span class="s2">&quot;geopandas.geodataframe.GeoDataFrame&quot;</span><span class="p">,</span> <span class="n">cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">dict</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="s2">&quot;geopandas.geodataframe.GeoDataFrame&quot;</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map a vector cube to another vector cube.</span>
+
+<span class="sd">    :param geometries: input geometries as a geopandas.GeoDataFrame. This contains the actual shapely geometries and optional properties.</span>
+<span class="sd">    :param cube: a data cube with dimensions (geometries, time, bands) where time and bands are optional.</span>
+<span class="sd">        The coordinates for the geometry dimension are integers and match the index of the geometries in the geometries parameter.</span>
+<span class="sd">    :param context: A dictionary containing user context.</span>
+<span class="sd">    :return: output geometries, output data cube</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

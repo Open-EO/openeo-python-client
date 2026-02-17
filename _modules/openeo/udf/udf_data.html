@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.udf.udf_data &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.udf.udf_data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.feature_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">FeatureCollection</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.structured_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StructuredData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+
+
+<div class="viewcode-block" id="UdfData">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UdfData</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for data passed to a user defined function (UDF)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: original implementation in `openeo_udf` project had `get_datacube_by_id`, `get_feature_collection_by_id`: is it still useful to provide this?</span>
+    <span class="c1"># TODO: original implementation in `openeo_udf` project had `server_context`: is it still useful to provide this?</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">proj</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">datacube_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">XarrayDataCube</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">feature_collection_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">FeatureCollection</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">structured_data_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">StructuredData</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">user_context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The constructor of the UDF argument class that stores all data required by the</span>
+<span class="sd">        user defined function.</span>
+
+<span class="sd">        :param proj: A dictionary of form {&quot;proj type string&quot;: &quot;projection description&quot;} e.g. {&quot;EPSG&quot;: 4326}</span>
+<span class="sd">        :param datacube_list: A list of data cube objects</span>
+<span class="sd">        :param feature_collection_list: A list of VectorTile objects</span>
+<span class="sd">        :param structured_data_list: A list of structured data objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datacube_list</span> <span class="o">=</span> <span class="n">datacube_list</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_collection_list</span> <span class="o">=</span> <span class="n">feature_collection_list</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structured_data_list</span> <span class="o">=</span> <span class="n">structured_data_list</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj</span> <span class="o">=</span> <span class="n">proj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user_context</span> <span class="o">=</span> <span class="n">user_context</span> <span class="ow">or</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">)</span><span class="si">!r}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span>
+            <span class="p">[</span><span class="s2">&quot;datacube_list&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_collection_list&quot;</span><span class="p">,</span> <span class="s2">&quot;structured_data_list&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">fields</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">user_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the user context that was passed to the run_udf function&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_user_context</span>
+
+<div class="viewcode-block" id="UdfData.get_datacube_list">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.get_datacube_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_datacube_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">XarrayDataCube</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the data cube list&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datacube_list</span></div>
+
+
+<div class="viewcode-block" id="UdfData.set_datacube_list">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.set_datacube_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_datacube_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datacube_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">XarrayDataCube</span><span class="p">],</span> <span class="kc">None</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the data cube list</span>
+
+<span class="sd">        :param datacube_list: A list of data cubes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datacube_list</span> <span class="o">=</span> <span class="n">datacube_list</span></div>
+
+
+    <span class="n">datacube_list</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">fget</span><span class="o">=</span><span class="n">get_datacube_list</span><span class="p">,</span> <span class="n">fset</span><span class="o">=</span><span class="n">set_datacube_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UdfData.get_feature_collection_list">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.get_feature_collection_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_feature_collection_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">FeatureCollection</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;get all feature collections as list&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_feature_collection_list</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_feature_collection_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature_collection_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">FeatureCollection</span><span class="p">],</span> <span class="kc">None</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_feature_collection_list</span> <span class="o">=</span> <span class="n">feature_collection_list</span>
+
+    <span class="n">feature_collection_list</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">fget</span><span class="o">=</span><span class="n">get_feature_collection_list</span><span class="p">,</span> <span class="n">fset</span><span class="o">=</span><span class="n">set_feature_collection_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UdfData.get_structured_data_list">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.get_structured_data_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structured_data_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">StructuredData</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all structured data entries</span>
+
+<span class="sd">        :return: A list of StructuredData objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structured_data_list</span></div>
+
+
+<div class="viewcode-block" id="UdfData.set_structured_data_list">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.set_structured_data_list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_structured_data_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structured_data_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">StructuredData</span><span class="p">],</span> <span class="kc">None</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the list of structured data</span>
+
+<span class="sd">        :param structured_data_list: A list of StructuredData objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_structured_data_list</span> <span class="o">=</span> <span class="n">structured_data_list</span></div>
+
+
+    <span class="n">structured_data_list</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">fget</span><span class="o">=</span><span class="n">get_structured_data_list</span><span class="p">,</span> <span class="n">fset</span><span class="o">=</span><span class="n">set_structured_data_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UdfData.to_dict">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.to_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convert this UdfData object into a dictionary that can be converted into</span>
+<span class="sd">        a valid JSON representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;datacubes&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datacube_list</span><span class="p">]</span> \
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">datacube_list</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;feature_collection_list&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_collection_list</span><span class="p">]</span> \
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_collection_list</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;structured_data_list&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structured_data_list</span><span class="p">]</span> \
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">structured_data_list</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;proj&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">proj</span><span class="p">,</span>
+            <span class="s2">&quot;user_context&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_context</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="UdfData.from_dict">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.udf_data.UdfData.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">udf_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UdfData</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a udf data object from a python dictionary that was created from</span>
+<span class="sd">        the JSON definition of the UdfData class</span>
+
+<span class="sd">        :param udf_dict: The dictionary that contains the udf data definition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">datacubes</span> <span class="o">=</span> <span class="p">[</span><span class="n">XarrayDataCube</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">udf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;datacubes&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="n">feature_collection_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">FeatureCollection</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">udf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;feature_collection_list&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="n">structured_data_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">StructuredData</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">udf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;structured_data_list&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="n">udf_data</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">proj</span><span class="o">=</span><span class="n">udf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;proj&quot;</span><span class="p">),</span>
+            <span class="n">datacube_list</span><span class="o">=</span><span class="n">datacubes</span><span class="p">,</span>
+            <span class="n">feature_collection_list</span><span class="o">=</span><span class="n">feature_collection_list</span><span class="p">,</span>
+            <span class="n">structured_data_list</span><span class="o">=</span><span class="n">structured_data_list</span><span class="p">,</span>
+            <span class="n">user_context</span><span class="o">=</span><span class="n">udf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user_context&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">udf_data</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

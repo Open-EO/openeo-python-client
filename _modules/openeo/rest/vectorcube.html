@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.vectorcube &#8212; openEO Python Client 0.49.0a1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=ad3dbffd" />
+    <script src="../../../_static/documentation_options.js?v=6f1c2e36"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for openeo.rest.vectorcube</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely.geometry.base</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">openeo.rest.datacube</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.api.process</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.documentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">openeo_process</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.graph_building</span><span class="w"> </span><span class="kn">import</span> <span class="n">PGNode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">legacy_alias</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">CollectionMetadata</span><span class="p">,</span> <span class="n">CubeMetadata</span><span class="p">,</span> <span class="n">Dimension</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest._datacube</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">THIS</span><span class="p">,</span>
+    <span class="n">UDF</span><span class="p">,</span>
+    <span class="n">_ProcessGraphAbstraction</span><span class="p">,</span>
+    <span class="n">build_child_callback</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.job</span><span class="w"> </span><span class="kn">import</span> <span class="n">BatchJob</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.mlmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">MlModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.result</span><span class="w"> </span><span class="kn">import</span> <span class="n">SaveResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidBBoxException</span><span class="p">,</span> <span class="n">dict_no_none</span><span class="p">,</span> <span class="n">guess_format</span><span class="p">,</span> <span class="n">to_bbox_dict</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="VectorCube">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">VectorCube</span><span class="p">(</span><span class="n">_ProcessGraphAbstraction</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Vector Cube, or &#39;Vector Collection&#39; is a data structure containing &#39;Features&#39;:</span>
+<span class="sd">    https://www.w3.org/TR/sdw-bp/#dfn-feature</span>
+
+<span class="sd">    The features in this cube are restricted to have a geometry. Geometries can be points, lines, polygons etcetera.</span>
+<span class="sd">    A geometry is specified in a &#39;coordinate reference system&#39;. https://www.w3.org/TR/sdw-bp/#dfn-coordinate-reference-system-(crs)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_DEFAULT_VECTOR_FORMAT</span> <span class="o">=</span> <span class="s2">&quot;GeoJSON&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">PGNode</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Connection</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CubeMetadata</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pgnode</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_metadata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">add_properties</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CollectionMetadata</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper to build a (minimal) `CollectionMetadata` object.&quot;&quot;&quot;</span>
+        <span class="c1"># Vector cubes have at least a &quot;geometry&quot; dimension</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span><span class="n">Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;geometry&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;geometry&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">add_properties</span><span class="p">:</span>
+            <span class="n">dimensions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Dimension</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;properties&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;other&quot;</span><span class="p">))</span>
+        <span class="c1"># TODO #464: use a more generic metadata container than &quot;collection&quot; metadata</span>
+        <span class="k">return</span> <span class="n">CollectionMetadata</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="p">{},</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">dimensions</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VectorCube.process">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">process_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CollectionMetadata</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generic helper to create a new VectorCube by applying a process.</span>
+
+<span class="sd">        :param process_id: process id of the process.</span>
+<span class="sd">        :param args: argument dictionary for the process.</span>
+<span class="sd">        :return: new VectorCube instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pgnode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="n">process_id</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">VectorCube</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pg</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.load_geojson">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.load_geojson">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_geojson</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span>
+        <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">],</span>
+        <span class="n">properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts GeoJSON data as defined by RFC 7946 into a vector data cube.</span>
+
+<span class="sd">        :param connection: the connection to use to connect with the openEO back-end.</span>
+<span class="sd">        :param data: the geometry to load. One of:</span>
+
+<span class="sd">            - GeoJSON-style data structure: e.g. a dictionary with ``&quot;type&quot;: &quot;Polygon&quot;`` and ``&quot;coordinates&quot;`` fields</span>
+<span class="sd">            - a path to a local GeoJSON file</span>
+<span class="sd">            - a GeoJSON string</span>
+<span class="sd">            - a shapely geometry object</span>
+
+<span class="sd">        :param properties: A list of properties from the GeoJSON file to construct an additional dimension from.</span>
+<span class="sd">        :return: new VectorCube instance</span>
+
+<span class="sd">        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.</span>
+
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: unify with `DataCube._get_geometry_argument`</span>
+        <span class="c1"># TODO #457 also support client side fetching of GeoJSON from URL?</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">):</span>
+            <span class="c1"># Assume JSON dump</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">)):</span>
+            <span class="c1"># Assume local file</span>
+            <span class="k">with</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">geometry</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geometry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">):</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">mapping</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">geometry</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># TODO #457 client side verification of GeoJSON construct: valid type, valid structure, presence of CRS, ...?</span>
+
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;load_geojson&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">geometry</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">properties</span> <span class="ow">or</span> <span class="p">[])</span>
+        <span class="c1"># TODO #457 always a &quot;properties&quot; dimension? https://github.com/Open-EO/openeo-processes/issues/448</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_metadata</span><span class="p">(</span><span class="n">add_properties</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pg</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.load_url">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.load_url">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_url</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads a file from a URL</span>
+
+<span class="sd">        :param connection: the connection to use to connect with the openEO back-end.</span>
+<span class="sd">        :param url: The URL to read from. Authentication details such as API keys or tokens may need to be included in the URL.</span>
+<span class="sd">        :param format: The file format to use when loading the data.</span>
+<span class="sd">        :param options: The file format parameters to use when reading the data.</span>
+<span class="sd">            Must correspond to the parameters that the server reports as supported parameters for the chosen ``format``</span>
+<span class="sd">        :return: new VectorCube instance</span>
+
+<span class="sd">        .. warning:: EXPERIMENTAL: this process is experimental with the potential for major things to change.</span>
+
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;load_url&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">dict_no_none</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">))</span>
+        <span class="c1"># TODO #457 always a &quot;properties&quot; dimension? https://github.com/Open-EO/openeo-processes/issues/448</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_metadata</span><span class="p">(</span><span class="n">add_properties</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pg</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.run_udf">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.run_udf">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_udf</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">udf</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">UDF</span><span class="p">],</span>
+        <span class="n">runtime</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run a UDF on the vector cube.</span>
+
+<span class="sd">        It is recommended to provide the UDF just as :py:class:`UDF &lt;openeo.rest._datacube.UDF&gt;` instance.</span>
+<span class="sd">        (the other arguments could be used to override UDF parameters if necessary).</span>
+
+<span class="sd">        :param udf: UDF code as a string or :py:class:`UDF &lt;openeo.rest._datacube.UDF&gt;` instance</span>
+<span class="sd">        :param runtime: UDF runtime</span>
+<span class="sd">        :param version: UDF version</span>
+<span class="sd">        :param context: UDF context</span>
+
+<span class="sd">        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.</span>
+
+<span class="sd">        .. versionadded:: 0.10.0</span>
+
+<span class="sd">        .. versionchanged:: 0.16.0</span>
+<span class="sd">            Added support to pass self-contained :py:class:`UDF &lt;openeo.rest._datacube.UDF&gt;` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">udf</span><span class="p">,</span> <span class="n">UDF</span><span class="p">):</span>
+            <span class="c1"># `UDF` instance is preferred usage pattern, but allow overriding.</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="n">version</span> <span class="ow">or</span> <span class="n">udf</span><span class="o">.</span><span class="n">version</span>
+            <span class="n">context</span> <span class="o">=</span> <span class="n">context</span> <span class="ow">or</span> <span class="n">udf</span><span class="o">.</span><span class="n">context</span>
+            <span class="n">runtime</span> <span class="o">=</span> <span class="n">runtime</span> <span class="ow">or</span> <span class="n">udf</span><span class="o">.</span><span class="n">get_runtime</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span>
+            <span class="n">udf</span> <span class="o">=</span> <span class="n">udf</span><span class="o">.</span><span class="n">code</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">runtime</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument `runtime` must be specified&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;run_udf&quot;</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">udf</span><span class="o">=</span><span class="n">udf</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="n">dict_no_none</span><span class="p">({</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span> <span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="n">context</span><span class="p">}),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.save_result">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.save_result">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_result</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="c1"># TODO: does it make sense for the client to define a (hard coded) default format here?</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;GeoJSON&quot;</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SaveResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Materialize the processed data to the given file format.</span>
+
+<span class="sd">        :param format: an output format supported by the backend.</span>
+<span class="sd">        :param options: (optional) file format options</span>
+
+<span class="sd">        .. versionchanged:: 0.39.0</span>
+<span class="sd">            returns a :py:class:`~openeo.rest.result.SaveResult` instance instead</span>
+<span class="sd">            of another :py:class:`~openeo.rest.vectorcube.VectorCube` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_pgnode</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;save_result&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="p">,</span>
+                <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="nb">format</span> <span class="ow">or</span> <span class="s2">&quot;GeoJSON&quot;</span><span class="p">,</span>
+                <span class="c1"># TODO: leave out options if unset?</span>
+                <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="n">options</span> <span class="ow">or</span> <span class="p">{},</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">SaveResult</span><span class="p">(</span><span class="n">pg</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_auto_save_result</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">outputfile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SaveResult</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">process_id</span> <span class="o">==</span> <span class="s2">&quot;save_result&quot;</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_node</span><span class="p">()</span><span class="o">.</span><span class="n">walk_nodes</span><span class="p">()):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;This </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> already contains 1 or more `save_result` nodes.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span>
+            <span class="nb">format</span><span class="o">=</span><span class="nb">format</span> <span class="ow">or</span> <span class="p">(</span><span class="n">guess_format</span><span class="p">(</span><span class="n">outputfile</span><span class="p">)</span> <span class="k">if</span> <span class="n">outputfile</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_DEFAULT_VECTOR_FORMAT</span><span class="p">,</span>
+            <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="VectorCube.execute">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.execute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">validate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executes the process graph.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">(),</span> <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.download">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.download">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outputfile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">validate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_add_save_result</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">additional</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">job_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_response_headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Mapping</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send the underlying process graph to the backend</span>
+<span class="sd">        for synchronous processing and directly download the result.</span>
+
+<span class="sd">        If ``outputfile`` is provided, the result is downloaded to that path.</span>
+<span class="sd">        Otherwise a :py:class:`bytes` object is returned with the raw data.</span>
+
+<span class="sd">        :param outputfile: (optional) output path to download to.</span>
+<span class="sd">        :param format: (optional) an output format supported by the backend.</span>
+<span class="sd">        :param options: (optional) file format options</span>
+<span class="sd">        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution</span>
+<span class="sd">            (overruling the connection&#39;s ``auto_validate`` setting).</span>
+<span class="sd">        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.</span>
+<span class="sd">        :param additional: (optional) additional (top-level) properties to set in the request body</span>
+<span class="sd">        :param job_options: (optional) dictionary of job options to pass to the backend</span>
+<span class="sd">            (under top-level property &quot;job_options&quot;)</span>
+<span class="sd">        :param on_response_headers: (optional) callback to handle (e.g. :py:func:`print`) the response headers.</span>
+
+<span class="sd">        :return: if ``outputfile`` was not specified:</span>
+<span class="sd">            a :py:class:`bytes` object containing the raw data.</span>
+<span class="sd">            Otherwise, ``None`` is returned.</span>
+
+<span class="sd">        .. versionchanged:: 0.21.0</span>
+<span class="sd">            When not specified explicitly, output format is guessed from output file extension.</span>
+
+<span class="sd">        .. versionchanged:: 0.32.0</span>
+<span class="sd">            Added ``auto_add_save_result`` option</span>
+
+<span class="sd">        .. versionchanged:: 0.39.0</span>
+<span class="sd">            Added arguments ``additional`` and ``job_options``.</span>
+
+<span class="sd">        .. versionchanged:: 0.40</span>
+<span class="sd">            Added argument ``on_response_headers``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...</span>
+        <span class="k">if</span> <span class="n">auto_add_save_result</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_save_result</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">outputfile</span><span class="o">=</span><span class="n">outputfile</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">download</span><span class="p">(</span>
+            <span class="n">res</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">(),</span>
+            <span class="n">outputfile</span><span class="o">=</span><span class="n">outputfile</span><span class="p">,</span>
+            <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">,</span>
+            <span class="n">additional</span><span class="o">=</span><span class="n">additional</span><span class="p">,</span>
+            <span class="n">job_options</span><span class="o">=</span><span class="n">job_options</span><span class="p">,</span>
+            <span class="n">on_response_headers</span><span class="o">=</span><span class="n">on_response_headers</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.execute_batch">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.execute_batch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">execute_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outputfile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">out_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">plan</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">budget</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+        <span class="n">max_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+        <span class="n">connection_retry_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+        <span class="n">additional</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">job_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">validate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_add_save_result</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">show_error_logs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="c1"># TODO: avoid using kwargs as format options</span>
+        <span class="o">**</span><span class="n">format_options</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute the underlying process graph at the backend in batch job mode:</span>
+
+<span class="sd">        - create the job (like :py:meth:`create_job`)</span>
+<span class="sd">        - start the job (like :py:meth:`BatchJob.start() &lt;openeo.rest.job.BatchJob.start&gt;`)</span>
+<span class="sd">        - track the job&#39;s progress with an active polling loop</span>
+<span class="sd">          (like :py:meth:`BatchJob.run_synchronous() &lt;openeo.rest.job.BatchJob.run_synchronous&gt;`)</span>
+<span class="sd">        - optionally (if ``outputfile`` is specified) download the job&#39;s results</span>
+<span class="sd">          when the job finished successfully</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Because of the active polling loop,</span>
+<span class="sd">            which blocks any further progress of your script or application,</span>
+<span class="sd">            this :py:meth:`execute_batch` method is mainly recommended</span>
+<span class="sd">            for batch jobs that are expected to complete</span>
+<span class="sd">            in a time that is reasonable for your use case.</span>
+
+<span class="sd">        :param outputfile: (optional) output path to download to.</span>
+<span class="sd">        :param out_format: (optional) file format to use for the job result.</span>
+<span class="sd">        :param title: (optional) job title.</span>
+<span class="sd">        :param description: (optional) job description.</span>
+<span class="sd">        :param plan: (optional) the billing plan to process and charge the job with.</span>
+<span class="sd">        :param budget: (optional) maximum budget to be spent on executing the job.</span>
+<span class="sd">            Note that some backends do not honor this limit.</span>
+<span class="sd">        :param additional: (optional) additional (top-level) properties to set in the request body</span>
+<span class="sd">        :param job_options: (optional) dictionary of job options to pass to the backend</span>
+<span class="sd">            (under top-level property &quot;job_options&quot;)</span>
+<span class="sd">        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution</span>
+<span class="sd">            (overruling the connection&#39;s ``auto_validate`` setting).</span>
+<span class="sd">        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.</span>
+<span class="sd">        :param show_error_logs: whether to automatically print error logs when the batch job failed.</span>
+<span class="sd">        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.</span>
+<span class="sd">            One of &quot;error&quot; (highest severity), &quot;warning&quot;, &quot;info&quot;, and &quot;debug&quot; (lowest severity).</span>
+<span class="sd">        :param max_poll_interval: maximum number of seconds to sleep between job status polls</span>
+<span class="sd">        :param connection_retry_interval: how long to wait when status poll failed due to connection issue</span>
+<span class="sd">        :param print: print/logging function to show progress/status</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.21.0</span>
+<span class="sd">            When not specified explicitly, output format is guessed from output file extension.</span>
+
+<span class="sd">        .. versionchanged:: 0.32.0</span>
+<span class="sd">            Added ``auto_add_save_result`` option</span>
+
+<span class="sd">        .. versionchanged:: 0.36.0</span>
+<span class="sd">            Added argument ``additional``.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``show_error_logs``.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``log_level``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">auto_add_save_result</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_save_result</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="n">out_format</span><span class="p">,</span> <span class="n">outputfile</span><span class="o">=</span><span class="n">outputfile</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">format_options</span><span class="p">)</span>
+            <span class="n">create_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span>
+            <span class="n">create_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;auto_add_save_result&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+            <span class="n">budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+            <span class="n">additional</span><span class="o">=</span><span class="n">additional</span><span class="p">,</span>
+            <span class="n">job_options</span><span class="o">=</span><span class="n">job_options</span><span class="p">,</span>
+            <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">,</span>
+            <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">create_kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">job</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">(</span>
+            <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+            <span class="n">max_poll_interval</span><span class="o">=</span><span class="n">max_poll_interval</span><span class="p">,</span>
+            <span class="n">connection_retry_interval</span><span class="o">=</span><span class="n">connection_retry_interval</span><span class="p">,</span>
+            <span class="n">show_error_logs</span><span class="o">=</span><span class="n">show_error_logs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">outputfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">download_result</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">outputfile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.create_job">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.create_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_job</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">out_format</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">plan</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">budget</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">additional</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">job_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">validate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_add_save_result</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">format_options</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send the underlying process graph to the backend</span>
+<span class="sd">        to create an openEO batch job</span>
+<span class="sd">        and return a corresponding :py:class:`~openeo.rest.job.BatchJob` instance.</span>
+
+<span class="sd">        Note that this method only *creates* the openEO batch job at the backend,</span>
+<span class="sd">        but it does not *start* it.</span>
+<span class="sd">        Use :py:meth:`execute_batch` instead to let the openEO Python client</span>
+<span class="sd">        take care of the full job life cycle: create, start and track its progress until completion.</span>
+
+<span class="sd">        :param out_format: (optional) file format to use for the job result.</span>
+<span class="sd">        :param title: (optional) job title.</span>
+<span class="sd">        :param description: (optional) job description.</span>
+<span class="sd">        :param plan: (optional) the billing plan to process and charge the job with.</span>
+<span class="sd">        :param budget: (optional) maximum budget to be spent on executing the job.</span>
+<span class="sd">            Note that some backends do not honor this limit.</span>
+<span class="sd">        :param additional: (optional) additional (top-level) properties to set in the request body</span>
+<span class="sd">        :param job_options: (optional) dictionary of job options to pass to the backend</span>
+<span class="sd">            (under top-level property &quot;job_options&quot;)</span>
+<span class="sd">        :param validate: (optional) toggle to enable/prevent validation of the process graphs before execution</span>
+<span class="sd">            (overruling the connection&#39;s ``auto_validate`` setting).</span>
+<span class="sd">        :param auto_add_save_result: whether to automatically add a ``save_result`` node to the process graph.</span>
+<span class="sd">        :param log_level: (optional) minimum severity level for log entries that the back-end should keep track of.</span>
+<span class="sd">            One of &quot;error&quot; (highest severity), &quot;warning&quot;, &quot;info&quot;, and &quot;debug&quot; (lowest severity).</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.32.0</span>
+<span class="sd">            Added ``auto_add_save_result`` option</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``log_level``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: avoid using all kwargs as format_options</span>
+        <span class="c1"># TODO #278 centralize download/create_job/execute_job logic in DataCube, VectorCube, MlModel, ...</span>
+        <span class="k">if</span> <span class="n">auto_add_save_result</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_save_result</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="n">out_format</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">format_options</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span>
+            <span class="n">process_graph</span><span class="o">=</span><span class="n">res</span><span class="o">.</span><span class="n">flat_graph</span><span class="p">(),</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
+            <span class="n">budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+            <span class="n">additional</span><span class="o">=</span><span class="n">additional</span><span class="p">,</span>
+            <span class="n">job_options</span><span class="o">=</span><span class="n">job_options</span><span class="p">,</span>
+            <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">,</span>
+            <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="n">send_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">create_job</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;send_job&quot;</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">&quot;0.10.0&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VectorCube.filter_bands">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.filter_bands">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bands</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO #459 docs</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;filter_bands&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">THIS</span><span class="p">,</span> <span class="s2">&quot;bands&quot;</span><span class="p">:</span> <span class="n">bands</span><span class="p">},</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.filter_bbox">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.filter_bbox">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_bbox</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">west</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">south</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">east</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">north</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">extent</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">Parameter</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO #459 docs</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">[</span><span class="n">west</span><span class="p">,</span> <span class="n">south</span><span class="p">,</span> <span class="n">east</span><span class="p">,</span> <span class="n">north</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">extent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">InvalidBBoxException</span><span class="p">(</span><span class="s2">&quot;Don&#39;t specify both west/south/east/north and extent&quot;</span><span class="p">)</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="n">dict_no_none</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="n">west</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="n">south</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="n">east</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="n">north</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extent</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="n">to_bbox_dict</span><span class="p">(</span><span class="n">extent</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">crs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;filter_bbox&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">THIS</span><span class="p">,</span> <span class="s2">&quot;extent&quot;</span><span class="p">:</span> <span class="n">extent</span><span class="p">},</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.filter_labels">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.filter_labels">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_labels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PGNode</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">dimension</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filters the dimension labels in the data cube for the given dimension.</span>
+<span class="sd">        Only the dimension labels that match the specified condition are preserved,</span>
+<span class="sd">        all other labels with their corresponding data get removed.</span>
+
+<span class="sd">        :param condition: the &quot;child callback&quot; which will be given a single label value (number or string)</span>
+<span class="sd">            and returns a boolean expressing if the label should be preserved.</span>
+<span class="sd">            Also see :ref:`callbackfunctions`.</span>
+<span class="sd">        :param dimension: The name of the dimension to filter on.</span>
+
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">condition</span> <span class="o">=</span> <span class="n">build_child_callback</span><span class="p">(</span><span class="n">condition</span><span class="p">,</span> <span class="n">parent_parameters</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;filter_labels&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="n">dict_no_none</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">THIS</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="n">dimension</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.filter_vector">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.filter_vector">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">filter_vector</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">geometries</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="s2">&quot;VectorCube&quot;</span><span class="p">,</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">relation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;intersects&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO #459 docs</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geometries</span><span class="p">,</span> <span class="p">(</span><span class="n">VectorCube</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)):</span>
+            <span class="n">geometries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_geojson</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">geometries</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;filter_vector&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">THIS</span><span class="p">,</span> <span class="s2">&quot;geometries&quot;</span><span class="p">:</span> <span class="n">geometries</span><span class="p">,</span> <span class="s2">&quot;relation&quot;</span><span class="p">:</span> <span class="n">relation</span><span class="p">},</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.fit_class_random_forest">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.fit_class_random_forest">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_class_random_forest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="c1"># TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)</span>
+        <span class="n">target</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="c1"># TODO #293 max_variables officially has no default</span>
+        <span class="n">max_variables</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_trees</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MlModel</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Executes the fit of a random forest classification based on the user input of target and predictors.</span>
+<span class="sd">        The Random Forest classification model is based on the approach by Breiman (2001).</span>
+
+<span class="sd">        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.</span>
+
+<span class="sd">        :param target: The training sites for the classification model as a vector data cube. This is associated with the target</span>
+<span class="sd">            variable for the Random Forest model. The geometry has to be associated with a value to predict (e.g. fractional</span>
+<span class="sd">            forest canopy cover).</span>
+<span class="sd">        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the</span>
+<span class="sd">            number of predictors divided by 3.</span>
+<span class="sd">        :param num_trees: The number of trees build within the Random Forest classification.</span>
+<span class="sd">        :param seed: A randomization seed to use for the random sampling in training.</span>
+
+<span class="sd">        .. versionadded:: 0.16.0</span>
+<span class="sd">            Originally added in version 0.10.0 as :py:class:`DataCube &lt;openeo.rest.datacube.DataCube&gt;` method,</span>
+<span class="sd">            but moved to :py:class:`VectorCube` in version 0.16.0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pgnode</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;fit_class_random_forest&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="n">dict_no_none</span><span class="p">(</span>
+                <span class="n">predictors</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="c1"># TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                <span class="n">max_variables</span><span class="o">=</span><span class="n">max_variables</span><span class="p">,</span>
+                <span class="n">num_trees</span><span class="o">=</span><span class="n">num_trees</span><span class="p">,</span>
+                <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">MlModel</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pgnode</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.fit_regr_random_forest">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.fit_regr_random_forest">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_regr_random_forest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="c1"># TODO #279 #293: target type should be `VectorCube` (with adapters for GeoJSON FeatureCollection, GeoPandas, ...)</span>
+        <span class="n">target</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="c1"># TODO #293 max_variables officially has no default</span>
+        <span class="n">max_variables</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_trees</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MlModel</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Executes the fit of a random forest regression based on training data.</span>
+<span class="sd">        The Random Forest regression model is based on the approach by Breiman (2001).</span>
+
+<span class="sd">        .. warning:: EXPERIMENTAL: not generally supported, API subject to change.</span>
+
+<span class="sd">        :param target: The training sites for the regression model as a vector data cube.</span>
+<span class="sd">            This is associated with the target variable for the Random Forest model.</span>
+<span class="sd">            The geometry has to associated with a value to predict (e.g. fractional forest canopy cover).</span>
+<span class="sd">        :param max_variables: Specifies how many split variables will be used at a node. Default value is `null`, which corresponds to the</span>
+<span class="sd">            number of predictors divided by 3.</span>
+<span class="sd">        :param num_trees: The number of trees build within the Random Forest classification.</span>
+<span class="sd">        :param seed: A randomization seed to use for the random sampling in training.</span>
+
+<span class="sd">        .. versionadded:: 0.16.0</span>
+<span class="sd">            Originally added in version 0.10.0 as :py:class:`DataCube &lt;openeo.rest.datacube.DataCube&gt;` method,</span>
+<span class="sd">            but moved to :py:class:`VectorCube` in version 0.16.0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO #279 #293: `fit_class_random_forest` should be defined on VectorCube instead of DataCube</span>
+        <span class="n">pgnode</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;fit_regr_random_forest&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="n">dict_no_none</span><span class="p">(</span>
+                <span class="n">predictors</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="c1"># TODO #279 strictly per-spec, target should be a `vector-cube`, but due to lack of proper support we are limited to inline GeoJSON for now</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                <span class="n">max_variables</span><span class="o">=</span><span class="n">max_variables</span><span class="p">,</span>
+                <span class="n">num_trees</span><span class="o">=</span><span class="n">num_trees</span><span class="p">,</span>
+                <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">MlModel</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">pgnode</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.apply_dimension">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.apply_dimension">[docs]</a>
+    <span class="nd">@openeo_process</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_dimension</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">process</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Callable</span><span class="p">,</span> <span class="n">UDF</span><span class="p">,</span> <span class="n">PGNode</span><span class="p">],</span>
+        <span class="n">dimension</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_dimension</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">VectorCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies a process to all values along a dimension of a data cube.</span>
+<span class="sd">        For example, if the temporal dimension is specified the process will work on the values of a time series.</span>
+
+<span class="sd">        The process to apply is specified by providing a callback function in the `process` argument.</span>
+
+<span class="sd">        :param process: the &quot;child callback&quot;:</span>
+<span class="sd">            the name of a single process,</span>
+<span class="sd">            or a callback function as discussed in :ref:`callbackfunctions`,</span>
+<span class="sd">            or a :py:class:`UDF &lt;openeo.rest._datacube.UDF&gt;` instance.</span>
+
+<span class="sd">            The callback should correspond to a process that</span>
+<span class="sd">            receives an array of numerical values</span>
+<span class="sd">            and returns an array of numerical values.</span>
+<span class="sd">            For example:</span>
+
+<span class="sd">            -   ``&quot;sort&quot;`` (string)</span>
+<span class="sd">            -   :py:func:`sort &lt;openeo.processes.sort&gt;` (:ref:`predefined openEO process function &lt;openeo_processes_functions&gt;`)</span>
+<span class="sd">            -   ``lambda data: data.concat([42, -3])`` (function or lambda)</span>
+
+
+<span class="sd">        :param dimension: The name of the source dimension to apply the process on. Fails with a DimensionNotAvailable error if the specified dimension does not exist.</span>
+<span class="sd">        :param target_dimension: The name of the target dimension or null (the default) to use the source dimension</span>
+<span class="sd">            specified in the parameter dimension. By specifying a target dimension, the source dimension is removed.</span>
+<span class="sd">            The target dimension with the specified name and the type other (see add_dimension) is created, if it doesn&#39;t exist yet.</span>
+<span class="sd">        :param context: Additional data to be passed to the process.</span>
+
+<span class="sd">        :return: A datacube with the UDF applied to the given dimension.</span>
+<span class="sd">        :raises: DimensionNotAvailable</span>
+
+<span class="sd">        .. versionadded:: 0.22.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">build_child_callback</span><span class="p">(</span>
+            <span class="n">process</span><span class="o">=</span><span class="n">process</span><span class="p">,</span> <span class="n">parent_parameters</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;context&quot;</span><span class="p">],</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span>
+        <span class="p">)</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">dict_no_none</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">THIS</span><span class="p">,</span>
+                <span class="s2">&quot;process&quot;</span><span class="p">:</span> <span class="n">process</span><span class="p">,</span>
+                <span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="n">dimension</span><span class="p">,</span>
+                <span class="s2">&quot;target_dimension&quot;</span><span class="p">:</span> <span class="n">target_dimension</span><span class="p">,</span>
+                <span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;apply_dimension&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VectorCube.vector_to_raster">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.vectorcube.VectorCube.vector_to_raster">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">vector_to_raster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">openeo</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">datacube</span><span class="o">.</span><span class="n">DataCube</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">openeo</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">datacube</span><span class="o">.</span><span class="n">DataCube</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts this vector cube (:py:class:`VectorCube`) into a raster data cube (:py:class:`~openeo.rest.datacube.DataCube`).</span>
+<span class="sd">        The bounding polygon of homogenous areas of pixels is constructed.</span>
+
+<span class="sd">        :param target: a reference raster data cube to adopt the CRS/projection/resolution from.</span>
+
+<span class="sd">        .. warning:: ``vector_to_raster`` is an experimental, non-standard process. It is not widely supported, and its API is subject to change.</span>
+
+<span class="sd">        .. versionadded:: 0.28.0</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: this parameter sniffing is a temporary workaround until</span>
+        <span class="c1">#       the `target` parameter name rename has fully settled</span>
+        <span class="c1">#       https://github.com/Open-EO/openeo-python-driver/issues/274</span>
+        <span class="c1">#       After that has settled, it is still useful to verify assumptions about this non-standard process.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">process_spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">describe_process</span><span class="p">(</span><span class="s2">&quot;vector_to_raster&quot;</span><span class="p">)</span>
+            <span class="n">target_parameter</span> <span class="o">=</span> <span class="n">process_spec</span><span class="p">[</span><span class="s2">&quot;parameters&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="s2">&quot;target&quot;</span> <span class="ow">in</span> <span class="n">target_parameter</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">target_parameter</span> <span class="o">=</span> <span class="s2">&quot;target&quot;</span>
+
+        <span class="n">pg_node</span> <span class="o">=</span> <span class="n">PGNode</span><span class="p">(</span>
+            <span class="n">process_id</span><span class="o">=</span><span class="s2">&quot;vector_to_raster&quot;</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="p">,</span> <span class="n">target_parameter</span><span class="p">:</span> <span class="n">target</span><span class="p">},</span>
+        <span class="p">)</span>
+        <span class="c1"># TODO: the correct metadata has to be passed here:</span>
+        <span class="c1">#       replace &quot;geometry&quot; dimension with spatial dimensions of the target cube</span>
+        <span class="k">return</span> <span class="n">openeo</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">datacube</span><span class="o">.</span><span class="n">DataCube</span><span class="p">(</span><span class="n">pg_node</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">openEO Python Client</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Open-EO&repo=openeo-python-client&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+
+<h3><a href="../../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><!-- Alabaster (krTheme++) Hacks -->
+
+<div class="sidebar-meta">
+<h3>Meta</h3>
+<div>Docs for openEO Python Client</div>
+<div>Version: <code>0.49.0a1</code></div>
+<div>Last updated: 2026/02/17</div>
+</div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2017 - 2026, Jeroen Dries.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
