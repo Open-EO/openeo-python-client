@@ -729,7 +729,7 @@ class TestMultiBackendJobManager:
         assert isinstance(rfc3339.parse_datetime(filled_running_start_time), datetime.datetime)
 
     def test_process_threadworker_updates(self, tmp_path, caplog):
-        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        pool = _JobManagerWorkerThreadPool()
         stats = collections.defaultdict(int)
 
         # Submit tasks covering all cases
@@ -769,7 +769,7 @@ class TestMultiBackendJobManager:
         assert caplog.messages == []
 
     def test_process_threadworker_updates_unknown(self, tmp_path, caplog):
-        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        pool = _JobManagerWorkerThreadPool()
         stats = collections.defaultdict(int)
 
         pool.submit_task(DummyResultTask("j-123", df_idx=0, db_update={"status": "queued"}, stats_update={"queued": 1}))
@@ -806,7 +806,7 @@ class TestMultiBackendJobManager:
         assert caplog.messages == [dirty_equals.IsStr(regex=".*Ignoring unknown.*indices.*4.*")]
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
-        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        pool = _JobManagerWorkerThreadPool()
         stats = collections.defaultdict(int)
 
         df_initial = pd.DataFrame({"id": ["j-0"], "status": ["created"]})
@@ -820,7 +820,7 @@ class TestMultiBackendJobManager:
         assert stats == {}
 
     def test_logs_on_invalid_update(self, tmp_path, caplog):
-        pool = _JobManagerWorkerThreadPool(max_workers=2)
+        pool = _JobManagerWorkerThreadPool()
         stats = collections.defaultdict(int)
 
         # Malformed db_update (not a dict unpackable via **)
