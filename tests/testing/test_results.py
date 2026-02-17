@@ -619,3 +619,11 @@ class TestAssertJobResults:
             message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_must_be_folder(self, tmp_path, actual_dir, expected_dir):
+        expected = expected_dir / "readme.md"
+        expected.write_text("Hello world")
+        actual = actual_dir / "readme.md"
+        actual.write_text("Wello Horld")
+        with pytest.raises(ValueError, match="Expected a directory"):
+            assert_job_results_allclose(actual=actual, expected=expected, tmp_path=tmp_path)
