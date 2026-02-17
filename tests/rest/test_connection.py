@@ -3027,6 +3027,41 @@ class TestLoadCollection:
             },
         }
 
+    def test_load_collection_extra_params(self, dummy_backend):
+        """Test passing additional backend-specific parameters via **kwargs."""
+        spatial_extent = {"west": 1, "south": 2, "east": 3, "north": 4}
+        cube = dummy_backend.connection.load_collection(
+            "S2",
+            spatial_extent=spatial_extent,
+            temporal_extent=["2023-01-01", "2023-06-01"],
+            bands=["B2", "B3"],
+            nodata=0,
+            target_crs=32632,
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+            "temporal_extent": ["2023-01-01", "2023-06-01"],
+            "bands": ["B2", "B3"],
+            "nodata": 0,
+            "target_crs": 32632,
+        }
+
+    def test_load_collection_extra_params_only(self, dummy_backend):
+        """Test passing only backend-specific parameters."""
+        cube = dummy_backend.connection.load_collection(
+            "S2",
+            tile_buffer=16,
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": None,
+            "temporal_extent": None,
+            "tile_buffer": 16,
+        }
+
 
 def test_load_result(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})

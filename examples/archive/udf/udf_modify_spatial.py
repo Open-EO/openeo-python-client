@@ -1,8 +1,10 @@
+import numpy as np
 import xarray
+
+from openeo.metadata import CollectionMetadata
 from openeo.udf import XarrayDataCube
 from openeo.udf.debug import inspect
-from openeo.metadata import CollectionMetadata
-import numpy as np
+
 
 def apply_metadata(input_metadata:CollectionMetadata, context:dict) -> CollectionMetadata:
 
