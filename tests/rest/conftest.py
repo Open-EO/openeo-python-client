@@ -14,7 +14,7 @@ from openeo.rest.connection import Connection
 API_URL = "https://oeo.test/"
 
 
-@pytest.fixture(params=["1.0.0"])
+@pytest.fixture(params=["1.0.0", "1.3.0"])
 def api_version(request):
     return request.param
 

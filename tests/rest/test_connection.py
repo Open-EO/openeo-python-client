@@ -840,28 +840,7 @@ def test_authenticate_basic_no_support(requests_mock, api_version):
 
 
 def test_authenticate_basic(requests_mock, api_version, basic_auth):
-    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-
-    conn = Connection(API_URL)
-    assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
-    assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//6cc3570k3n"
-
-
-def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
-    requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
-    auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
-
-    conn = Connection(API_URL)
-    assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic()
-    assert isinstance(conn.auth, BearerAuth)
-    assert conn.auth.bearer == "basic//6cc3570k3n"
-
-
-def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
-    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0"))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
 
     conn = Connection(API_URL)
 
@@ -869,9 +848,26 @@ def test_authenticate_basic_jwt_bearer(requests_mock, basic_auth):
     conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     capabilities = conn.capabilities()
     assert isinstance(conn.auth, BearerAuth)
-    assert capabilities.api_version() == "1.3.0"
-    assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
-    assert conn.auth.bearer == "6cc3570k3n"
+    if api_version == "1.3.0":
+        assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
+        assert conn.auth.bearer == "6cc3570k3n"
+    else:
+        assert conn.auth.bearer == "basic//6cc3570k3n"
+
+
+def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
+
+    conn = Connection(API_URL)
+    assert isinstance(conn.auth, NullAuth)
+    conn.authenticate_basic()
+    assert isinstance(conn.auth, BearerAuth)
+    if api_version == "1.3.0":
+        assert conn.auth.bearer == "6cc3570k3n"
+    else:
+        assert conn.auth.bearer == "basic//6cc3570k3n"
+
 
 @pytest.mark.slow
 def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, caplog):
