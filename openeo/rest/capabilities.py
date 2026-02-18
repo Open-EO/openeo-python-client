@@ -8,7 +8,8 @@ from openeo.utils.version import ApiVersionException, ComparableVersion
 
 __all__ = ["OpenEoCapabilities"]
 
-CONFORMANCE_JWT_BEARER = "https://api.openeo.org/*/authentication/jwt"
+CONFORMANCE_JWT_BEARER = re.compile(r"https://api\.openeo\.org/[^/]+/authentication/jwt")
+
 
 class OpenEoCapabilities:
     """Container of the openEO capabilities document of an openEO backend."""
@@ -41,9 +42,8 @@ class OpenEoCapabilities:
 
     def has_conformance(self, uri: str) -> bool:
         """Check if backend provides a given conformance string"""
-        uri = re.escape(uri).replace('\\*', '[^/]+')
         for conformance_uri in self.capabilities.get("conformsTo", []):
-            if re.match(uri, conformance_uri):
+            if re.fullmatch(uri, conformance_uri):
                 return True
         return False
 

@@ -39,6 +39,7 @@ from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock, SimpleBasicAuthMocker
+from openeo.rest.capabilities import CONFORMANCE_JWT_BEARER
 from openeo.rest.connection import (
     DEFAULT_TIMEOUT,
     DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
@@ -849,7 +850,7 @@ def test_authenticate_basic(requests_mock, api_version_authentication_tests, bas
     capabilities = conn.capabilities()
     assert isinstance(conn.auth, BearerAuth)
     if api_version_authentication_tests == "1.3.0":
-        assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
+        assert capabilities.has_conformance(CONFORMANCE_JWT_BEARER) == True
         assert conn.auth.bearer == "6cc3570k3n"
     else:
         assert conn.auth.bearer == "basic//6cc3570k3n"
