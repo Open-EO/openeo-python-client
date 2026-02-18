@@ -283,7 +283,10 @@ class Connection(RestApiConnection):
         jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
 
         # Switch to bearer based authentication in further requests.
-        self.auth = BasicBearerAuth(access_token=resp["access_token"], jwt_conformance = jwt_conformance)
+        if jwt_conformance:
+            self.auth = BearerAuth(bearer=resp["access_token"])
+        else:
+            self.auth = BasicBearerAuth(access_token=resp["access_token"])
         return self
 
     def _get_oidc_provider(
@@ -423,7 +426,10 @@ class Connection(RestApiConnection):
         token = tokens.access_token
         # check for JWT bearer token conformance
         jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
-        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token, jwt_conformance=jwt_conformance)
+        if jwt_conformance:
+            self.auth = BearerAuth(bearer=token)
+        else:
+            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
         self._oidc_auth_renewer = oidc_auth_renewer
         return self
 

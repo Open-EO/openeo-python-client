@@ -41,17 +41,13 @@ class BearerAuth(OpenEoApiAuthBase):
 class BasicBearerAuth(BearerAuth):
     """Bearer token for Basic Auth (openEO API 1.0.0 style)"""
 
-    def __init__(self, access_token: str, jwt_conformance: bool = False):
-        if not jwt_conformance:
-            access_token = "basic//{t}".format(t=access_token)
-        super().__init__(bearer=access_token)
+    def __init__(self, access_token: str):
+        super().__init__(bearer="basic//{t}".format(t=access_token))
 
 
 class OidcBearerAuth(BearerAuth):
     """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
 
-    def __init__(self, provider_id: str, access_token: str, jwt_conformance: bool = False):
-        if not jwt_conformance:
-            access_token = "oidc/{p}/{t}".format(p=provider_id, t=access_token)
-        super().__init__(bearer=access_token)
+    def __init__(self, provider_id: str, access_token: str):
+        super().__init__(bearer="oidc/{p}/{t}".format(p=provider_id, t=access_token))
 
