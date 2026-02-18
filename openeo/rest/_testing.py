@@ -499,7 +499,7 @@ def build_capabilities(
 
     conformance = build_conformance(
         api_version=api_version, 
-        stac_version=stac_version
+        stac_version=stac_version,
     )
 
     capabilities = {
