@@ -59,9 +59,7 @@ from .auth.test_cli import auth_config, refresh_token_store
 API_URL = "https://oeo.test/"
 
 # TODO: eliminate this and replace with `build_capabilities` usage
-BASIC_ENDPOINTS = [
-    {"path": "/credentials/basic", "methods": ["GET"]}
-]
+BASIC_ENDPOINTS = [{"path": "/credentials/basic", "methods": ["GET"]}]
 
 
 GEOJSON_POINT_01 = {"type": "Point", "coordinates": [3, 52]}
@@ -1092,7 +1090,7 @@ def test_authenticate_oidc_auth_code_pkce_flow_jwt_bearer(requests_mock, auth_co
     assert capabilities.api_version() == "1.3.0"
     assert capabilities.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
     assert conn.auth.bearer == oidc_mock.state["access_token"]
-    # TODO: check issuer ("iss") value in parsed jwt. this will require the example jwt to be formatted accordingly 
+    # TODO: check issuer ("iss") value in parsed jwt. this will require the example jwt to be formatted accordingly
     assert refresh_token_store.mock_calls == []
 
 def test_authenticate_oidc_client_credentials(requests_mock):
