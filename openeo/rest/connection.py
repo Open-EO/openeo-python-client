@@ -47,7 +47,6 @@ from openeo.internal.warnings import deprecated, legacy_alias
 from openeo.metadata import CollectionMetadata
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
-    CONFORMANCE_JWT_BEARER,
     CapabilitiesException,
     OpenEoApiError,
     OpenEoClientException,
@@ -69,7 +68,7 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
-from openeo.rest.capabilities import OpenEoCapabilities
+from openeo.rest.capabilities import CONFORMANCE_JWT_BEARER, OpenEoCapabilities
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob

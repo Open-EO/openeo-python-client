@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional, Union
 import re
+from typing import Dict, List, Optional, Union
 
 from openeo.internal.jupyter import render_component
 from openeo.rest.models import federation_extension
@@ -8,6 +8,7 @@ from openeo.utils.version import ApiVersionException, ComparableVersion
 
 __all__ = ["OpenEoCapabilities"]
 
+CONFORMANCE_JWT_BEARER = "https://api.openeo.org/*/authentication/jwt"
 
 class OpenEoCapabilities:
     """Container of the openEO capabilities document of an openEO backend."""
@@ -37,7 +38,7 @@ class OpenEoCapabilities:
         if not api_version:
             raise ApiVersionException("No API version found")
         return ComparableVersion(api_version)
-    
+
     def has_conformance(self, uri: str) -> bool:
         """Check if backend provides a given conformance string"""
         uri = re.escape(uri).replace('\\*', '[^/]+')
@@ -45,7 +46,6 @@ class OpenEoCapabilities:
             if re.match(uri, conformance_uri):
                 return True
         return False
-        
 
     def supports_endpoint(self, path: str, method="GET") -> bool:
         """Check if backend supports given endpoint"""

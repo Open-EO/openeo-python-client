@@ -10,8 +10,6 @@ DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX = 60
 DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL = 30
 DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX = 10
 
-CONFORMANCE_JWT_BEARER = "https://api.openeo.org/*/authentication/jwt"
-
 class OpenEoClientException(BaseOpenEoException):
     """Base class for OpenEO client exceptions"""
     pass
