@@ -436,7 +436,7 @@ class DummyBackend:
 def build_conformance(
     *,
     api_version: str = "1.0.0",
-    stac_version: str = "0.9.0",
+    stac_version: str = "1.1.0",
 ) -> list[str]:
     conformance = [
         "https://api.openeo.org/{api_version}",
