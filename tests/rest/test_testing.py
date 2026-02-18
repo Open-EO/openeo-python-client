@@ -11,6 +11,11 @@ def dummy_backend(requests_mock, con120):
     return DummyBackend(requests_mock=requests_mock, connection=con120)
 
 
+@pytest.fixture
+def dummy_backend130(requests_mock, con130):
+    return DummyBackend(requests_mock=requests_mock, connection=con130)
+
+
 DUMMY_PG_ADD35 = {
     "add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True},
 }
@@ -104,3 +109,20 @@ class TestDummyBackend:
         with pytest.raises(OpenEoApiError, match=re.escape("[500] Internal: No job starting for you, buddy")):
             job.start()
         assert job.status() == "error"
+
+    # for better distinction within the following tests
+    dummy_backend120 = dummy_backend
+
+    def test_version(self, dummy_backend120, dummy_backend130):
+        capabilities120 = dummy_backend120.connection.capabilities()
+        capabilities130 = dummy_backend130.connection.capabilities()
+
+        assert capabilities120.api_version() == "1.2.0"
+        assert capabilities130.api_version() == "1.3.0"
+
+    def test_jwt_conformance(self, dummy_backend120, dummy_backend130):
+        capabilities120 = dummy_backend120.connection.capabilities()
+        capabilities130 = dummy_backend130.connection.capabilities()
+
+        assert capabilities120.has_conformance("https://api.openeo.org/*/authentication/jwt") == False
+        assert capabilities130.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
