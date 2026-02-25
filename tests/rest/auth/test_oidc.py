@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import urllib.parse
 from io import BytesIO
 from queue import Queue
 
@@ -818,3 +819,95 @@ def test_oidc_refresh_token_flow_custom_requests_session():
 
     assert tokens.access_token == "6cce5-t0k3n"
     assert len(adapter.request_history) == 2
+
+
+class TestOidcProviderInfoAuthorizationParameters:
+    """Tests for the authorization_parameters flag introduced in openEO API >= 1.3.0"""
+
+    def test_from_dict_with_authorization_parameters(self, requests_mock):
+        requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+        data = {
+            "id": "google",
+            "title": "Google",
+            "issuer": "https://authit.test",
+            "scopes": ["openid"],
+            "authorization_parameters": {"access_type": "offline", "prompt": "consent"},
+        }
+        info = OidcProviderInfo.from_dict(data)
+        assert info.authorization_parameters == {"access_type": "offline", "prompt": "consent"}
+
+    def test_from_dict_without_authorization_parameters(self, requests_mock):
+        requests_mock.get("https://authit.test/.well-known/openid-configuration", json={"scopes_supported": ["openid"]})
+        data = {
+            "id": "egi",
+            "title": "EGI",
+            "issuer": "https://authit.test",
+        }
+        info = OidcProviderInfo.from_dict(data)
+        assert info.authorization_parameters == {}
+
+    def test_device_code_request_includes_authorization_parameters(self, requests_mock):
+        """Checks whether the authorization_parameters ends up in the device code POST body."""
+        oidc_issuer = "https://authit.test"
+        requests_mock.get(
+            f"{oidc_issuer}/.well-known/openid-configuration",
+            json={
+                "scopes_supported": ["openid"],
+                "device_authorization_endpoint": f"{oidc_issuer}/device_code",
+                "token_endpoint": f"{oidc_issuer}/token",
+            },
+        )
+        device_code_mock = requests_mock.post(
+            f"{oidc_issuer}/device_code",
+            json={
+                "device_code": "d3v1c3",
+                "user_code": "US3R",
+                "verification_uri": f"{oidc_issuer}/dc",
+                "interval": 5,
+            },
+        )
+        provider = OidcProviderInfo(
+            issuer=oidc_issuer,
+            authorization_parameters={"access_type": "offline", "prompt": "consent"},
+        )
+        authenticator = OidcDeviceAuthenticator(
+            client_info=OidcClientInfo(client_id="myclient", provider=provider, client_secret="s3cr3t"),
+        )
+        authenticator._get_verification_info()
+
+        assert device_code_mock.call_count == 1
+        post_body = urllib.parse.parse_qs(device_code_mock.last_request.text)
+        assert post_body["client_id"] == ["myclient"]
+        assert post_body["access_type"] == ["offline"]
+        assert post_body["prompt"] == ["consent"]
+
+    def test_device_code_request_without_authorization_parameters(self, requests_mock):
+        """Verify no extra params when authorization_parameters is empty."""
+        oidc_issuer = "https://authit.test"
+        requests_mock.get(
+            f"{oidc_issuer}/.well-known/openid-configuration",
+            json={
+                "scopes_supported": ["openid"],
+                "device_authorization_endpoint": f"{oidc_issuer}/device_code",
+                "token_endpoint": f"{oidc_issuer}/token",
+            },
+        )
+        device_code_mock = requests_mock.post(
+            f"{oidc_issuer}/device_code",
+            json={
+                "device_code": "d3v1c3",
+                "user_code": "US3R",
+                "verification_uri": f"{oidc_issuer}/dc",
+                "interval": 5,
+            },
+        )
+        provider = OidcProviderInfo(issuer=oidc_issuer)
+        authenticator = OidcDeviceAuthenticator(
+            client_info=OidcClientInfo(client_id="myclient", provider=provider, client_secret="s3cr3t"),
+        )
+        authenticator._get_verification_info()
+
+        post_body = urllib.parse.parse_qs(device_code_mock.last_request.text)
+        assert "access_type" not in post_body
+        assert "prompt" not in post_body
+        assert set(post_body.keys()) == {"client_id", "scope"}
