@@ -2261,7 +2261,8 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock, token_invalid_stat
         auth_header = request.headers["Authorization"]
         if ComparableVersion(version) >= ComparableVersion("1.3.0"):
             # TODO: parse jwt, also encode appropriate values in test JWT
-            access_token = re.match(r"Bearer (?P<a>.*)", auth_header).group("a")
+            result = re.match(r"Bearer (?P<a>.*)", auth_header)
+            access_token = result.group("a") if result else None
 
             try:
                 user_id = oidc_mock.validate_access_token(access_token)["user_id"]
@@ -2271,7 +2272,8 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock, token_invalid_stat
 
             return {"user_id": user_id, "_used_oidc_provider": "oi", "_used_access_token": access_token}
         else:
-            oidc_provider, access_token = re.match(r"Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header).group("p", "a")
+            result = re.match(r"Bearer oidc/(?P<p>\w+)/(?P<a>.*)", auth_header)
+            oidc_provider, access_token = result.group("p", "a") if result else (None, None)
             try:
                 user_id = oidc_mock.validate_access_token(access_token)["user_id"]
             except LookupError:
