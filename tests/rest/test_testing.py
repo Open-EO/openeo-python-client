@@ -4,6 +4,7 @@ import pytest
 
 from openeo.rest import OpenEoApiError
 from openeo.rest._testing import DummyBackend
+from openeo.rest.connection import CONFORMANCE_JWT_BEARER
 
 
 @pytest.fixture
@@ -124,5 +125,5 @@ class TestDummyBackend:
         capabilities120 = dummy_backend120.connection.capabilities()
         capabilities130 = dummy_backend130.connection.capabilities()
 
-        assert capabilities120.has_conformance("https://api.openeo.org/*/authentication/jwt") == False
-        assert capabilities130.has_conformance("https://api.openeo.org/*/authentication/jwt") == True
+        assert capabilities120.has_conformance(CONFORMANCE_JWT_BEARER) == False
+        assert capabilities130.has_conformance(CONFORMANCE_JWT_BEARER) == True
