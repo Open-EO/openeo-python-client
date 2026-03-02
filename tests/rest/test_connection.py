@@ -2536,7 +2536,10 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
         scopes_supported=["openid"],
     )
     _setup_get_me_handler(
-        requests_mock=requests_mock, oidc_mock=oidc_mock, token_invalid_status_code=token_invalid_status_code
+        requests_mock=requests_mock,
+        oidc_mock=oidc_mock,
+        token_invalid_status_code=token_invalid_status_code,
+        version=api_version_authentication_tests,
     )
     caplog.set_level(logging.INFO)
 
@@ -2664,7 +2667,10 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     )
 
     _setup_get_me_handler(
-        requests_mock=requests_mock, oidc_mock=oidc_mock, token_invalid_status_code=token_invalid_status_code
+        requests_mock=requests_mock,
+        oidc_mock=oidc_mock,
+        token_invalid_status_code=token_invalid_status_code,
+        version=api_version_authentication_tests,
     )
     caplog.set_level(logging.INFO)
 
@@ -2746,7 +2752,10 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     )
 
     _setup_get_me_handler(
-        requests_mock=requests_mock, oidc_mock=oidc_mock, token_invalid_status_code=token_invalid_status_code
+        requests_mock=requests_mock,
+        oidc_mock=oidc_mock,
+        token_invalid_status_code=token_invalid_status_code,
+        version=api_version_authentication_tests,
     )
     caplog.set_level(logging.INFO)
 
