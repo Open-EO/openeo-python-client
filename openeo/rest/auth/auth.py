@@ -29,8 +29,9 @@ class BearerAuth(OpenEoApiAuthBase):
     https://open-eo.github.io/openeo-api/apireference/#section/Authentication/Bearer
     """
 
-    def __init__(self, bearer: str):
+    def __init__(self, bearer: str, origin: str):
         self.bearer = bearer
+        self.origin = origin
 
     def __call__(self, req: Request) -> Request:
         # Add bearer authorization header.
@@ -42,12 +43,11 @@ class BasicBearerAuth(BearerAuth):
     """Bearer token for Basic Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, access_token: str):
-        super().__init__(bearer="basic//{t}".format(t=access_token))
+        super().__init__(bearer="basic//{t}".format(t=access_token), origin="basic")
 
 
 class OidcBearerAuth(BearerAuth):
     """Bearer token for OIDC Auth (openEO API 1.0.0 style)"""
 
     def __init__(self, provider_id: str, access_token: str):
-        super().__init__(bearer="oidc/{p}/{t}".format(p=provider_id, t=access_token))
-
+        super().__init__(bearer="oidc/{p}/{t}".format(p=provider_id, t=access_token), origin="oidc")
