@@ -685,7 +685,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     stac_object = pystac.read_file(href=url)
     parser = _StacMetadataParser()
     bands = parser.bands_from_stac_object(stac_object)
-    
+
     # aligning better with STAC datacube extension
     def _cube_dimensions_dict(obj: pystac.STACObject) -> dict:
         """
@@ -802,7 +802,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     cube_dims_present = isinstance(cube_dims_raw, dict) and len(cube_dims_raw) > 0
 
     dimensions: List[Dimension] = []
-    
+
     if cube_dims_present:
         # Prefer PySTAC cube extension wrapper when available (more structured),
         # but fall back to raw dict parsing if wrapper not present.
@@ -823,7 +823,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             SpatialDimension(name="y", extent=[None, None]),
             TemporalDimension(name="t", extent=_infer_temporal_extent(stac_object)),
         ]
-        # Only include bands if STAC provided band metadata. 
+        # Only include bands if STAC provided band metadata.
         # Handling #743
         # only add BandDimension in fallback mode when STAC actually provided band metadata (i.e., `bands` is non-empty).
         if bands:
