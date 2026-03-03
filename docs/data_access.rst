@@ -274,38 +274,51 @@ For example, to filter on the relative orbit number of SAR data:
         "SENTINEL1_GRD",
         ...,
         properties={
-            "relativeOrbitNumber": lambda x: x == 116,
+            "sat:relative_orbit": lambda x: x == 116,
         },
     )
 
-Version 0.26.0 of the openEO Python Client Library adds
-:py:func:`~openeo.rest.graph_building.collection_property`
-which makes defining such property filters more user-friendly by avoiding the ``lambda`` construct:
+Property filters in openEO are also specified by small process graphs, that allow the use of the same generic processes
+defined by openEO. This is the 'lambda' construct that you see in the property dictionary. Do note that not all processes
+make sense for product filtering, and can not always be properly translated into the query language of the catalog.
+Hence, some experimentation may be needed to find a filter that works.
+
+One important caveat in this example is that 'sat:relative_orbit' is a catalog-specific property name. Meaning that
+different archives may choose a different name for a given property, and the properties that are available can depend
+on the collection and the catalog that is used by it.
+Luckily, STAC (and its extensions) is emerging as a common standard for this kind of metadata.
+
+
+.. _collection_property_helper:
+
+Easy property filter building with :py:func:`~openeo.rest.graph_building.collection_property`
+----------------------------------------------------------------------------------------------
+
+While the `lambda` construct is generic and flexible, it can be cumbersome to work with.
+The :py:func:`~openeo.rest.graph_building.collection_property`
+makes defining property filters more compact and user-friendly for most common use cases.
+
+The example below shows how to filter for items with the following properties:
+
+- ``sat:relative_orbit`` is 116
+- ``eo:cloud_cover`` is maximum 60%
+- ``grid:code`` is one of the given values
 
 .. code-block:: python
-    :emphasize-lines: 6-8
+    :emphasize-lines: 5-11
 
     import openeo
 
     connection.load_collection(
-        "SENTINEL1_GRD",
         ...,
         properties=[
-            openeo.collection_property("relativeOrbitNumber") == 116,
+            openeo.collection_property("sat:relative_orbit") == 116,
+            openeo.collection_property("eo:cloud_cover") <= 60,
+            openeo.collection_property("grid:code").is_one_of(
+                ["MGRS-32UKB", "MGRS-32ULB", "MGRS-32MB", "MGRS-32UNB"]
+            ),
         ],
     )
-
-Note that property names follow STAC metadata conventions, but some collections can have different names.
-
-Property filters in openEO are also specified by small process graphs, that allow the use of the same generic processes
-defined by openEO. This is the 'lambda' process that you see in the property dictionary. Do note that not all processes
-make sense for product filtering, and can not always be properly translated into the query language of the catalog.
-Hence, some experimentation may be needed to find a filter that works.
-
-One important caveat in this example is that 'relativeOrbitNumber' is a catalog specific property name. Meaning that
-different archives may choose a different name for a given property, and the properties that are available can depend
-on the collection and the catalog that is used by it. This is not a problem caused by openEO, but by the limited
-standardization between catalogs of EO data.
 
 
 Handling large vector data sets
