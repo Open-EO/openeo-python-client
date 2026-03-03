@@ -680,7 +680,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     Philosophy:
       - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
-      - Otherwise: apply openEO-style defaults (x, y, t) and optionally bands if discovered.
+      - Otherwise: apply openEO-style defaults (x, y, t) and (for Collection/Item) keep bands dimension even if empty.
     """
     stac_object = pystac.read_file(href=url)
     parser = _StacMetadataParser()
@@ -816,6 +816,13 @@ def metadata_from_stac(url: str) -> CubeMetadata:
         else:
             dimensions = _parse_cube_dimensions_from_raw_dict(stac_object)
 
+        # If cube:dimensions exists but has no bands dimension:
+        # for Collection/Item keep openEO behavior: still expose a (possibly empty) band dimension.
+        if not any(isinstance(d, BandDimension) for d in dimensions) and isinstance(
+            stac_object, (pystac.Collection, pystac.Item)
+        ):
+            dimensions.append(BandDimension(name="bands", bands=bands))
+
     else:
         # No cube:dimensions: openEO-style defaults.
         dimensions = [
@@ -823,10 +830,10 @@ def metadata_from_stac(url: str) -> CubeMetadata:
             SpatialDimension(name="y", extent=[None, None]),
             TemporalDimension(name="t", extent=_infer_temporal_extent(stac_object)),
         ]
-        # Only include bands if STAC provided band metadata.
-        # Handling #743
-        # only add BandDimension in fallback mode when STAC actually provided band metadata (i.e., `bands` is non-empty).
-        if bands:
+
+        # For Collection/Item keep a bands dimension (possibly empty).
+        # For Catalog keep old behavior (no band dimension when unknown).
+        if isinstance(stac_object, (pystac.Collection, pystac.Item)):
             dimensions.append(BandDimension(name="bands", bands=bands))
 
     return CubeMetadata(dimensions=dimensions)
