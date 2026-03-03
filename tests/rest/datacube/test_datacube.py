@@ -208,6 +208,47 @@ class TestDataCube:
             "temporal_extent": None,
         }
 
+    def test_load_collection_extra_params_connectionless(self):
+        """Test passing additional backend-specific parameters without connection."""
+        cube = DataCube.load_collection(
+            "T3",
+            spatial_extent={"west": 1, "east": 2, "north": 3, "south": 4},
+            nodata=0,
+            target_crs=32632,
+        )
+        assert cube.flat_graph() == {
+            "loadcollection1": {
+                "process_id": "load_collection",
+                "arguments": {
+                    "id": "T3",
+                    "spatial_extent": {"west": 1, "east": 2, "north": 3, "south": 4},
+                    "temporal_extent": None,
+                    "nodata": 0,
+                    "target_crs": 32632,
+                },
+                "result": True,
+            }
+        }
+
+    def test_load_collection_extra_params_with_connection(self, dummy_backend):
+        """Test passing additional backend-specific parameters with connection."""
+        cube = DataCube.load_collection(
+            "S2",
+            connection=dummy_backend.connection,
+            spatial_extent={"west": 1, "south": 2, "east": 3, "north": 4},
+            temporal_extent=["2023-01-01", "2023-06-01"],
+            nodata=0,
+            tile_buffer=16,
+        )
+        cube.execute()
+        assert dummy_backend.get_sync_pg()["loadcollection1"]["arguments"] == {
+            "id": "S2",
+            "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
+            "temporal_extent": ["2023-01-01", "2023-06-01"],
+            "nodata": 0,
+            "tile_buffer": 16,
+        }
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {

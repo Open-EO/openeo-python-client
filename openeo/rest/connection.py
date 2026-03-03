@@ -1240,6 +1240,7 @@ class Connection(RestApiConnection):
         ] = None,
         max_cloud_cover: Optional[float] = None,
         fetch_metadata: bool = True,
+        **kwargs,
     ) -> DataCube:
         """
         Load a DataCube by collection id.
@@ -1262,6 +1263,9 @@ class Connection(RestApiConnection):
         :param properties: limit data by collection metadata property predicates.
             See :py:func:`~openeo.rest.graph_building.collection_property` for easy construction of such predicates.
         :param max_cloud_cover: shortcut to set maximum cloud cover ("eo:cloud_cover" collection property)
+        :param kwargs: additional backend-specific parameters to pass to ``load_collection``.
+            These allow leveraging backend-specific features not covered by the standard openEO API,
+            for example: ``nodata`` (force specific nodata value), ``target_crs`` (output CRS), etc.
         :return: a datacube containing the requested data
 
         .. versionadded:: 0.13.0
@@ -1276,6 +1280,10 @@ class Connection(RestApiConnection):
 
         .. versionchanged:: 0.37.0
             Argument ``spatial_extent``: add support for passing a Shapely geometry or a local path to a GeoJSON file.
+
+        .. versionadded:: 0.48.0
+            added ``**kwargs`` for additional backend-specific parameters.
+
         """
         return DataCube.load_collection(
             collection_id=collection_id,
@@ -1286,6 +1294,7 @@ class Connection(RestApiConnection):
             properties=properties,
             max_cloud_cover=max_cloud_cover,
             fetch_metadata=fetch_metadata,
+            **kwargs,
         )
 
     # TODO: remove this #100 #134 0.4.10
