@@ -68,7 +68,7 @@ from openeo.rest.auth.oidc import (
     OidcRefreshTokenAuthenticator,
     OidcResourceOwnerPasswordAuthenticator,
 )
-from openeo.rest.capabilities import OpenEoCapabilities
+from openeo.rest.capabilities import CONFORMANCE_JWT_BEARER, OpenEoCapabilities
 from openeo.rest.datacube import DataCube, InputDate
 from openeo.rest.graph_building import CollectionProperty
 from openeo.rest.job import BatchJob
@@ -277,8 +277,15 @@ class Connection(RestApiConnection):
             # /credentials/basic is the only endpoint that expects a Basic HTTP auth
             auth=HTTPBasicAuth(username, password)
         ).json()
+
+        # check for JWT bearer token conformance
+        jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
+
         # Switch to bearer based authentication in further requests.
-        self.auth = BasicBearerAuth(access_token=resp["access_token"])
+        if jwt_conformance:
+            self.auth = BearerAuth(bearer=resp["access_token"], origin="basic")
+        else:
+            self.auth = BasicBearerAuth(access_token=resp["access_token"])
         return self
 
     def _get_oidc_provider(
@@ -416,7 +423,12 @@ class Connection(RestApiConnection):
             )
 
         token = tokens.access_token
-        self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
+        # check for JWT bearer token conformance
+        jwt_conformance = self.capabilities().has_conformance(CONFORMANCE_JWT_BEARER)
+        if jwt_conformance:
+            self.auth = BearerAuth(bearer=token, origin="oidc")
+        else:
+            self.auth = OidcBearerAuth(provider_id=provider_id, access_token=token)
         self._oidc_auth_renewer = oidc_auth_renewer
         return self
 
@@ -726,7 +738,7 @@ class Connection(RestApiConnection):
 
         .. versionadded:: 0.38.0
         """
-        self.auth = BearerAuth(bearer=bearer_token)
+        self.auth = BearerAuth(bearer=bearer_token, origin="unknown")
         self._oidc_auth_renewer = None
         return self
 
@@ -736,7 +748,7 @@ class Connection(RestApiConnection):
         Returns whether a new access token was obtained.
         """
         reason = f" Reason: {reason}" if reason else ""
-        if isinstance(self.auth, OidcBearerAuth) and self._oidc_auth_renewer:
+        if isinstance(self.auth, BearerAuth) and self.auth.origin == "oidc" and self._oidc_auth_renewer:
             try:
                 self._authenticate_oidc(
                     authenticator=self._oidc_auth_renewer,

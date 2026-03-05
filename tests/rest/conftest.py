@@ -19,6 +19,10 @@ def api_version(request):
     return request.param
 
 
+@pytest.fixture(params=["1.0.0", "1.3.0"])
+def api_version_authentication_tests(request):
+    return request.param
+
 class _Sleeper:
     def __init__(self):
         self.history = []
@@ -96,6 +100,12 @@ def con100(requests_mock, api_capabilities):
 @pytest.fixture
 def con120(requests_mock, api_capabilities):
     requests_mock.get(API_URL, json=build_capabilities(api_version="1.2.0", **api_capabilities))
+    con = Connection(API_URL)
+    return con
+
+@pytest.fixture
+def con130(requests_mock, api_capabilities):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.3.0", **api_capabilities))
     con = Connection(API_URL)
     return con
 
