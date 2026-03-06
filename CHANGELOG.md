@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `is_one_of()` to `property_filter` for compact building of an allow-list based property filter.
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
 
 ## [0.48.0] - 2026-02-17
 
