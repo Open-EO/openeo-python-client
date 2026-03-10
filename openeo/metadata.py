@@ -687,7 +687,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     bands = parser.bands_from_stac_object(stac_object)
 
     # aligning better with STAC datacube extension
-    def _cube_dimensions_dict(obj: pystac.STACObject) -> dict:
+    def _cube_dimensions_dict(obj: pystac.STACObject) -> Dict:
         """
         Return raw cube:dimensions dict from a Collection/Item, or {}.
         """

@@ -1320,26 +1320,15 @@ def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path
     got = tuple(metadata.dimension_names() or ())
 
     # Order-insensitive check: names only
-    assert set(got) == expected_dims, (
-        f"Unexpected dimension names for STAC dict\n"
-        f"Expected set: {expected_dims}\n"
-        f"Got:          {got} (set={set(got)})"
-    )
+    assert set(got) == expected_dims
 
     # Ensure the policy logic is exercised correctly:
     # cube:dimensions can be located at root (collection) or in properties (item)
     cube_dims = stac_dict.get("cube:dimensions") or (stac_dict.get("properties") or {}).get("cube:dimensions")
     if cube_dims is None:
-        assert set(got) == _DEFAULT_OPENEO_DIMS_SET, (
-            f"STAC dict has no cube:dimensions but did not fall back to openEO defaults.\n"
-            f"Got: {got}, expected defaults: {_DEFAULT_OPENEO_DIMS_SET}"
-        )
+        assert set(got) == _DEFAULT_OPENEO_DIMS_SET
     else:
-        assert set(got) == set(cube_dims.keys()), (
-            f"STAC dict has cube:dimensions but resolved dims do not match it.\n"
-            f"cube:dimensions keys: {tuple(cube_dims.keys())}\n"
-            f"resolved dims:        {got}"
-        )
+        assert set(got) == set(cube_dims.keys())
 
     if must_have_cube_dims:
         assert cube_dims is not None, "Test case expected cube:dimensions but it was missing."
