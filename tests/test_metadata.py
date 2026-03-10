@@ -1276,17 +1276,13 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
 
 
 # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
-_DEFAULT_OPENEO_DIMS_SET = {"t", "bands", "y", "x"}
-
-
 @pytest.mark.parametrize(
-    ["stac_dict", "expected_dims", "must_have_cube_dims"],
+    ["stac_dict", "expected_dims"],
     [
         (
             # No cube:dimensions -> fall back to openEO default naming convention
             StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}]}),
             {"t", "bands", "y", "x"},
-            False,
         ),
         (
             # No cube:dimensions (item) -> fall back to openEO default naming convention
@@ -1294,7 +1290,6 @@ _DEFAULT_OPENEO_DIMS_SET = {"t", "bands", "y", "x"}
                 properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "B01"}]}
             ),
             {"t", "bands", "y", "x"},
-            False,
         ),
         (
             # cube:dimensions present -> use the dimension names as suggested by cube:dimensions keys
@@ -1307,11 +1302,10 @@ _DEFAULT_OPENEO_DIMS_SET = {"t", "bands", "y", "x"}
                 }
             ),
             {"time", "band", "y", "x"},
-            True,
         ),
     ],
 )
-def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path, stac_dict, expected_dims, must_have_cube_dims):
+def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path, stac_dict, expected_dims):
     path = tmp_path / "stac.json"
     # TODO #738 real request mocking of STAC resources compatible with pystac?
     path.write_text(json.dumps(stac_dict))
@@ -1326,12 +1320,9 @@ def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path
     # cube:dimensions can be located at root (collection) or in properties (item)
     cube_dims = stac_dict.get("cube:dimensions") or (stac_dict.get("properties") or {}).get("cube:dimensions")
     if cube_dims is None:
-        assert set(got) == _DEFAULT_OPENEO_DIMS_SET
+        assert set(got) == {"t", "bands", "y", "x"}
     else:
         assert set(got) == set(cube_dims.keys())
-
-    if must_have_cube_dims:
-        assert cube_dims is not None, "Test case expected cube:dimensions but it was missing."
 
 
 @pytest.mark.parametrize(
