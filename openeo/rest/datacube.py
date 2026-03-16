@@ -1223,7 +1223,7 @@ class DataCube(_ProcessGraphAbstraction):
             For example:
 
             -   ``"mean"`` (string)
-            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   :py:func:`max <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
             -   ``lambda data: data.min()`` (function or lambda)
 
         :param target_dimension: The new dimension name to be used for storing the results.
@@ -1473,7 +1473,7 @@ class DataCube(_ProcessGraphAbstraction):
             For example:
 
             -   ``"mean"`` (string)
-            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   :py:func:`max <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
             -   ``lambda data: data.min()`` (function or lambda)
 
         :param context: Additional data to be passed to the process.
@@ -1517,7 +1517,7 @@ class DataCube(_ProcessGraphAbstraction):
             For example:
 
             -   ``"mean"`` (string)
-            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   :py:func:`max <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
             -   ``lambda data: data.min()`` (function or lambda)
 
         :param context: Additional data to be passed to the process.
@@ -1898,7 +1898,7 @@ class DataCube(_ProcessGraphAbstraction):
             For example:
 
             -   ``"mean"`` (string)
-            -   :py:func:`absolute <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
+            -   :py:func:`max <openeo.processes.max>` (:ref:`predefined openEO process function <openeo_processes_functions>`)
             -   ``lambda data: data.min()`` (function or lambda)
 
         :param labels: Labels for the intervals. The number of labels and the number of groups need to be equal.
