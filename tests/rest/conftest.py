@@ -25,9 +25,15 @@ class _Sleeper:
 
     @contextlib.contextmanager
     def patch(self, time_machine: time_machine.TimeMachineFixture) -> typing.Iterator["_Sleeper"]:
+        orig_sleep = time.sleep
+
         def sleep(seconds):
             time_machine.shift(seconds)
             self.history.append(seconds)
+            # At least do some minimal sleeping to avoid messing up
+            # Python internals or third party logic
+            # that depend on actual sleeping
+            orig_sleep(min(seconds, 0.1))
 
         with mock.patch("time.sleep", new=sleep):
             yield self
