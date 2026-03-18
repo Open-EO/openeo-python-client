@@ -2,14 +2,13 @@ import contextlib
 import re
 import time
 import typing
-from unittest import mock
 
 import pytest
-import time_machine
 
 from openeo.rest._testing import DummyBackend, build_capabilities
 from openeo.rest.auth.testing import SimpleBasicAuthMocker
 from openeo.rest.connection import Connection
+from openeo.testing.util import Sleeper
 
 API_URL = "https://oeo.test/"
 
@@ -19,35 +18,12 @@ def api_version(request):
     return request.param
 
 
-class _Sleeper:
-    def __init__(self):
-        self.history = []
-
-    @contextlib.contextmanager
-    def patch(self, time_machine: time_machine.TimeMachineFixture) -> typing.Iterator["_Sleeper"]:
-        orig_sleep = time.sleep
-
-        def sleep(seconds):
-            time_machine.shift(seconds)
-            self.history.append(seconds)
-            # At least do some minimal sleeping to avoid messing up
-            # Python internals or third party logic
-            # that depend on actual sleeping
-            orig_sleep(min(seconds, 0.1))
-
-        with mock.patch("time.sleep", new=sleep):
-            yield self
-
-    def did_sleep(self) -> bool:
-        return len(self.history) > 0
-
-
 @pytest.fixture
-def fast_sleep(time_machine) -> typing.Iterator[_Sleeper]:
+def fast_sleep(time_machine) -> typing.Iterator[Sleeper]:
     """
     Fixture using `time_machine` to make `sleep` instant and update the current time.
     """
-    with _Sleeper().patch(time_machine=time_machine) as sleeper:
+    with Sleeper().patch(time_machine=time_machine) as sleeper:
         yield sleeper
 
 
