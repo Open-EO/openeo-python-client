@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import time
 import typing
@@ -24,7 +26,7 @@ class Sleeper:
         self.history = []
 
     @contextlib.contextmanager
-    def patch(self, time_machine: time_machine.TimeMachineFixture) -> typing.Iterator["_Sleeper"]:
+    def patch(self, time_machine: time_machine.TimeMachineFixture) -> typing.Iterator[Sleeper]:
         orig_sleep = time.sleep
 
         def sleep(seconds):
