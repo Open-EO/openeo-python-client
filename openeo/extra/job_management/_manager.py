@@ -844,6 +844,10 @@ class MultiBackendJobManager:
                     f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
                 )
 
+                if new_status == "created" and previous_status == "queued_for_start":
+                    # This means the backend needs more time to start the job, but we keep the internal status as "queued_for_start" to reflect that we have already triggered the start.
+                    new_status = "queued_for_start"
+
                 if previous_status != "finished" and new_status == "finished":
                     stats["job finished"] += 1
                     jobs_done.append((the_job, active.loc[i]))
@@ -869,10 +873,6 @@ class MultiBackendJobManager:
                         active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
                     self._cancel_prolonged_job(the_job, active.loc[i])
-
-                if new_status == "created" and previous_status == "queued_for_start":
-                    # This means the backend needs more time to start the job
-                    new_status = "queued_for_start"
 
                 active.loc[i, "status"] = new_status
 
