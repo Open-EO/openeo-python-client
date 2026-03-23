@@ -548,9 +548,7 @@ class MultiBackendJobManager:
             # TODO: should "created" be included in here? Calling this "running" is quite misleading then.
             #       apparently (see #839/#840) this seemingly simple change makes a lot of MultiBackendJobManager tests flaky
             running = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"])
-            queued = running[
-                running["status"] != "running"
-            ]  # The queue limit is for non-running jobs, so we need to exclude running jobs from the queued count
+            queued = running[running["status"].isin(["queued", "queued_for_start"])]
             running_per_backend = running.groupby("backend_name").size().to_dict()
             queued_per_backend = queued.groupby("backend_name").size().to_dict()
             _log.info(f"{running_per_backend=} {queued_per_backend=}")
