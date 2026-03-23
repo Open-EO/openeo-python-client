@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `is_one_of()` to `property_filter` for compact building of an allow-list based property filter.
 
 ### Changed
+- `MultiBackendJobManager`: "created" and "queued_for_start" are now also considered for the queue limit of a backend.
 
 ### Removed
 
 ### Fixed
+- `MultiBackendJobManager`: status "queued_for_start" is no longer overwritten to "created" to allow consistent tracking of the job lifecycle and more accurate handling of job starting.
 
 
 ## [0.48.0] - 2026-02-17
