@@ -49,6 +49,7 @@ class TestFullDataFrameJobDatabase:
         expected_columns = {
             "some_number",
             "status",
+            "backend_status",
             "id",
             "start_time",
             "running_start_time",
@@ -228,6 +229,7 @@ class TestCsvJobDatabase:
         expected_columns = {
             "some_number",
             "status",
+            "backend_status",
             "id",
             "start_time",
             "running_start_time",
@@ -341,7 +343,19 @@ class TestParquetJobDatabase:
         }
 
         df_from_disk = ParquetJobDatabase(path).read()
-        assert set(df_from_disk.columns) == expected_columns
+        assert set(df_from_disk.columns) == {
+            "some_number",
+            "status",
+            "backend_status",
+            "id",
+            "start_time",
+            "running_start_time",
+            "cpu",
+            "memory",
+            "duration",
+            "backend_name",
+            "costs",
+        }
 
 
 @pytest.mark.parametrize(

@@ -62,6 +62,7 @@ def _common_normalized_df_data(rows: int = 1) -> dict:
         "id": None,
         "backend_name": None,
         "status": ["not_started"] * rows,
+        "backend_status": [None] * rows,
         "start_time": None,
         "running_start_time": None,
         "cpu": None,
@@ -578,11 +579,17 @@ class DummyStacApi:
             [property_filter] = request.qs["filter"]
             # TODO: use a more robust CQL2-text parser?
             assert request.qs["filter-lang"] == ["cql2-text"]
+            # Match filters on any properties.<field> column (e.g. status or backend_status)
             assert re.match(
-                r"^\s*\"properties\.status\"='\w+'(\s+or\s+\"properties\.status\"='\w+')*\s*$", property_filter
+                r"^\s*\"properties\.\w+\"='\w+'(\s+OR\s+\"properties\.\w+\"='\w+')*\s*$",
+                property_filter,
+                re.IGNORECASE,
             )
-            statuses = set(re.findall(r"\"properties\.status\"='(\w+)'", property_filter))
-            items = [i for i in items if i.get("properties", {}).get("status") in statuses]
+            # Extract the field name from the first clause
+            field_match = re.search(r'"properties\.(\w+)"', property_filter)
+            field = field_match.group(1) if field_match else "status"
+            statuses = set(re.findall(rf'"properties\.{field}"=\'(\w+)\'', property_filter))
+            items = [i for i in items if i.get("properties", {}).get(field) in statuses]
 
         return {
             "type": "FeatureCollection",

@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MultiBackendJobManager`: add a dedicated `backend_status` column to job databases that exclusively holds the official openEO backend-reported job status (`created`, `queued`, `running`, `finished`, `error`, `canceled`). The existing `status` column continues to carry the full user-visible lifecycle, including internal housekeeping values (`not_started`, `queued_for_start`, `start_failed`, `skipped`, …) and any custom states added by users (e.g. `downloading`). This separates internal kitchen from public API, resolving a long-standing source of race conditions and test flakiness ([#840](https://github.com/Open-EO/openeo-python-client/issues/840))
+- `JobDatabaseInterface.get_by_status()` and `count_by_status()`: add optional `column` parameter (default `"status"`) to allow querying against either the user-visible `status` column or the new `backend_status` column
+
 ### Changed
+
+- `MultiBackendJobManager` internal job tracking now queries `backend_status` when determining which jobs are active on a backend (capacity calculation and `_track_statuses` polling), cleanly separating backend queries from internal lifecycle state
 
 ### Removed
 
 ### Fixed
+
+- `MultiBackendJobManager`: eliminate the race condition where `_track_statuses` could overwrite the internal `queued_for_start` state with `created` while the job-start thread was still in-flight ([#840](https://github.com/Open-EO/openeo-python-client/issues/840))
 
 
 ## [0.47.0] - 2025-12-17

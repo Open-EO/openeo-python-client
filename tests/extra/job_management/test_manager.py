@@ -298,6 +298,7 @@ class TestMultiBackendJobManager:
             [
                 "some_number",
                 "status",
+                "backend_status",
                 "id",
                 "start_time",
                 "running_start_time",
