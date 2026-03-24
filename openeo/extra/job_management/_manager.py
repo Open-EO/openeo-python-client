@@ -94,6 +94,13 @@ class _ColumnRequirements:
         """
         new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
         df = df.assign(**new_columns)
+        # Enforce object dtype for str-typed columns: pandas infers float64 when all
+        # values are NaN (e.g. the user passes float("nan") for running_start_time).
+        # A float64 column rejects string assignments later (e.g. ISO datetimes in
+        # _track_statuses), so we coerce here where the schema is authoritative.
+        for col, req in self._requirements.items():
+            if req.dtype == "str" and col in df.columns and df[col].dtype.kind in ("f", "i"):
+                df[col] = df[col].astype(object)
         return df
 
     def dtype_mapping(self) -> Dict[str, str]:
@@ -875,7 +882,7 @@ class MultiBackendJobManager:
                     active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
                 if self._cancel_running_job_after and new_status == "running":
-                    if not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"]):
+                    if pd.isna(active.loc[i, "running_start_time"]):
                         _log.warning(
                             f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
                         )
@@ -888,9 +895,7 @@ class MultiBackendJobManager:
                 active.loc[i, "backend_status"] = new_status
 
                 # Mirror backend status into user-visible status, EXCEPT when status is an internal
-                # "awaiting start" state and the backend still reports "created" (the start request
-                # has not been confirmed yet, or the submit itself failed). Overwriting those states
-                # would race with the thread pool result and hide the internal lifecycle value.
+                # "awaiting start" state 
                 _INTERNAL_THREAD_STATUS = {"queued_for_start", "queued_for_start_failed"}
                 if previous_status in _INTERNAL_THREAD_STATUS and new_status == "created":
                     pass  # keep user-visible status; start not yet confirmed by the backend
