@@ -32,23 +32,29 @@ class JobDatabaseInterface(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
+    def count_by_status(self, statuses: Iterable[str] = (), column: str = "status") -> dict:
         """
         Retrieve the number of jobs per status.
 
         :param statuses: List/set of statuses to include. If empty, all statuses are included.
+        :param column: Which column to filter on. Defaults to ``"status"`` (user-visible lifecycle
+            column). Pass ``"backend_status"`` to count against the official openEO backend status
+            only (NULL for jobs not yet submitted).
 
         :return: dictionary with status as key and the count as value.
         """
         ...
 
     @abc.abstractmethod
-    def get_by_status(self, statuses: List[str], max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses: List[str], max=None, column: str = "status") -> pd.DataFrame:
         """
         Returns a dataframe with jobs, filtered by status.
 
         :param statuses: List of statuses to include.
         :param max: Maximum number of jobs to return.
+        :param column: Which column to filter on. Defaults to ``"status"`` (user-visible lifecycle
+            column). Pass ``"backend_status"`` to filter against the official openEO backend status
+            only (NULL for jobs not yet submitted).
 
         :return: DataFrame with jobs filtered by status.
         """

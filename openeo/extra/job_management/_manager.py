@@ -179,12 +179,19 @@ class MultiBackendJobManager:
 
     # Expected columns in the job DB dataframes.
     # TODO: make this part of public API when settled?
-    # TODO: move non official statuses to separate column (not_started, queued_for_start)
     _column_requirements: _ColumnRequirements = _ColumnRequirements(
         {
             "id": _ColumnProperties(dtype="str"),
             "backend_name": _ColumnProperties(dtype="str"),
+            # User-visible lifecycle status. Starts at "not_started" and carries both official
+            # openEO backend statuses (created/queued/running/finished/error/canceled) and internal
+            # housekeeping values (queued_for_start, start_failed, skipped, …). This is the column
+            # users observe and may extend with their own states (e.g. "downloading").
             "status": _ColumnProperties(dtype="str", default="not_started"),
+            # Official openEO backend status, as last reported by the backend API.
+            # None until the job has been submitted. Only written by _launch_job (initial value)
+            # and _track_statuses (every poll). Never carries internal housekeeping values.
+            "backend_status": _ColumnProperties(dtype="str", default=None),
             # TODO: use proper date/time dtype instead of legacy str for start times?
             "start_time": _ColumnProperties(dtype="str"),
             "running_start_time": _ColumnProperties(dtype="str"),
@@ -545,10 +552,11 @@ class MultiBackendJobManager:
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
             # Check number of jobs queued/running at each backend
-            # TODO: should "created" be included in here? Calling this "running" is quite misleading then.
-            #       apparently (see #839/#840) this seemingly simple change makes a lot of MultiBackendJobManager tests flaky
-            running = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"])
-            queued = running[running["status"] == "queued"]
+            # Count jobs that are actually active on a backend, using the official backend_status
+            # column. This correctly includes queued_for_start jobs (backend_status="created") and
+            # excludes jobs that have not yet been submitted (backend_status is None/NaN).
+            running = job_db.get_by_status(statuses=["created", "queued", "running"], column="backend_status")
+            queued = running[running["backend_status"] == "queued"]
             running_per_backend = running.groupby("backend_name").size().to_dict()
             queued_per_backend = queued.groupby("backend_name").size().to_dict()
             _log.info(f"{running_per_backend=} {queued_per_backend=}")
@@ -629,6 +637,9 @@ class MultiBackendJobManager:
                 with ignore_connection_errors(context="get status"):
                     status = job.status()
                     stats["job get status"] += 1
+                    # Record official backend status (never overwritten by internal states).
+                    df.loc[i, "backend_status"] = status
+                    # User-visible status initially mirrors the backend.
                     df.loc[i, "status"] = status
                     if status == "created":
                         # start job if not yet done by callback
@@ -822,7 +833,9 @@ class MultiBackendJobManager:
         """
         stats = stats if stats is not None else collections.defaultdict(int)
 
-        active = job_db.get_by_status(statuses=["created", "queued", "queued_for_start", "running"]).copy()
+        # Query jobs that are active on the backend using the dedicated backend_status column.
+        # this eliminates the race condition where _track_statuses would overwrite those states.
+        active = job_db.get_by_status(statuses=["created", "queued", "running"], column="backend_status").copy()
 
         jobs_done = []
         jobs_error = []
@@ -831,6 +844,7 @@ class MultiBackendJobManager:
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
+            # Read the 'job manager' internal state.
             previous_status = active.loc[i, "status"]
 
             try:
@@ -870,7 +884,18 @@ class MultiBackendJobManager:
 
                     self._cancel_prolonged_job(the_job, active.loc[i])
 
-                active.loc[i, "status"] = new_status
+                # Always record the official backend-reported status.
+                active.loc[i, "backend_status"] = new_status
+
+                # Mirror backend status into user-visible status, EXCEPT when status is an internal
+                # "awaiting start" state and the backend still reports "created" (the start request
+                # has not been confirmed yet, or the submit itself failed). Overwriting those states
+                # would race with the thread pool result and hide the internal lifecycle value.
+                _INTERNAL_THREAD_STATUS = {"queued_for_start", "queued_for_start_failed"}
+                if previous_status in _INTERNAL_THREAD_STATUS and new_status == "created":
+                    pass  # keep user-visible status; start not yet confirmed by the backend
+                else:
+                    active.loc[i, "status"] = new_status
 
                 # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
                 for key in job_metadata.get("usage", {}).keys():

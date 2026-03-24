@@ -155,15 +155,15 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             item.bbox = None
         return item
 
-    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
+    def count_by_status(self, statuses: Iterable[str] = (), column: str = "status") -> dict:
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
-        items = self.get_by_status(statuses)
+        items = self.get_by_status(statuses, column=column)
         if items is None:
             return {k: 0 for k in statuses}
         else:
-            return items["status"].value_counts().to_dict()
+            return items[column].value_counts().to_dict()
 
     def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
         """Build a DataFrame from a STAC ItemSearch result."""
@@ -171,12 +171,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         df = pd.DataFrame(series).reset_index(names=["item_id"])
         return df
 
-    def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:
+    def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None, column: str = "status") -> pd.DataFrame:
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
 
-        status_filter = " OR ".join([f"\"properties.status\"='{s}'" for s in statuses]) if statuses else None
+        filter_field = f"properties.{column}"
+        status_filter = " OR ".join([f'"{filter_field}"=\'{s}\'' for s in statuses]) if statuses else None
         search_results = self.client.search(
             method="GET",
             collections=[self.collection_id],

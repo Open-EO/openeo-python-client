@@ -62,24 +62,28 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             self._df = self.read()
         return self._df
 
-    def count_by_status(self, statuses: Iterable[str] = ()) -> dict:
-        status_histogram = self.df.groupby("status").size().to_dict()
+    def count_by_status(self, statuses: Iterable[str] = (), column: str = "status") -> dict:
+        col = self.df[column]
+        status_histogram = col.groupby(col).size().to_dict()
         statuses = set(statuses)
         if statuses:
             status_histogram = {k: v for k, v in status_histogram.items() if k in statuses}
         return status_histogram
 
-    def get_by_status(self, statuses, max=None) -> pd.DataFrame:
+    def get_by_status(self, statuses, max=None, column: str = "status") -> pd.DataFrame:
         """
         Returns a dataframe with jobs, filtered by status.
 
         :param statuses: List of statuses to include.
         :param max: Maximum number of jobs to return.
+        :param column: Which column to filter on. Defaults to ``"status"`` (user-visible lifecycle
+            column). Pass ``"backend_status"`` to filter against the official openEO backend status
+            only (NULL for jobs not yet submitted).
 
         :return: DataFrame with jobs filtered by status.
         """
         df = self.df
-        filtered = df[df.status.isin(statuses)]
+        filtered = df[df[column].isin(statuses)]
         return filtered.head(max) if max is not None else filtered
 
     def _merge_into_df(self, df: pd.DataFrame):
@@ -147,6 +151,9 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
             # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
             df.geometry = geopandas.GeoSeries.from_wkt(df["geometry"])
             df = geopandas.GeoDataFrame(df)
+        # Backwards compatibility: add backend_status column when reading older files that don't have it.
+        if "backend_status" not in df.columns:
+            df["backend_status"] = None
         return df
 
     def persist(self, df: pd.DataFrame):
@@ -195,9 +202,13 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
         if b"geo" in metadata.metadata:
             import geopandas
 
-            return geopandas.read_parquet(self.path)
+            df = geopandas.read_parquet(self.path)
         else:
-            return pd.read_parquet(self.path)
+            df = pd.read_parquet(self.path)
+        # Backwards compatibility: add backend_status column when reading older files that don't have it.
+        if "backend_status" not in df.columns:
+            df["backend_status"] = None
+        return df
 
     def persist(self, df: pd.DataFrame):
         self._merge_into_df(df)
