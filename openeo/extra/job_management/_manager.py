@@ -32,6 +32,7 @@ from openeo.extra.job_management._interface import JobDatabaseInterface
 from openeo.extra.job_management._thread_worker import (
     _JobManagerWorkerThreadPool,
     _JobStartTask,
+    _JobDownloadTask
 )
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
@@ -175,6 +176,7 @@ class MultiBackendJobManager:
 
     .. versionchanged:: 0.47.0
         Added ``download_results`` parameter.
+
     """
 
     # Expected columns in the job DB dataframes.
@@ -373,6 +375,9 @@ class MultiBackendJobManager:
                     ).values()
                 )
                 > 0
+
+                or (self._worker_pool is not None and self._worker_pool.has_unprocessed_tasks())
+
                 and not self._stop_thread
             ):
                 self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
@@ -398,7 +403,10 @@ class MultiBackendJobManager:
 
         .. versionadded:: 0.32.0
         """
-        self._worker_pool.shutdown()
+        if self._worker_pool is not None:
+            self._worker_pool.shutdown()
+            self._worker_pool = None
+
 
         if self._thread is not None:
             self._stop_thread = True
@@ -504,13 +512,15 @@ class MultiBackendJobManager:
 
         self._worker_pool = _JobManagerWorkerThreadPool()
 
+
         while (
             sum(
                 job_db.count_by_status(
                     statuses=["not_started", "created", "queued_for_start", "queued", "running"]
-                ).values()
-            )
-            > 0
+                ).values()) > 0
+
+            or (self._worker_pool is not None and self._worker_pool.has_unprocessed_tasks()) 
+                
         ):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
@@ -520,8 +530,10 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-        # TODO; run post process after shutdown once more to ensure completion?
+
+       
         self._worker_pool.shutdown()
+        self._worker_pool = None
 
         return stats
 
@@ -567,7 +579,9 @@ class MultiBackendJobManager:
                         stats["job_db persist"] += 1
                         total_added += 1
 
-        self._process_threadworker_updates(self._worker_pool, job_db=job_db, stats=stats)
+        if self._worker_pool is not None:
+            self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
+            
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -578,6 +592,7 @@ class MultiBackendJobManager:
 
         for job, row in jobs_cancel:
             self.on_job_cancel(job, row)
+
 
     def _launch_job(self, start_job, df, i, backend_name, stats: Optional[dict] = None):
         """Helper method for launching jobs
@@ -643,7 +658,7 @@ class MultiBackendJobManager:
                                 df_idx=i,
                             )
                             _log.info(f"Submitting task {task} to thread pool")
-                            self._worker_pool.submit_task(task)
+                            self._worker_pool.submit_task(task=task, pool_name="job_start")
 
                             stats["job_queued_for_start"] += 1
                             df.loc[i, "status"] = "queued_for_start"
@@ -689,7 +704,7 @@ class MultiBackendJobManager:
         :param stats:       Dictionary accumulating statistic counters
         """
         # Retrieve completed task results immediately
-        results, _ = worker_pool.process_futures(timeout=0)
+        results, _  = worker_pool.process_futures(timeout=0)
 
         # Collect update dicts
         updates: List[Dict[str, Any]] = []
@@ -735,17 +750,28 @@ class MultiBackendJobManager:
         :param job: The job that has finished.
         :param row: DataFrame row containing the job's metadata.
         """
-        # TODO: param `row` is never accessed in this method. Remove it? Is this intended for future use?
         if self._download_results:
-            job_metadata = job.describe()
+
             job_dir = self.get_job_dir(job.job_id)
-            metadata_path = self.get_job_metadata_path(job.job_id)
-
             self.ensure_job_dir_exists(job.job_id)
-            job.get_results().download_files(target=job_dir)
 
-            with metadata_path.open("w", encoding="utf-8") as f:
-                json.dump(job_metadata, f, ensure_ascii=False)
+            #Proactively refresh bearer token
+            job_con =  job.connection
+            self._refresh_bearer_token(connection=job_con)
+            
+            task = _JobDownloadTask(
+                job_id=job.job_id,
+                df_idx=row.name, 
+                root_url=job_con.root_url,
+                bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
+                download_dir=job_dir,
+            )
+            _log.info(f"Submitting download task {task} to download thread pool")
+            
+            if self._worker_pool is None:
+                self._worker_pool = _JobManagerWorkerThreadPool()
+                
+            self._worker_pool.submit_task(task=task, pool_name="job_download")
 
     def on_job_error(self, job: BatchJob, row):
         """
@@ -797,6 +823,7 @@ class MultiBackendJobManager:
         except Exception as e:
             _log.error(f"Unexpected error while handling job {job.job_id}: {e}")
 
+    #TODO pull this functionality away from the manager to a general utility class? job dir creation could be reused for tje Jobdownload task
     def get_job_dir(self, job_id: str) -> Path:
         """Path to directory where job metadata, results and error logs are be saved."""
         return self._root_dir / f"job_{job_id}"

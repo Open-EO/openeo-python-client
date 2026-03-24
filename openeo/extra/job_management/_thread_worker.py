@@ -7,7 +7,9 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
 
+import json
 import urllib3.util
 
 import openeo
@@ -99,7 +101,7 @@ class ConnectedTask(Task):
             connection.authenticate_bearer_token(self.bearer_token)
         return connection
 
-
+@dataclass(frozen=True)
 class _JobStartTask(ConnectedTask):
     """
     Task for starting an openEO batch job (the `POST /jobs/<job_id>/result` request).
@@ -139,9 +141,51 @@ class _JobStartTask(ConnectedTask):
                 db_update={"status": "start_failed"},
                 stats_update={"start_job error": 1},
             )
+        
+@dataclass(frozen=True)
+class _JobDownloadTask(ConnectedTask):
+    """
+    Task for downloading job results and metadata.
 
+    :param download_dir:
+        Root directory where job results and metadata will be downloaded.
+    """
+    download_dir: Path = field(default=None, repr=False)
 
-class _JobManagerWorkerThreadPool:
+    def execute(self) -> _TaskResult:
+
+        try:
+            job = self.get_connection(retry=True).job(self.job_id)
+
+            # Count assets (files to download)
+            file_count = len(job.get_results().get_assets())
+            
+            # Download results
+            job.get_results().download_files(target=self.download_dir)
+
+            # Download metadata
+            job_metadata = job.describe()
+            metadata_path = self.download_dir / f"job_{self.job_id}.json"
+            with metadata_path.open("w", encoding="utf-8") as f:
+                json.dump(job_metadata, f, ensure_ascii=False)
+            
+            _log.info(f"Job {self.job_id!r} results downloaded successfully")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={}, #TODO consider db updates?
+                stats_update={"job download": 1, "files downloaded": file_count},
+            )
+        except Exception as e:
+            _log.error(f"Failed to download results for job {self.job_id!r}: {e!r}")
+            return _TaskResult(
+                job_id=self.job_id,
+                df_idx=self.df_idx,
+                db_update={},
+                stats_update={"job download error": 1, "files downloaded": 0},
+            )
+        
+class _TaskThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
 
@@ -156,6 +200,8 @@ class _JobManagerWorkerThreadPool:
     def __init__(self, max_workers: int = 2):
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self._future_task_pairs: List[Tuple[concurrent.futures.Future, Task]] = []
+        self._total_submitted = 0
+        self._total_processed = 0
 
     def submit_task(self, task: Task) -> None:
         """
@@ -169,6 +215,8 @@ class _JobManagerWorkerThreadPool:
         """
         future = self._executor.submit(task.execute)
         self._future_task_pairs.append((future, task))  # Track pairs
+        self._total_submitted += 1
+
 
     def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], int]:
         """
@@ -186,7 +234,11 @@ class _JobManagerWorkerThreadPool:
         results = []
         to_keep = []
 
-        done, _ = concurrent.futures.wait([f for f, _ in self._future_task_pairs], timeout=timeout)
+        if not self._future_task_pairs:
+            return results, 0
+
+        futures = [f for f, _ in self._future_task_pairs]
+        done, _ = concurrent.futures.wait(futures, timeout=timeout)
 
         for future, task in self._future_task_pairs:
             if future in done:
@@ -206,9 +258,82 @@ class _JobManagerWorkerThreadPool:
         _log.info("process_futures: %d tasks done, %d tasks remaining", len(results), len(to_keep))
 
         self._future_task_pairs = to_keep
+        self._total_processed += len(results)
+
         return results, len(to_keep)
+    
+    def get_unprocessed_count(self) -> int:
+        """Get number of tasks that haven't been processed yet."""
+        return self._total_submitted - self._total_processed
+    
+    def has_unprocessed_tasks(self) -> bool:
+        """Check if there are tasks that haven't been processed yet."""
+        return self._total_submitted > self._total_processed
 
     def shutdown(self) -> None:
         """Shuts down the thread pool gracefully."""
         _log.info("Shutting down thread pool")
         self._executor.shutdown(wait=True)
+
+
+class _JobManagerWorkerThreadPool:
+    """
+    Generic wrapper that manages multiple thread pools with a dict.
+    """
+    
+    def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
+        self._pools: Dict[str, _TaskThreadPool] = {}
+        self._pool_configs = pool_configs or {}
+
+    def list_pools(self) -> List[str]:
+        """List all active pool names."""
+        return list(self._pools.keys())
+    
+    def submit_task(self, task: Task, pool_name: str = "default") -> None:
+        if pool_name not in self._pools:
+            max_workers = self._pool_configs.get(pool_name, 2)
+            self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
+            _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
+        
+        self._pools[pool_name].submit_task(task)
+
+    def get_unprocessed_counts(self) -> Dict[str, int]:
+        """Get unprocessed (submitted but not processed) task counts per pool."""
+        return {name: pool.get_unprocessed_count() for name, pool in self._pools.items()}
+    
+    def has_unprocessed_tasks(self) -> bool:
+        """Check if any pool has unprocessed (submitted but not processed) tasks."""
+        return any(pool.has_unprocessed_tasks() for pool in self._pools.values())
+    
+    def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
+        """
+        Process updates from ALL pools.
+        Returns: (all_results, dict of remaining tasks per pool)
+        """
+        all_results = []
+        to_keep = {}
+        
+        for pool_name, pool in self._pools.items():
+            results, remaining = pool.process_futures(timeout)
+            all_results.extend(results)
+
+            to_keep[pool_name] = remaining
+
+        return all_results, to_keep
+    
+    def shutdown(self, pool_name: Optional[str] = None) -> None:
+        """
+        Shutdown pools.
+        If pool_name is None, shuts down all pools.
+        """
+        if pool_name:
+            if pool_name in self._pools:
+                self._pools[pool_name].shutdown()
+                del self._pools[pool_name]
+        else:
+            for pool_name, pool in list(self._pools.items()):
+                pool.shutdown()
+                del self._pools[pool_name]
+    
+    
+
