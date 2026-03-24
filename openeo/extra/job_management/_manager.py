@@ -94,13 +94,6 @@ class _ColumnRequirements:
         """
         new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
         df = df.assign(**new_columns)
-        # Ensure columns declared as "str" are object dtype even when the caller
-        # provided all-NaN values (e.g. float("nan")), which pandas would otherwise
-        # infer as float64.  A float64 column cannot accept string assignments later
-        # (e.g. setting running_start_time to an ISO-8601 string in _track_statuses).
-        for col, req in self._requirements.items():
-            if req.dtype == "str" and col in df.columns and df[col].dtype.kind in ("f", "i"):
-                df[col] = df[col].astype(object)
         return df
 
     def dtype_mapping(self) -> Dict[str, str]:

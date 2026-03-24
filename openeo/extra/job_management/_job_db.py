@@ -151,8 +151,10 @@ class CsvJobDatabase(FullDataFrameJobDatabase):
             # `df.to_csv()` in `persist()` has encoded geometries as WKT, so we decode that here.
             df.geometry = geopandas.GeoSeries.from_wkt(df["geometry"])
             df = geopandas.GeoDataFrame(df)
-        # Backwards compatibility: add backend_status column when reading older files that don't have it.
-        if "backend_status" not in df.columns:
+        # Backwards compatibility: add backend_status column when reading an older job database
+        # file that pre-dates the status/backend_status split.  Only applies when the file
+        # already has a "status" column (i.e. it is a genuine job management database).
+        if "status" in df.columns and "backend_status" not in df.columns:
             df["backend_status"] = None
         return df
 
@@ -205,8 +207,10 @@ class ParquetJobDatabase(FullDataFrameJobDatabase):
             df = geopandas.read_parquet(self.path)
         else:
             df = pd.read_parquet(self.path)
-        # Backwards compatibility: add backend_status column when reading older files that don't have it.
-        if "backend_status" not in df.columns:
+        # Backwards compatibility: add backend_status column when reading an older job database
+        # file that pre-dates the status/backend_status split.  Only applies when the file
+        # already has a "status" column (i.e. it is a genuine job management database).
+        if "status" in df.columns and "backend_status" not in df.columns:
             df["backend_status"] = None
         return df
 
