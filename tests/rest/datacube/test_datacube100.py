@@ -3058,6 +3058,43 @@ def test_datacube_from_process_no_warnings(con100, caplog, recwarn):
     assert recwarn.list == []
 
 
+def test_datacube_from_process_nesting_direct(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/868"""
+    settings = con100.datacube_from_process("produce_settings", size=4)
+    cube = con100.datacube_from_process("colorize", settings=settings)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "producesettings1": {
+            "process_id": "produce_settings",
+            "arguments": {"size": 4},
+        },
+        "colorize1": {
+            "process_id": "colorize",
+            "arguments": {"settings": {"from_node": "producesettings1"}},
+        },
+    }
+
+
+def test_datacube_from_process_nesting_in_dict(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/868"""
+    settings = con100.datacube_from_process("produce_settings", size=4)
+    cube = con100.datacube_from_process("colorize", context={"color": "red", "settings": settings})
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "producesettings1": {
+            "process_id": "produce_settings",
+            "arguments": {"size": 4},
+        },
+        "colorize1": {
+            "process_id": "colorize",
+            "arguments": {
+                "context": {
+                    "color": "red",
+                    "settings": {"from_node": "producesettings1"},
+                }
+            },
+        },
+    }
+
+
 class TestDataCubeFromFlatGraph:
 
     def test_datacube_from_flat_graph_minimal(self, con100):

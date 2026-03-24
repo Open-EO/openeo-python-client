@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `MultiBackendJobManager`: status "queued_for_start" is no longer overwritten to "created" to allow consistent tracking of the job lifecycle and more accurate handling of job starting.
+- Support passing process graph abstractions (like `DataCube`) deeper than first argument level ([#868](https://github.com/Open-EO/openeo-python-client/issues/868))
 
 
 ## [0.48.0] - 2026-02-17
