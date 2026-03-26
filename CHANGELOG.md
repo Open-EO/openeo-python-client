@@ -10,13 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `is_one_of()` to `property_filter` for compact building of an allow-list based property filter.
+- Add "ABDI1" and "ABDI2" to "extra-indices-dict.json" ([#875](https://github.com/Open-EO/openeo-python-client/pull/875))
 
 ### Changed
+
 - `MultiBackendJobManager`: "queued_for_start" is now also considered for the queue limit of a backend.
 
 ### Removed
 
 ### Fixed
+
 - `MultiBackendJobManager`: status "queued_for_start" is no longer overwritten to "created" to allow consistent tracking of the job lifecycle and more accurate handling of job starting.
 
 
