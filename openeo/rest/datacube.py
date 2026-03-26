@@ -3077,7 +3077,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Converts every band in the datacube to a band with suffix "_aspect" containing the aspect.
 
-        :return: A data cube with the same dimensions but containing the computed aspect values.
+        :return: A data cube with the same dimensions but containing the computed aspect values (in radians from due North, NaN if flat).
         """
         return self.process(
             process_id="aspect",
@@ -3091,7 +3091,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         Converts every band in the datacube to a band with suffix "_slope" containing the slope.
 
-        :return: A data cube with the same dimensions but containing the computed slope values.
+        :return: A data cube with the same dimensions but containing the computed slope values (in radians, relative to the horizontal plane).
         """
         return self.process(
             process_id="slope",
