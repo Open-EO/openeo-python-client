@@ -249,7 +249,7 @@ class DataCube(_ProcessGraphAbstraction):
 
         properties = cls._build_load_properties_argument(
             properties=properties,
-            supported_properties=(metadata.get("summaries", default={}).keys() if metadata else None),
+            queryables=_Queryables.build(collection_id=collection_id, connection=connection),
             max_cloud_cover=max_cloud_cover,
         )
         if properties is not None:
@@ -275,7 +275,7 @@ class DataCube(_ProcessGraphAbstraction):
             None,
         ],
         *,
-        supported_properties: Optional[typing.Collection[str]] = None,
+        queryables: Optional[_Queryables] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> Union[Dict[str, PGNode], None]:
         """
@@ -296,11 +296,11 @@ class DataCube(_ProcessGraphAbstraction):
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
 
         if isinstance(properties, dict):
-            if supported_properties:
-                unsupported_properties = set(properties.keys()).difference(supported_properties)
+            if queryables and not queryables.additional:
+                unsupported_properties = set(properties.keys()).difference(queryables.properties)
                 if unsupported_properties:
                     warnings.warn(
-                        f"Property filtering with properties not listed in collection/STAC metadata: {list(unsupported_properties)} (supported: {list(supported_properties)}).",
+                        f"Property filtering with unsupported properties {sorted(unsupported_properties)} (queryables: {sorted(queryables.properties)}).",
                         stacklevel=3,
                     )
             properties = {
@@ -444,7 +444,10 @@ class DataCube(_ProcessGraphAbstraction):
         if bands is not None:
             arguments["bands"] = bands
 
-        properties = cls._build_load_properties_argument(properties=properties)
+        properties = cls._build_load_properties_argument(
+            properties=properties,
+            # TODO: possible to detect queryables here too?
+        )
         if properties is not None:
             arguments["properties"] = properties
 
@@ -3225,3 +3228,33 @@ def _get_geometry_argument(
             crs_name = crs
         geometry["crs"] = {"type": "name", "properties": {"name": crs_name}}
     return geometry
+
+
+class _Queryables:
+    """
+    Container of collection/item "queryables":
+    - properties: properties that can be filtered on
+    - additional: whether "additionalProperties" (anything goes) is enabled
+    """
+
+    __slots__ = ("properties", "additional")
+
+    def __init__(self, properties: Iterable[str], additional: bool = False):
+        self.properties = set(properties)
+        self.additional = bool(additional)
+
+    @classmethod
+    def build(cls, *, collection_id: str, connection: Optional[Connection]) -> Union[_Queryables, None]:
+        if connection and connection.capabilities().supports_endpoint("/collections/{collection_id}/queryables"):
+            path = f"/collections/{collection_id}/queryables"
+            try:
+                resp = connection.get(path, allow_redirects=True)
+                resp.raise_for_status()
+                data = resp.json()
+                properties = list(data.get("properties", {}).keys())
+                additional = data.get("additionalProperties", False)
+                log.debug(f"Queryables from {path!r}: {properties=} {additional=}")
+                return cls(properties=properties, additional=additional)
+            except Exception as e:
+                log.warning(f"Failed to get/parse queryables of from {path}: {e!r}")
+        return None
