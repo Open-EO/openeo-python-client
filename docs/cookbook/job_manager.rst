@@ -63,7 +63,7 @@ the job manager, define a job creation callback, and run everything:
         )
 
     # Prepare a dataframe with one row per job
-    df = pd.DataFrame({"year": [2020, 2021, 2022]})
+    df = pd.DataFrame({"spatial_extent": ["bbox1", "bbox2", "bbox1", "bbox2"], "year": [2020, 2020, 2021, 2021]})
 
     # Create a persistent job database (CSV or Parquet)
     job_db = create_job_db("jobs.csv", df=df)
