@@ -49,8 +49,10 @@ the job manager, define a job creation callback, and run everything:
         row: pd.Series, connection: openeo.Connection, **kwargs
     ) -> openeo.BatchJob:
         year = row["year"]
+        spatial_extent = row["spatial_extent"]  # e.g. a boundig box
         cube = connection.load_collection(
             "SENTINEL2_L2A",
+            spatial_extent=spatial_extent,
             temporal_extent=[f"{year}-01-01", f"{year+1}-01-01"],
             bands=["B04", "B08"],
         )
