@@ -898,7 +898,7 @@ class MultiBackendJobManager:
                 # "awaiting start" state 
                 _INTERNAL_THREAD_STATUS = {"queued_for_start", "queued_for_start_failed"}
                 if previous_status in _INTERNAL_THREAD_STATUS and new_status == "created":
-                    pass  # keep user-visible status; start not yet confirmed by the backend
+                    pass  # start not yet confirmed by the backend
                 else:
                     active.loc[i, "status"] = new_status
 
