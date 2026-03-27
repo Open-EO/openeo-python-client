@@ -240,7 +240,7 @@ where you want to keep the main thread responsive.
 Job Status Tracking
 ===================
 
-The job database tracks two status columns:
+The job database tracks a status columns:
 
 ``status``
     The **user-visible lifecycle status**. Starts at ``"not_started"`` and
@@ -249,16 +249,6 @@ The job database tracks two status columns:
     housekeeping states like ``queued_for_start``, ``start_failed``, and
     ``skipped``.
 
-
-When filtering or counting jobs by status, you can choose which column to use:
-
-.. code-block:: python
-
-    # Count by user-visible status (default)
-    job_db.count_by_status()
-
-    # Count by official backend status only
-    job_db.count_by_status(column="status")
 
 
 .. _job-management-with-process-based-job-creator:
