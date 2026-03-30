@@ -207,9 +207,12 @@ class OidcException(OpenEoClientException):
 class AccessTokenResult(NamedTuple):
     """Container for result of access_token request."""
 
+    token_type: str
     access_token: str
+    expires_in: Optional[float] = None
     id_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    scope: Optional[str] = None
 
 
 def jwt_decode(token: str) -> Tuple[dict, dict]:
@@ -431,8 +434,14 @@ class OidcAuthenticator:
             for k, v in data.items()
         }
         log.debug(f"Extracting access token result from token response {redacted}")
+        token_type = data["token_type"]
+        if token_type.lower() != "bearer":
+            raise OidcException(f"Unsupported {token_type=}")
         return AccessTokenResult(
+            token_type=token_type,
             access_token=self._extract_token(data, "access_token"),
+            expires_in=data.get("expires_in"),
+            scope=data.get("scope"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
             refresh_token=self._extract_token(data, "refresh_token", allow_absent=True),
         )

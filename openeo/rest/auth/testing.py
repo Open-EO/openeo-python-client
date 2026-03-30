@@ -255,7 +255,10 @@ class OidcMock:
                 _uuid=uuid.uuid4().hex,
             ),
         )
-        res = {"access_token": access_token}
+        res = {
+            "token_type": "Bearer",
+            "access_token": access_token,
+        }
 
         # Attempt to simulate real world refresh token support.
         if include_refresh_token is None:

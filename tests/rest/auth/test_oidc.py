@@ -799,7 +799,10 @@ def test_oidc_refresh_token_flow_custom_requests_session():
     def post_token(request, context):
         # Very simple handler here (compared to OidcMock implementation)
         assert f"refresh_token={refresh_token}" in request.text
-        return {"access_token": "6cce5-t0k3n"}
+        return {
+            "token_type": "Bearer",
+            "access_token": "6cce5-t0k3n",
+        }
 
     adapter.register_uri("POST", f"{oidc_issuer}/token", json=post_token)
 
