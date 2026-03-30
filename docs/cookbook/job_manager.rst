@@ -14,6 +14,13 @@ It is designed for scenarios where you need to process many tasks in parallel,
 for example tiling a large area of interest into smaller regions
 and running a batch job for each tile.
 
+.. tip::
+
+    For hands-on, end-to-end Jupyter notebook examples, see the
+    `Managing Multiple Large Scale Jobs <https://github.com/Open-EO/openeo-community-examples/tree/main/python/ManagingMultipleLargeScaleJobs>`_
+    notebooks in the openEO community examples repository.
+    These cover real-world workflows including job splitting, result visualization, and more.
+
 .. contents:: On this page
     :local:
     :depth: 2
@@ -22,62 +29,132 @@ and running a batch job for each tile.
 Getting Started
 ===============
 
-Below is a minimal but complete example showing how to set up
-the job manager, define a job creation callback, and run everything:
+There are three main ingredients to using the
+:py:class:`~openeo.extra.job_management.MultiBackendJobManager`:
+
+1. A **manager** with one or more registered backends.
+2. A **job database** (backed by a DataFrame) that describes the work to do; one row per job.
+3. A **start_job callback** that turns a single row into an openEO batch job.
+
+The sections below walk through each of these, and then show how they
+come together.
+
+Setting up the manager
+----------------------
+
+Create a :py:class:`~openeo.extra.job_management.MultiBackendJobManager`
+and register the backend you want to use.
+Each backend gets a name and an authenticated
+:py:class:`~openeo.rest.connection.Connection`:
 
 .. code-block:: python
-    :linenos:
+
+    import openeo
+    from openeo.extra.job_management import MultiBackendJobManager
+
+    manager = MultiBackendJobManager()
+    manager.add_backend("cdse", connection=openeo.connect(
+        "https://openeo.dataspace.copernicus.eu/"
+    ).authenticate_oidc())
+
+You can register more than one backend, the manager will distribute
+jobs across them automatically:
+
+.. code-block:: python
+
+    manager.add_backend("dev", connection=openeo.connect(
+        "https://openeo-dev.example.com"
+    ).authenticate_oidc())
+
+The optional ``parallel_jobs`` argument to
+:py:meth:`~openeo.extra.job_management.MultiBackendJobManager.add_backend`
+controls how many jobs the manager will try to keep active simultaneously on that backend (default: 2).
+This is the manager's own limit, independent of the backend's infrastructure limits.
+The actual number of jobs that can run in parallel also depends on the backend's capacity (default: 2).
+
+Preparing the job database
+--------------------------
+
+The job database is a :py:class:`pandas.DataFrame` where **each row
+represents one job** you want to run. The columns hold the parameters
+your ``start_job`` callback will read for example a year, a spatial
+extent, a file path, etc.
+
+Wrap the DataFrame in a persistent job database
+(CSV or Parquet) so progress is saved to disk and can be resumed if
+interrupted:
+
+.. code-block:: python
+
+    import pandas as pd
+    from openeo.extra.job_management import create_job_db
+
+    df = pd.DataFrame({
+        "spatial_extent": [
+            {"west": 5.0, "south": 51.0, "east": 5.1, "north": 51.1},
+            {"west": 5.1, "south": 51.1, "east": 5.2, "north": 51.2},
+        ],
+        "year": [2021, 2022],
+    })
+    job_db = create_job_db("jobs.csv", df=df)
+
+The manager will automatically add bookkeeping columns
+(``status``, ``id``, ``backend_name``, ``start_time``, …),
+you only need to supply the columns relevant to your processing.
+
+Defining the start_job callback
+-------------------------------
+
+The ``start_job`` callback is a function you write. It receives a
+:py:class:`pandas.Series` (one row of the DataFrame) and a
+:py:class:`~openeo.rest.connection.Connection`, and should return
+a :py:class:`~openeo.rest.job.BatchJob`:
+
+.. code-block:: python
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection(
+            "SENTINEL2_L2A",
+            spatial_extent=row["spatial_extent"],
+            temporal_extent=[f"{row['year']}-01-01", f"{row['year']+1}-01-01"],
+            bands=["B04", "B08"],
+        )
+        cube = cube.ndvi(nir="B08", red="B04")
+        return cube.create_job(
+            title=f"NDVI {row['year']}",
+            out_format="GTiff",
+        )
+
+A few things to note:
+
+- The callback should **create** the job (``create_job``), but does not
+  need to **start** it, the manager takes care of that.
+- Always include ``**kwargs`` so the manager can pass extra arguments
+  (like ``provider``, ``connection_provider``) without causing errors.
+- You can read any column you put in the DataFrame via ``row["..."]``.
+
+See :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
+for the full list of parameters passed to the callback.
+
+Running everything
+------------------
+
+With all three pieces in place, a single call kicks off the processing
+loop. It blocks until every job has finished, failed, or been canceled:
+
+.. code-block:: python
 
     import logging
-    import pandas as pd
-    import openeo
-    from openeo.extra.job_management import MultiBackendJobManager, create_job_db
 
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO,
     )
 
-    # Set up the job manager and register one or more backends
-    manager = MultiBackendJobManager()
-    manager.add_backend("cdse", connection=openeo.connect(
-        "https://openeo.dataspace.copernicus.eu/"
-    ).authenticate_oidc())
-
-    # Define a callback that creates a batch job from a dataframe row
-    def start_job(
-        row: pd.Series, connection: openeo.Connection, **kwargs
-    ) -> openeo.BatchJob:
-        year = row["year"]
-        spatial_extent = row["spatial_extent"]  # e.g. a boundig box
-        cube = connection.load_collection(
-            "SENTINEL2_L2A",
-            spatial_extent=spatial_extent,
-            temporal_extent=[f"{year}-01-01", f"{year+1}-01-01"],
-            bands=["B04", "B08"],
-        )
-        cube = cube.ndvi(nir="B08", red="B04")
-        return cube.create_job(
-            title=f"NDVI {year}",
-            out_format="GTiff",
-        )
-
-    # Prepare a dataframe with one row per job
-    df = pd.DataFrame({"spatial_extent": ["bbox1", "bbox2", "bbox1", "bbox2"], "year": [2020, 2020, 2021, 2021]})
-
-    # Create a persistent job database (CSV or Parquet)
-    job_db = create_job_db("jobs.csv", df=df)
-
-    # Run all jobs (this blocks until every job finishes, fails, or is canceled)
     manager.run_jobs(job_db=job_db, start_job=start_job)
 
-The ``start_job`` callback receives a :py:class:`pandas.Series` row
-and a :py:class:`~openeo.Connection` connected to one of the registered backends.
-It should return a :py:class:`~openeo.BatchJob` (created but not necessarily started).
-The job manager takes care of starting, polling, and downloading results.
-
-See :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
-for the full list of parameters passed to the ``start_job`` callback.
+Enabling logging (as shown above) is highly recommended — the manager
+logs status changes, retries, and errors so you can follow progress.
 
 
 Job Database
@@ -145,6 +222,7 @@ Custom interfaces
 
 You can implement your own storage backend by subclassing
 :py:class:`~openeo.extra.job_management.JobDatabaseInterface`.
+See the :ref:`API reference below <job-manager-api-reference>` for the full interface.
 
 
 Customizing Job Handling
@@ -386,6 +464,8 @@ Example with geometry handling:
     job_manager = MultiBackendJobManager(...)
     job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
+
+.. _job-manager-api-reference:
 
 API Reference
 =============
