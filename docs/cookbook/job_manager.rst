@@ -341,14 +341,12 @@ Job creation based on parameterized processes
 ===============================================
 
 The openEO API supports parameterized processes out of the box,
-which allows to work with flexible, reusable openEO building blocks
-in the form of :ref:`user-defined processes <user-defined-processes>`
-or `remote openEO process definitions <https://github.com/Open-EO/openeo-api/tree/draft/extensions/remote-process-definition>`_.
+which allows to work with flexible, reusable openEO building blocks in the form of :ref:`user-defined processes <user-defined-processes>`.
+
 This can also be leveraged for job creation in the context of the
 :py:class:`~openeo.extra.job_management.MultiBackendJobManager`:
 define a "template" job as a parameterized process
-and let the job manager fill in the parameters
-from a given data frame.
+and let the job manager fill in the parameters from a given data frame of parameter values.
 
 The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` helper class
 allows to do exactly that.
@@ -358,10 +356,18 @@ it can be used directly as ``start_job`` callable to
 :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
 which will fill in the process parameters from the dataframe.
 
-Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example
---------------------------------------------------------------------------------------------
 
-Basic usage example with a remote process definition:
+Practical use case: batch NDVI computation with a parameterized process
+----------------------------------------------------------------------
+
+The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful for running the same user-defined process (UDP) or remote process definition many times, each with different parameters (e.g., different areas, dates, or bands). This is a common pattern for large-scale analysis, such as computing NDVI for many tiles or time periods.
+
+For a real-world, end-to-end example (including visualization and result management), see the Jupyter notebook:
+
+`VisualisingMultipleOpeneoJobs.ipynb <https://github.com/Open-EO/openeo-community-examples/blob/main/python/ManagingMultipleLargeScaleJobs/VisualisingMultipleOpeneoJobs.ipynb>`_
+in the openEO community examples repository.
+
+Below is a minimal usage example with a remote process definition:
 
 .. code-block:: python
     :linenos:
@@ -377,18 +383,21 @@ Basic usage example with a remote process definition:
 
     # Job creator, based on a parameterized openEO process
     # (specified by the remote process definition at given URL)
-    # which has parameters "start_date" and "bands" for example.
+   .
+
     job_starter = ProcessBasedJobCreator(
         namespace="https://example.com/my_process.json",
         parameter_defaults={
             "bands": ["B02", "B03"],
+            "spatial_extent": {"west": 5.0, "south": 51.0, "east": 5.1, "north": 51.1},
         },
     )
 
     # Prepare a dataframe with desired parameter values to fill in.
     df = pd.DataFrame(
         {
-            "start_date": ["2021-01-01", "2021-02-01", "2021-03-01"],
+            "temporal_extent": [["2021-01-01", "2021-01-31"], ["2021-02-01", "2021-02-28"], ["2021-03-01", "2021-03-31"]],
+            # Optionally, you can override spatial_extent per job by adding a "spatial_extent" column as well.
         }
     )
 
@@ -401,73 +410,7 @@ Basic usage example with a remote process definition:
     job_manager = MultiBackendJobManager(...)
     job_manager.run_jobs(job_db=job_db, start_job=job_starter)
 
-In this example, a :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is instantiated
-based on a remote process definition,
-which has parameters ``start_date`` and ``bands``.
-When passed to :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`,
-a job for each row in the dataframe will be created,
-with parameter values based on matching columns in the dataframe:
-
--   the ``start_date`` parameter will be filled in
-    with the values from the "start_date" column of the dataframe,
--   the ``bands`` parameter has no corresponding column in the dataframe,
-    and will get its value from the default specified in the ``parameter_defaults`` argument.
-
-
-:py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` with geometry handling
------------------------------------------------------------------------------------------------------
-
-Apart from the intuitive name-based parameter-column linking,
-:py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator`
-also automatically links:
-
--   a process parameter that accepts inline GeoJSON geometries/features
-    (which practically means it has a schema like ``{"type": "object", "subtype": "geojson"}``,
-    as produced by :py:meth:`Parameter.geojson <openeo.api.process.Parameter.geojson>`),
--   with the geometry column in a `GeoPandas <https://geopandas.org/>`_ dataframe,
-
-even if the name of the parameter does not exactly match
-the name of the GeoPandas geometry column (``geometry`` by default).
-This automatic linking is only done if there is only one
-GeoJSON parameter and one geometry column in the dataframe.
-
-Example with geometry handling:
-
-.. code-block:: python
-    :linenos:
-    :caption: :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` with geometry handling
-
-    import geopandas as gpd
-    from shapely.geometry import box
-    from openeo.extra.job_management import MultiBackendJobManager, create_job_db
-    from openeo.extra.job_management.process_based import ProcessBasedJobCreator
-
-    # Job creator, based on a remote process definition
-    # with parameters "aoi" (accepting GeoJSON) and "bands"
-    job_starter = ProcessBasedJobCreator(
-        namespace="https://example.com/my_ndvi_process.json",
-        parameter_defaults={
-            "bands": ["B04", "B08"],
-        },
-    )
-
-    # Build a GeoDataFrame with geometries for each job.
-    # The geometry column is automatically linked to the GeoJSON parameter.
-    gdf = gpd.GeoDataFrame(
-        {
-            "start_date": ["2021-01-01", "2021-02-01"],
-        },
-        geometry=[
-            box(5.0, 51.0, 5.1, 51.1),
-            box(5.1, 51.1, 5.2, 51.2),
-        ],
-    )
-
-    job_db = create_job_db("jobs.parquet", df=gdf)
-
-    job_manager = MultiBackendJobManager(...)
-    job_manager.run_jobs(job_db=job_db, start_job=job_starter)
-
+-----------------------------------------------------------------------------------
 
 .. _job-manager-api-reference:
 
