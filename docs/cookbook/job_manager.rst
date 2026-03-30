@@ -44,7 +44,7 @@ Setting up the manager
 
 Create a :py:class:`~openeo.extra.job_management.MultiBackendJobManager`
 and register the backend you want to use.
-Each backend gets a name and an authenticated
+Each backend gets a name and an authenticated connection
 :py:class:`~openeo.rest.connection.Connection`:
 
 .. code-block:: python
@@ -70,7 +70,7 @@ The optional ``parallel_jobs`` argument to
 :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.add_backend`
 controls how many jobs the manager will try to keep active simultaneously on that backend (default: 2).
 This is the manager's own limit, independent of the backend's infrastructure limits.
-The actual number of jobs that can run in parallel also depends on the backend's capacity (default: 2).
+The actual number of jobs that can run in parallel depends on the backend's capacity per user.
 
 Preparing the job database
 --------------------------
@@ -169,7 +169,7 @@ CSV and Parquet files
 
 The easiest option is to use a local CSV or Parquet file.
 Use the :py:func:`~openeo.extra.job_management.create_job_db` factory
-to create and initialize a job database from a :py:class:`pandas.DataFrame`:
+to create and initialize a job database from a :py:class:`pandas.DataFrame` or a :py:class:`geopandas.GeoDataFrame `:
 
 .. code-block:: python
 
@@ -298,21 +298,25 @@ Jobs that exceed this duration will be automatically canceled:
 Running in a Background Thread
 ==============================
 
-Instead of blocking the main thread with
-:py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`,
-you can run the job management loop in a background thread:
 
+By default, :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs` blocks the main thread until all jobs are finished, failed, or canceled.
+To keep your main program responsive (e.g., in a Jupyter notebook or GUI), run the job manager loop in a background thread so you can still monitor or interact with for instance the dataframe.
 .. code-block:: python
 
     manager.start_job_thread(start_job=start_job, job_db=job_db)
 
     # ... do other work in the main thread ...
+    # For example, you can monitor job_db, update a UI, or submit new jobs.
 
     # When done, stop the background thread
     manager.stop_job_thread()
 
-This is useful in interactive environments such as Jupyter notebooks,
-where you want to keep the main thread responsive.
+While the background thread is running, you can inspect the job database (e.g., with pandas or geopandas) to monitor progress, or perform other tasks in your main program. This is especially useful in interactive environments where you want to avoid blocking the UI or kernel.
+
+**Caveats:**
+
+- The background thread will keep running until all jobs are finished, failed, or canceled, or until you call ``stop_job_thread()``.
+- Logging output from the background thread will still appear in the console.
 
 .. versionadded:: 0.32.0
 
