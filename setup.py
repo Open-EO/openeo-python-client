@@ -34,6 +34,10 @@ tests_require = [
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
     "moto>=5.0.0",
+    # Some pins to speed up slow dependency resolution in Python 3.8 venvs
+    "moto~=5.0.28; python_version<'3.9'",
+    "boto3~=1.37.38; python_version<'3.9'",
+    "botocore~=1.37.38; python_version<'3.9'",
 ]
 
 docs_require = [
