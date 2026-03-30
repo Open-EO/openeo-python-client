@@ -4,6 +4,7 @@ Assert functions for comparing actual (batch job) results against expected refer
 
 import json
 import logging
+import re
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
@@ -458,6 +459,16 @@ def _compare_job_results(
     return all_issues
 
 
+_EODATA_SAFE_REGEX = re.compile(r"/eodata/.*/([^/]+).SAFE")
+
+
+def _normalize_derived_from(derived_from: str) -> str:
+    """Normalize derived from links for better signal-to-noise ratio in comparisons."""
+    if match := _EODATA_SAFE_REGEX.match(derived_from):
+        return match.group(1)
+    return derived_from
+
+
 def _compare_job_result_metadata(
     actual: Union[str, Path],
     expected: Union[str, Path],
@@ -467,8 +478,12 @@ def _compare_job_result_metadata(
     expected_metadata = _load_json(expected)
 
     # Check "derived_from" links
-    actual_derived_from = set(k["href"] for k in actual_metadata.get("links", []) if k["rel"] == "derived_from")
-    expected_derived_from = set(k["href"] for k in expected_metadata.get("links", []) if k["rel"] == "derived_from")
+    actual_derived_from = set(
+        _normalize_derived_from(k["href"]) for k in actual_metadata.get("links", []) if k["rel"] == "derived_from"
+    )
+    expected_derived_from = set(
+        _normalize_derived_from(k["href"]) for k in expected_metadata.get("links", []) if k["rel"] == "derived_from"
+    )
 
     if actual_derived_from != expected_derived_from:
         actual_only = actual_derived_from - expected_derived_from
