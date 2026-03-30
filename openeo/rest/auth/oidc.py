@@ -210,6 +210,7 @@ class AccessTokenResult(NamedTuple):
     access_token: str
     id_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    expires_in: Optional[int] = None
 
 
 def jwt_decode(token: str) -> Tuple[dict, dict]:
@@ -435,6 +436,7 @@ class OidcAuthenticator:
             access_token=self._extract_token(data, "access_token"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
             refresh_token=self._extract_token(data, "refresh_token", allow_absent=True),
+            expires_in=data.get("expires_in", None),
         )
 
     @staticmethod
