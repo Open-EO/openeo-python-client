@@ -300,7 +300,10 @@ Running in a Background Thread
 
 
 By default, :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs` blocks the main thread until all jobs are finished, failed, or canceled.
-To keep your main program responsive (e.g., in a Jupyter notebook or GUI), run the job manager loop in a background thread so you can still monitor or interact with for instance the dataframe.
+To keep your main program responsive (e.g., in a Jupyter notebook or GUI),
+run the job manager loop in a background thread so you can still monitor
+or interact with the dataframe.
+
 .. code-block:: python
 
     manager.start_job_thread(start_job=start_job, job_db=job_db)
