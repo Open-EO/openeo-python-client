@@ -7,7 +7,7 @@ import dataclasses
 import json
 import urllib.parse
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import requests
 import requests_mock.request
@@ -40,7 +40,7 @@ class OidcMock:
         device_code_flow_support: bool = True,
         oidc_discovery_url: Optional[str] = None,
         support_verification_uri_complete: bool = False,
-        access_token_expires_in: int = 3600,
+        access_token_expires_in: Optional[int] = None,
     ):
         self.requests_mock = requests_mock
         self.oidc_issuer = oidc_issuer
@@ -257,11 +257,12 @@ class OidcMock:
                 _uuid=uuid.uuid4().hex,
             ),
         )
-        res = {
+        res: Dict[str, Union[str, int, float]] = {
             "token_type": "Bearer",
             "access_token": access_token,
-            "expires_in": self.access_token_expires_in,
         }
+        if self.access_token_expires_in is not None:
+            res["expires_in"] = self.access_token_expires_in
 
         # Attempt to simulate real world refresh token support.
         if include_refresh_token is None:
