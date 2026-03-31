@@ -360,55 +360,69 @@ which will fill in the process parameters from the dataframe.
 Practical use case: batch NDVI computation with a parameterized process
 ----------------------------------------------------------------------
 
-The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful for running the same user-defined process (UDP) or remote process definition many times, each with different parameters (e.g., different areas, dates, or bands). This is a common pattern for large-scale analysis, such as computing NDVI for many tiles or time periods.
+The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful
+for running the same UDP many times, each with different parameters;
+for example, different spatial extents, time ranges, or bands.
+This is a common pattern for large-scale analysis such as computing NDVI across many tiles or time periods.
 
 For a real-world, end-to-end example (including visualization and result management), see the Jupyter notebook:
-
 `VisualisingMultipleOpeneoJobs.ipynb <https://github.com/Open-EO/openeo-community-examples/blob/main/python/ManagingMultipleLargeScaleJobs/VisualisingMultipleOpeneoJobs.ipynb>`_
 in the openEO community examples repository.
 
-Below is a minimal usage example with a remote process definition:
+Three rules govern how parameters are handled:
+
+1. **The UDP must declare all parameters** it needs (e.g. ``bands``, ``spatial_extent``, ``temporal_extent``).
+   The namespace URL (or backend process ID) points to that UDP definition.
+
+2. **Constant parameters** identical values for every job; go in ``parameter_defaults``.
+   They will be used for any job whose DataFrame row does not override them.
+
+3. **Varying parameters** which differ per job, must be **columns in the job database DataFrame**,
+   with column names that exactly match the UDP parameter names.
+   The value from each row is passed to the corresponding parameter for that job.
+
+Below is a minimal example where ``bands`` and ``spatial_extent`` are constant (set via ``parameter_defaults``)
+while ``temporal_extent`` varies per job (set via a DataFrame column):
 
 .. code-block:: python
     :linenos:
-    :caption: Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example snippet
-    :emphasize-lines: 10-15, 27
+    :caption: Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example
 
     import pandas as pd
-    from openeo.extra.job_management import (
-        MultiBackendJobManager,
-        create_job_db,
-    )
+    from openeo.extra.job_management import MultiBackendJobManager, create_job_db
     from openeo.extra.job_management.process_based import ProcessBasedJobCreator
 
-    # Job creator, based on a parameterized openEO process
-    # (specified by the remote process definition at given URL)
-   .
-
+    # Point to the remote UDP definition (e.g. hosted on an openEO backend or public URL).
+    # The UDP is expected to accept parameters: bands, spatial_extent, temporal_extent.
     job_starter = ProcessBasedJobCreator(
-        namespace="https://example.com/my_process.json",
+        namespace="https://example.com/ndvi_process.json",
         parameter_defaults={
-            "bands": ["B02", "B03"],
+            # These values are constant across all jobs.
+            "bands": ["B04", "B08"],
             "spatial_extent": {"west": 5.0, "south": 51.0, "east": 5.1, "north": 51.1},
         },
     )
 
-    # Prepare a dataframe with desired parameter values to fill in.
-    df = pd.DataFrame(
-        {
-            "temporal_extent": [["2021-01-01", "2021-01-31"], ["2021-02-01", "2021-02-28"], ["2021-03-01", "2021-03-31"]],
-            # Optionally, you can override spatial_extent per job by adding a "spatial_extent" column as well.
-        }
-    )
+    # Each row defines one job. The column name must match the UDP parameter name exactly.
+    # Here, temporal_extent varies per job; bands and spatial_extent use the defaults above.
+    df = pd.DataFrame({
+        "temporal_extent": [
+            ["2021-01-01", "2021-01-31"],
+            ["2021-02-01", "2021-02-28"],
+            ["2021-03-01", "2021-03-31"],
+        ],
+    })
 
-    # Create a job database initialized from the dataframe
     job_db = create_job_db("jobs.csv", df=df)
 
-    # Create and run job manager,
-    # which will start a job for each of the `start_date` values in the dataframe
-    # and use the default band list ["B02", "B03"] for the "bands" parameter.
     job_manager = MultiBackendJobManager(...)
     job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+
+.. tip::
+
+    To vary **any** parameter per job (e.g. ``bands`` or ``spatial_extent``),
+    simply add a column with the matching name to the DataFrame.
+    A column value always takes precedence over the corresponding ``parameter_defaults`` entry.
 
 -----------------------------------------------------------------------------------
 
