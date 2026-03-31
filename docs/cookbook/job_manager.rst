@@ -169,7 +169,7 @@ CSV and Parquet files
 
 The easiest option is to use a local CSV or Parquet file.
 Use the :py:func:`~openeo.extra.job_management.create_job_db` factory
-to create and initialize a job database from a :py:class:`pandas.DataFrame` or a :py:class:`geopandas.GeoDataFrame `:
+to create and initialize a job database from a :py:class:`pandas.DataFrame` or a :py:class:`geopandas.GeoDataFrame`:
 
 .. code-block:: python
 
