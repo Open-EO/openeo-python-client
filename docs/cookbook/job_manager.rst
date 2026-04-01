@@ -72,6 +72,9 @@ controls how many jobs the manager will try to keep active simultaneously on tha
 This is the manager's own limit, independent of the backend's infrastructure limits.
 The actual number of jobs that can run in parallel depends on the backend's capacity per user.
 
+In addition, the manager also applies an internal queueing cap per backend
+to avoid flooding a backend with too many queued jobs at once.
+
 Preparing the job database
 --------------------------
 
@@ -327,14 +330,24 @@ While the background thread is running, you can inspect the job database (e.g., 
 Job Status Tracking
 ===================
 
-The job database tracks a status columns:
+The job database includes a ``status`` column that reflects the lifecycle of each job.
+This makes it easy to monitor progress and spot failures directly in the DataFrame.
 
 ``status``
-    The **user-visible lifecycle status**. Starts at ``"not_started"`` and
-    progresses through standard openEO states (``created``, ``queued``,
-    ``running``, ``finished``, ``error``, ``canceled``) as well as internal
-    housekeeping states like ``queued_for_start``, ``start_failed``, and
-    ``skipped``.
+
+    Typical lifecycle:
+    ``not_started`` → ``queued_for_start`` → ``created`` → ``queued`` → ``running`` → terminal state.
+
+    Terminal states are:
+
+    - ``finished``: job completed successfully.
+    - ``error``: job failed after submission.
+    - ``canceled``: job was canceled.
+    - ``start_failed``: job could not be created/submitted by the manager.
+    - ``skipped``: job was intentionally not submitted.
+
+    In short, most jobs follow the standard openEO states,
+    while ``not_started`` , ``queued_for_start``, ``start_failed``, and ``skipped`` are manager-side bookkeeping states.
 
 
 
