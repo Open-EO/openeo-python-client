@@ -8,7 +8,7 @@ The :py:class:`~openeo.extra.job_management.MultiBackendJobManager`
 helps to run and manage a large number of batch jobs
 across one or more openEO backends.
 It handles job creation, submission, status tracking, result downloading,
-error handling, and persistence of job metadata — all automatically.
+error handling, and persistence of job metadata, all automatically.
 
 It is designed for scenarios where you need to process many tasks in parallel,
 for example tiling a large area of interest into smaller regions
@@ -153,7 +153,7 @@ loop. It blocks until every job has finished, failed, or been canceled:
 
     manager.run_jobs(job_db=job_db, start_job=start_job)
 
-Enabling logging (as shown above) is highly recommended — the manager
+The logging (as shown above) is recommended as the manager
 logs status changes, retries, and errors so you can follow progress.
 
 
@@ -244,7 +244,7 @@ when a job finishes, fails, or is canceled:
     called when a job is canceled.
     The default implementation does nothing.
 
-Example — subclass to add custom post-processing:
+Example: subclass to add custom post-processing:
 
 .. code-block:: python
 
@@ -360,7 +360,7 @@ it can be used directly as ``start_job`` callable to
 which will fill in the process parameters from the dataframe.
 
 
-Practical use case: batch NDVI computation with a parameterized process
+Example use case: batch NDVI computation with a parameterized process
 ----------------------------------------------------------------------
 
 The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful
@@ -423,7 +423,7 @@ while ``temporal_extent`` varies per job (set via a DataFrame column):
 
 .. tip::
 
-    To vary **any** parameter per job (e.g. ``bands`` or ``spatial_extent``),
+    To vary any parameter per job (e.g. ``bands`` or ``spatial_extent``),
     simply add a column with the matching name to the DataFrame.
     A column value always takes precedence over the corresponding ``parameter_defaults`` entry.
 
