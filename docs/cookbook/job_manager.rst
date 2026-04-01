@@ -360,7 +360,7 @@ it can be used directly as ``start_job`` callable to
 which will fill in the process parameters from the dataframe.
 
 
-Example use case: batch NDVI computation with a parameterized process
+Example use case:
 ----------------------------------------------------------------------
 
 The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful
