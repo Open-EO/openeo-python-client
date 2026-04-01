@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.49.0] - 2026-04-01
+
+### Added
+
 - Add `is_one_of()` to `property_filter` for compact building of an allow-list based property filter.
 - Add "ABDI1" and "ABDI2" to "extra-indices-dict.json" ([#875](https://github.com/Open-EO/openeo-python-client/pull/875))
 - Support for collection "queryables": more correct warnings when using property filtering in `load_collection` ([#483](https://github.com/Open-EO/openeo-python-client/issues/483))
@@ -20,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MultiBackendJobManager`: "queued_for_start" is now also considered for the queue limit of a backend.
 - `testing.results.assert_job_results_allclose`: normalize "derived_from" references for better signal-to-noise ratio in comparisons
 - `MultiBackendJobManager`: do job result downloading in a separate thread ([#816](https://github.com/Open-EO/openeo-python-client/issues/816))
-
-### Removed
 
 ### Fixed
 
