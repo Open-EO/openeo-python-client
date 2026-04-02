@@ -199,13 +199,14 @@ class MultiBackendJobManager:
             # TODO: use proper date/time dtype instead of legacy str for start times?
             "start_time": _ColumnProperties(dtype="str"),
             "costs": _ColumnProperties(dtype="float64"),
-            # --- Less prominent / internal columns (right) ---
+            # --- usage metrics (right) ---
             # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
             #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
             #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
             "cpu": _ColumnProperties(dtype="str"),
             "memory": _ColumnProperties(dtype="str"),
             "duration": _ColumnProperties(dtype="str"),
+            # --- internal bookkeeping ---
             "running_start_time": _ColumnProperties(dtype="str"),
             # Official openEO backend status, as last reported by the backend API.
             # None until the job has been submitted. Only written by _launch_job (initial value)
