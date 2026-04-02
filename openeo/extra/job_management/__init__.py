@@ -6,6 +6,7 @@ from openeo.extra.job_management._job_db import (
     create_job_db,
     get_job_db,
 )
+from openeo.extra.job_management._job_splitting import split_area
 from openeo.extra.job_management._manager import MultiBackendJobManager
 from openeo.extra.job_management.process_based import ProcessBasedJobCreator
 
@@ -17,5 +18,6 @@ __all__ = [
     "ProcessBasedJobCreator",
     "create_job_db",
     "get_job_db",
+    "split_area",
     "MultiBackendJobManager",
 ]
