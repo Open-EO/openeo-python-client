@@ -534,6 +534,10 @@ class BBoxDict(dict):
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
+    def as_polygon(self) -> shapely.geometry.Polygon:
+        """Convert to a :class:`shapely.geometry.Polygon` representing the bounding box."""
+        return shapely.geometry.box(minx=self["west"], miny=self["south"], maxx=self["east"], maxy=self["north"])
+
     @classmethod
     def from_any(cls, x: Any, *, crs: Optional[str] = None) -> BBoxDict:
         if isinstance(x, dict):
