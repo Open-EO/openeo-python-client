@@ -20,8 +20,6 @@ class CollectionProperty(_FromNodeMixin):
 
     .. warning:: This class should not be used directly by end user code.
         Use the :py:func:`~openeo.rest.graph_building.collection_property` factory instead.
-
-    .. warning:: this is an experimental feature, naming might change.
     """
 
     def __init__(self, name: str, _builder: Optional[ProcessBuilder] = None):
@@ -105,8 +103,6 @@ def collection_property(name: str) -> CollectionProperty:
 
     .. seealso::
         :ref:`collection_property_helper`
-
-    .. warning:: this is an experimental feature, naming might change.
 
     .. versionadded:: 0.26.0
 
