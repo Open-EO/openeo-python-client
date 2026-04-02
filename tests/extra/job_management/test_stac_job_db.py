@@ -57,18 +57,20 @@ def _common_normalized_df_data(rows: int = 1) -> dict:
     with common columns that are the result of normalization.
     In the context of these tests however, they are
     mainly irrelevant boilerplate data that is tedious to repeat.
+
+    Note: column order must match ``MultiBackendJobManager._column_requirements``.
     """
     return {
         "id": None,
         "backend_name": None,
         "status": ["not_started"] * rows,
-        "backend_status": [None] * rows,
         "start_time": None,
-        "running_start_time": None,
+        "costs": None,
         "cpu": None,
         "memory": None,
         "duration": None,
-        "costs": None,
+        "running_start_time": None,
+        "backend_status": [None] * rows,
     }
 
 
