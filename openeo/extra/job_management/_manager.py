@@ -188,6 +188,7 @@ class MultiBackendJobManager:
     # TODO: make this part of public API when settled?
     _column_requirements: _ColumnRequirements = _ColumnRequirements(
         {
+            # --- User-facing columns (left) ---
             "id": _ColumnProperties(dtype="str"),
             "backend_name": _ColumnProperties(dtype="str"),
             # User-visible lifecycle status. Starts at "not_started" and carries both official
@@ -195,20 +196,21 @@ class MultiBackendJobManager:
             # housekeeping values (queued_for_start, start_failed, skipped, …). This is the column
             # users observe and may extend with their own states (e.g. "downloading").
             "status": _ColumnProperties(dtype="str", default="not_started"),
-            # Official openEO backend status, as last reported by the backend API.
-            # None until the job has been submitted. Only written by _launch_job (initial value)
-            # and _track_statuses (every poll). Never carries internal housekeeping values.
-            "backend_status": _ColumnProperties(dtype="str", default=None),
             # TODO: use proper date/time dtype instead of legacy str for start times?
             "start_time": _ColumnProperties(dtype="str"),
-            "running_start_time": _ColumnProperties(dtype="str"),
+            "costs": _ColumnProperties(dtype="float64"),
+            # --- Less prominent / internal columns (right) ---
             # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
             #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
             #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
             "cpu": _ColumnProperties(dtype="str"),
             "memory": _ColumnProperties(dtype="str"),
             "duration": _ColumnProperties(dtype="str"),
-            "costs": _ColumnProperties(dtype="float64"),
+            "running_start_time": _ColumnProperties(dtype="str"),
+            # Official openEO backend status, as last reported by the backend API.
+            # None until the job has been submitted. Only written by _launch_job (initial value)
+            # and _track_statuses (every poll). Never carries internal housekeeping values.
+            "backend_status": _ColumnProperties(dtype="str", default=None),
         }
     )
 
@@ -851,7 +853,6 @@ class MultiBackendJobManager:
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
-            # Read the 'job manager' internal state.
             previous_status = active.loc[i, "status"]
 
             try:
@@ -860,16 +861,21 @@ class MultiBackendJobManager:
                 job_metadata = the_job.describe()
                 stats["job describe"] += 1
                 new_status = job_metadata["status"]
+                # Use the previous *backend* status for transition detection,
+                # so we never have to reason about internal states (queued_for_start, etc.).
+                previous_backend_status = active.loc[i, "backend_status"]
 
                 _log.info(
-                    f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r} (previously {previous_status!r})"
+                    f"Status of job {job_id!r} (on backend {backend_name}) is {new_status!r}"
+                    f" (previous backend status {previous_backend_status!r})"
                 )
 
-                if previous_status != "finished" and new_status == "finished":
+                # --- Detect backend-level transitions ---
+                if previous_backend_status != "finished" and new_status == "finished":
                     stats["job finished"] += 1
                     jobs_done.append((the_job, active.loc[i]))
 
-                if previous_status != "error" and new_status == "error":
+                if previous_backend_status != "error" and new_status == "error":
                     stats["job failed"] += 1
                     jobs_error.append((the_job, active.loc[i]))
 
@@ -877,7 +883,7 @@ class MultiBackendJobManager:
                     stats["job canceled"] += 1
                     jobs_cancel.append((the_job, active.loc[i]))
 
-                if previous_status in {"created", "queued", "queued_for_start"} and new_status == "running":
+                if previous_backend_status != "running" and new_status == "running":
                     stats["job started running"] += 1
                     active.loc[i, "running_start_time"] = rfc3339.now_utc()
 
@@ -891,18 +897,19 @@ class MultiBackendJobManager:
 
                     self._cancel_prolonged_job(the_job, active.loc[i])
 
+                # --- Update stored statuses ---
                 # Always record the official backend-reported status.
                 active.loc[i, "backend_status"] = new_status
 
+                #TODO consider if still required
                 # Mirror backend status into user-visible status, EXCEPT when status is an internal
                 # "awaiting start" state 
-                _INTERNAL_THREAD_STATUS = {"queued_for_start", "queued_for_start_failed"}
-                if previous_status in _INTERNAL_THREAD_STATUS and new_status == "created":
+                if previous_status in {"queued_for_start", "queued_for_start_failed"} and new_status == "created":
                     pass  # start not yet confirmed by the backend
                 else:
                     active.loc[i, "status"] = new_status
 
-                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
+                # --- Update usage / cost metadata ---
                 for key in job_metadata.get("usage", {}).keys():
                     if key in active.columns:
                         active.loc[i, key] = _format_usage_stat(job_metadata, key)
