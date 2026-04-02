@@ -524,7 +524,7 @@ class MultiBackendJobManager:
         while (
             sum(
                 job_db.count_by_status(
-                    statuses=["not_started", "created", "queued_for_start", "queued", "running"]
+                    statuses=["not_started","queued_for_start", "created", "queued", "running"]
                 ).values()
             )
             > 0
@@ -566,7 +566,7 @@ class MultiBackendJobManager:
             # column. This correctly includes queued_for_start jobs (backend_status="created") and
             # excludes jobs that have not yet been submitted (backend_status is None/NaN).
             running = job_db.get_by_status(statuses=["created", "queued", "running"], column="backend_status")
-            queued = running[running["backend_status"] == "queued"]
+            queued = running[running["status"].isin(["queued", "queued_for_start"])]
             running_per_backend = running.groupby("backend_name").size().to_dict()
             queued_per_backend = queued.groupby("backend_name").size().to_dict()
             _log.info(f"{running_per_backend=} {queued_per_backend=}")
