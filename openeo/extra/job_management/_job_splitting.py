@@ -17,7 +17,7 @@ class JobSplittingFailure(Exception):
     pass
 
 
-class TileGridInterface(metaclass=abc.ABCMeta):
+class _TileGridInterface(metaclass=abc.ABCMeta):
     """
     Interface for tile grid classes that split a geometry into tiles.
 
@@ -99,7 +99,7 @@ class TileGridInterface(metaclass=abc.ABCMeta):
         return src.to_crs(f"EPSG:{grid_epsg}").geometry[0]
 
 
-class SizeBasedTileGrid(TileGridInterface):
+class _SizeBasedTileGrid(_TileGridInterface):
     """
     Tile grid that splits a geometry into regular tiles of a given size.
 
@@ -175,7 +175,7 @@ class SizeBasedTileGrid(TileGridInterface):
         return gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{self._epsg}")
 
 
-class PredefinedTileGrid(TileGridInterface):
+class _PredefinedTileGrid(_TileGridInterface):
     """
     Tile grid based on a user-supplied collection of geometries.
 
@@ -241,7 +241,7 @@ def split_area(
     *,
     projection: Optional[str] = None,
     tile_size: Optional[float] = None,
-    tile_grid: Optional[Union[TileGridInterface, gpd.GeoDataFrame]] = None,
+    tile_grid: Optional[Union[_TileGridInterface, gpd.GeoDataFrame]] = None,
 ) -> gpd.GeoDataFrame:
     """
     Split an area of interest into tiles.
@@ -249,10 +249,10 @@ def split_area(
     There are two ways to define how the area is tiled:
 
     1. **By tile size and projection** — pass *projection* and *tile_size*.
-       A :class:`SizeBasedTileGrid` is created under the hood.
+       A :class:`_SizeBasedTileGrid` is created under the hood.
 
-    2. **By pre-defined grid** — pass a :class:`TileGridInterface` instance
-       (e.g. :class:`PredefinedTileGrid`) or a :class:`~geopandas.GeoDataFrame`
+    2. **By pre-defined grid** — pass a :class:`_TileGridInterface` instance
+       (e.g. :class:`_PredefinedTileGrid`) or a :class:`~geopandas.GeoDataFrame`
        as *tile_grid*.
 
     :param aoi: area of interest as a bounding-box dict
@@ -263,7 +263,7 @@ def split_area(
         Required when *tile_grid* is not supplied.
     :param tile_size: tile edge length in the unit of the projection.
         Required when *tile_grid* is not supplied.
-    :param tile_grid: a :class:`TileGridInterface` instance or a
+    :param tile_grid: a :class:`_TileGridInterface` instance or a
         :class:`~geopandas.GeoDataFrame` (with CRS set) that defines the tiling
         strategy.  Mutually exclusive with *projection* / *tile_size*.
     :return: :class:`~geopandas.GeoDataFrame` with one row per tile and CRS set.
@@ -273,10 +273,10 @@ def split_area(
         if projection is not None or tile_size is not None:
             raise JobSplittingFailure(
                 "Cannot combine 'tile_grid' with 'projection' or 'tile_size'. "
-                "Either pass a TileGridInterface, or pass projection + tile_size."
+                "Either pass a _TileGridInterface, or pass projection + tile_size."
             )
         if isinstance(tile_grid, gpd.GeoDataFrame):
-            tile_grid = PredefinedTileGrid(tiles=tile_grid)
+            tile_grid = _PredefinedTileGrid(tiles=tile_grid)
         return tile_grid.get_tiles(aoi)
 
     # --- Size-based splitting path ---
@@ -286,5 +286,5 @@ def split_area(
     if projection is None:
         raise JobSplittingFailure("'projection' is required when using size-based tiling.")
 
-    grid = SizeBasedTileGrid(epsg=normalize_crs(projection), size=tile_size)
+    grid = _SizeBasedTileGrid(epsg=normalize_crs(projection), size=tile_size)
     return grid.get_tiles(aoi)
