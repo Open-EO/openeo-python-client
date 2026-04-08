@@ -109,6 +109,15 @@ refresh_token_store = refresh_token_store
 def api_version(request):
     return request.param
 
+
+# Token type fixture for testing legacy vs JWT authentication
+# JWT is only tested with api_version 1.3.0+
+@pytest.fixture(params=["legacy", "jwt"])
+def token_type(request, api_version):
+    if request.param == "jwt" and api_version != "1.3.0":
+        pytest.skip("JWT is only supported with api_version >= 1.3.0")
+    return request.param
+
 @pytest.mark.parametrize(
     ["base", "paths", "expected_path"],
     [
@@ -727,11 +736,6 @@ def test_api_error_non_json(requests_mock):
     assert exc.message == "olapola"
 
 
-@pytest.fixture(params=["1.0.0", "1.3.0"])
-def api_version(request):
-    return request.param
-
-
 def test_create_connection_lazy_auth_config(requests_mock, api_version, basic_auth):
     requests_mock.get(API_URL, json={"api_version": api_version, "endpoints": BASIC_ENDPOINTS})
 
@@ -779,8 +783,8 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         )
 
 
-def test_list_auth_providers(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_list_auth_providers(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     requests_mock.get(
         API_URL + "credentials/oidc",
         json={
@@ -814,10 +818,10 @@ def test_list_auth_providers(requests_mock, api_version):
     assert basic["title"] == "Internal"
 
 
-def test_list_auth_providers_empty(requests_mock, api_version):
+def test_list_auth_providers_empty(requests_mock, api_version, token_type):
     requests_mock.get(
         API_URL,
-        json=build_capabilities(api_version=api_version, basic_auth=False, oidc_auth=False),
+        json=build_capabilities(api_version=api_version, token_type=token_type, basic_auth=False, oidc_auth=False),
     )
 
     conn = Connection(API_URL)
@@ -825,8 +829,10 @@ def test_list_auth_providers_empty(requests_mock, api_version):
     assert len(providers) == 0
 
 
-def test_list_auth_providers_invalid(requests_mock, api_version, caplog):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, basic_auth=False))
+def test_list_auth_providers_invalid(requests_mock, api_version, token_type, caplog):
+    requests_mock.get(
+        API_URL, json=build_capabilities(api_version=api_version, token_type=token_type, basic_auth=False)
+    )
     error_message = "Maintenance ongoing"
     requests_mock.get(
         API_URL + "credentials/oidc",
@@ -850,8 +856,8 @@ def test_authenticate_basic_no_support(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
 
 
-def test_authenticate_basic(requests_mock, api_version, basic_auth):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_basic(requests_mock, api_version, token_type, basic_auth):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
 
     conn = Connection(API_URL)
 
@@ -859,30 +865,30 @@ def test_authenticate_basic(requests_mock, api_version, basic_auth):
     conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
     capabilities = conn.capabilities()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert capabilities.has_conformance(CONFORMANCE_JWT_BEARER) == True
         assert conn.auth.bearer == "6cc3570k3n"
     else:
         assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
-def test_authenticate_basic_from_config(requests_mock, api_version, auth_config, basic_auth):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_basic_from_config(requests_mock, api_version, token_type, auth_config, basic_auth):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     auth_config.set_basic_auth(backend=API_URL, username=basic_auth.username, password=basic_auth.password)
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_basic()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == "6cc3570k3n"
     else:
         assert conn.auth.bearer == "basic//6cc3570k3n"
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, api_version, caplog):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock, api_version, token_type, caplog):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "im"]}]
@@ -902,7 +908,7 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock,
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -910,8 +916,8 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock,
     assert "No OIDC provider given, but only one available: 'fauth'. Using that one." in caplog.text
 
 
-def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [{"id": "fauth", "issuer": "https://fauth.test", "title": "Foo Auth", "scopes": ["openid", "w"]}]
@@ -927,8 +933,8 @@ def test_authenticate_oidc_authorization_code_100_single_wrong_id(requests_mock,
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_mock, api_version, caplog):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_mock, api_version, token_type, caplog):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -951,7 +957,7 @@ def test_authenticate_oidc_authorization_code_100_multiple_no_given_id(requests_
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -978,8 +984,8 @@ def test_authenticate_oidc_authorization_code_100_multiple_wrong_id(requests_moc
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -1003,7 +1009,7 @@ def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock
         client_id=client_id, provider_id="bauth", webbrowser_open=oidc_mock.webbrowser_open
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1021,9 +1027,9 @@ def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock
     ]
 )
 def test_authenticate_oidc_auth_code_pkce_flow(
-    requests_mock, api_version, store_refresh_token, scopes_supported, expected_scope
+    requests_mock, api_version, token_type, store_refresh_token, scopes_supported, expected_scope
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     issuer = "https://oidc.test"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -1046,7 +1052,7 @@ def test_authenticate_oidc_auth_code_pkce_flow(
         client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open, store_refresh_token=store_refresh_token
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1061,8 +1067,8 @@ def test_authenticate_oidc_auth_code_pkce_flow(
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock, api_version, auth_config):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock, api_version, token_type, auth_config):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     issuer = "https://oidc.test"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -1084,7 +1090,7 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock,
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_authorization_code(webbrowser_open=oidc_mock.webbrowser_open)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1092,8 +1098,8 @@ def test_authenticate_oidc_auth_code_pkce_flow_client_from_config(requests_mock,
     assert refresh_token_store.mock_calls == []
 
 
-def test_authenticate_oidc_client_credentials(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_client_credentials(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -1116,7 +1122,7 @@ def test_authenticate_oidc_client_credentials(requests_mock, api_version):
         client_id=client_id, client_secret=client_secret
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1125,7 +1131,7 @@ def test_authenticate_oidc_client_credentials(requests_mock, api_version):
     # Again but store refresh token
     conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1133,8 +1139,8 @@ def test_authenticate_oidc_client_credentials(requests_mock, api_version):
     assert refresh_token_store.mock_calls == []
 
 
-def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, api_version, auth_config):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, api_version, token_type, auth_config):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -1158,7 +1164,7 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1175,9 +1181,9 @@ def test_authenticate_oidc_client_credentials_client_from_config(requests_mock, 
     ],
 )
 def test_authenticate_oidc_client_credentials_client_from_env(
-    requests_mock, monkeypatch, env_provider_id, expected_provider_id, api_version
+    requests_mock, monkeypatch, env_provider_id, expected_provider_id, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", client_id)
@@ -1207,7 +1213,7 @@ def test_authenticate_oidc_client_credentials_client_from_env(
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1241,8 +1247,9 @@ def test_authenticate_oidc_client_credentials_client_precedence(
     arg_client_id,
     expected_client_id,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_secret = "$3cr3t"
     if env_client_id:
         monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", env_client_id)
@@ -1274,7 +1281,7 @@ def test_authenticate_oidc_client_credentials_client_precedence(
         client_id=arg_client_id, client_secret=client_secret if arg_client_id else None, provider_id=arg_provider_id
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1303,8 +1310,9 @@ def test_authenticate_oidc_client_credentials_client_multiple_provider_resolutio
     provider_id_conf,
     expected_provider_id,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     monkeypatch.setenv("OPENEO_AUTH_CLIENT_ID", client_id)
@@ -1348,7 +1356,7 @@ def test_authenticate_oidc_client_credentials_client_multiple_provider_resolutio
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials(provider_id=provider_id_arg)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1356,8 +1364,8 @@ def test_authenticate_oidc_client_credentials_client_multiple_provider_resolutio
     assert refresh_token_store.mock_calls == []
 
 
-def test_authenticate_oidc_resource_owner_password_credentials(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_resource_owner_password_credentials(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     username, password = "john", "j0hn"
@@ -1383,7 +1391,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock, ap
         client_id=client_id, username=username, password=password, client_secret=client_secret
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1395,7 +1403,7 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock, ap
         store_refresh_token=True
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1406,9 +1414,9 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock, ap
 
 
 def test_authenticate_oidc_resource_owner_password_credentials_client_from_config(
-    requests_mock, auth_config, api_version
+    requests_mock, auth_config, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
 
     client_id = "myclient"
     client_secret = "$3cr3t"
@@ -1436,7 +1444,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_resource_owner_password_credentials(username=username, password=password)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1460,8 +1468,9 @@ def test_authenticate_oidc_device_flow_with_secret(
     expected_scopes,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -1491,7 +1500,7 @@ def test_authenticate_oidc_device_flow_with_secret(
             client_id=client_id, client_secret=client_secret, store_refresh_token=store_refresh_token
         )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1506,9 +1515,9 @@ def test_authenticate_oidc_device_flow_with_secret(
 
 
 def test_authenticate_oidc_device_flow_with_secret_from_config(
-    requests_mock, auth_config, caplog, oidc_device_code_flow_checker, api_version
+    requests_mock, auth_config, caplog, oidc_device_code_flow_checker, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -1538,7 +1547,7 @@ def test_authenticate_oidc_device_flow_with_secret_from_config(
     with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1549,8 +1558,8 @@ def test_authenticate_oidc_device_flow_with_secret_from_config(
 
 
 @pytest.mark.slow
-def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_device_flow_no_support(requests_mock, auth_config, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -1591,9 +1600,10 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
     expect_pkce,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
     """OIDC device flow + PKCE with multiple OIDC providers and none specified to use."""
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -1625,7 +1635,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_providers_no_given(
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1647,9 +1657,10 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     expect_pkce,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
     """OIDC device flow + PKCE with multiple OIDC providers, one in config and none specified to use."""
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -1682,7 +1693,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1693,12 +1704,12 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
 
 
 def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_given_default_client(
-    requests_mock, auth_config, oidc_device_code_flow_checker, api_version
+    requests_mock, auth_config, oidc_device_code_flow_checker, api_version, token_type
 ):
     """
     OIDC device flow + default_clients + PKCE with multiple OIDC providers, one in config and none specified to use.
     """
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     default_client_id = "dadefaultklient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -1734,7 +1745,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_one_config_no_give
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1764,11 +1775,12 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_resolution(
     expected_provider,
     monkeypatch,
     api_version,
+    token_type,
 ):
     """
     OIDC device flow + default_clients + PKCE with multiple OIDC providers: provider resolution/precedence
     """
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "klientid"
     requests_mock.get(
         API_URL + "credentials/oidc",
@@ -1813,7 +1825,7 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_resolution(
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(client_id=client_id, provider_id=provider_id_arg)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1832,12 +1844,12 @@ def test_authenticate_oidc_device_flow_pkce_multiple_provider_resolution(
     ],
 )
 def test_authenticate_oidc_device_flow_pkce_default_client_handling(
-    requests_mock, grant_types, use_pkce, expect_pkce, oidc_device_code_flow_checker, api_version
+    requests_mock, grant_types, use_pkce, expect_pkce, oidc_device_code_flow_checker, api_version, token_type
 ):
     """
     OIDC device authn grant + secret/PKCE/neither: default client grant_types handling
     """
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     default_client_id = "dadefaultklient"
     oidc_issuer = "https://auth.test"
     requests_mock.get(
@@ -1880,7 +1892,7 @@ def test_authenticate_oidc_device_flow_pkce_default_client_handling(
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1889,10 +1901,10 @@ def test_authenticate_oidc_device_flow_pkce_default_client_handling(
 
 
 def test_authenticate_oidc_device_flow_pkce_store_refresh_token(
-    requests_mock, oidc_device_code_flow_checker, api_version
+    requests_mock, oidc_device_code_flow_checker, api_version, token_type
 ):
     """OIDC device authn grant + PKCE + refresh token storage"""
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     default_client_id = "dadefaultklient"
     requests_mock.get(API_URL + 'credentials/oidc', json={
         "providers": [
@@ -1927,7 +1939,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(
     with oidc_device_code_flow_checker(url=f"{oidc_issuer}/dc"):
         conn.authenticate_oidc_device(store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -1940,8 +1952,8 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(
     ]
 
 
-def test_authenticate_oidc_refresh_token(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_refresh_token(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     refresh_token = "r3fr35h!"
     issuer = "https://oidc.test"
@@ -1962,15 +1974,15 @@ def test_authenticate_oidc_refresh_token(requests_mock, api_version):
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_refresh_token(refresh_token=refresh_token, client_id=client_id)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
 
 
-def test_authenticate_oidc_refresh_token_expired(requests_mock, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_refresh_token_expired(requests_mock, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     issuer = "https://oidc.test"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -2014,9 +2026,10 @@ def test_authenticate_oidc_refresh_token_multiple_provider_resolution(
     expected_provider,
     monkeypatch,
     api_version,
+    token_type,
 ):
     """Multiple OIDC Providers: provider resolution/precedence"""
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     refresh_token = "r3fr35h!"
     requests_mock.get(
@@ -2059,7 +2072,7 @@ def test_authenticate_oidc_refresh_token_multiple_provider_resolution(
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_refresh_token(refresh_token=refresh_token, client_id=client_id, provider_id=provider_id_arg)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -2068,9 +2081,9 @@ def test_authenticate_oidc_refresh_token_multiple_provider_resolution(
 
 @pytest.mark.parametrize("store_refresh_token", [True, False])
 def test_authenticate_oidc_auto_with_existing_refresh_token(
-    requests_mock, refresh_token_store, store_refresh_token, api_version
+    requests_mock, refresh_token_store, store_refresh_token, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     orig_refresh_token = "r3fr35h!"
     issuer = "https://oidc.test"
@@ -2091,7 +2104,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc(client_id=client_id, store_refresh_token=store_refresh_token)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -2117,8 +2130,9 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(
     expect_pkce,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     issuer = "https://oidc.test"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -2145,7 +2159,7 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(
     with oidc_device_code_flow_checker():
         conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -2170,8 +2184,9 @@ def test_authenticate_oidc_auto_expired_refresh_token(
     expect_pkce,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     issuer = "https://oidc.test"
     requests_mock.get(API_URL + 'credentials/oidc', json={
@@ -2199,7 +2214,7 @@ def test_authenticate_oidc_auto_expired_refresh_token(
     with oidc_device_code_flow_checker():
         conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
@@ -2219,7 +2234,7 @@ def test_authenticate_oidc_auto_expired_refresh_token(
     ],
 )
 def test_authenticate_oidc_method_client_credentials_from_env(
-    requests_mock, monkeypatch, env_provider_id, expected_provider_id, api_version
+    requests_mock, monkeypatch, env_provider_id, expected_provider_id, api_version, token_type
 ):
     client_id = "myclient"
     client_secret = "$3cr3t!"
@@ -2228,7 +2243,7 @@ def test_authenticate_oidc_method_client_credentials_from_env(
     monkeypatch.setenv("OPENEO_AUTH_CLIENT_SECRET", client_secret)
     if env_provider_id:
         monkeypatch.setenv("OPENEO_AUTH_PROVIDER_ID", env_provider_id)
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     requests_mock.get(
         API_URL + "credentials/oidc",
         json={
@@ -2251,17 +2266,23 @@ def test_authenticate_oidc_method_client_credentials_from_env(
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc()
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
 
 
-def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock, token_invalid_status_code: int = 403, version="1.0.0"):
+def _setup_get_me_handler(
+    requests_mock,
+    oidc_mock: OidcMock,
+    token_invalid_status_code: int = 403,
+    version="1.0.0",
+    token_type: str = "legacy",
+):
     def get_me(request: requests.Request, context):
         """handler for `GET /me` (with access_token checking)"""
         auth_header = request.headers["Authorization"]
-        if ComparableVersion(version) >= ComparableVersion("1.3.0"):
+        if token_type == "jwt":
             # TODO: parse jwt, also encode appropriate values in test JWT
             result = re.match(r"Bearer (?P<a>.*)", auth_header)
             access_token = result.group("a") if result else None
@@ -2301,9 +2322,9 @@ def _setup_get_me_handler(requests_mock, oidc_mock: OidcMock, token_invalid_stat
     ],
 )
 def test_authenticate_eoidc_auto_renew_expired_access_token_initial_refresh_token(
-    requests_mock, refresh_token_store, invalidate, token_invalid_status_code, caplog, api_version
+    requests_mock, refresh_token_store, invalidate, token_invalid_status_code, caplog, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     initial_refresh_token = "r3fr35h!"
     oidc_issuer = "https://oidc.test"
@@ -2331,6 +2352,7 @@ def test_authenticate_eoidc_auto_renew_expired_access_token_initial_refresh_toke
         requests_mock=requests_mock,
         oidc_mock=oidc_mock,
         token_invalid_status_code=token_invalid_status_code,
+        token_type=token_type,
         version=api_version,
     )
     caplog.set_level(logging.INFO)
@@ -2342,7 +2364,7 @@ def test_authenticate_eoidc_auto_renew_expired_access_token_initial_refresh_toke
         refresh_token=initial_refresh_token, client_id=client_id, store_refresh_token=True
     )
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
@@ -2401,8 +2423,9 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_device_code(
     caplog,
     oidc_device_code_flow_checker,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
     requests_mock.get(
@@ -2435,6 +2458,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_device_code(
         oidc_mock=oidc_mock,
         token_invalid_status_code=token_invalid_status_code,
         version=api_version,
+        token_type=token_type,
     )
     caplog.set_level(logging.INFO)
 
@@ -2445,7 +2469,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_device_code(
     with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -2511,8 +2535,9 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
     oidc_device_code_flow_checker,
     token_invalid_status_code,
     api_version,
+    token_type,
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     oidc_issuer = "https://oidc.test"
     requests_mock.get(
@@ -2545,6 +2570,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
         oidc_mock=oidc_mock,
         token_invalid_status_code=token_invalid_status_code,
         version=api_version,
+        token_type=token_type,
     )
     caplog.set_level(logging.INFO)
 
@@ -2555,7 +2581,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
     with oidc_device_code_flow_checker():
         conn.authenticate_oidc_device(client_id=client_id, use_pkce=True, store_refresh_token=True)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
@@ -2589,8 +2615,8 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
     assert "Failed to obtain new access token (grant 'refresh_token')" in caplog.text
 
 
-def test_authenticate_oidc_auto_renew_expired_access_token_other_errors(requests_mock, caplog, api_version):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+def test_authenticate_oidc_auto_renew_expired_access_token_other_errors(requests_mock, caplog, api_version, token_type):
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     initial_refresh_token = "r3fr35h!"
     oidc_issuer = "https://oidc.test"
@@ -2630,7 +2656,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_other_errors(requests
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_refresh_token(refresh_token=initial_refresh_token, client_id=client_id)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
         assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
@@ -2651,9 +2677,9 @@ def test_authenticate_oidc_auto_renew_expired_access_token_other_errors(requests
     ],
 )
 def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_credentials(
-    requests_mock, refresh_token_store, invalidate, token_invalid_status_code, caplog, api_version
+    requests_mock, refresh_token_store, invalidate, token_invalid_status_code, caplog, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     oidc_issuer = "https://oidc.test"
@@ -2674,6 +2700,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
         oidc_mock=oidc_mock,
         token_invalid_status_code=token_invalid_status_code,
         version=api_version,
+        token_type=token_type,
     )
     caplog.set_level(logging.INFO)
 
@@ -2682,7 +2709,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -2736,9 +2763,9 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     ],
 )
 def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_credentials_blocked(
-    requests_mock, refresh_token_store, caplog, token_invalid_status_code, api_version
+    requests_mock, refresh_token_store, caplog, token_invalid_status_code, api_version, token_type
 ):
-    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version))
+    requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     client_id = "myclient"
     client_secret = "$3cr3t"
     issuer = "https://oidc.test"
@@ -2759,6 +2786,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
         oidc_mock=oidc_mock,
         token_invalid_status_code=token_invalid_status_code,
         version=api_version,
+        token_type=token_type,
     )
     caplog.set_level(logging.INFO)
 
@@ -2767,7 +2795,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_client_creden
     assert isinstance(conn.auth, NullAuth)
     conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
     assert isinstance(conn.auth, BearerAuth)
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if token_type == "jwt":
         # TODO: migth require future tests for the issuer encoded in the jwt
         assert conn.auth.bearer == oidc_mock.state["access_token"]
     else:
@@ -5280,8 +5308,10 @@ class TestExecuteWithValidation:
         return request.param
 
     @pytest.fixture
-    def connection(self, api_version, requests_mock, api_capabilities, auto_validate) -> Connection:
-        requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, **api_capabilities))
+    def connection(self, api_version, token_type, requests_mock, api_capabilities, auto_validate) -> Connection:
+        requests_mock.get(
+            API_URL, json=build_capabilities(api_version=api_version, token_type=token_type, **api_capabilities)
+        )
 
         con = Connection(API_URL, **dict_no_none(auto_validate=auto_validate))
         return con

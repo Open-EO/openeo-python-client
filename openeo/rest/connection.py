@@ -748,7 +748,7 @@ class Connection(RestApiConnection):
         Returns whether a new access token was obtained.
         """
         reason = f" Reason: {reason}" if reason else ""
-        if isinstance(self.auth, BearerAuth) and self.auth.origin == "oidc" and self._oidc_auth_renewer:
+        if self._oidc_auth_renewer:
             try:
                 self._authenticate_oidc(
                     authenticator=self._oidc_auth_renewer,

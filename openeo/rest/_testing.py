@@ -432,13 +432,14 @@ def build_conformance(
     *,
     api_version: str = "1.0.0",
     stac_version: str = "1.1.0",
+    jwt_auth: bool = False,  # may be more dynamic to pass auth-strings in the future
 ) -> list[str]:
     conformance = [
         "https://api.openeo.org/{api_version}",
         "https://api.stacspec.org/v{stac_version}/core",
         "https://api.stacspec.org/v{stac_version}/collections"
     ]
-    if ComparableVersion(api_version) >= ComparableVersion("1.3.0"):
+    if jwt_auth:
         conformance.append(f"https://api.openeo.org/{api_version}/authentication/jwt")
     return conformance
 
@@ -454,6 +455,7 @@ def build_capabilities(
     processes: bool = True,
     sync_processing: bool = True,
     validation: bool = False,
+    token_type: str = "legacy",
     batch_jobs: bool = True,
     udp: bool = False,
 ) -> dict:
@@ -495,10 +497,7 @@ def build_capabilities(
             ]
         )
 
-    conformance = build_conformance(
-        api_version=api_version,
-        stac_version=stac_version,
-    )
+    conformance = build_conformance(api_version=api_version, stac_version=stac_version, jwt_auth=(token_type == "jwt"))
 
     capabilities = {
         "api_version": api_version,
