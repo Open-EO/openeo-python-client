@@ -14,10 +14,10 @@ from typing import (
     Union,
 )
 
-from openeo.utils.version import ComparableVersion
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
+from openeo.utils.version import ComparableVersion
 
 OPENEO_BACKEND = "https://openeo.test/"
 
@@ -190,14 +190,9 @@ class DummyBackend:
         }
         self._requests_mock.get(self.connection.build_url("/file_formats"), json=self.file_formats)
         return self
-    
+
     def _get_conformance(self, request, context):
-        return {
-            "conformsTo": build_conformance(
-                api_version="1.3.0", 
-                stac_version="1.0.0"
-            )
-        }
+        return {"conformsTo": build_conformance(api_version="1.3.0", stac_version="1.0.0")}
 
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
@@ -455,6 +450,7 @@ def build_capabilities(
     basic_auth: bool = True,
     oidc_auth: bool = True,
     collections: bool = True,
+    collection_queryables: bool = False,
     processes: bool = True,
     sync_processing: bool = True,
     validation: bool = False,
@@ -474,6 +470,8 @@ def build_capabilities(
     if collections:
         endpoints.append({"path": "/collections", "methods": ["GET"]})
         endpoints.append({"path": "/collections/{collection_id}", "methods": ["GET"]})
+        if collection_queryables:
+            endpoints.append({"path": "/collections/{collection_id}/queryables", "methods": ["GET"]})
     if processes:
         endpoints.append({"path": "/processes", "methods": ["GET"]})
     if sync_processing:
@@ -498,7 +496,7 @@ def build_capabilities(
         )
 
     conformance = build_conformance(
-        api_version=api_version, 
+        api_version=api_version,
         stac_version=stac_version,
     )
 

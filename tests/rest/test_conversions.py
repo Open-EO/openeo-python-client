@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -26,10 +28,34 @@ def test_timeseries_json_to_pandas_basic():
         [7, 8, 9, 10, 11, 12]
     ],
         index=pd.Index([DATE1, DATE2], name="date"),
-        columns=pd.MultiIndex.from_tuples(
-            [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)],
-            names=("polygon", "band")
-        )
+        columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)], names=("polygon", "band")),
+    )
+    assert_frame_equal(df, expected)
+
+
+@pytest.mark.parametrize(["path_factory"], [(str,), (Path,)])
+def test_test_timeseries_json_to_pandas_from_file(tmp_path, path_factory):
+    path = tmp_path / "timeseries.json"
+    path.write_text("""  {"2019-01-11T11:11:11Z": [[1, 2], [33, 44]]} """)
+
+    timeseries = path_factory(path)
+
+    df = timeseries_json_to_pandas(timeseries)
+    expected = pd.DataFrame(
+        data=[[1, 2, 33, 44]],
+        index=pd.Index(["2019-01-11T11:11:11Z"], name="date"),
+        columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0), (1, 1)], names=("polygon", "band")),
+    )
+    assert_frame_equal(df, expected)
+
+
+def test_test_timeseries_json_to_pandas_from_json_dump():
+    timeseries = """  {"2019-01-11T11:11:11Z": [[1, 2], [33, 44]]} """
+    df = timeseries_json_to_pandas(timeseries)
+    expected = pd.DataFrame(
+        data=[[1, 2, 33, 44]],
+        index=pd.Index(["2019-01-11T11:11:11Z"], name="date"),
+        columns=pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0), (1, 1)], names=("polygon", "band")),
     )
     assert_frame_equal(df, expected)
 

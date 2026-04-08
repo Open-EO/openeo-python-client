@@ -134,19 +134,26 @@ class PGNode(_FromNodeMixin, FlatGraphableMixin):
         # Merge arguments dict and kwargs
         arguments = dict(**(arguments or {}), **kwargs)
         # Make sure direct PGNode arguments are properly wrapped in a "from_node" dict
-        for arg, value in arguments.items():
-            if isinstance(value, _FromNodeMixin):
-                arguments[arg] = {"from_node": value.from_node()}
-            elif isinstance(value, list):
-                for index, arrayelement in enumerate(value):
-                    if isinstance(arrayelement, _FromNodeMixin):
-                        value[index] = {"from_node": arrayelement.from_node()}
+        arguments = self._wrap_from_nodes(arguments)
         # TODO: use a frozendict of some sort to ensure immutability?
         self._arguments = arguments
         self._namespace = namespace
 
     def from_node(self):
         return self
+
+    def _wrap_from_nodes(self, value):
+        if isinstance(value, _FromNodeMixin):
+            return {"from_node": value.from_node()}
+        elif isinstance(value, list):
+            return [self._wrap_from_nodes(v) for v in value]
+        elif isinstance(value, dict):
+            if "process_graph" in value or "from_node" in value:
+                # Don't recurse into sub-process-graphs or existing "from_node" wrappers
+                return value
+            else:
+                return {k: self._wrap_from_nodes(v) for k, v in value.items()}
+        return value
 
     def __repr__(self):
         return "<{c} {p!r} at 0x{m:x}>".format(c=self.__class__.__name__, p=self.process_id, m=id(self))
@@ -421,6 +428,11 @@ class GraphFlattener(ProcessGraphVisitor):
 
     def constantArgument(self, argument_id: str, value):
         self._store_argument(argument_id, value)
+
+    def _accept_dict(self, value: dict):
+        for k, v in value.items():
+            if isinstance(v, dict) and "from_node" in v:
+                self.accept_node(v["from_node"])
 
 
 class PGNodeGraphUnflattener(ProcessGraphUnflattener):

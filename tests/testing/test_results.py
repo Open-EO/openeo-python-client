@@ -357,6 +357,21 @@ class TestAssertXarray:
         )
         assert_xarray_dataset_allclose(actual=actual, expected=expected)
 
+    def test_assert_xarray_dataset_allclose_crs_variable(self):
+        expected = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        actual = xarray.Dataset(
+            {
+                "b02": xarray.DataArray([1, 2, 3]),
+                "crs": xarray.DataArray(b"", attrs={"spatial_ref": "meh"}),
+            }
+        )
+        assert_xarray_dataset_allclose(actual=actual, expected=expected, pixel_tolerance=0.1)
+
 
 class TestAssertJobResults:
     @pytest.fixture
@@ -604,3 +619,34 @@ class TestAssertJobResults:
             message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_assert_job_results_allclose_derived_from_normalization(self, tmp_path, actual_dir, expected_dir):
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "S2B_MSIL2A_20200704T104619_N0500_R051_T31UFS_20230530T162956"},
+                {"rel": "derived_from", "href": "S2B_MSIL2A_20200711T103629_N0500_R008_T31UFS_20230612T013509"},
+            ],
+        )
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {
+                    "rel": "derived_from",
+                    "href": "/eodata/Sentinel-2/MSI/L2A_N0500/2020/07/04/S2B_MSIL2A_20200704T104619_N0500_R051_T31UFS_20230530T162956.SAFE",
+                },
+                {
+                    "rel": "derived_from",
+                    "href": "/eodata/Sentinel-2/MSI/L2A_N0500/2020/07/11/S2B_MSIL2A_20200711T103629_N0500_R008_T31UFS_20230612T013509.SAFE",
+                },
+            ],
+        )
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_must_be_folder(self, tmp_path, actual_dir, expected_dir):
+        expected = expected_dir / "readme.md"
+        expected.write_text("Hello world")
+        actual = actual_dir / "readme.md"
+        actual.write_text("Wello Horld")
+        with pytest.raises(ValueError, match="Expected a directory"):
+            assert_job_results_allclose(actual=actual, expected=expected, tmp_path=tmp_path)

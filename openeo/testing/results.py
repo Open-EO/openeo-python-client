@@ -4,11 +4,12 @@ Assert functions for comparing actual (batch job) results against expected refer
 
 import json
 import logging
+import re
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Union
 
-import numpy as np
+import numpy
 import xarray
 import xarray.testing
 from xarray import DataArray
@@ -113,7 +114,7 @@ def _ascii_art(
     bottom = "\n└" + "─" * coarsened.sizes["x"] + "┘"
 
     def _pixel_char(v) -> str:
-        i = 0 if np.isnan(v) else int(v * max_grayscale_idx / data_max)
+        i = 0 if numpy.isnan(v) else int(v * max_grayscale_idx / data_max)
         if v > 0 and i == 0:
             i = 1  # don't show a blank for a difference above the threshold
         else:
@@ -149,7 +150,7 @@ def _compare_xarray_dataarray_xy(
     value_mapping = dict(map(lambda d: (d, expected_as_float[d].data), non_x_y_dims))
     shape = tuple([len(value_mapping[x]) for x in non_x_y_dims])
 
-    for shape_index, v in np.ndenumerate(np.ndarray(shape)):
+    for shape_index, v in numpy.ndenumerate(numpy.ndarray(shape)):
         indexers = {}
         for index, value_index in enumerate(shape_index):
             indexers[non_x_y_dims[index]] = value_mapping[non_x_y_dims[index]][value_index]
@@ -170,7 +171,7 @@ def _compare_xarray_dataarray_xy(
 
             _log.warning(f"Difference (ascii art) for {key}:\n{_ascii_art(diff_data)}")
 
-            coord_grid = np.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
+            coord_grid = numpy.meshgrid(diff_data.coords["x"], diff_data.coords["y"])
             mask = diff_data.notnull()
             if mask.dims[0] != "y":
                 mask = mask.transpose()
@@ -232,8 +233,9 @@ def _compare_xarray_dataarray(
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
+    is_numerical_data = numpy.issubdtype(actual.dtype, numpy.number) and numpy.issubdtype(expected.dtype, numpy.number)
     try:
-        if pixel_tolerance and compatible:
+        if pixel_tolerance and compatible and is_numerical_data:
             threshold = abs(expected * rtol) + atol
             bad_pixels = abs(actual * 1.0 - expected * 1.0) > threshold
             percentage_bad_pixels = bad_pixels.mean().item() * 100
@@ -320,6 +322,7 @@ def assert_xarray_dataset_allclose(
     *,
     rtol: float = _DEFAULT_RTOL,
     atol: float = _DEFAULT_ATOL,
+    pixel_tolerance: float = _DEFAULT_PIXELTOL,
 ):
     """
     Assert that two Xarray ``DataSet`` instances are equal (with tolerance).
@@ -335,7 +338,9 @@ def assert_xarray_dataset_allclose(
     .. warning::
         This function is experimental and subject to change.
     """
-    issues = _compare_xarray_datasets(actual=actual, expected=expected, rtol=rtol, atol=atol)
+    issues = _compare_xarray_datasets(
+        actual=actual, expected=expected, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
+    )
     if issues:
         raise AssertionError("\n".join(issues))
 
@@ -392,10 +397,10 @@ def _as_job_results_download(
         _log.info(f"Downloading results from job {job_results.get_job_id()} to {download_dir}")
         job_results.download_files(target=download_dir)
         job_results = download_dir
-    if isinstance(job_results, (str, Path)):
-        return Path(job_results)
+    if isinstance(job_results, (str, Path)) and (job_results := Path(job_results)).is_dir():
+        return job_results
     else:
-        raise ValueError(f"Unsupported type: {type(job_results)}")
+        raise ValueError(f"Expected a directory with job result assets, but got {job_results!r}")
 
 
 def _compare_job_results(
@@ -421,6 +426,8 @@ def _compare_job_results(
 
     actual_filenames = set(p.name for p in actual_dir.glob("*") if p.is_file())
     expected_filenames = set(p.name for p in expected_dir.glob("*") if p.is_file())
+    if len(actual_filenames) == 0 or len(expected_filenames) == 0:
+        _log.warning(f"Empty actual/expected listing: {actual_filenames=} {expected_filenames=}")
     if actual_filenames != expected_filenames:
         all_issues.append(f"File set mismatch: {actual_filenames} != {expected_filenames}")
 
@@ -452,6 +459,16 @@ def _compare_job_results(
     return all_issues
 
 
+_EODATA_SAFE_REGEX = re.compile(r"/eodata/.*/([^/]+).SAFE")
+
+
+def _normalize_derived_from(derived_from: str) -> str:
+    """Normalize derived from links for better signal-to-noise ratio in comparisons."""
+    if match := _EODATA_SAFE_REGEX.match(derived_from):
+        return match.group(1)
+    return derived_from
+
+
 def _compare_job_result_metadata(
     actual: Union[str, Path],
     expected: Union[str, Path],
@@ -461,8 +478,12 @@ def _compare_job_result_metadata(
     expected_metadata = _load_json(expected)
 
     # Check "derived_from" links
-    actual_derived_from = set(k["href"] for k in actual_metadata.get("links", []) if k["rel"] == "derived_from")
-    expected_derived_from = set(k["href"] for k in expected_metadata.get("links", []) if k["rel"] == "derived_from")
+    actual_derived_from = set(
+        _normalize_derived_from(k["href"]) for k in actual_metadata.get("links", []) if k["rel"] == "derived_from"
+    )
+    expected_derived_from = set(
+        _normalize_derived_from(k["href"]) for k in expected_metadata.get("links", []) if k["rel"] == "derived_from"
+    )
 
     if actual_derived_from != expected_derived_from:
         actual_only = actual_derived_from - expected_derived_from

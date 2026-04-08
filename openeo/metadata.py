@@ -117,7 +117,10 @@ class Band(NamedTuple):
     and https://github.com/stac-extensions/eo#band-object
     """
 
-    name: str
+    # Note: "name" is strictly speaking not required per spec,
+    # but it's probably assumed to be present in a lot of places.
+    name: Optional[str]
+
     common_name: Optional[str] = None
     # wavelength in micrometer
     wavelength_um: Optional[float] = None
@@ -799,9 +802,9 @@ class _StacMetadataParser:
                 common_name=band.common_name,
                 wavelength_um=band.center_wavelength,
             )
-        elif isinstance(band, dict) and "name" in band:
+        elif isinstance(band, dict):
             return Band(
-                name=band["name"],
+                name=band.get("name"),
                 common_name=band.get("common_name"),
                 wavelength_um=band.get("center_wavelength"),
             )
@@ -812,7 +815,7 @@ class _StacMetadataParser:
         """Construct band from metadata dict in STAC 1.1 + eo v2 style metadata"""
         # TODO: also support pystac wrapper when available (pystac v2?)
         return Band(
-            name=data["name"],
+            name=data.get("name"),
             common_name=data.get("eo:common_name"),
             wavelength_um=data.get("eo:center_wavelength"),
         )

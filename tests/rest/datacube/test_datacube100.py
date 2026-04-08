@@ -13,6 +13,7 @@ import re
 import textwrap
 from typing import Optional
 
+import dirty_equals
 import pyproj
 import pytest
 import requests
@@ -28,7 +29,7 @@ from openeo.internal.warnings import UserDeprecationWarning
 from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
-from openeo.rest.datacube import THIS, UDF, DataCube
+from openeo.rest.datacube import THIS, UDF, DataCube, _Queryables
 from openeo.utils.version import ComparableVersion
 
 from .. import get_download_graph
@@ -2111,31 +2112,6 @@ def test_load_collection_max_cloud_cover_with_other_properties(con100):
     }
 
 
-@pytest.mark.parametrize(["extra_summaries", "max_cloud_cover", "expect_warning"], [
-    ({}, None, False),
-    ({}, 75, True),
-    ({"eo:cloud_cover": {"min": 0, "max": 100}}, None, False),
-    ({"eo:cloud_cover": {"min": 0, "max": 100}}, 75, False),
-])
-def test_load_collection_max_cloud_cover_summaries_warning(
-        con100, requests_mock, recwarn, extra_summaries, max_cloud_cover, expect_warning,
-):
-    s2_metadata = copy.deepcopy(DEFAULT_S2_METADATA)
-    s2_metadata["summaries"].update(extra_summaries)
-    requests_mock.get(API_URL + "/collections/S2", json=s2_metadata)
-
-    _ = con100.load_collection("S2", max_cloud_cover=max_cloud_cover)
-
-    if expect_warning:
-        assert len(recwarn.list) == 1
-        assert re.search(
-            "Property filtering.*properties not listed.*collection.*metadata.*eo:cloud_cover",
-            str(recwarn.pop(UserWarning).message),
-        )
-    else:
-        assert len(recwarn.list) == 0
-
-
 def test_load_collection_with_collection_properties(con100):
     cube = con100.load_collection(
         "S2",
@@ -2240,6 +2216,104 @@ def test_load_collection_with_single_collection_property_and_cloud_cover(con100)
             }
         },
     }
+
+
+def _build_queryables_doc(platform: bool = True, cloud_cover: bool = True, additional: bool = True) -> dict:
+    """Simple helper to build dummy queryables doc"""
+    properties = {}
+    if platform:
+        properties["platform"] = {
+            "type": "string",
+            "enum": ["sentinel-2a", "sentinel-2b", "sentinel-2c", "sentinel-2d"],
+        }
+    if cloud_cover:
+        properties["eo:cloud_cover"] = {
+            "$ref": "https://stac-extensions.github.io/eo/v2.0.0/schema.json#/definitions/eo:cloud_cover",
+            "type": "number",
+            "maximum": 100,
+            "minimum": 0,
+        }
+    return {
+        "$id": f"{API_URL}/collection/S2/queryables",
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": properties,
+        "additionalProperties": additional,
+    }
+
+
+class TestQueryables:
+
+    @pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
+    def test_basic(self, con100, requests_mock, api_capabilities):
+        queryables_doc = _build_queryables_doc(platform=True, cloud_cover=True, additional=True)
+        requests_mock.get(f"{API_URL}/collections/S2/queryables", json=queryables_doc)
+        queryables = _Queryables.build(collection_id="S2", connection=con100)
+        assert queryables.properties == {"eo:cloud_cover", "platform"}
+        assert queryables.additional is True
+
+    @pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
+    def test_broken(self, con100, requests_mock, api_capabilities):
+        requests_mock.get(f"{API_URL}/collections/S2/queryables", status_code=500, text="nope")
+        queryables = _Queryables.build(collection_id="S2", connection=con100)
+        assert queryables is None
+
+
+@pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
+@pytest.mark.parametrize(
+    ["queryables_doc", "expected_warnings"],
+    [
+        (
+            _build_queryables_doc(platform=False, cloud_cover=True, additional=True),
+            [],
+        ),
+        (
+            _build_queryables_doc(platform=True, cloud_cover=True, additional=False),
+            [],
+        ),
+        (
+            _build_queryables_doc(platform=False, cloud_cover=True, additional=False),
+            [dirty_equals.IsStr(regex=r".*unsupported prop.*platform.*queryables.*eo:cloud_cover.*")],
+        ),
+        (
+            _build_queryables_doc(platform=False, cloud_cover=False, additional=False),
+            [dirty_equals.IsStr(regex=r".*unsupported prop.*eo:cloud_cover.*platform.*queryables.*\[\].*")],
+        ),
+    ],
+)
+def test_load_collection_with_queryables(
+    con100, requests_mock, api_capabilities, queryables_doc, recwarn, expected_warnings
+):
+    requests_mock.get(f"{API_URL}/collections/S2/queryables", json=queryables_doc)
+
+    cube = con100.load_collection(
+        "S2",
+        properties=[
+            collection_property("eo:cloud_cover") <= 75,
+            collection_property("platform") == "Sentinel-2B",
+        ],
+    )
+    assert cube.flat_graph()["loadcollection1"]["arguments"]["properties"] == {
+        "eo:cloud_cover": {
+            "process_graph": {
+                "lte1": {
+                    "process_id": "lte",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": 75},
+                    "result": True,
+                }
+            }
+        },
+        "platform": {
+            "process_graph": {
+                "eq1": {
+                    "process_id": "eq",
+                    "arguments": {"x": {"from_parameter": "value"}, "y": "Sentinel-2B"},
+                    "result": True,
+                }
+            }
+        },
+    }
+    assert [str(w.message) for w in recwarn] == expected_warnings
 
 
 def test_load_collection_temporal_extent_process_builder_function(con100):
@@ -2982,6 +3056,43 @@ def test_datacube_from_process_no_warnings(con100, caplog, recwarn):
     _ = con100.datacube_from_process("colorize", color="red", size=4)
     assert caplog.messages == []
     assert recwarn.list == []
+
+
+def test_datacube_from_process_nesting_direct(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/868"""
+    settings = con100.datacube_from_process("produce_settings", size=4)
+    cube = con100.datacube_from_process("colorize", settings=settings)
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "producesettings1": {
+            "process_id": "produce_settings",
+            "arguments": {"size": 4},
+        },
+        "colorize1": {
+            "process_id": "colorize",
+            "arguments": {"settings": {"from_node": "producesettings1"}},
+        },
+    }
+
+
+def test_datacube_from_process_nesting_in_dict(con100):
+    """https://github.com/Open-EO/openeo-python-client/issues/868"""
+    settings = con100.datacube_from_process("produce_settings", size=4)
+    cube = con100.datacube_from_process("colorize", context={"color": "red", "settings": settings})
+    assert get_download_graph(cube, drop_save_result=True) == {
+        "producesettings1": {
+            "process_id": "produce_settings",
+            "arguments": {"size": 4},
+        },
+        "colorize1": {
+            "process_id": "colorize",
+            "arguments": {
+                "context": {
+                    "color": "red",
+                    "settings": {"from_node": "producesettings1"},
+                }
+            },
+        },
+    }
 
 
 class TestDataCubeFromFlatGraph:
