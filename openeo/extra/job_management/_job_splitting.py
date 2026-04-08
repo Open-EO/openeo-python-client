@@ -122,6 +122,8 @@ class _SizeBasedTileGrid(_TileGridInterface):
         if not isinstance(epsg, int):
             raise JobSplittingFailure(f"Only integer EPSG codes are supported for tile grid splitting, got {epsg!r}.")
         self._epsg = epsg
+        if size <= 0:
+            raise JobSplittingFailure(f"Tile size must be positive, got {size!r}.")
         self.size = size
 
     @property

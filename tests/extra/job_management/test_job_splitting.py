@@ -28,6 +28,11 @@ class TestSizeBasedTileGrid:
         with pytest.raises(JobSplittingFailure, match="Failed to normalize EPSG code"):
             _SizeBasedTileGrid(epsg=999999, size=1.0)
 
+    @pytest.mark.parametrize("size", [0, -1, -0.5])
+    def test_constructor_rejects_non_positive_size(self, size):
+        """Tile size must be strictly positive."""
+        with pytest.raises(JobSplittingFailure, match="Tile size must be positive"):
+            _SizeBasedTileGrid(epsg=4326, size=size)
     def test_get_tiles_raises_exception(self):
         """test get_tiles when the input geometry is not a dict or shapely.geometry.Polygon"""
         tile_grid = _SizeBasedTileGrid(epsg=4326, size=0.1)
