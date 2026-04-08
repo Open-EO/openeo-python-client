@@ -42,8 +42,10 @@ tests_require = [
 
 docs_require = [
     "sphinx",
+    "pydata_sphinx_theme",
     "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints>=2.2.3",
+    "sphinx-copybutton",
     "myst-parser",
 ]
 

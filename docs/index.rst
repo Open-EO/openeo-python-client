@@ -40,10 +40,8 @@ A simple example, to give a feel of using this library:
 .. image:: _static/images/welcome.png
 
 
-Table of contents
------------------
-
 .. toctree::
+   :hidden:
    :maxdepth: 2
 
    self
