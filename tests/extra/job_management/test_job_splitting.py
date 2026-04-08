@@ -34,9 +34,9 @@ class TestSizeBasedTileGrid:
         with pytest.raises(JobSplittingFailure, match="Tile size must be positive"):
             _SizeBasedTileGrid(epsg=4326, size=size)
     def test_get_tiles_raises_exception(self):
-        """test get_tiles when the input geometry is not a dict or shapely.geometry.Polygon"""
+        """get_tiles rejects input that is not a dict, Polygon, or MultiPolygon."""
         tile_grid = _SizeBasedTileGrid(epsg=4326, size=0.1)
-        with pytest.raises(JobSplittingFailure):
+        with pytest.raises(JobSplittingFailure, match="Expected a bounding-box dict"):
             tile_grid.get_tiles("invalid_geometry")
 
     def test_get_tiles_returns_geodataframe(self):
@@ -304,3 +304,8 @@ class TestSplitArea:
         assert len(result) == 1
         assert result.geometry[0].equals(shapely.geometry.box(0.0, 0.0, 20_000.0, 20_000.0))
         assert result.crs.to_epsg() == 3857
+
+    def test_invalid_aoi_type_raises(self):
+        """split_area rejects AOI types that are not dict, Polygon, or MultiPolygon."""
+        with pytest.raises(JobSplittingFailure, match="Expected a bounding-box dict"):
+            split_area("not_a_geometry", projection="EPSG:4326", tile_size=1.0)
