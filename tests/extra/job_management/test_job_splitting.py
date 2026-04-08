@@ -15,7 +15,7 @@ from openeo.util import BBoxDict
 class TestSizeBasedTileGrid:
     def test_from_size_projection(self):
         splitter = SizeBasedTileGrid.from_size_projection(size=0.1, projection="EPSG:4326")
-        assert splitter.epsg == 4326
+        assert splitter.crs == 4326
         assert splitter.size == 0.1
 
     def test_constructor_rejects_unparseable_epsg(self):
@@ -23,10 +23,10 @@ class TestSizeBasedTileGrid:
         with pytest.raises(JobSplittingFailure, match="Failed to normalize EPSG code"):
             SizeBasedTileGrid(epsg="not_a_crs", size=1.0)
 
-    def test_unsupported_epsg_raises(self):
-        grid = SizeBasedTileGrid(epsg=2154, size=1000)
-        with pytest.raises(JobSplittingFailure, match="Unsupported EPSG code 2154"):
-            grid.get_tiles({"west": 0, "south": 0, "east": 1, "north": 1})
+    def test_constructor_rejects_unknown_epsg(self):
+        """An EPSG code unknown to pyproj is caught at construction time."""
+        with pytest.raises(JobSplittingFailure, match="Failed to normalize EPSG code"):
+            SizeBasedTileGrid(epsg=999999, size=1.0)
 
     def test_get_tiles_raises_exception(self):
         """test get_tiles when the input geometry is not a dict or shapely.geometry.Polygon"""
@@ -90,20 +90,40 @@ class TestSizeBasedTileGrid:
         assert len(result) == 1
         assert result.geometry[0].equals(polygon)
 
-    def test_utm_x_offset(self):
-        """UTM zones use a 500 000 m false easting offset."""
-        grid = SizeBasedTileGrid(epsg=32631, size=100_000)
-        assert grid._get_x_offset() == 500_000.0
-
-    def test_3857_no_x_offset(self):
-        """EPSG:3857 has no x offset."""
+    def test_edge_tiles_clipped_to_aoi(self):
+        """When the AOI is not a multiple of tile_size, edge tiles are smaller."""
+        aoi = {"west": 0.0, "south": 0.0, "east": 150_000.0, "north": 150_000.0, "crs": "EPSG:3857"}
         grid = SizeBasedTileGrid(epsg=3857, size=100_000)
-        assert grid._get_x_offset() == 0.0
+        result = grid.get_tiles(aoi)
+        assert len(result) == 4  # 2x2 grid
+        # The right/top edge tiles should be 50k wide/tall, not 100k
+        bounds = [g.bounds for g in result.geometry]
+        east_edges = {b[2] for b in bounds}
+        north_edges = {b[3] for b in bounds}
+        assert 150_000.0 in east_edges
+        assert 150_000.0 in north_edges
 
-    def test_4326_no_x_offset(self):
-        """EPSG:4326 has no x offset."""
-        grid = SizeBasedTileGrid(epsg=4326, size=1.0)
-        assert grid._get_x_offset() == 0.0
+    def test_reprojects_bbox_when_crs_differs(self):
+        """AOI in EPSG:4326 should be reprojected to the tile grid's CRS (EPSG:3857) before splitting."""
+        # A small bbox around lon=0, lat=0 in WGS84
+        aoi = {"west": -1.0, "south": -1.0, "east": 1.0, "north": 1.0, "crs": "EPSG:4326"}
+        grid = SizeBasedTileGrid(epsg=3857, size=500_000)
+        result = grid.get_tiles(aoi)
+        assert result.crs.to_epsg() == 3857
+        # AOI-relative tiling: ~222 km bbox fits in one 500 km tile
+        assert len(result) == 1
+        # Tile coordinates should be in meters (3857), not degrees
+        bounds = result.geometry[0].bounds
+        assert abs(bounds[0]) > 100  # west in meters, not ~-1 degree
+        assert abs(bounds[2]) > 100  # east in meters, not ~1 degree
+
+    def test_no_reprojection_when_crs_matches(self):
+        """When AOI CRS matches the tile grid CRS, no reprojection should happen."""
+        aoi = {"west": 0.0, "south": 0.0, "east": 100_000.0, "north": 100_000.0, "crs": "EPSG:3857"}
+        grid = SizeBasedTileGrid(epsg=3857, size=100_000)
+        result = grid.get_tiles(aoi)
+        assert len(result) == 1
+        assert result.geometry[0].equals(shapely.geometry.box(0.0, 0.0, 100_000.0, 100_000.0))
 
 
 class TestPredefinedTileGrid:
@@ -161,6 +181,23 @@ class TestPredefinedTileGrid:
         result = grid.get_tiles(shapely.geometry.box(0.5, 0.5, 1.5, 0.75))
         assert len(result) == 2
 
+    def test_reprojects_query_geometry_when_crs_differs(self):
+        """AOI dict in EPSG:4326 with tile grid in EPSG:3857 should reproject before intersection."""
+        # Tile covering roughly lon [-1, 1], lat [-1, 1] in 3857 meters
+        tile_3857 = shapely.geometry.box(-111_320, -111_325, 111_320, 111_325)
+        grid = PredefinedTileGrid(tiles=[tile_3857], crs=3857)
+        # Query in WGS84 degrees — overlaps the tile after reprojection
+        result = grid.get_tiles({"west": -0.5, "south": -0.5, "east": 0.5, "north": 0.5, "crs": "EPSG:4326"})
+        assert len(result) == 1
+
+    def test_no_match_after_reprojection(self):
+        """AOI that doesn't overlap tiles after reprojection should return empty."""
+        tile_3857 = shapely.geometry.box(-111_320, -111_325, 111_320, 111_325)
+        grid = PredefinedTileGrid(tiles=[tile_3857], crs=3857)
+        # Query far away from the tile
+        result = grid.get_tiles({"west": 50, "south": 50, "east": 51, "north": 51, "crs": "EPSG:4326"})
+        assert len(result) == 0
+
     def test_dict_geometry(self):
         tiles = [shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(2, 2, 3, 3)]
         grid = PredefinedTileGrid(tiles=tiles, crs=4326)
@@ -216,12 +253,11 @@ class TestSplitArea:
         assert len(result) == 1
         assert result.geometry[0].equals(shapely.geometry.box(0.0, 0.0, 1.0, 1.0))
 
-    def test_projection_inferred_from_aoi(self):
-        """When projection is omitted, it is inferred from the dict's crs field."""
+    def test_projection_required_for_size_based(self):
+        """projection is mandatory for size-based tiling, even when the AOI has a crs field."""
         aoi = {"west": 0.0, "south": 0.0, "east": 1.0, "north": 1.0, "crs": "EPSG:4326"}
-        result = split_area(aoi, tile_size=1.0)
-        assert len(result) == 1
-        assert result.geometry[0].equals(shapely.geometry.box(0.0, 0.0, 1.0, 1.0))
+        with pytest.raises(JobSplittingFailure, match="projection.*required"):
+            split_area(aoi, tile_size=1.0)
 
     def test_no_tile_size_raises(self):
         aoi = {"west": 0.0, "south": 0.0, "east": 1.0, "north": 1.0}

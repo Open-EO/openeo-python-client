@@ -1,4 +1,5 @@
 import abc
+import logging
 import math
 from typing import Dict, List, Optional, Union
 
@@ -9,10 +10,8 @@ from shapely.geometry import MultiPolygon, Polygon
 
 from openeo.util import BBoxDict, normalize_crs
 
+_log = logging.getLogger(__name__)
 
-def _to_geodataframe(geometries: list, *, epsg: int) -> gpd.GeoDataFrame:
-    """Build a GeoDataFrame from a list of shapely geometries and an EPSG code."""
-    return gpd.GeoDataFrame(geometry=geometries, crs=f"EPSG:{epsg}")
 
 class JobSplittingFailure(Exception):
     pass
@@ -22,12 +21,21 @@ class TileGridInterface(metaclass=abc.ABCMeta):
     """
     Interface for tile grid classes that split a geometry into tiles.
 
-    Implementations must define :meth:`get_tiles`, which takes a geometry and
-    returns a :class:`~geopandas.GeoDataFrame` of tile geometries covering it.
+    Implementations must define :meth:`get_tiles` and the :attr:`crs` property.
+
+    Shared helpers :meth:`_parse_input_geometry` and
+    :meth:`_reproject_to_grid_crs` handle input normalisation and CRS
+    reprojection so that subclasses don't need to duplicate that logic.
     """
 
+    @property
     @abc.abstractmethod
-    def get_tiles(self, geometry: Union[Dict, Polygon, MultiPolygon]) -> "gpd.GeoDataFrame":
+    def crs(self) -> int:
+        """EPSG code of the tile grid's coordinate reference system."""
+        ...
+
+    @abc.abstractmethod
+    def get_tiles(self, geometry: Union[Dict, Polygon, MultiPolygon]) -> gpd.GeoDataFrame:
         """
         Calculate tiles to cover the given geometry.
 
@@ -38,23 +46,73 @@ class TileGridInterface(metaclass=abc.ABCMeta):
         """
         ...
 
+    @staticmethod
+    def _parse_input_geometry(
+        geometry: Union[Dict, Polygon, MultiPolygon],
+    ) -> tuple[Union[Polygon, MultiPolygon], Optional[int]]:
+        """
+        Normalise the user-supplied *geometry* into a shapely geometry and an
+        optional EPSG code.
+
+        :return: ``(shapely_geom, source_epsg)`` where *source_epsg* is
+            ``None`` when the input carries no CRS information (bare Polygon).
+        :raises JobSplittingFailure: on unsupported input types.
+        """
+        if isinstance(geometry, dict):
+            bbox = BBoxDict.from_dict(geometry)
+            raw_crs = bbox.get("crs")
+            source_epsg = normalize_crs(raw_crs) if raw_crs is not None else None
+            return bbox.as_polygon(), source_epsg
+        elif isinstance(geometry, (Polygon, MultiPolygon)):
+            return geometry, None
+        else:
+            raise JobSplittingFailure(
+                f"Expected a bounding-box dict, Polygon, or MultiPolygon, got {type(geometry).__name__}."
+            )
+
+    def _reproject_to_grid_crs(
+        self,
+        geom: Union[Polygon, MultiPolygon],
+        source_epsg: Optional[int],
+    ) -> Union[Polygon, MultiPolygon]:
+        """
+        Reproject *geom* from *source_epsg* to the tile grid's :attr:`crs`.
+
+        - If *source_epsg* is ``None`` the geometry is returned unchanged
+          (assumed to already be in the grid's CRS).
+        - If *source_epsg* equals the grid's CRS, no work is done.
+        - Otherwise a geopandas reprojection is performed.
+        """
+        grid_epsg = self.crs
+        if source_epsg is None:
+            _log.warning(
+                "Input geometry has no CRS information; assuming it is already in the tile grid's CRS (EPSG:%d).",
+                grid_epsg,
+            )
+            return geom
+
+        if source_epsg == grid_epsg:
+            return geom
+
+        _log.info("Reprojecting input geometry from EPSG:%d to EPSG:%d.", source_epsg, grid_epsg)
+        src = gpd.GeoDataFrame(geometry=[geom], crs=f"EPSG:{source_epsg}")
+        return src.to_crs(f"EPSG:{grid_epsg}").geometry[0]
+
 
 class SizeBasedTileGrid(TileGridInterface):
     """
     Tile grid that splits a geometry into regular tiles of a given size.
 
-    The size is in meters for UTM and Web Mercator projections, or degrees for
-    WGS84 (EPSG:4326).
+    Tiles are anchored at the AOI's own lower-left corner and never extend
+    beyond the AOI boundary.  Edge tiles may therefore be smaller than
+    *size* x *size*.
+
+    The *size* is interpreted in the unit of the projection (meters for most
+    projected CRSs, degrees for EPSG:4326).
 
     :param epsg: EPSG code of the projection to use for tiling.
-        Supported values: ``4326`` (WGS84 degrees), ``3857`` (Web Mercator meters),
-        and UTM zones (``32601``–``32660``, ``32701``–``32760``).
-    :param size: tile size in the unit of measure of the projection.
+    :param size: maximum tile edge length in the unit of the projection.
     """
-
-    # EPSG ranges for UTM zones
-    _UTM_NORTH = range(32601, 32661)
-    _UTM_SOUTH = range(32701, 32761)
 
     def __init__(self, *, epsg: int, size: float):
         try:
@@ -63,8 +121,12 @@ class SizeBasedTileGrid(TileGridInterface):
             raise JobSplittingFailure(f"Failed to normalize EPSG code for tile grid splitting: {epsg!r}.") from e
         if not isinstance(epsg, int):
             raise JobSplittingFailure(f"Only integer EPSG codes are supported for tile grid splitting, got {epsg!r}.")
-        self.epsg = epsg
+        self._epsg = epsg
         self.size = size
+
+    @property
+    def crs(self) -> int:
+        return self._epsg
 
     @classmethod
     def from_size_projection(cls, *, size: float, projection: str) -> "SizeBasedTileGrid":
@@ -72,67 +134,45 @@ class SizeBasedTileGrid(TileGridInterface):
         # TODO: the constructor also does normalize_crs, so this factory looks like overkill at the moment
         return cls(epsg=normalize_crs(projection), size=size)
 
-    def _get_x_offset(self) -> float:
-        """
-        Return the easting offset for the projection, used to align tiles to the
-        coordinate system's grid origin.
-
-        - UTM zones have a false easting of 500 000 m.
-        - EPSG:3857 and EPSG:4326 have no offset.
-
-        :raises JobSplittingFailure: for unsupported EPSG codes.
-        """
-        if self.epsg in self._UTM_NORTH or self.epsg in self._UTM_SOUTH:
-            return 500_000.0
-        elif self.epsg in (3857, 4326):
-            return 0.0
-        else:
-            raise JobSplittingFailure(
-                f"Unsupported EPSG code {self.epsg} for tile grid splitting. "
-                f"Supported codes: 4326, 3857, and UTM zones (32601-32660, 32701-32760)."
-            )
-
     @staticmethod
-    def _split_bounding_box(to_cover: BBoxDict, x_offset: float, tile_size: float) -> List[Polygon]:
+    def _split_bounding_box(to_cover: BBoxDict, tile_size: float) -> List[Polygon]:
         """
-        Split a bounding box into tiles of given size and projection.
-        :param to_cover: bounding box dict with keys "west", "south", "east", "north", "crs"
-        :param x_offset: offset to apply to the west and east coordinates
-        :param tile_size: size of tiles in unit of measure of the projection
-        :return: list of tiles (polygons)
+        Subdivide a bounding box into tiles of at most *tile_size*.
+
+        Tiles are anchored at the AOI's lower-left corner (``west``, ``south``)
+        and clipped to the AOI boundary, so edge tiles can be smaller than
+        *tile_size*.
+
+        :param to_cover: bounding box to subdivide.
+        :param tile_size: maximum tile edge length.
+        :return: list of tile polygons.
         """
-        xmin = int(math.floor((to_cover["west"] - x_offset) / tile_size))
-        xmax = int(math.ceil((to_cover["east"] - x_offset) / tile_size)) - 1
-        ymin = int(math.floor(to_cover["south"] / tile_size))
-        ymax = int(math.ceil(to_cover["north"] / tile_size)) - 1
+        west, south = to_cover["west"], to_cover["south"]
+        east, north = to_cover["east"], to_cover["north"]
+
+        n_cols = math.ceil(round((east - west) / tile_size, 10))
+        n_rows = math.ceil(round((north - south) / tile_size, 10))
 
         tiles = []
-        for x in range(xmin, xmax + 1):
-            for y in range(ymin, ymax + 1):
+        for col in range(n_cols):
+            for row in range(n_rows):
                 tiles.append(
                     BBoxDict(
-                        west=max(x * tile_size + x_offset, to_cover["west"]),
-                        south=max(y * tile_size, to_cover["south"]),
-                        east=min((x + 1) * tile_size + x_offset, to_cover["east"]),
-                        north=min((y + 1) * tile_size, to_cover["north"]),
+                        west=west + col * tile_size,
+                        south=south + row * tile_size,
+                        east=min(west + (col + 1) * tile_size, east),
+                        north=min(south + (row + 1) * tile_size, north),
                     ).as_polygon()
                 )
-
         return tiles
 
     def get_tiles(self, geometry: Union[Dict, Polygon, MultiPolygon]) -> gpd.GeoDataFrame:
-        if isinstance(geometry, dict):
-            bbox = BBoxDict.from_dict(geometry)
-        elif isinstance(geometry, (Polygon, MultiPolygon)):
-            bbox = BBoxDict.from_any(geometry, crs=self.epsg)
-        else:
-            raise JobSplittingFailure(
-                f"Expected a bounding-box dict, Polygon, or MultiPolygon, got {type(geometry).__name__}."
-            )
+        geom, source_epsg = self._parse_input_geometry(geometry)
+        geom = self._reproject_to_grid_crs(geom, source_epsg)
 
-        x_offset = self._get_x_offset()
-        polygons = self._split_bounding_box(to_cover=bbox, x_offset=x_offset, tile_size=self.size)
-        return _to_geodataframe(polygons, epsg=self.epsg)
+        bbox = BBoxDict.from_any(geom, crs=self._epsg)
+        polygons = self._split_bounding_box(to_cover=bbox, tile_size=self.size)
+        return gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{self._epsg}")
 
 
 class PredefinedTileGrid(TileGridInterface):
@@ -157,7 +197,6 @@ class PredefinedTileGrid(TileGridInterface):
         tiles: Union[gpd.GeoDataFrame, gpd.GeoSeries, List[shapely.geometry.base.BaseGeometry]],
         crs: Optional[int] = None,
     ):
-
         if isinstance(tiles, gpd.GeoDataFrame):
             self._gdf = tiles.copy()
         elif isinstance(tiles, gpd.GeoSeries):
@@ -185,15 +224,13 @@ class PredefinedTileGrid(TileGridInterface):
                 )
             self._gdf = self._gdf.set_crs(f"EPSG:{normalize_crs(crs)}")
 
+    @property
+    def crs(self) -> int:
+        return self._gdf.crs.to_epsg()
+
     def get_tiles(self, geometry: Union[Dict, Polygon, MultiPolygon]) -> gpd.GeoDataFrame:
-        if isinstance(geometry, dict):
-            geom = BBoxDict.from_dict(geometry).as_polygon()
-        elif isinstance(geometry, (Polygon, MultiPolygon)):
-            geom = geometry
-        else:
-            raise JobSplittingFailure(
-                f"Expected a bounding-box dict, Polygon, or MultiPolygon, got {type(geometry).__name__}."
-            )
+        geom, source_epsg = self._parse_input_geometry(geometry)
+        geom = self._reproject_to_grid_crs(geom, source_epsg)
 
         mask = self._gdf.intersects(geom)
         return self._gdf.loc[mask].copy().reset_index(drop=True)
@@ -223,7 +260,7 @@ def split_area(
         a :class:`~shapely.geometry.Polygon`, or
         a :class:`~shapely.geometry.MultiPolygon`.
     :param projection: EPSG string (e.g. ``"EPSG:3857"``) for the tile grid.
-        Required when *tile_grid* is not supplied and the AOI has no ``crs`` field.
+        Required when *tile_grid* is not supplied.
     :param tile_size: tile edge length in the unit of the projection.
         Required when *tile_grid* is not supplied.
     :param tile_grid: a :class:`TileGridInterface` instance or a
@@ -244,17 +281,10 @@ def split_area(
 
     # --- Size-based splitting path ---
     if tile_size is None:
-        raise JobSplittingFailure(
-            "Either provide a 'tile_grid', or at least 'tile_size' (and optionally 'projection')."
-        )
+        raise JobSplittingFailure("Either provide a 'tile_grid', or provide both 'tile_size' and 'projection'.")
 
     if projection is None:
-        if isinstance(aoi, dict) and "crs" in aoi:
-            projection = aoi["crs"]
-        else:
-            raise JobSplittingFailure(
-                "'projection' is required when the area of interest does not contain a 'crs' field."
-            )
+        raise JobSplittingFailure("'projection' is required when using size-based tiling.")
 
     grid = SizeBasedTileGrid(epsg=normalize_crs(projection), size=tile_size)
     return grid.get_tiles(aoi)
