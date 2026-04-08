@@ -309,3 +309,9 @@ class TestSplitArea:
         """split_area rejects AOI types that are not dict, Polygon, or MultiPolygon."""
         with pytest.raises(JobSplittingFailure, match="Expected a bounding-box dict"):
             split_area("not_a_geometry", projection="EPSG:4326", tile_size=1.0)
+
+    def test_antimeridian_crossing_bbox_raises(self):
+        """A bounding box where west >= east (antimeridian crossing) is rejected."""
+        aoi = {"west": 170.0, "south": -10.0, "east": -170.0, "north": 10.0, "crs": "EPSG:4326"}
+        with pytest.raises(JobSplittingFailure, match="Antimeridian-crossing bounding boxes are not supported"):
+            split_area(aoi, projection="EPSG:4326", tile_size=1.0)

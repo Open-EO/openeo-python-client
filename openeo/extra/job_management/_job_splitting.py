@@ -60,6 +60,11 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
         """
         if isinstance(geometry, dict):
             bbox = BBoxDict.from_dict(geometry)
+            if bbox["west"] >= bbox["east"] or bbox["south"] >= bbox["north"]:
+                raise JobSplittingFailure(
+                    "Invalid bounding box: west must be less than east and south must be less than north. "
+                    "Antimeridian-crossing bounding boxes are not supported."
+                )
             raw_crs = bbox.get("crs")
             source_epsg = normalize_crs(raw_crs) if raw_crs is not None else None
             return bbox.as_polygon(), source_epsg
