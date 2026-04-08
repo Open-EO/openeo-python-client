@@ -136,7 +136,7 @@ class _SizeBasedTileGrid(_TileGridInterface):
         return self._epsg
 
     @classmethod
-    def from_size_projection(cls, *, size: float, projection: str) -> "SizeBasedTileGrid":
+    def from_size_projection(cls, *, size: float, projection: str) -> "_SizeBasedTileGrid":
         """Create a tile grid from size and projection"""
         # TODO: the constructor also does normalize_crs, so this factory looks like overkill at the moment
         return cls(epsg=normalize_crs(projection), size=size)
