@@ -1,7 +1,7 @@
 import abc
 import logging
 import math
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
 import shapely
@@ -49,7 +49,7 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
     @staticmethod
     def _parse_input_geometry(
         geometry: Union[Dict, Polygon, MultiPolygon],
-    ) -> tuple[Union[Polygon, MultiPolygon], Optional[int]]:
+    ) -> Tuple[Union[Polygon, MultiPolygon], Optional[int]]:
         """
         Normalise the user-supplied *geometry* into a shapely geometry and an
         optional EPSG code.
