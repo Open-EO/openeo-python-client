@@ -191,9 +191,6 @@ class DummyBackend:
         self._requests_mock.get(self.connection.build_url("/file_formats"), json=self.file_formats)
         return self
 
-    def _get_conformance(self, request, context):
-        return {"conformsTo": build_conformance(api_version="1.3.0", stac_version="1.0.0")}
-
     def _handle_post_result(self, request, context):
         """handler of `POST /result` (synchronous execute)"""
         post_data = request.json()
