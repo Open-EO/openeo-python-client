@@ -160,6 +160,14 @@ class _SizeBasedTileGrid(_TileGridInterface):
         n_cols = math.ceil(round((east - west) / tile_size, 10))
         n_rows = math.ceil(round((north - south) / tile_size, 10))
 
+        if n_cols > 500 or n_rows > 500:
+            _log.warning(
+                "Attempting to split AOI into %d columns and %d rows of tiles. "
+                "This may take a while and consume a lot of memory. Consider increasing the tile size.",
+                n_cols,
+                n_rows,
+            )
+
         tiles = []
         for col in range(n_cols):
             for row in range(n_rows):
@@ -279,7 +287,7 @@ def split_area(
     :param tile_grid: a :class:`_TileGridInterface` instance or a
         :class:`~geopandas.GeoDataFrame` (with CRS set) that defines the tiling
         strategy.  Mutually exclusive with *projection* / *tile_size*.
-    :return: :class:`~geopandas.GeoDataFrame` with one row per tile and CRS set.
+    :return: :class:`~geopandas.GeoDataFrame` with one row per tile and CRS equal to the tile grid CRS.
     :raises JobSplittingFailure: on invalid or contradictory arguments.
     """
     if tile_grid is not None:
