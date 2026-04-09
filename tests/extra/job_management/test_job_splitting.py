@@ -109,6 +109,16 @@ class TestSizeBasedTileGrid:
         assert 150_000.0 in east_edges
         assert 150_000.0 in north_edges
 
+    def test_concave_polygon_skips_non_intersecting_tiles(self):
+        """Tiles from the bounding box that don't intersect the actual geometry are dropped."""
+        # L-shaped polygon: bottom strip spans full width up to y=0.9, left column extends to y=2.
+        # The horizontal edge at y=0.9 avoids the y=1 tile boundary.
+        l_shape = shapely.geometry.Polygon([(0, 0), (2, 0), (2, 0.9), (0.5, 0.9), (0.5, 2), (0, 2), (0, 0)])
+        grid = _SizeBasedTileGrid(epsg=4326, size=1.0)
+        result = grid.get_tiles(l_shape)
+        # Bounding box is 2x2 -> 4 candidate tiles, but upper-right (1,1)->(2,2) doesn't intersect
+        assert len(result) == 3
+
     def test_reprojects_bbox_when_crs_differs(self):
         """AOI in EPSG:4326 should be reprojected to the tile grid's CRS (EPSG:3857) before splitting."""
         # A small bbox around lon=0, lat=0 in WGS84

@@ -179,7 +179,13 @@ class _SizeBasedTileGrid(_TileGridInterface):
 
         bbox = BBoxDict.from_any(geom, crs=self._epsg)
         polygons = self._split_bounding_box(to_cover=bbox, tile_size=self.size)
-        return gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{self._epsg}")
+        gdf = gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{self._epsg}")
+
+        # Drop tiles that don't actually intersect the original geometry.
+        # This matters for concave or complex shapes whose bounding box is
+        # significantly larger than the shape itself.
+        mask = gdf.intersects(geom)
+        return gdf.loc[mask].reset_index(drop=True)
 
 
 class _PredefinedTileGrid(_TileGridInterface):
