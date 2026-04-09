@@ -17,6 +17,7 @@ from typing import (
 from openeo import Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
 from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
+from openeo.utils.version import ComparableVersion
 
 OPENEO_BACKEND = "https://openeo.test/"
 
@@ -424,6 +425,21 @@ class DummyBackend:
 
         self.job_status_updater = get_status
 
+def build_conformance(
+    *,
+    api_version: str = "1.0.0",
+    stac_version: str = "1.1.0",
+    jwt_auth: bool = False,  # may be more dynamic to pass auth-strings in the future
+) -> list[str]:
+    conformance = [
+        "https://api.openeo.org/{api_version}",
+        "https://api.stacspec.org/v{stac_version}/core",
+        "https://api.stacspec.org/v{stac_version}/collections"
+    ]
+    if jwt_auth:
+        conformance.append(f"https://api.openeo.org/{api_version}/authentication/jwt")
+    return conformance
+
 
 def build_capabilities(
     *,
@@ -436,6 +452,7 @@ def build_capabilities(
     processes: bool = True,
     sync_processing: bool = True,
     validation: bool = False,
+    token_type: str = "legacy",
     batch_jobs: bool = True,
     udp: bool = False,
 ) -> dict:
@@ -473,9 +490,11 @@ def build_capabilities(
         endpoints.extend(
             [
                 {"path": "/process_graphs", "methods": ["GET"]},
-                {"path": "/process_graphs/{process_graph_id", "methods": ["GET", "PUT", "DELETE"]},
+                {"path": "/process_graphs/{process_graph_id}", "methods": ["GET", "PUT", "DELETE"]},
             ]
         )
+
+    conformance = build_conformance(api_version=api_version, stac_version=stac_version, jwt_auth=(token_type == "jwt"))
 
     capabilities = {
         "api_version": api_version,
@@ -484,6 +503,7 @@ def build_capabilities(
         "title": "Dummy openEO back-end",
         "description": "Dummy openeEO back-end",
         "endpoints": endpoints,
+        "conformsTo": conformance,
         "links": [],
     }
     return capabilities
