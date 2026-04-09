@@ -288,7 +288,7 @@ class OidcMock:
         raise LookupError("Invalid access token")
 
     def invalidate_access_token(self):
-        self.state["access_token"] = None
+        self.state["access_token"] = "***invalidated***"
 
     def get_request_history(
         self, url: Optional[str] = None, method: Optional[str] = None

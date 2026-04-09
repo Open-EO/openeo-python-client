@@ -297,7 +297,7 @@ def test_rest_api_other_domain_auth_headers(requests_mock, api_root, url):
 
     requests_mock.get(url, text=debug)
 
-    con = RestApiConnection(api_root, auth=BearerAuth(secret, origin="unknown"))
+    con = RestApiConnection(api_root, auth=BearerAuth(secret))
     res = con.get(url)
     assert "hello world" in res.text
     assert "User-Agent': 'openeo-python-client/" in res.text
