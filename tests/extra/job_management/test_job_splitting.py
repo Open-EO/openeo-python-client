@@ -33,6 +33,7 @@ class TestSizeBasedTileGrid:
         """Tile size must be strictly positive."""
         with pytest.raises(JobSplittingFailure, match="Tile size must be positive"):
             _SizeBasedTileGrid(epsg=4326, size=size)
+
     def test_get_tiles_raises_exception(self):
         """get_tiles rejects input that is not a dict, Polygon, or MultiPolygon."""
         tile_grid = _SizeBasedTileGrid(epsg=4326, size=0.1)
@@ -303,6 +304,12 @@ class TestSplitArea:
         result = split_area(aoi, projection="EPSG:3857", tile_size=20_000.0)
         assert len(result) == 1
         assert result.geometry[0].equals(shapely.geometry.box(0.0, 0.0, 20_000.0, 20_000.0))
+        assert result.crs.to_epsg() == 3857
+
+    def test_split_large_area(self):
+        aoi = {"west": 3.36, "south": 50.75, "east": 7.23, "north": 53.56, "crs": 4326}
+        result = split_area(aoi, projection="EPSG:3857", tile_size=20_000.0)
+        assert len(result) == 572
         assert result.crs.to_epsg() == 3857
 
     def test_invalid_aoi_type_raises(self):
