@@ -790,6 +790,16 @@ def test_create_connection_lazy_refresh_token_store(requests_mock):
         )
 
 
+def assert_provider(providers, provider_id, expected_type, expected_issuer, expected_title):
+    # helper for test_list_auth_providers
+    provider = next(filter(lambda x: x["id"] == provider_id, providers), None)
+    assert isinstance(provider, dict)
+    assert provider["type"] == expected_type
+    assert provider["issuer"] == expected_issuer
+    assert provider["title"] == expected_title
+    return provider
+
+
 def test_list_auth_providers(requests_mock, api_version, token_type):
     requests_mock.get(API_URL, json=build_capabilities(api_version=api_version, token_type=token_type))
     requests_mock.get(
@@ -806,23 +816,9 @@ def test_list_auth_providers(requests_mock, api_version, token_type):
     providers = conn.list_auth_providers()
     assert len(providers) == 3
 
-    p1 = next(filter(lambda x: x["id"] == "p1", providers), None)
-    assert isinstance(p1, dict)
-    assert p1["type"] == "oidc"
-    assert p1["issuer"] == "https://openeo.example"
-    assert p1["title"] == "openEO"
-
-    p2 = next(filter(lambda x: x["id"] == "p2", providers), None)
-    assert isinstance(p2, dict)
-    assert p2["type"] == "oidc"
-    assert p2["issuer"] == "https://other.example"
-    assert p2["title"] == "Other"
-
-    basic = next(filter(lambda x: x["id"] == "/credentials/basic", providers), None)
-    assert isinstance(basic, dict)
-    assert basic["type"] == "basic"
-    assert basic["issuer"] == API_URL + "credentials/basic"
-    assert basic["title"] == "Internal"
+    assert_provider(providers, "p1", "oidc", "https://openeo.example", "openEO")
+    assert_provider(providers, "p2", "oidc", "https://other.example", "Other")
+    assert_provider(providers, "/credentials/basic", "basic", API_URL + "credentials/basic", "Internal")
 
 
 def test_list_auth_providers_empty(requests_mock, api_version, token_type):
