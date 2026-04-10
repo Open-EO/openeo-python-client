@@ -249,6 +249,18 @@ class TestPredefinedTileGrid:
         result = grid.get_tiles(shapely.geometry.box(0, 0, 1, 1))
         assert result.crs.to_epsg() == 4326
 
+    def test_antimeridian_crossing_tiles_raises(self):
+        """Predefined tiles with coordinates beyond ±180° longitude in a geographic CRS are rejected at construction."""
+        tiles = [shapely.geometry.box(170, -10, 190, 10)]
+        with pytest.raises(JobSplittingFailure, match="antimeridian"):
+            _PredefinedTileGrid(tiles=tiles, crs=4326)
+
+    def test_antimeridian_not_checked_for_projected_tiles(self):
+        """Predefined tiles in a projected CRS with large coordinates should not trigger the antimeridian check."""
+        tiles = [shapely.geometry.box(18_000_000, 0, 19_000_000, 1_000_000)]
+        grid = _PredefinedTileGrid(tiles=tiles, crs=3857)
+        assert grid.crs == 3857
+
     def test_invalid_geometry_type_raises(self):
         tiles = [shapely.geometry.box(0, 0, 1, 1)]
         grid = _PredefinedTileGrid(tiles=tiles, crs=4326)
@@ -327,8 +339,62 @@ class TestSplitArea:
         with pytest.raises(JobSplittingFailure, match="Expected a bounding-box dict"):
             split_area("not_a_geometry", projection="EPSG:4326", tile_size=1.0)
 
-    def test_antimeridian_crossing_bbox_raises(self):
-        """A bounding box where west >= east (antimeridian crossing) is rejected."""
+    def test_antimeridian_crossing_bbox_is_supported(self):
+        """A bounding box where west > east in a geographic CRS is split at the antimeridian."""
         aoi = {"west": 170.0, "south": -10.0, "east": -170.0, "north": 10.0, "crs": "EPSG:4326"}
-        with pytest.raises(JobSplittingFailure, match="Antimeridian-crossing bounding boxes are not supported"):
+        result = split_area(aoi, projection="EPSG:4326", tile_size=10.0)
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert result.crs.to_epsg() == 4326
+        # 10° x 20° on the west side + 10° x 20° on the east side → 2 + 2 = 4 tiles
+        assert len(result) == 4
+        # All tile coordinates must be within [-180, 180]
+        for geom in result.geometry:
+            min_x, _, max_x, _ = geom.bounds
+            assert min_x >= -180.0
+            assert max_x <= 180.0
+
+    def test_antimeridian_crossing_bbox_small_tiles(self):
+        """Antimeridian-crossing bbox with smaller tiles produces correct count."""
+        # 5° west of antimeridian + 5° east → 10° total, 1° tiles, 20° latitude
+        aoi = {"west": 175.0, "south": -10.0, "east": -175.0, "north": 10.0, "crs": "EPSG:4326"}
+        result = split_area(aoi, projection="EPSG:4326", tile_size=1.0)
+        # 5 cols × 20 rows on each side = 100 + 100 = 200
+        assert len(result) == 200
+
+    def test_antimeridian_crossing_bbox_without_crs_raises(self):
+        """An antimeridian-crossing bbox without a CRS field cannot be disambiguated and is rejected."""
+        aoi = {"west": 170.0, "south": -10.0, "east": -170.0, "north": 10.0}
+        with pytest.raises(JobSplittingFailure, match="west must be less than east"):
             split_area(aoi, projection="EPSG:4326", tile_size=1.0)
+
+    def test_antimeridian_crossing_bbox_projected_crs_raises(self):
+        """An antimeridian-crossing bbox in a projected CRS is genuinely invalid."""
+        aoi = {"west": 500_000.0, "south": 0.0, "east": -500_000.0, "north": 100_000.0, "crs": "EPSG:3857"}
+        with pytest.raises(JobSplittingFailure, match="west must be less than east"):
+            split_area(aoi, projection="EPSG:3857", tile_size=100_000.0)
+
+    def test_antimeridian_crossing_predefined_grid(self):
+        """Predefined tile grid works correctly with an antimeridian-crossing query bbox."""
+        tiles = [
+            shapely.geometry.box(170, -10, 180, 10),
+            shapely.geometry.box(-180, -10, -170, 10),
+            shapely.geometry.box(0, 0, 10, 10),  # should NOT match
+        ]
+        grid = _PredefinedTileGrid(tiles=tiles, crs=4326)
+        aoi = {"west": 175.0, "south": -5.0, "east": -175.0, "north": 5.0, "crs": "EPSG:4326"}
+        result = split_area(aoi, tile_grid=grid)
+        assert len(result) == 2
+
+    def test_antimeridian_crossing_polygon_raises(self):
+        """A polygon with coordinates beyond ±180° longitude in a geographic CRS is rejected."""
+        # Polygon wrapping past 180° (e.g. 170° to 190° instead of -170°)
+        polygon = shapely.geometry.box(170.0, -10.0, 190.0, 10.0)
+        with pytest.raises(JobSplittingFailure, match="antimeridian"):
+            split_area(polygon, projection="EPSG:4326", tile_size=1.0)
+
+    def test_antimeridian_not_checked_for_projected_crs(self):
+        """Large coordinates in a projected CRS (e.g. EPSG:3857) should not trigger the antimeridian check."""
+        # EPSG:3857 legitimately has huge coordinate values
+        aoi = {"west": 18_000_000.0, "south": 0.0, "east": 19_000_000.0, "north": 1_000_000.0, "crs": "EPSG:3857"}
+        result = split_area(aoi, projection="EPSG:3857", tile_size=1_000_000.0)
+        assert len(result) >= 1

@@ -13,6 +13,16 @@ from openeo.util import BBoxDict, normalize_crs
 _log = logging.getLogger(__name__)
 
 
+def _is_geographic_crs(epsg: int) -> bool:
+    """Return ``True`` when *epsg* refers to a geographic (lon/lat) CRS."""
+    try:
+        import pyproj
+
+        return pyproj.CRS.from_epsg(epsg).is_geographic
+    except Exception:
+        return False
+
+
 class JobSplittingFailure(Exception):
     pass
 
@@ -60,13 +70,38 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
         """
         if isinstance(geometry, dict):
             bbox = BBoxDict.from_dict(geometry)
-            if bbox["west"] >= bbox["east"] or bbox["south"] >= bbox["north"]:
-                raise JobSplittingFailure(
-                    "Invalid bounding box: west must be less than east and south must be less than north. "
-                    "Antimeridian-crossing bounding boxes are not supported."
-                )
             raw_crs = bbox.get("crs")
             source_epsg = normalize_crs(raw_crs) if raw_crs is not None else None
+
+            if bbox["south"] >= bbox["north"]:
+                raise JobSplittingFailure(
+                    "Invalid bounding box: south must be less than north."
+                )
+
+            if bbox["west"] > bbox["east"]:
+                # In a geographic CRS this indicates an antimeridian crossing;
+                # split into two polygons on each side of the ±180° meridian.
+                if source_epsg is not None and _is_geographic_crs(source_epsg):
+                    _log.info(
+                        "Bounding box crosses the antimeridian (west=%s > east=%s); "
+                        "splitting into two polygons.",
+                        bbox["west"],
+                        bbox["east"],
+                    )
+                    west_part = shapely.geometry.box(bbox["west"], bbox["south"], 180.0, bbox["north"])
+                    east_part = shapely.geometry.box(-180.0, bbox["south"], bbox["east"], bbox["north"])
+                    return MultiPolygon([west_part, east_part]), source_epsg
+                raise JobSplittingFailure(
+                    "Invalid bounding box: west must be less than east. "
+                    "Antimeridian-crossing bounding boxes are only supported "
+                    "for geographic CRSs (e.g. EPSG:4326) with an explicit 'crs' field."
+                )
+
+            if bbox["west"] == bbox["east"]:
+                raise JobSplittingFailure(
+                    "Invalid bounding box: west must not equal east (zero-width bounding box)."
+                )
+
             return bbox.as_polygon(), source_epsg
         elif isinstance(geometry, (Polygon, MultiPolygon)):
             return geometry, None
@@ -87,6 +122,8 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
           (assumed to already be in the grid's CRS).
         - If *source_epsg* equals the grid's CRS, no work is done.
         - Otherwise a geopandas reprojection is performed.
+
+        After reprojection the geometry is checked for antimeridian crossing.
         """
         grid_epsg = self.crs
         if source_epsg is None:
@@ -94,14 +131,44 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
                 "Input geometry has no CRS information; assuming it is already in the tile grid's CRS (EPSG:%d).",
                 grid_epsg,
             )
-            return geom
+        elif source_epsg != grid_epsg:
+            _log.info("Reprojecting input geometry from EPSG:%d to EPSG:%d.", source_epsg, grid_epsg)
+            src = gpd.GeoDataFrame(geometry=[geom], crs=f"EPSG:{source_epsg}")
+            geom = src.to_crs(f"EPSG:{grid_epsg}").geometry[0]
 
-        if source_epsg == grid_epsg:
-            return geom
+        self._check_antimeridian_crossing(geom.bounds, grid_epsg)
+        return geom
 
-        _log.info("Reprojecting input geometry from EPSG:%d to EPSG:%d.", source_epsg, grid_epsg)
-        src = gpd.GeoDataFrame(geometry=[geom], crs=f"EPSG:{source_epsg}")
-        return src.to_crs(f"EPSG:{grid_epsg}").geometry[0]
+    @staticmethod
+    def _check_antimeridian_crossing(bounds: Tuple[float, float, float, float], epsg: int) -> None:
+        """
+        Raise :exc:`JobSplittingFailure` when *bounds* suggest that a geometry
+        crosses or extends beyond the antimeridian in a geographic CRS.
+
+        The check only applies to geographic coordinate reference systems
+        (e.g. EPSG:4326).  For projected CRSs the longitude range is
+        meaningless, so the check is silently skipped.
+
+        :param bounds: ``(min_x, min_y, max_x, max_y)`` of the geometry.
+        :param epsg: EPSG code of the CRS the geometry is expressed in.
+        :raises JobSplittingFailure: if longitude falls outside [-180, 180].
+        """
+        try:
+            import pyproj
+
+            crs_obj = pyproj.CRS.from_epsg(epsg)
+            if not crs_obj.is_geographic:
+                return
+        except Exception:
+            return
+
+        min_lon, _, max_lon, _ = bounds
+        if min_lon < -180 or max_lon > 180:
+            raise JobSplittingFailure(
+                "Geometry appears to cross or extend beyond the antimeridian "
+                "(longitude coordinates outside the [-180, 180] range). "
+                "Antimeridian-crossing geometries are not supported."
+            )
 
 
 class _SizeBasedTileGrid(_TileGridInterface):
@@ -185,9 +252,16 @@ class _SizeBasedTileGrid(_TileGridInterface):
         geom, source_epsg = self._parse_input_geometry(geometry)
         geom = self._reproject_to_grid_crs(geom, source_epsg)
 
-        bbox = BBoxDict.from_any(geom, crs=self._epsg)
-        polygons = self._split_bounding_box(to_cover=bbox, tile_size=self.size)
-        gdf = gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{self._epsg}")
+        # Process each constituent polygon independently so that a
+        # MultiPolygon (e.g. from an antimeridian-crossing bbox) does not
+        # produce tiles for the full combined bounding box.
+        parts = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
+        all_polygons: List[Polygon] = []
+        for part in parts:
+            bbox = BBoxDict.from_any(part, crs=self._epsg)
+            all_polygons.extend(self._split_bounding_box(to_cover=bbox, tile_size=self.size))
+
+        gdf = gpd.GeoDataFrame(geometry=all_polygons, crs=f"EPSG:{self._epsg}")
 
         # Drop tiles that don't actually intersect the original geometry.
         # This matters for concave or complex shapes whose bounding box is
@@ -244,6 +318,8 @@ class _PredefinedTileGrid(_TileGridInterface):
                     "The tile GeoDataFrame has no CRS set. " "Either set the CRS on the GeoDataFrame or pass 'crs'."
                 )
             self._gdf = self._gdf.set_crs(f"EPSG:{normalize_crs(crs)}")
+
+        self._check_antimeridian_crossing(self._gdf.total_bounds, self.crs)
 
     @property
     def crs(self) -> int:
