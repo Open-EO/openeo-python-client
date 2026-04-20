@@ -534,10 +534,6 @@ class BBoxDict(dict):
 
     # TODO: provide west, south, east, north, crs as @properties? Read-only or read-write?
 
-    def as_polygon(self) -> shapely.geometry.Polygon:
-        """Convert to a :class:`shapely.geometry.Polygon` representing the bounding box."""
-        return shapely.geometry.box(minx=self["west"], miny=self["south"], maxx=self["east"], maxy=self["north"])
-
     @classmethod
     def from_any(cls, x: Any, *, crs: Optional[str] = None) -> BBoxDict:
         if isinstance(x, dict):
@@ -572,6 +568,56 @@ class BBoxDict(dict):
         if len(seq) != 4:
             raise InvalidBBoxException(f"Expected sequence with 4 items, but got {len(seq)}.")
         return cls(west=seq[0], south=seq[1], east=seq[2], north=seq[3], crs=crs)
+
+    @staticmethod
+    def normalize_west_east_longitude(west: float, east: float) -> Tuple[float, float]:
+        """
+        Assuming longitude in degrees (e.g. EPSG:4326):
+        normalize west to range [-180, 180) and east to range (-180, 180]
+        which is useful in bounding box contexts.
+        """
+        west = ((west + 180) % 360) - 180
+        east = 180 - ((180 - east) % 360)
+        return west, east
+
+    @staticmethod
+    def _crs_with_cyclic_x(crs: Union[None, str]) -> bool:
+        """
+        Whether the x coordinate is cyclic (e.g. longitude in EPSG:4326)
+        which requires some special handling like coordinate normalization and antimeridian crossing handling.
+        """
+        return normalize_crs(crs) == 4326
+
+    def as_polygon(self) -> shapely.geometry.Polygon:
+        """
+        Get bounding box as a shapely Polygon.
+        Simple single polygon, but not ideal for proper handling of antimeridian crossing in EPSG:4326,
+        which require to split the geometry in two parts: use `as_geometry` instead for that.
+        """
+        west, east = self["west"], self["east"]
+        if self._crs_with_cyclic_x(self.get("crs")):
+            west, east = self.normalize_west_east_longitude(west=west, east=east)
+            if east < west:
+                # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326)
+                east += 360
+
+        return shapely.geometry.box(minx=west, miny=self["south"], maxx=east, maxy=self["north"])
+
+    def as_geometry(self) -> Union[shapely.geometry.Polygon, shapely.geometry.MultiPolygon]:
+        """Get bounding box as a shapely geometry (Polygon or MultiPolygon when crossing antimeridian)"""
+        west, east = self["west"], self["east"]
+        if self._crs_with_cyclic_x(self.get("crs")):
+            west, east = self.normalize_west_east_longitude(west=west, east=east)
+            if east < west:
+                # TODO: this assumes "cyclic" implies longitude in degrees (EPSG:4326), and split is at +/-180
+                return shapely.geometry.MultiPolygon(
+                    [
+                        shapely.geometry.box(west, self["south"], 180, self["north"]),
+                        shapely.geometry.box(-180, self["south"], east, self["north"]),
+                    ]
+                )
+
+        return shapely.geometry.box(minx=west, miny=self["south"], maxx=east, maxy=self["north"])
 
 
 def to_bbox_dict(x: Any, *, crs: Optional[Union[str, int]] = None) -> BBoxDict:
