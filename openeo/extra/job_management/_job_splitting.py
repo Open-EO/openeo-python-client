@@ -12,17 +12,6 @@ from openeo.util import BBoxDict, normalize_crs
 
 _log = logging.getLogger(__name__)
 
-
-def _is_geographic_crs(epsg: int) -> bool:
-    """Return ``True`` when *epsg* refers to a geographic (lon/lat) CRS."""
-    try:
-        import pyproj
-
-        return pyproj.CRS.from_epsg(epsg).is_geographic
-    except Exception:
-        return False
-
-
 class JobSplittingFailure(Exception):
     pass
 
@@ -78,31 +67,31 @@ class _TileGridInterface(metaclass=abc.ABCMeta):
                     "Invalid bounding box: south must be less than north."
                 )
 
-            if bbox["west"] > bbox["east"]:
-                # In a geographic CRS this indicates an antimeridian crossing;
-                # split into two polygons on each side of the ±180° meridian.
-                if source_epsg is not None and _is_geographic_crs(source_epsg):
-                    _log.info(
-                        "Bounding box crosses the antimeridian (west=%s > east=%s); "
-                        "splitting into two polygons.",
-                        bbox["west"],
-                        bbox["east"],
-                    )
-                    west_part = shapely.geometry.box(bbox["west"], bbox["south"], 180.0, bbox["north"])
-                    east_part = shapely.geometry.box(-180.0, bbox["south"], bbox["east"], bbox["north"])
-                    return MultiPolygon([west_part, east_part]), source_epsg
-                raise JobSplittingFailure(
-                    "Invalid bounding box: west must be less than east. "
-                    "Antimeridian-crossing bounding boxes are only supported "
-                    "for geographic CRSs (e.g. EPSG:4326) with an explicit 'crs' field."
-                )
-
             if bbox["west"] == bbox["east"]:
                 raise JobSplittingFailure(
                     "Invalid bounding box: west must not equal east (zero-width bounding box)."
                 )
 
-            return bbox.as_polygon(), source_epsg
+            # if bbox["west"] > bbox["east"]:
+            #     # In a geographic CRS this indicates an antimeridian crossing;
+            #     # split into two polygons on each side of the ±180° meridian.
+            #     if source_epsg is not None and _is_geographic_crs(source_epsg):
+            #         _log.info(
+            #             "Bounding box crosses the antimeridian (west=%s > east=%s); "
+            #             "splitting into two polygons.",
+            #             bbox["west"],
+            #             bbox["east"],
+            #         )
+            #         west_part = shapely.geometry.box(bbox["west"], bbox["south"], 180.0, bbox["north"])
+            #         east_part = shapely.geometry.box(-180.0, bbox["south"], bbox["east"], bbox["north"])
+            #         return MultiPolygon([west_part, east_part]), source_epsg
+            #     raise JobSplittingFailure(
+            #         "Invalid bounding box: west must be less than east. "
+            #         "Antimeridian-crossing bounding boxes are only supported "
+            #         "for geographic CRSs (e.g. EPSG:4326) with an explicit 'crs' field."
+            #     )
+
+            return bbox.as_geometry(), source_epsg
         elif isinstance(geometry, (Polygon, MultiPolygon)):
             return geometry, None
         else:
