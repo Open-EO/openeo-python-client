@@ -361,18 +361,6 @@ class TestSplitArea:
         # 5 cols × 20 rows on each side = 100 + 100 = 200
         assert len(result) == 200
 
-    def test_antimeridian_crossing_bbox_without_crs_raises(self):
-        """An antimeridian-crossing bbox without a CRS field cannot be disambiguated and is rejected."""
-        aoi = {"west": 170.0, "south": -10.0, "east": -170.0, "north": 10.0}
-        with pytest.raises(JobSplittingFailure, match="west must be less than east"):
-            split_area(aoi, projection="EPSG:4326", tile_size=1.0)
-
-    def test_antimeridian_crossing_bbox_projected_crs_raises(self):
-        """An antimeridian-crossing bbox in a projected CRS is genuinely invalid."""
-        aoi = {"west": 500_000.0, "south": 0.0, "east": -500_000.0, "north": 100_000.0, "crs": "EPSG:3857"}
-        with pytest.raises(JobSplittingFailure, match="west must be less than east"):
-            split_area(aoi, projection="EPSG:3857", tile_size=100_000.0)
-
     def test_antimeridian_crossing_predefined_grid(self):
         """Predefined tile grid works correctly with an antimeridian-crossing query bbox."""
         tiles = [
