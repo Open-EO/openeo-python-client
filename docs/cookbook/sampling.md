@@ -28,7 +28,8 @@ commonly supported reducer like `min`, `max` or `mean` and will receive only one
 in edge cases, a point can intersect with up to 4 pixels. If this is not desirable, it might be worth trying to align
 points with pixel centers, which does require more advanced knowledge of the pixel grid of your data cube.
 
-More information on `aggregate_spatial` is available [here](_aggregate-spatial-evi).
+More information on `aggregate_spatial` is available {ref}`here <aggregate-spatial-evi>`.
+
 
 ## Sampling polygons as rasters
 
@@ -76,4 +77,4 @@ batch job. The recommendation here is to apply a spatial grouping to your sampli
 an area of around 100x100km. The optimal size of a group may be backend dependant. Also remember that when working with
 data in the UTM projection, you may want to avoid covering multiple UTM zones in a single group.
 
-See also how to manage [multiple jobs](_job-manager).
+See also how to manage {ref}`multiple jobs <job-manager>`.

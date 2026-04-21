@@ -207,9 +207,12 @@ class OidcException(OpenEoClientException):
 class AccessTokenResult(NamedTuple):
     """Container for result of access_token request."""
 
+    token_type: str
     access_token: str
+    expires_in: Optional[float] = None
     id_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    scope: Optional[str] = None
 
 
 def jwt_decode(token: str) -> Tuple[dict, dict]:
@@ -256,6 +259,7 @@ class OidcProviderInfo:
         title: str = None,
         default_clients: Union[List[dict], None] = None,
         requests_session: Optional[requests.Session] = None,
+        authorization_parameters: Optional[dict] = None,
     ):
         # TODO: id and title are required in the openEO API spec.
         self.id = provider_id
@@ -280,6 +284,7 @@ class OidcProviderInfo:
         self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
         log.debug(f"Scopes: provider supported {self._supported_scopes} & backend desired {scopes} -> {self._scopes}")
         self.default_clients = default_clients
+        self.authorization_parameters = authorization_parameters or {}
 
     @classmethod
     def from_dict(cls, data: dict) -> OidcProviderInfo:
@@ -289,6 +294,7 @@ class OidcProviderInfo:
             issuer=data["issuer"],
             scopes=data.get("scopes"),
             default_clients=data.get("default_clients"),
+            authorization_parameters=data.get("authorization_parameters"),
         )
 
     def get_scopes_string(self, request_refresh_token: bool = False) -> str:
@@ -428,8 +434,14 @@ class OidcAuthenticator:
             for k, v in data.items()
         }
         log.debug(f"Extracting access token result from token response {redacted}")
+        token_type = data["token_type"]
+        if token_type.lower() != "bearer":
+            raise OidcException(f"Unsupported {token_type=}")
         return AccessTokenResult(
+            token_type=token_type,
             access_token=self._extract_token(data, "access_token"),
+            expires_in=data.get("expires_in"),
+            scope=data.get("scope"),
             id_token=self._extract_token(data, "id_token", expected_nonce=expected_nonce, allow_absent=True),
             refresh_token=self._extract_token(data, "refresh_token", allow_absent=True),
         )
@@ -563,6 +575,7 @@ class OidcAuthCodePkceAuthenticator(OidcAuthenticator):
                         "nonce": nonce,
                         "code_challenge": pkce.code_challenge,
                         "code_challenge_method": pkce.code_challenge_method,
+                        **self._client_info.provider.authorization_parameters,
                     }
                 ),
             )
@@ -855,6 +868,7 @@ class OidcDeviceAuthenticator(OidcAuthenticator):
         if self._pkce:
             post_data["code_challenge"] = self._pkce.code_challenge
             post_data["code_challenge_method"] = self._pkce.code_challenge_method
+        post_data.update(self._client_info.provider.authorization_parameters)
         resp = self._requests.post(url=self._device_code_url, data=post_data)
         if resp.status_code != 200:
             raise OidcException(

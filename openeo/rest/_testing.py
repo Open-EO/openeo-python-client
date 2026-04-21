@@ -432,6 +432,7 @@ def build_capabilities(
     basic_auth: bool = True,
     oidc_auth: bool = True,
     collections: bool = True,
+    collection_queryables: bool = False,
     processes: bool = True,
     sync_processing: bool = True,
     validation: bool = False,
@@ -451,6 +452,8 @@ def build_capabilities(
     if collections:
         endpoints.append({"path": "/collections", "methods": ["GET"]})
         endpoints.append({"path": "/collections/{collection_id}", "methods": ["GET"]})
+        if collection_queryables:
+            endpoints.append({"path": "/collections/{collection_id}/queryables", "methods": ["GET"]})
     if processes:
         endpoints.append({"path": "/processes", "methods": ["GET"]})
     if sync_processing:

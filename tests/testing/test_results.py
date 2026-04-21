@@ -620,6 +620,29 @@ class TestAssertJobResults:
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
+    def test_assert_job_results_allclose_derived_from_normalization(self, tmp_path, actual_dir, expected_dir):
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": "S2B_MSIL2A_20200704T104619_N0500_R051_T31UFS_20230530T162956"},
+                {"rel": "derived_from", "href": "S2B_MSIL2A_20200711T103629_N0500_R008_T31UFS_20230612T013509"},
+            ],
+        )
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {
+                    "rel": "derived_from",
+                    "href": "/eodata/Sentinel-2/MSI/L2A_N0500/2020/07/04/S2B_MSIL2A_20200704T104619_N0500_R051_T31UFS_20230530T162956.SAFE",
+                },
+                {
+                    "rel": "derived_from",
+                    "href": "/eodata/Sentinel-2/MSI/L2A_N0500/2020/07/11/S2B_MSIL2A_20200711T103629_N0500_R008_T31UFS_20230612T013509.SAFE",
+                },
+            ],
+        )
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
     def test_allclose_must_be_folder(self, tmp_path, actual_dir, expected_dir):
         expected = expected_dir / "readme.md"
         expected.write_text("Hello world")

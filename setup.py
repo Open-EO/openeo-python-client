@@ -23,9 +23,6 @@ tests_require = [
     "httpretty>=1.1.4",
     "urllib3<2.3.0",  # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and https://github.com/gabrielfalcao/HTTPretty/issues/484
     "netCDF4>=1.7.0",
-    # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
-    "geopandas>=0.14; python_version>='3.9'",
-    "geopandas",  # Best-effort geopandas dependency for Python 3.8
     "flake8>=5.0.0",
     "time_machine>=2.13.0",
     "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
@@ -34,12 +31,18 @@ tests_require = [
     "python-dateutil>=2.7.0",
     "pystac-client>=0.7.5",
     "moto>=5.0.0",
+    # Some pins to speed up slow dependency resolution in Python 3.8 venvs
+    "moto~=5.0.28; python_version<'3.9'",
+    "boto3~=1.37.38; python_version<'3.9'",
+    "botocore~=1.37.38; python_version<'3.9'",
 ]
 
 docs_require = [
     "sphinx",
+    "pydata_sphinx_theme",
     "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints>=2.2.3",
+    "sphinx-copybutton",
     "myst-parser",
 ]
 
@@ -86,6 +89,9 @@ setup(
         "deprecated>=1.2.12",
         'oschmod>=0.3.12; sys_platform == "win32"',
         "importlib_resources; python_version<'3.9'",
+        # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
+        "geopandas>=0.14; python_version>='3.9'",
+        "geopandas",  # Best-effort geopandas dependency for Python 3.8
     ],
     extras_require={
         "tests": tests_require + artifacts_require,
