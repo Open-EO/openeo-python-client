@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add public `split_area` function for tile-grid based job splitting
+
 ### Changed
 
 ### Removed

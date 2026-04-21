@@ -227,6 +227,44 @@ You can implement your own storage backend by subclassing
 :py:class:`~openeo.extra.job_management.JobDatabaseInterface`.
 See the :ref:`API reference below <job-manager-api-reference>` for the full interface.
 
+Job Splitting
+============
+
+The :py:func:`~openeo.extra.job_management._job_splitting.split_area` helper function allows you to split a large area of interest into smaller areas, which can then be processed as separate jobs.
+A user may have a large spatial extent, in the form of a bounding box or polygon, that exceeds the processing limits of a single job on the backend.
+The results are returned as a :py:class:`geopandas.GeoDataFrame` with one row per tile, which can be used as the starting point for a job database where each row corresponds to a manageable job.
+
+The spatial extent can either be split into a regular grid of square tiles, with fixed size and projection, or into a custom grid of variable tiles provided by the user. 
+
+Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
+
+.. code-block:: python
+
+    from openeo.extra.job_management import split_area
+
+    # Define the bounding box to split
+    bbox = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+
+    # Split into 10x10 km tiles in EPSG:3857
+    gdf = split_area(
+        aoi=bbox,
+        tile_size=10_000,  # tile size in meters (units of the projection)
+        projection="EPSG:3857",  # projection for tiling
+    )
+
+This will create a GeoDataFrame with one row per tile, and a geometry column containing the tile polygons.
+
+.. code-block:: pycon
+
+   >>> gdf.head()
+                                              geometry
+   0  POLYGON ((566597.454 6621293.723, 566597.454 6...
+   1  POLYGON ((566597.454 6631293.723, 566597.454 6...
+   2  POLYGON ((566597.454 6641293.723, 566597.454 6...
+   3  POLYGON ((566597.454 6651293.723, 566597.454 6...
+   4  POLYGON ((576597.454 6621293.723, 576597.454 6...
+
+Note that while the original bounding box was in EPSG:4326, the resulting GeoDataFrame is in the tiling projection (EPSG:3857 in this case).
 
 Customizing Job Handling
 ========================
