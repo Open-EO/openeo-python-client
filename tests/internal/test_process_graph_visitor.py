@@ -148,10 +148,32 @@ def test_visit_array_with_dereferenced_nodes():
                 "process_id": "array_element",
                 "arguments": {"data": {"from_parameter": "data"}, "index": 2},
                 "result": False,
+                "_node_id": "arrayelement1",
             }
         )
     ]
     assert visitor.constantArrayElement.call_args_list == [call(-1)]
+
+
+def test_dereference_simple():
+    graph = {
+        "foo1": {
+            "process_id": "foo",
+            "arguments": {"bar": 123},
+            "result": True,
+        }
+    }
+    result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
+
+    assert result == "foo1"
+    assert graph == {
+        "foo1": {
+            "process_id": "foo",
+            "arguments": {"bar": 123},
+            "result": True,
+            "_node_id": "foo1",
+        },
+    }
 
 
 def test_dereference_basic():
@@ -184,25 +206,39 @@ def test_dereference_basic():
     assert graph["node3"] == graph["node2"]["arguments"]["data2"]["node"]
     assert graph["node4"] == graph["node3"]["arguments"]["data"]["node"]
     assert graph == {
-        "node1": {},
+        "node1": {"_node_id": "node1"},
         "node2": {
             "arguments": {
-                "data1": {"from_node": "node1", "node": {}},
-                "data2": {"from_node": "node3", "node": {
-                    "arguments": {
-                        "data": {"from_node": "node4", "node": {}},
-                    }
-                }},
+                "data1": {
+                    "from_node": "node1",
+                    "node": {"_node_id": "node1"},
+                },
+                "data2": {
+                    "from_node": "node3",
+                    "node": {
+                        "arguments": {
+                            "data": {
+                                "from_node": "node4",
+                                "node": {"_node_id": "node4"},
+                            },
+                        },
+                        "_node_id": "node3",
+                    },
+                },
             },
-            "result": True
+            "result": True,
+            "_node_id": "node2",
         },
         "node3": {
             "arguments": {
-                "data": {"from_node": "node4", "node": {}},
-            }
+                "data": {
+                    "from_node": "node4",
+                    "node": {"_node_id": "node4"},
+                },
+            },
+            "_node_id": "node3",
         },
-        "node4": {}
-
+        "node4": {"_node_id": "node4"},
     }
 
 
@@ -221,17 +257,34 @@ def test_dereference_list_arg():
     result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert result == "temporal"
     assert graph == {
-        "start": {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
-        "end": {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+        "start": {
+            "process_id": "constant",
+            "arguments": {"x": "2020-02-02"},
+            "_node_id": "start",
+        },
+        "end": {
+            "process_id": "constant",
+            "arguments": {"x": "2020-03-03"},
+            "_node_id": "end",
+        },
         "temporal": {
             "process_id": "filter_temporal",
             "arguments": {
                 "extent": [
-                    {"process_id": "constant", "arguments": {"x": "2020-02-02"}},
-                    {"process_id": "constant", "arguments": {"x": "2020-03-03"}},
+                    {
+                        "process_id": "constant",
+                        "arguments": {"x": "2020-02-02"},
+                        "_node_id": "start",
+                    },
+                    {
+                        "process_id": "constant",
+                        "arguments": {"x": "2020-03-03"},
+                        "_node_id": "end",
+                    },
                 ],
             },
             "result": True,
+            "_node_id": "temporal",
         },
     }
 
@@ -254,24 +307,41 @@ def test_dereference_dict_arg():
     result = ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert result == "bbox"
     assert graph == {
-        "west": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
-        "east": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+        "west": {
+            "process_id": "add",
+            "arguments": {"x": 1, "y": 1},
+            "_node_id": "west",
+        },
+        "east": {
+            "process_id": "add",
+            "arguments": {"x": 2, "y": 3},
+            "_node_id": "east",
+        },
         "bbox": {
             "process_id": "filter_bbox",
             "arguments": {
                 "extent": {
                     "west": {
                         "from_node": "west",
-                        "node": {"process_id": "add", "arguments": {"x": 1, "y": 1}},
+                        "node": {
+                            "process_id": "add",
+                            "arguments": {"x": 1, "y": 1},
+                            "_node_id": "west",
+                        },
                     },
                     "east": {
                         "from_node": "east",
-                        "node": {"process_id": "add", "arguments": {"x": 2, "y": 3}},
+                        "node": {
+                            "process_id": "add",
+                            "arguments": {"x": 2, "y": 3},
+                            "_node_id": "east",
+                        },
                     },
                 }
             },
             "result": True,
-        }
+            "_node_id": "bbox",
+        },
     }
 
 
@@ -324,6 +394,77 @@ def test_dereference_cycle():
     ProcessGraphVisitor.dereference_from_node_arguments(graph)
     assert graph["node1"]["arguments"]["data"]["node"] is graph["node2"]
     assert graph["node2"]["arguments"]["data"]["node"] is graph["node1"]
+
+
+@pytest.mark.parametrize(
+    ["add_node_id", "expected"],
+    [
+        (
+            False,
+            {
+                "foo1": {
+                    "process_id": "foo",
+                    "arguments": {"bar": 123},
+                },
+                "bar1": {
+                    "process_id": "bar",
+                    "arguments": {
+                        "foo": {
+                            "from_node": "foo1",
+                            "node": {
+                                "process_id": "foo",
+                                "arguments": {"bar": 123},
+                            },
+                        }
+                    },
+                    "result": True,
+                },
+            },
+        ),
+        (
+            True,
+            {
+                "foo1": {
+                    "process_id": "foo",
+                    "arguments": {"bar": 123},
+                    "_node_id": "foo1",
+                },
+                "bar1": {
+                    "process_id": "bar",
+                    "arguments": {
+                        "foo": {
+                            "from_node": "foo1",
+                            "node": {
+                                "process_id": "foo",
+                                "arguments": {"bar": 123},
+                                "_node_id": "foo1",
+                            },
+                        }
+                    },
+                    "result": True,
+                    "_node_id": "bar1",
+                },
+            },
+        ),
+    ],
+)
+def test_dereference_add_node_id(add_node_id, expected):
+    graph = {
+        "foo1": {
+            "process_id": "foo",
+            "arguments": {"bar": 123},
+        },
+        "bar1": {
+            "process_id": "bar",
+            "arguments": {"foo": {"from_node": "foo1"}},
+            "result": True,
+        },
+    }
+    result = ProcessGraphVisitor.dereference_from_node_arguments(graph, add_node_id=add_node_id)
+
+    assert result == "bar1"
+    assert graph == expected
+
 
 
 class TestProcessGraphUnflattener:

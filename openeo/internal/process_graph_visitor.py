@@ -12,10 +12,11 @@ class ProcessGraphVisitException(OpenEoClientException):
     pass
 
 
-# TODO: this key is non-standard and mainly specific to a particular openeo-python-driver use case,
+# TODO: these keys are non-standard and mainly specific to a particular openeo-python-driver use case,
 #       which probably should be refactored out from this more generic implementation.
 #       Making it a named constant at least makes this more visible and trackable.
 DEREFERENCED_NODE_KEY = "node"
+ORIG_NODE_ID_KEY = "_node_id"
 
 
 class ProcessGraphVisitor(ABC):
@@ -27,18 +28,23 @@ class ProcessGraphVisitor(ABC):
         self.process_stack = []
 
     @classmethod
-    def dereference_from_node_arguments(cls, process_graph: dict) -> str:
+    def dereference_from_node_arguments(cls, process_graph: dict, add_node_id: bool = True) -> str:
         """
         Walk through the given (flat) process graph and replace (in-place) "from_node" references in
         process arguments (dictionaries or lists) with the corresponding resolved subgraphs
 
         :param process_graph: process graph dictionary (flat representation) to be manipulated in-place
+        :param add_node_id: whether to add the original node id in the node dict (alongside "process_id", "arguments", ...)
         :return: name of the "result" node of the graph
         """
 
         # TODO avoid manipulating process graph in place? make it more explicit? work on a copy?
         # TODO call it more something like "unflatten"?. Split this off of ProcessGraphVisitor?
         # TODO implement this through `ProcessGraphUnflattener` ?
+        # TODO the "there can only be one result node" view is outdated and is getting counter-produtive
+        #      or more generally, the dereferencing aspect in the current process graph processing approach
+        #      makes some things unnecessarily complicated (e.g. caching, or trying to preserve
+        #      the original node id per https://github.com/Open-EO/openeo-python-driver/issues/479)
 
         def resolve_from_node(process_graph: dict, node_id: str, from_node: str):
             if from_node not in process_graph:
@@ -53,6 +59,8 @@ class ProcessGraphVisitor(ABC):
                 if result_node:
                     raise ProcessGraphVisitException(f"Multiple result nodes: {result_node!r}, {node_id!r}")
                 result_node = node_id
+            if add_node_id:
+                node_data[ORIG_NODE_ID_KEY] = node_id
             arguments = node_data.get("arguments", {})
             for arg in arguments.values():
                 if isinstance(arg, dict):

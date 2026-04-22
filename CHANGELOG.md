@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ProcessGraphVisitor.dereference_from_node_arguments()`: add original node id (by default) to the dereferenced nodes in the process graph ([Open-EO/openeo-python-driver#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
+
 ### Removed
 
 ### Fixed
