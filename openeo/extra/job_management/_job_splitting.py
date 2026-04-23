@@ -233,7 +233,7 @@ class _SizeBasedTileGrid(_TileGridInterface):
                         south=south + row * tile_size,
                         east=min(west + (col + 1) * tile_size, east),
                         north=min(south + (row + 1) * tile_size, north),
-                    ).as_polygon()
+                    ).as_geometry()
                 )
         return tiles
 
