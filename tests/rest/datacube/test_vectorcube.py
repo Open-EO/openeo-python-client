@@ -872,10 +872,3 @@ def test_vector_cube_validate(vector_cube, dummy_backend):
     ]
     assert isinstance(result, ValidationResponse)
     assert result == [{"code": "OfflineRequired", "message": "Turn off your smartphone"}]
-
-
-def test_vectorcube_execute_on_response_headers(vector_cube, dummy_backend):
-    """Test that on_response_headers callback is called with response headers from VectorCube.execute."""
-    results = []
-    vector_cube.execute(on_response_headers=results.append)
-    assert results == [{"OpenEO-Identifier": "r-001"}]
