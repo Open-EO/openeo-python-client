@@ -2794,18 +2794,30 @@ class DataCube(_ProcessGraphAbstraction):
             returns=returns, categories=categories, examples=examples, links=links,
         )
 
-    def execute(self, *, validate: Optional[bool] = None, auto_decode: bool = True) -> Union[dict, requests.Response]:
+    def execute(
+        self,
+        *,
+        validate: Optional[bool] = None,
+        auto_decode: bool = True,
+        on_response_headers: Optional[Callable[[Mapping], None]] = None,
+    ) -> Union[dict, requests.Response]:
         """
         Execute a process graph synchronously and return the result. If the result is a JSON object, it will be parsed.
 
         :param validate: Optional toggle to enable/prevent validation of the process graphs before execution
             (overruling the connection's ``auto_validate`` setting).
         :param auto_decode: Boolean flag to enable/disable automatic JSON decoding of the response. Defaults to True.
+        :param on_response_headers: (optional) callback to handle (e.g. :py:func:`print`) the response headers.
 
         :return: parsed JSON response as a dict if auto_decode is True, otherwise response object
+
+        .. versionchanged:: 0.33.0
+            Added argument ``on_response_headers``.
         """
         # TODO: deprecated this. It's ill-defined how to "execute" a data cube without downloading it.
-        return self._connection.execute(self.flat_graph(), validate=validate, auto_decode=auto_decode)
+        return self._connection.execute(
+            self.flat_graph(), validate=validate, auto_decode=auto_decode, on_response_headers=on_response_headers
+        )
 
     @staticmethod
     @deprecated(reason="Use :py:func:`openeo.udf.run_code.execute_local_udf` instead", version="0.7.0")

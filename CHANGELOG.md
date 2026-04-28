@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add public `split_area` function for tile-grid based job splitting
+- Expose `OpenEO-Identifier` response header from synchronous processing requests (POST `/result`):
+  add `on_response_headers` argument to `DataCube.execute()` and `VectorCube.execute()`,
+  and automatically log the identifier at debug level when it is present in the response.
 
 ### Changed
 

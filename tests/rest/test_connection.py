@@ -4371,6 +4371,44 @@ def test_connection_on_response_headers_sync_download(dummy_backend, tmp_path):
     assert results == [{"OpenEO-Identifier": "r-001"}]
 
 
+def test_execute_on_response_headers(dummy_backend):
+    results = []
+    dummy_backend.next_result = {"result": 42}
+    dummy_backend.connection.execute(
+        {"foo1": {"process_id": "foo"}},
+        on_response_headers=results.append,
+    )
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
+def test_connection_on_response_headers_sync_execute(dummy_backend):
+    results = []
+    dummy_backend.next_result = {"result": 42}
+    connection = openeo.connect(dummy_backend.connection.root_url, on_response_headers_sync=results.append)
+    connection.execute({"foo1": {"process_id": "foo"}})
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
+def test_download_openeo_identifier_logging(dummy_backend, tmp_path, caplog):
+    import logging
+
+    with caplog.at_level(logging.DEBUG, logger="openeo.rest.connection"):
+        dummy_backend.connection.download(
+            {"foo1": {"process_id": "foo"}},
+            tmp_path / "result.data",
+        )
+    assert "r-001" in caplog.text
+
+
+def test_execute_openeo_identifier_logging(dummy_backend, caplog):
+    import logging
+
+    dummy_backend.next_result = {"result": 42}
+    with caplog.at_level(logging.DEBUG, logger="openeo.rest.connection"):
+        dummy_backend.connection.execute({"foo1": {"process_id": "foo"}})
+    assert "r-001" in caplog.text
+
+
 @pytest.mark.parametrize(
     "pg",
     [

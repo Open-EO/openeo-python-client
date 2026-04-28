@@ -1765,6 +1765,8 @@ class Connection(RestApiConnection):
             stream=True,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+        if openeo_identifier := response.headers.get("OpenEO-Identifier"):
+            _log.debug("Synchronous processing request identifier: %s", openeo_identifier)
         if on_response_headers := (on_response_headers or self._on_response_headers_sync):
             on_response_headers(response.headers)
 
@@ -1820,6 +1822,8 @@ class Connection(RestApiConnection):
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+        if openeo_identifier := response.headers.get("OpenEO-Identifier"):
+            _log.debug("Synchronous processing request identifier: %s", openeo_identifier)
         if on_response_headers := (on_response_headers or self._on_response_headers_sync):
             on_response_headers(response.headers)
 

@@ -236,9 +236,9 @@ class VectorCube(_ProcessGraphAbstraction):
             options=options,
         )
 
-    def execute(self, *, validate: Optional[bool] = None) -> dict:
+    def execute(self, *, validate: Optional[bool] = None, on_response_headers: Optional[Callable[[Mapping], None]] = None) -> dict:
         """Executes the process graph."""
-        return self._connection.execute(self.flat_graph(), validate=validate)
+        return self._connection.execute(self.flat_graph(), validate=validate, on_response_headers=on_response_headers)
 
     def download(
         self,

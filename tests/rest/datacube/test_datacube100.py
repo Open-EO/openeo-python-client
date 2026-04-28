@@ -3895,6 +3895,14 @@ def test_download_auto_add_save_result(s2cube, dummy_backend, tmp_path, auto_add
     assert set(n["process_id"] for n in dummy_backend.get_pg().values()) == process_ids
 
 
+def test_datacube_execute_on_response_headers(s2cube, dummy_backend):
+    """Test that on_response_headers callback is called with response headers from execute."""
+    dummy_backend.next_result = {"result": 42}
+    results = []
+    s2cube.execute(on_response_headers=results.append)
+    assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
 class TestBatchJob:
     _EXPECTED_SIMPLE_S2_PG = {
         "loadcollection1": {
