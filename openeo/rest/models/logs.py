@@ -22,7 +22,7 @@ class LogEntry(dict):
           between None and non-existing. None for example refers to no-data in
           many cases while the absence of the property means that the user did
           not provide any data for debugging.
-        - ``stacktrace``: Stacktrace for the error, array of strings, available since API 1.3.0
+        - ``stacktrace``: Stacktrace for the error, string, optional, available since API 1.3.0
     """
 
     _required = {"id", "level", "message"}
@@ -51,9 +51,9 @@ class LogEntry(dict):
         return self["level"]
 
     @property
-    def stacktrace(self) -> list:
-        """Stacktrace for the error, available since API 1.3.0. Returns an empty list if not present."""
-        return self.get("stacktrace", [])
+    def stacktrace(self) -> Union[str, None]:
+        """Stacktrace for the error, available since API 1.3.0. Returns None if not present."""
+        return self.get("stacktrace", None)
 
     # TODO: add properties for "code", "time", "path", "links" and "data" with sensible defaults?
 

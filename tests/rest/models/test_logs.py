@@ -38,7 +38,7 @@ def test_log_entry_legacy():
 
 def test_log_entry_stacktrace_missing():
     log = LogEntry(id="log01", level="error", message="oops")
-    assert log.stacktrace == []
+    assert log.stacktrace is None
 
 
 def test_log_entry_stacktrace_present():
@@ -46,10 +46,10 @@ def test_log_entry_stacktrace_present():
         id="log01",
         level="error",
         message="oops",
-        stacktrace=["line 1", "line 2", "line 3"],
+        stacktrace="line 1\nline 2\nline 3",
     )
-    assert log.stacktrace == ["line 1", "line 2", "line 3"]
-    assert log["stacktrace"] == ["line 1", "line 2", "line 3"]
+    assert log.stacktrace == "line 1\nline 2\nline 3"
+    assert log["stacktrace"] == "line 1\nline 2\nline 3"
 
 
 @pytest.mark.parametrize(
