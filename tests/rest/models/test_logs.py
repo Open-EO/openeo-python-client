@@ -36,6 +36,22 @@ def test_log_entry_legacy():
     assert log.log_id == "log01"
 
 
+def test_log_entry_stacktrace_missing():
+    log = LogEntry(id="log01", level="error", message="oops")
+    assert log.stacktrace == []
+
+
+def test_log_entry_stacktrace_present():
+    log = LogEntry(
+        id="log01",
+        level="error",
+        message="oops",
+        stacktrace=["line 1", "line 2", "line 3"],
+    )
+    assert log.stacktrace == ["line 1", "line 2", "line 3"]
+    assert log["stacktrace"] == ["line 1", "line 2", "line 3"]
+
+
 @pytest.mark.parametrize(
     ["log_level_in", "expected_log_level"],
     [
