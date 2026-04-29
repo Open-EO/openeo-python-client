@@ -1,0 +1,783 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.udf.run_code &#8212; openEO Python Client 0.50.0a2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../../../_static/documentation_options.js?v=9ad9c3f4"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/openeo/udf/run_code';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.50" />
+    <meta name="docbuild:last-update" content="2026/04/29"/>
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.50.0a2</code></div>
+  <div>Last updated: 2026/04/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">openeo.udf.run_code</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for openeo.udf.run_code</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="kn">import</span> <span class="n">Series</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo</span><span class="w"> </span><span class="kn">import</span> <span class="n">UDF</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenEoUdfException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf._compat</span><span class="w"> </span><span class="kn">import</span> <span class="n">tomllib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.feature_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">FeatureCollection</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.structured_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StructuredData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.udf_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">UdfData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.udf.xarraydatacube</span><span class="w"> </span><span class="kn">import</span> <span class="n">XarrayDataCube</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_build_default_execution_context</span><span class="p">():</span>
+    <span class="c1"># TODO: is it really necessary to &quot;pre-load&quot; these modules? Isn&#39;t user going to import them explicitly in their script anyway?</span>
+    <span class="n">context</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;numpy&quot;</span><span class="p">:</span> <span class="n">numpy</span><span class="p">,</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span> <span class="n">numpy</span><span class="p">,</span>
+        <span class="s2">&quot;xarray&quot;</span><span class="p">:</span> <span class="n">xarray</span><span class="p">,</span>
+        <span class="s2">&quot;pandas&quot;</span><span class="p">:</span> <span class="n">pandas</span><span class="p">,</span> <span class="s2">&quot;pd&quot;</span><span class="p">:</span> <span class="n">pandas</span><span class="p">,</span>
+        <span class="s2">&quot;shapely&quot;</span><span class="p">:</span> <span class="n">shapely</span><span class="p">,</span>
+        <span class="s2">&quot;math&quot;</span><span class="p">:</span> <span class="n">math</span><span class="p">,</span>
+        <span class="s2">&quot;UdfData&quot;</span><span class="p">:</span> <span class="n">UdfData</span><span class="p">,</span>
+        <span class="s2">&quot;XarrayDataCube&quot;</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span>
+        <span class="s2">&quot;DataCube&quot;</span><span class="p">:</span> <span class="n">XarrayDataCube</span><span class="p">,</span>  <span class="c1"># Legacy alias</span>
+        <span class="s2">&quot;StructuredData&quot;</span><span class="p">:</span> <span class="n">StructuredData</span><span class="p">,</span>
+        <span class="s2">&quot;FeatureCollection&quot;</span><span class="p">:</span> <span class="n">FeatureCollection</span><span class="p">,</span>
+        <span class="c1"># &quot;SpatialExtent&quot;: SpatialExtent,  # TODO?</span>
+        <span class="c1"># &quot;MachineLearnModel&quot;: MachineLearnModelConfig, # TODO?</span>
+    <span class="p">}</span>
+
+
+    <span class="k">return</span> <span class="n">context</span>
+
+
+<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_module_from_string</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Experimental: avoid loading same UDF module more than once, to make caching inside the udf work.</span>
+<span class="sd">    @param code:</span>
+<span class="sd">    @return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">_log</span><span class="o">.</span><span class="n">isEnabledFor</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">):</span>
+        <span class="n">cache_info</span> <span class="o">=</span> <span class="n">load_module_from_string</span><span class="o">.</span><span class="n">cache_info</span><span class="p">()</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;run_udf: Loading UDF from string </span><span class="si">{</span><span class="n">code</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">. Cache info: </span><span class="si">{</span><span class="n">cache_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">globals</span> <span class="o">=</span> <span class="n">_build_default_execution_context</span><span class="p">()</span>
+    <span class="n">exec</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="nb">globals</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">globals</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_annotation_str</span><span class="p">(</span><span class="n">annotation</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get parameter annotation as a string&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">annotation</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">annotation</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">annotation</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="vm">__module__</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">mod</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="k">if</span> <span class="n">mod</span> <span class="o">!=</span> <span class="nb">str</span><span class="o">.</span><span class="vm">__module__</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">annotation</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_annotation_is_pandas_series</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="p">{</span><span class="n">pandas</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">pandas</span><span class="o">.</span><span class="n">Series</span><span class="p">)}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_annotation_is_udf_datacube</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">annotation</span> <span class="ow">is</span> <span class="n">XarrayDataCube</span> <span class="ow">or</span> <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="ow">in</span> <span class="p">{</span>
+        <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">XarrayDataCube</span><span class="p">),</span>
+        <span class="s1">&#39;openeo_udf.api.datacube.DataCube&#39;</span><span class="p">,</span>  <span class="c1"># Legacy `openeo_udf` annotation</span>
+    <span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_annotation_is_data_array</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">annotation</span> <span class="ow">is</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="ow">or</span> <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="ow">in</span> <span class="p">{</span>
+        <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span>
+    <span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_annotation_is_udf_data</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">annotation</span> <span class="ow">is</span> <span class="n">UdfData</span> <span class="ow">or</span> <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">annotation</span><span class="p">)</span> <span class="ow">in</span> <span class="p">{</span>
+        <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">UdfData</span><span class="p">),</span>
+        <span class="s1">&#39;openeo_udf.api.udf_data.UdfData&#39;</span>  <span class="c1"># Legacy `openeo_udf` annotation</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_apply_timeseries_xarray</span><span class="p">(</span><span class="n">array</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Series</span><span class="p">],</span> <span class="n">Series</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply timeseries callback to given xarray data array</span>
+<span class="sd">    along its time dimension (named &quot;t&quot; or &quot;time&quot;)</span>
+
+<span class="sd">    :param array: array to transform</span>
+<span class="sd">    :param callback: function that transforms a timeseries in another (same size)</span>
+<span class="sd">    :return: transformed array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Make time dimension the last one, and flatten the rest</span>
+    <span class="c1"># to create a 1D sequence of input time series (also 1D).</span>
+    <span class="p">[</span><span class="n">time_position</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">]]</span>
+    <span class="n">input_series</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">time_position</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">orig_shape</span> <span class="o">=</span> <span class="n">input_series</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">input_series</span> <span class="o">=</span> <span class="n">input_series</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">input_series</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+
+    <span class="n">applied</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">callback</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">input_series</span><span class="p">])</span>
+
+    <span class="c1"># Reshape to original shape</span>
+    <span class="n">applied</span> <span class="o">=</span> <span class="n">applied</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">orig_shape</span><span class="p">)</span>
+    <span class="n">applied</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">applied</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">time_position</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">applied</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="k">return</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">(</span><span class="n">applied</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">array</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">array</span><span class="o">.</span><span class="n">dims</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">array</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_timeseries_generic</span><span class="p">(</span>
+        <span class="n">udf_data</span><span class="p">:</span> <span class="n">UdfData</span><span class="p">,</span>
+        <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Series</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">Series</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UdfData</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implements the UDF contract by calling a user provided time series transformation function.</span>
+
+<span class="sd">    :param udf_data:</span>
+<span class="sd">    :param callback: callable that takes a pandas Series and context dict and returns a pandas Series.</span>
+<span class="sd">        See template :py:func:`openeo.udf.udf_signatures.apply_timeseries`</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">callback</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">udf_data</span><span class="o">.</span><span class="n">user_context</span><span class="p">)</span>
+    <span class="n">datacubes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">XarrayDataCube</span><span class="p">(</span><span class="n">_apply_timeseries_xarray</span><span class="p">(</span><span class="n">array</span><span class="o">=</span><span class="n">cube</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">callback</span><span class="o">=</span><span class="n">callback</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">cube</span> <span class="ow">in</span> <span class="n">udf_data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()</span>
+    <span class="p">]</span>
+    <span class="c1"># Insert the new tiles as list of raster collection tiles in the input object. The new tiles will</span>
+    <span class="c1"># replace the original input tiles.</span>
+    <span class="n">udf_data</span><span class="o">.</span><span class="n">set_datacube_list</span><span class="p">(</span><span class="n">datacubes</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">udf_data</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">run_udf_code</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">UdfData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">UdfData</span><span class="p">:</span>
+    <span class="c1"># TODO: current implementation uses first match directly, first check for multiple matches?</span>
+    <span class="n">module</span> <span class="o">=</span> <span class="n">load_module_from_string</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+    <span class="n">functions</span> <span class="o">=</span> <span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="n">fn_name</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span> <span class="ow">in</span> <span class="n">functions</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span>
+        <span class="n">first_param</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+                <span class="n">fn_name</span> <span class="o">==</span> <span class="s1">&#39;apply_timeseries&#39;</span>
+                <span class="ow">and</span> <span class="s1">&#39;series&#39;</span> <span class="ow">in</span> <span class="n">params</span> <span class="ow">and</span> <span class="s1">&#39;context&#39;</span> <span class="ow">in</span> <span class="n">params</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_pandas_series</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;series&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_pandas_series</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">return_annotation</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found timeseries mapping UDF `</span><span class="si">{n}</span><span class="s2">` </span><span class="si">{f!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">fn_name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="n">func</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">apply_timeseries_generic</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="p">(</span>
+                <span class="n">fn_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;apply_hypercube&#39;</span><span class="p">,</span> <span class="s1">&#39;apply_datacube&#39;</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="s1">&#39;cube&#39;</span> <span class="ow">in</span> <span class="n">params</span> <span class="ow">and</span> <span class="s1">&#39;context&#39;</span> <span class="ow">in</span> <span class="n">params</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_udf_datacube</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;cube&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_udf_datacube</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">return_annotation</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found datacube mapping UDF `</span><span class="si">{n}</span><span class="s2">` </span><span class="si">{f!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">fn_name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="n">func</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The provided UDF expects exactly one datacube, but </span><span class="si">{c}</span><span class="s2"> were provided.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">c</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span>
+                <span class="p">))</span>
+            <span class="c1"># TODO: also support calls without user context?</span>
+            <span class="n">result_cube</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">cube</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">context</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">user_context</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_datacube_list</span><span class="p">([</span><span class="n">result_cube</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">elif</span> <span class="p">(</span>
+                <span class="n">fn_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;apply_datacube&#39;</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="s1">&#39;cube&#39;</span> <span class="ow">in</span> <span class="n">params</span> <span class="ow">and</span> <span class="s1">&#39;context&#39;</span> <span class="ow">in</span> <span class="n">params</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_data_array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;cube&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">_annotation_is_data_array</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">return_annotation</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found datacube mapping UDF `</span><span class="si">{n}</span><span class="s2">` </span><span class="si">{f!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">fn_name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="n">func</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The provided UDF expects exactly one datacube, but </span><span class="si">{c}</span><span class="s2"> were provided.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">c</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span>
+                <span class="p">))</span>
+            <span class="c1"># TODO: also support calls without user context?</span>
+            <span class="n">result_cube</span><span class="p">:</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">cube</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_array</span><span class="p">(),</span> <span class="n">context</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">user_context</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_datacube_list</span><span class="p">([</span><span class="n">XarrayDataCube</span><span class="p">(</span><span class="n">result_cube</span><span class="p">)])</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="n">fn_name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;apply_vectorcube&quot;</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="s2">&quot;geometries&quot;</span> <span class="ow">in</span> <span class="n">params</span>
+            <span class="ow">and</span> <span class="n">_get_annotation_str</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;geometries&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;geopandas.geodataframe.GeoDataFrame&quot;</span>
+            <span class="ow">and</span> <span class="s2">&quot;cube&quot;</span> <span class="ow">in</span> <span class="n">params</span>
+            <span class="ow">and</span> <span class="n">_annotation_is_data_array</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;cube&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">annotation</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get_feature_collection_list</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The provided UDF expects a FeatureCollection and a datacube, but received </span><span class="si">{f}</span><span class="s2"> and </span><span class="si">{c}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">f</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get_feature_collection_list</span><span class="p">(),</span> <span class="n">c</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_feature_collection_list</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The provided UDF expects exactly one FeatureCollection, but </span><span class="si">{c}</span><span class="s2"> were provided.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">c</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_feature_collection_list</span><span class="p">())</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;The provided UDF expects exactly one datacube, but </span><span class="si">{c}</span><span class="s2"> were provided.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">c</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">())</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="c1"># TODO: geopandas is optional dependency.</span>
+            <span class="n">input_geoms</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get_feature_collection_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">input_cube</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get_datacube_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_array</span><span class="p">()</span>
+            <span class="n">result_geoms</span><span class="p">,</span> <span class="n">result_cube</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">geometries</span><span class="o">=</span><span class="n">input_geoms</span><span class="p">,</span> <span class="n">cube</span><span class="o">=</span><span class="n">input_cube</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">user_context</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_datacube_list</span><span class="p">([</span><span class="n">XarrayDataCube</span><span class="p">(</span><span class="n">result_cube</span><span class="p">)])</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_feature_collection_list</span><span class="p">([</span><span class="n">FeatureCollection</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;udf_result&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">result_geoms</span><span class="p">)])</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">_annotation_is_udf_data</span><span class="p">(</span><span class="n">first_param</span><span class="o">.</span><span class="n">annotation</span><span class="p">):</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found generic UDF `</span><span class="si">{n}</span><span class="s2">` </span><span class="si">{f!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">fn_name</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="n">func</span><span class="p">))</span>
+            <span class="n">func</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">raise</span> <span class="n">OpenEoUdfException</span><span class="p">(</span><span class="s2">&quot;No UDF found.&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="execute_local_udf">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.run_code.execute_local_udf">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">execute_local_udf</span><span class="p">(</span>
+    <span class="n">udf</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="p">],</span> <span class="n">datacube</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">XarrayDataCube</span><span class="p">],</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;netcdf&quot;</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Locally executes an user defined function on a previously downloaded datacube.</span>
+
+<span class="sd">    :param udf: the code of the user defined function</span>
+<span class="sd">    :param datacube: the path to the downloaded data in disk or a DataCube</span>
+<span class="sd">    :param fmt: format of the file if datacube is string</span>
+<span class="sd">    :return: the resulting DataCube</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">udf</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">udf</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">udf</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datacube</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">)):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">XarrayDataCube</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">datacube</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datacube</span><span class="p">,</span> <span class="n">XarrayDataCube</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">datacube</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datacube</span><span class="p">,</span> <span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">XarrayDataCube</span><span class="p">(</span><span class="n">datacube</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">datacube</span><span class="p">)</span>
+    <span class="n">d_array</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get_array</span><span class="p">()</span>
+    <span class="n">expected_order</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;bands&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span>
+    <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">expected_order</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">d_array</span><span class="o">.</span><span class="n">dims</span><span class="p">]</span>
+
+    <span class="c1"># TODO #472: skip going through XarrayDataCube above, we only need xarray.DataArray here anyway.</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">XarrayDataCube</span><span class="p">(</span>
+        <span class="n">d_array</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">*</span><span class="n">dims</span><span class="p">)</span>
+        <span class="c1"># TODO: this float conversion was in original implementation (0962e00e03) but is that actually necessary?</span>
+        <span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">numpy</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="c1"># wrap to udf_data</span>
+    <span class="n">udf_data</span> <span class="o">=</span> <span class="n">UdfData</span><span class="p">(</span><span class="n">datacube_list</span><span class="o">=</span><span class="p">[</span><span class="n">d</span><span class="p">],</span> <span class="n">user_context</span><span class="o">=</span><span class="n">udf</span><span class="o">.</span><span class="n">context</span><span class="p">)</span>
+
+    <span class="c1"># TODO: enrich to other types like time series, vector data,... probalby by adding  named arguments</span>
+    <span class="c1"># signature: UdfData(proj, datacube_list, feature_collection_list, structured_data_list, ml_model_list, metadata)</span>
+
+    <span class="c1"># run the udf through the same routine as it would have been parsed in the backend</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">run_udf_code</span><span class="p">(</span><span class="n">udf</span><span class="o">.</span><span class="n">code</span><span class="p">,</span> <span class="n">udf_data</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="extract_udf_dependencies">
+<a class="viewcode-back" href="../../../api.html#openeo.udf.run_code.extract_udf_dependencies">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_udf_dependencies</span><span class="p">(</span><span class="n">udf</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">UDF</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract dependencies from UDF code declared in a top-level comment block</span>
+<span class="sd">    following the `inline script metadata specification (PEP 508) &lt;https://packaging.python.org/en/latest/specifications/inline-script-metadata&gt;`_.</span>
+
+<span class="sd">    Basic example UDF snippet declaring expected dependencies as embedded metadata</span>
+<span class="sd">    in a comment block:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        # /// script</span>
+<span class="sd">        # dependencies = [</span>
+<span class="sd">        #     &quot;geojson&quot;,</span>
+<span class="sd">        # ]</span>
+<span class="sd">        # ///</span>
+
+<span class="sd">        import geojson</span>
+
+<span class="sd">        def apply_datacube(cube: xarray.DataArray, context: dict) -&gt; xarray.DataArray:</span>
+<span class="sd">            ...</span>
+
+<span class="sd">    .. seealso:: :ref:`python-udf-dependency-declaration` for more in-depth information.</span>
+
+<span class="sd">    :param udf: UDF code as a string or :py:class:`~openeo.rest._datacube.UDF` object</span>
+<span class="sd">    :return: List of extracted dependencies or ``None`` when no valid metadata block with dependencies was found.</span>
+
+<span class="sd">    .. versionadded:: 0.30.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">udf_code</span> <span class="o">=</span> <span class="n">udf</span><span class="o">.</span><span class="n">code</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">udf</span><span class="p">,</span> <span class="n">UDF</span><span class="p">)</span> <span class="k">else</span> <span class="n">udf</span>
+
+    <span class="c1"># Extract &quot;script&quot; blocks</span>
+    <span class="n">script_type</span> <span class="o">=</span> <span class="s2">&quot;script&quot;</span>
+    <span class="n">block_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+        <span class="sa">r</span><span class="s2">&quot;^# /// (?P&lt;type&gt;[a-zA-Z0-9-]+)\s*$\s(?P&lt;content&gt;(^#(| .*)$\s)+)^# ///$&quot;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span>
+    <span class="p">)</span>
+    <span class="n">script_blocks</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="k">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;content&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">block_regex</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">udf_code</span><span class="p">)</span> <span class="k">if</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">script_type</span>
+    <span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">script_blocks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Multiple </span><span class="si">{</span><span class="n">script_type</span><span class="si">!r}</span><span class="s2"> blocks found in top-level comment&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">script_blocks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Extract dependencies from &quot;script&quot; block</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;# &quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">script_blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">splitlines</span><span class="p">(</span><span class="n">keepends</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tomllib</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dependencies&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

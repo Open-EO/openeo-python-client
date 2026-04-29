@@ -1,0 +1,700 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>DataCube construction &#8212; openEO Python Client 0.50.0a2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="_static/documentation_options.js?v=9ad9c3f4"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'datacube_construction';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Machine Learning" href="machine_learning.html" />
+    <link rel="prev" title="User-Defined Functions (UDF) explained" href="udf.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.50" />
+    <meta name="docbuild:last-update" content="2026/04/29"/>
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.50.0a2</code></div>
+  <div>Last updated: 2026/04/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">DataCube construction</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="datacube-construction">
+<h1>DataCube construction<a class="headerlink" href="#datacube-construction" title="Link to this heading">#</a></h1>
+<section id="the-load-collection-process">
+<h2>The <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process<a class="headerlink" href="#the-load-collection-process" title="Link to this heading">#</a></h2>
+<p>The most straightforward way to start building your openEO data cube is through the <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process.
+As mentioned earlier, this is provided by the
+<a class="reference internal" href="api.html#openeo.rest.connection.Connection.load_collection" title="openeo.rest.connection.Connection.load_collection"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_collection()</span></code></a> method
+on a <a class="reference internal" href="api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a> object,
+which produces a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> instance.
+For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;SENTINEL2_TOC&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>While this should cover the majority of use cases,
+there some cases
+where one wants to build a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> object
+from something else or something more than just a simple <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process.</p>
+</section>
+<section id="construct-datacube-from-process">
+<span id="datacube-from-process"></span><h2>Construct DataCube from process<a class="headerlink" href="#construct-datacube-from-process" title="Link to this heading">#</a></h2>
+<p>Through <a class="reference internal" href="udp.html#user-defined-processes"><span class="std std-ref">user-defined processes</span></a> one can encapsulate
+one or more <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> processes and additional processing steps in a single
+reusable user-defined process.
+For example, imagine a user-defined process “masked_s2”
+that loads an openEO collection “SENTINEL2_TOC” and applies some kind of cloud masking.
+The implementation details of the cloud masking are not important here,
+but let’s assume there is a parameter “dilation” to fine-tune the cloud mask.
+Also note that the collection id “SENTINEL2_TOC” is hardcoded in the user-defined process.</p>
+<p>We can now construct a data cube from this user-defined process
+with <a class="reference internal" href="api.html#openeo.rest.connection.Connection.datacube_from_process" title="openeo.rest.connection.Connection.datacube_from_process"><code class="xref py py-meth docutils literal notranslate"><span class="pre">datacube_from_process()</span></code></a>
+as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_process</span><span class="p">(</span><span class="s2">&quot;masked_s2&quot;</span><span class="p">,</span> <span class="n">dilation</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># Further processing of the cube:</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="s2">&quot;2020-09-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-09-10&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that <a class="reference internal" href="api.html#openeo.rest.connection.Connection.datacube_from_process" title="openeo.rest.connection.Connection.datacube_from_process"><code class="xref py py-meth docutils literal notranslate"><span class="pre">datacube_from_process()</span></code></a> can be
+used with all kind of processes, not only user-defined processes.
+For example, while this is not exactly a real EO data use case,
+it will produce a valid openEO process graph that can be executed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_process</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">4.5</span>
+</pre></div>
+</div>
+</section>
+<section id="construct-a-datacube-from-json">
+<span id="datacube-from-json"></span><h2>Construct a DataCube from JSON<a class="headerlink" href="#construct-a-datacube-from-json" title="Link to this heading">#</a></h2>
+<p>openEO process graphs are typically stored and published in JSON format.
+Most notably, user-defined processes are transferred between openEO client
+and back-end in a JSON structure roughly like in this example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;evi&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;parameters&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;schema&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">}},</span>
+    <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;schema&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">}},</span>
+    <span class="o">...</span>
+  <span class="p">],</span>
+  <span class="s2">&quot;process_graph&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;sub&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;process_id&quot;</span><span class="p">:</span> <span class="s2">&quot;subtract&quot;</span><span class="p">,</span> <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="s2">&quot;nir&quot;</span><span class="p">},</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">}}},</span>
+    <span class="s2">&quot;p1&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;process_id&quot;</span><span class="p">:</span> <span class="s2">&quot;multiply&quot;</span><span class="p">,</span> <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_parameter&quot;</span><span class="p">:</span> <span class="s2">&quot;red&quot;</span><span class="p">}}},</span>
+    <span class="s2">&quot;div&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;process_id&quot;</span><span class="p">:</span> <span class="s2">&quot;divide&quot;</span><span class="p">,</span> <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_node&quot;</span><span class="p">:</span> <span class="s2">&quot;sub&quot;</span><span class="p">},</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;from_node&quot;</span><span class="p">:</span> <span class="s2">&quot;sum&quot;</span><span class="p">}},</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>It is possible to construct a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> object that corresponds with this
+process graph with the <a class="reference internal" href="api.html#openeo.rest.connection.Connection.datacube_from_json" title="openeo.rest.connection.Connection.datacube_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.datacube_from_json</span></code></a> method.
+It can be given one of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>a raw JSON string,</p></li>
+<li><p>a path to a local JSON file,</p></li>
+<li><p>an URL that points to a JSON resource</p></li>
+</ul>
+</div></blockquote>
+<p>The JSON structure should be one of:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>a mapping (dictionary) like the example above with at least a <code class="docutils literal notranslate"><span class="pre">&quot;process_graph&quot;</span></code> item,
+and optionally a <code class="docutils literal notranslate"><span class="pre">&quot;parameters&quot;</span></code> item.</p></li>
+<li><p>a mapping (dictionary) with <code class="docutils literal notranslate"><span class="pre">{&quot;process_id&quot;:</span> <span class="pre">...}</span></code> items</p></li>
+</ul>
+</div></blockquote>
+<section id="some-examples">
+<h3>Some examples<a class="headerlink" href="#some-examples" title="Link to this heading">#</a></h3>
+<p>Load a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> from a raw JSON string, containing a
+simple “flat graph” representation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">raw_json</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;{</span>
+<span class="s1">    &quot;lc&quot;: {&quot;process_id&quot;: &quot;load_collection&quot;, &quot;arguments&quot;: {&quot;id&quot;: &quot;SENTINEL2_TOC&quot;}},</span>
+<span class="s1">    &quot;ak&quot;: {&quot;process_id&quot;: &quot;apply_kernel&quot;, &quot;arguments&quot;: {&quot;data&quot;: {&quot;from_node&quot;: &quot;lc&quot;}, &quot;kernel&quot;: [[1,2,1],[2,5,2],[1,2,1]]}, &quot;result&quot;: true}</span>
+<span class="s1">}&#39;&#39;&#39;</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="n">raw_json</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Load from a raw JSON string, containing a mapping with “process_graph” and “parameters”:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">raw_json</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;{</span>
+<span class="s1">    &quot;parameters&quot;: [</span>
+<span class="s1">        {&quot;name&quot;: &quot;kernel&quot;, &quot;schema&quot;: {&quot;type&quot;: &quot;array&quot;}, &quot;default&quot;: [[1,2,1], [2,5,2], [1,2,1]]}</span>
+<span class="s1">    ],</span>
+<span class="s1">    &quot;process_graph&quot;: {</span>
+<span class="s1">        &quot;lc&quot;: {&quot;process_id&quot;: &quot;load_collection&quot;, &quot;arguments&quot;: {&quot;id&quot;: &quot;SENTINEL2_TOC&quot;}},</span>
+<span class="s1">        &quot;ak&quot;: {&quot;process_id&quot;: &quot;apply_kernel&quot;, &quot;arguments&quot;: {&quot;data&quot;: {&quot;from_node&quot;: &quot;lc&quot;}, &quot;kernel&quot;: {&quot;from_parameter&quot;: &quot;kernel&quot;}}, &quot;result&quot;: true}</span>
+<span class="s1">    }</span>
+<span class="s1">}&#39;&#39;&#39;</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="n">raw_json</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Load directly from a local file or URL containing these kind of JSON representations:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Local file</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="s2">&quot;path/to/my_udp.json&quot;</span><span class="p">)</span>
+
+<span class="c1"># URL</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="s2">&quot;https://example.com/my_udp.json&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="parameterization">
+<h3>Parameterization<a class="headerlink" href="#parameterization" title="Link to this heading">#</a></h3>
+<p>When the process graph uses parameters, you must specify the desired parameter values
+at the time of calling <a class="reference internal" href="api.html#openeo.rest.connection.Connection.datacube_from_json" title="openeo.rest.connection.Connection.datacube_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.datacube_from_json</span></code></a>.</p>
+<p>For example, take this simple toy example of a process graph that takes the sum of 5 and a parameter “increment”:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">raw_json</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;{&quot;add&quot;: {</span>
+<span class="s1">    &quot;process_id&quot;: &quot;add&quot;,</span>
+<span class="s1">    &quot;arguments&quot;: {&quot;x&quot;: 5, &quot;y&quot;: {&quot;from_parameter&quot;: &quot;increment&quot;}},</span>
+<span class="s1">    &quot;result&quot;: true</span>
+<span class="s1">}}&#39;&#39;&#39;</span>
+</pre></div>
+</div>
+<p>Trying to build a <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> from it without specifying parameter values will fail
+like this:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="n">raw_json</span><span class="p">)</span>
+<span class="go">ProcessGraphVisitException: No substitution value for parameter &#39;increment&#39;.</span>
+</pre></div>
+</div>
+<p>Instead, specify the parameter value:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span>
+<span class="gp">... </span>   <span class="n">raw_json</span><span class="p">,</span>
+<span class="hll"><span class="gp">... </span>   <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;increment&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+</span><span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cube</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">9</span>
+</pre></div>
+</div>
+<p>Parameters can also be defined with default values, which will be used when they are not specified
+in the <a class="reference internal" href="api.html#openeo.rest.connection.Connection.datacube_from_json" title="openeo.rest.connection.Connection.datacube_from_json"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.datacube_from_json</span></code></a> call:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">raw_json</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;{</span>
+<span class="s1">    &quot;parameters&quot;: [</span>
+<span class="s1">        {&quot;name&quot;: &quot;increment&quot;, &quot;schema&quot;: {&quot;type&quot;: &quot;number&quot;}, &quot;default&quot;: 100}</span>
+<span class="s1">    ],</span>
+<span class="s1">    &quot;process_graph&quot;: {</span>
+<span class="s1">        &quot;add&quot;: {&quot;process_id&quot;: &quot;add&quot;, &quot;arguments&quot;: {&quot;x&quot;: 5, &quot;y&quot;: {&quot;from_parameter&quot;: &quot;increment&quot;}}, &quot;result&quot;: true}</span>
+<span class="s1">    }</span>
+<span class="s1">}&#39;&#39;&#39;</span>
+
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">datacube_from_json</span><span class="p">(</span><span class="n">raw_json</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">execute</span><span class="p">())</span>
+<span class="c1"># result will be 105</span>
+</pre></div>
+</div>
+<section id="re-parameterization">
+<h4>Re-parameterization<a class="headerlink" href="#re-parameterization" title="Link to this heading">#</a></h4>
+<p>TODO</p>
+</section>
+</section>
+</section>
+<section id="building-process-graphs-with-multiple-result-nodes">
+<span id="multi-result-process-graphs"></span><h2>Building process graphs with multiple result nodes<a class="headerlink" href="#building-process-graphs-with-multiple-result-nodes" title="Link to this heading">#</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Multi-result support is added in version 0.35.0</p>
+</div>
+<p>Most openEO use cases are just about building a single result data cube,
+which is readily covered in the openEO Python client library through classes like
+<a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> and <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube" title="openeo.rest.vectorcube.VectorCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">VectorCube</span></code></a>.
+It is straightforward to create a batch job from these, or execute/download them synchronously.</p>
+<p>The openEO API also allows multiple result nodes in a single process graph,
+for example to persist intermediate results or produce results in different output formats.
+To support this, the openEO Python client library provides the <a class="reference internal" href="api.html#openeo.rest.multiresult.MultiResult" title="openeo.rest.multiresult.MultiResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiResult</span></code></a> class,
+which allows to group multiple <a class="reference internal" href="api.html#openeo.rest.datacube.DataCube" title="openeo.rest.datacube.DataCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataCube</span></code></a> and <a class="reference internal" href="api.html#openeo.rest.vectorcube.VectorCube" title="openeo.rest.vectorcube.VectorCube"><code class="xref py py-class docutils literal notranslate"><span class="pre">VectorCube</span></code></a> objects
+in a single entity that can be used to create or run batch jobs. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiResult</span>
+
+<span class="n">res1</span> <span class="o">=</span> <span class="n">cube1</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">res2</span> <span class="o">=</span> <span class="n">cube2</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">multi_result</span> <span class="o">=</span> <span class="n">MultiResult</span><span class="p">([</span><span class="n">res1</span><span class="p">,</span> <span class="n">res2</span><span class="p">])</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">multi_result</span><span class="o">.</span><span class="n">create_job</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Moreover, it is not necessary to explicitly create such a
+<a class="reference internal" href="api.html#openeo.rest.multiresult.MultiResult" title="openeo.rest.multiresult.MultiResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiResult</span></code></a> object,
+as the <a class="reference internal" href="api.html#openeo.rest.connection.Connection.create_job" title="openeo.rest.connection.Connection.create_job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Connection.create_job()</span></code></a> method
+directly supports passing multiple data cube objects in a list,
+which will be automatically grouped as a multi-result:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">res1</span> <span class="o">=</span> <span class="n">cube1</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">res2</span> <span class="o">=</span> <span class="n">cube2</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">create_job</span><span class="p">([</span><span class="n">res1</span><span class="p">,</span> <span class="n">res2</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Only a single <a class="reference internal" href="api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a> can be in play
+when grouping multiple results like this.
+As everything is to be merged in a single process graph
+to be sent to a single backend,
+it is not possible to mix cubes created from different connections.</p>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="udf.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">User-Defined Functions (UDF) explained</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="machine_learning.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Machine Learning</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-load-collection-process">The <code class="docutils literal notranslate"><span class="pre">load_collection</span></code> process</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#construct-datacube-from-process">Construct DataCube from process</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#construct-a-datacube-from-json">Construct a DataCube from JSON</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#some-examples">Some examples</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameterization">Parameterization</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#re-parameterization">Re-parameterization</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#building-process-graphs-with-multiple-result-nodes">Building process graphs with multiple result nodes</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

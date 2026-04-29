@@ -1,0 +1,891 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Development and maintenance &#8212; openEO Python Client 0.50.0a2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="_static/documentation_options.js?v=9ad9c3f4"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'development';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Best practices, coding style and general tips" href="best_practices.html" />
+    <link rel="prev" title="openEO Process Mapping" href="process_mapping.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.50" />
+    <meta name="docbuild:last-update" content="2026/04/29"/>
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.50.0a2</code></div>
+  <div>Last updated: 2026/04/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Development and maintenance</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="development-and-maintenance">
+<span id="id1"></span><h1>Development and maintenance<a class="headerlink" href="#development-and-maintenance" title="Link to this heading">#</a></h1>
+<p>For development on the <code class="docutils literal notranslate"><span class="pre">openeo</span></code> package itself,
+it is recommended to install a local git checkout of the project
+in development mode (<code class="docutils literal notranslate"><span class="pre">-e</span></code>)
+with additional development related dependencies (<code class="docutils literal notranslate"><span class="pre">[dev]</span></code>)
+like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">e</span> <span class="o">.</span><span class="p">[</span><span class="n">dev</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>If you are on Windows and experience problems installing this way, you can find some solutions in section <a class="reference internal" href="#development-installation-on-windows">Development Installation on Windows</a>.</p>
+<section id="running-the-unit-tests">
+<h2>Running the unit tests<a class="headerlink" href="#running-the-unit-tests" title="Link to this heading">#</a></h2>
+<p>The test suite of the openEO Python Client leverages
+the nice <a class="reference external" href="https://docs.pytest.org/en/stable/">pytest</a> framework.
+It is installed automatically when installing the openEO Python Client
+with the <code class="docutils literal notranslate"><span class="pre">[dev]</span></code> extra as shown above.
+Running the whole tests is as simple as executing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pytest</span>
+</pre></div>
+</div>
+<p>There are a ton of command line options for fine-tuning
+(e.g. select a subset of tests, how results should be reported, …).
+Run <code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">-h</span></code> for a quick overview
+or check the <a class="reference external" href="https://docs.pytest.org/en/stable/">pytest</a> documentation for more information.</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Skip tests that are marked as slow</span>
+<span class="n">pytest</span> <span class="o">-</span><span class="n">m</span> <span class="s2">&quot;not slow&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="building-the-documentation">
+<h2>Building the documentation<a class="headerlink" href="#building-the-documentation" title="Link to this heading">#</a></h2>
+<p>Building the documentation requires <a class="reference external" href="https://www.sphinx-doc.org/en/master/">Sphinx</a>
+and some plugins
+(which are installed automatically as part of the <code class="docutils literal notranslate"><span class="pre">[dev]</span></code> install).</p>
+<section id="quick-and-easy">
+<h3>Quick and easy<a class="headerlink" href="#quick-and-easy" title="Link to this heading">#</a></h3>
+<p>The easiest way to build the documentation is working from the <code class="docutils literal notranslate"><span class="pre">docs</span></code> folder
+and using the <code class="docutils literal notranslate"><span class="pre">Makefile</span></code>:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># From `docs` folder</span>
+make<span class="w"> </span>html
+</pre></div>
+</div>
+<p>(assumes you have <code class="docutils literal notranslate"><span class="pre">make</span></code> available, if not: use <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-msphinx</span> <span class="pre">-M</span> <span class="pre">html</span> <span class="pre">.</span>&#160; <span class="pre">_build</span></code>.)</p>
+<p>This will generate the docs in HTML format under <code class="docutils literal notranslate"><span class="pre">docs/_build/html/</span></code>.
+Open the HTML files manually,
+or use Python’s built-in web server to host them locally, e.g.:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># From `docs` folder</span>
+python<span class="w"> </span>-m<span class="w"> </span>http.server<span class="w"> </span><span class="m">8000</span>
+</pre></div>
+</div>
+<p>Then, visit  <a class="reference external" href="http://127.0.0.1:8000/_build/html/">http://127.0.0.1:8000/_build/html/</a> in your browser</p>
+</section>
+<section id="like-a-pro">
+<h3>Like a Pro<a class="headerlink" href="#like-a-pro" title="Link to this heading">#</a></h3>
+<p>When doing larger documentation work, it can be tedious to manually rebuild the docs
+and refresh your browser to check the result.
+Instead, use <a class="reference external" href="https://github.com/executablebooks/sphinx-autobuild">sphinx-autobuild</a>
+to automatically rebuild on documentation changes and live-reload it in your browser.
+After installation (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">sphinx-autobuild</span></code> in your development environment),
+just run</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># From project root</span>
+sphinx-autobuild<span class="w"> </span>docs/<span class="w"> </span>--watch<span class="w"> </span>openeo/<span class="w"> </span>docs/_build/html/
+</pre></div>
+</div>
+<p>and then visit <a class="reference external" href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> .
+When you change (and save) documentation source files, your browser should now
+automatically refresh and show the newly built docs. Just like magic.</p>
+</section>
+</section>
+<section id="contributing-code">
+<h2>Contributing code<a class="headerlink" href="#contributing-code" title="Link to this heading">#</a></h2>
+<p>User contributions (such as bug fixes and new features, both in source code and documentation)
+are greatly appreciated and welcome.</p>
+<section id="pull-requests">
+<h3>Pull requests<a class="headerlink" href="#pull-requests" title="Link to this heading">#</a></h3>
+<p>We use a traditional <a class="reference external" href="https://docs.github.com/en/pull-requests">GitHub Pull Request (PR)</a> workflow
+for user contributions, which roughly follows these steps:</p>
+<ul class="simple">
+<li><p>Create a personal fork of <a class="github reference external" href="https://github.com/Open-EO/openeo-python-client">Open-EO/openeo-python-client</a>
+(unless you already have push permissions to an existing fork or the original repo)</p></li>
+<li><p>Preferably: work on your contribution in a new feature branch</p></li>
+<li><p>Push your feature branch to your fork and create a pull request</p></li>
+<li><p>The pull request is the place for review, discussion and fine-tuning of your work</p></li>
+<li><p>Once your pull request is in good shape it will be merged by a maintainer</p></li>
+</ul>
+</section>
+<section id="pre-commit-for-basic-code-quality-checks">
+<span id="precommit"></span><h3>Pre-commit for basic code quality checks<a class="headerlink" href="#pre-commit-for-basic-code-quality-checks" title="Link to this heading">#</a></h3>
+<p>We started using the generic <a class="reference external" href="https://pre-commit.com/">pre-commit</a> tool
+for basic fine-tuning of code style and quality in new contributions.
+It’s currently not enforced, but <strong>enabling pre-commit is recommended</strong> and appreciated
+when contributing code.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that the whole repository does not fully follow all code styles rules at the moment.
+We’re just gradually introducing it, piggybacking on new contributions and commits.</p>
+</div>
+<section id="pre-commit-set-up">
+<h4>Pre-commit set up<a class="headerlink" href="#pre-commit-set-up" title="Link to this heading">#</a></h4>
+<ol class="arabic">
+<li><p>Install the general <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code> command line tool, for example:</p>
+<ul class="simple">
+<li><p>The simplest option is to install it directly in the <em>virtual environment</em>
+you are using for openEO Python client development (e.g. <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pre-commit</span></code>).</p></li>
+<li><p>You can also install it <em>globally</em> on your system
+(e.g. using <a class="reference external" href="https://pipx.pypa.io/">pipx</a>,
+<a class="reference external" href="https://docs.astral.sh/uv/concepts/tools/">uv tool</a>,
+conda, homebrew, …)
+so you can easily (re)use it across different projects.</p></li>
+</ul>
+<p>Or follow the official installation instructions at
+<a class="reference external" href="https://pre-commit.com/#install">https://pre-commit.com/#install</a>.</p>
+</li>
+<li><p>Install the project-specific git hook scripts by running this in the root of your local git clone:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">pre-commit install</span>
+</pre></div>
+</div>
+<p>This will automatically install additional scripts and tools in a sandbox
+to run the various checks defined in the project’s <code class="docutils literal notranslate"><span class="pre">.pre-commit-config.yaml</span></code> configuration file.</p>
+</li>
+</ol>
+</section>
+<section id="pre-commit-usage">
+<h4>Pre-commit usage<a class="headerlink" href="#pre-commit-usage" title="Link to this heading">#</a></h4>
+<p>When you commit new changes, the freshly installed pre-commit hook
+will now automatically run each of the configured linters/formatters/…
+Some of these just flag issues (e.g. invalid JSON files)
+while others even automatically fix problems (e.g. clean up excessive whitespace).</p>
+<p>If there is some kind of violation, the commit will be blocked.
+Address these problems and try to commit again.</p>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>Some pre-commit tools directly <em>edit</em> your files (e.g. formatting tweaks)
+instead of just flagging issues.
+This might feel intrusive at first, but once you get the hang of it,
+it should allow to streamline your workflow.</p>
+<p>In particular, it is recommended to use the <em>staging</em> feature of git to prepare your commit.
+Pre-commit’s proposed changes are not staged automatically,
+so you can more easily keep them separate and review.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>You can temporarily disable pre-commit for these rare cases
+where you intentionally want to commit violating code style,
+e.g. through <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span></code> command line option <code class="docutils literal notranslate"><span class="pre">-n</span></code>/<code class="docutils literal notranslate"><span class="pre">--no-verify</span></code>.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="creating-a-release">
+<h2>Creating a release<a class="headerlink" href="#creating-a-release" title="Link to this heading">#</a></h2>
+<p>This section describes the procedure to create
+properly versioned releases of the <code class="docutils literal notranslate"><span class="pre">openeo</span></code> package
+that can be downloaded by end users (e.g. through <code class="docutils literal notranslate"><span class="pre">pip</span></code> from pypi.org)
+and depended on by other projects.</p>
+<p>The releases will end up on:</p>
+<ul class="simple">
+<li><p>PyPi: <a class="reference external" href="https://pypi.org/project/openeo/">https://pypi.org/project/openeo</a></p></li>
+<li><p>VITO Artifactory: <a class="reference external" href="https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple/openeo/">https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple/openeo/</a></p></li>
+<li><p>GitHub: <a class="github reference external" href="https://github.com/Open-EO/openeo-python-client/releases">Open-EO/openeo-python-client</a></p></li>
+</ul>
+<section id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>You have permissions to push branches and tags and maintain releases on
+the <a class="reference external" href="https://github.com/Open-EO/openeo-python-client">openeo-python-client project on GitHub</a>.</p></li>
+<li><p>You have permissions to upload releases to the
+<a class="reference external" href="https://pypi.org/project/openeo/">openeo project on pypi.org</a></p></li>
+<li><p>The Python virtual environment you work in has the latest versions
+of the <code class="docutils literal notranslate"><span class="pre">twine</span></code> package installed.
+If you plan to build the wheel yourself (instead of letting GitHub or Jenkins do this),
+you also need recent enough versions of the <code class="docutils literal notranslate"><span class="pre">setuptools</span></code> and <code class="docutils literal notranslate"><span class="pre">wheel</span></code> packages.</p></li>
+</ul>
+</section>
+<section id="important-files">
+<h3>Important files<a class="headerlink" href="#important-files" title="Link to this heading">#</a></h3>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">setup.py</span></code></dt><dd><p>describes the metadata of the package,
+like package name <code class="docutils literal notranslate"><span class="pre">openeo</span></code> and version
+(which is extracted from <code class="docutils literal notranslate"><span class="pre">openeo/_version.py</span></code>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">openeo/_version.py</span></code></dt><dd><p>defines the version of the package.
+During general <strong>development</strong>, this version string should contain
+a <a class="reference external" href="https://www.python.org/dev/peps/pep-0440/#pre-releases">pre-release</a>
+segment (e.g. <code class="docutils literal notranslate"><span class="pre">a1</span></code> for alpha releases, <code class="docutils literal notranslate"><span class="pre">b1</span></code> for beta releases, etc)
+to avoid collision with final releases. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.8.0a1&#39;</span>
+</pre></div>
+</div>
+<p>As discussed below, this pre-release suffix should
+only be removed during the release procedure
+and restored when bumping the version after the release procedure.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">CHANGELOG.md</span></code></dt><dd><p>keeps track of important changes associated with each release.
+It follows the <a class="reference external" href="https://keepachangelog.com">Keep a Changelog</a> convention
+and should be properly updated with each bug fix, feature addition/removal, …
+under the <code class="docutils literal notranslate"><span class="pre">Unreleased</span></code> section during development.</p>
+</dd>
+</dl>
+</section>
+<section id="procedure">
+<h3>Procedure<a class="headerlink" href="#procedure" title="Link to this heading">#</a></h3>
+<p>These are the steps to create and publish a new release of the <code class="docutils literal notranslate"><span class="pre">openeo</span></code> package.
+To avoid the confusion with ad-hoc injection of some abstract version placeholder
+that has to be replaced properly,
+we will use a concrete version <code class="docutils literal notranslate"><span class="pre">0.8.0</span></code> in the examples below.</p>
+<ol class="arabic" start="0">
+<li><p>Make sure you are working on <strong>latest master branch</strong>,
+without uncommitted changes and all tests are properly passing.</p></li>
+<li><p>Create release commit:</p>
+<ol class="upperalpha">
+<li><p><strong>Drop the pre-release suffix</strong> from the version string in <code class="docutils literal notranslate"><span class="pre">openeo/_version.py</span></code>
+so that it is just a “final” semantic versioning string, e.g. <code class="docutils literal notranslate"><span class="pre">0.8.0</span></code></p></li>
+<li><p><strong>Update CHANGELOG.md</strong>: rename the “Unreleased” section title
+to contain version and date, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">## [0.8.0] - 2020-12-15</span>
+</pre></div>
+</div>
+<p>remove empty subsections
+and start a new “Unreleased” section above it, like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">## [Unreleased]</span>
+
+<span class="c1">### Added</span>
+
+<span class="c1">### Changed</span>
+
+<span class="c1">### Removed</span>
+
+<span class="c1">### Fixed</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Commit</strong> these changes in git with a commit message like <code class="docutils literal notranslate"><span class="pre">Release</span> <span class="pre">0.8.0</span></code>
+and <strong>push</strong> to GitHub:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">add</span> <span class="n">openeo</span><span class="o">/</span><span class="n">_version</span><span class="o">.</span><span class="n">py</span> <span class="n">CHANGELOG</span><span class="o">.</span><span class="n">md</span>
+<span class="n">git</span> <span class="n">commit</span> <span class="o">-</span><span class="n">m</span> <span class="s1">&#39;Release 0.8.0&#39;</span>
+<span class="n">git</span> <span class="n">push</span> <span class="n">origin</span> <span class="n">master</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</li>
+<li><p>Create release on <a class="reference external" href="https://pypi.org/">PyPI</a>:</p>
+<ol class="upperalpha">
+<li><p><strong>Obtain a wheel archive</strong> of the package, with one of these approaches:</p>
+<ul>
+<li><p><em>Preferably, the path of least surprise</em>: build wheel through GitHub Actions.
+Go to workflow <a class="reference external" href="https://github.com/Open-EO/openeo-python-client/actions/workflows/build-wheel.yml">“Build wheel”</a>,
+manually trigger a build with “Run workflow” button, wait for it to finish successfully,
+download generated <code class="docutils literal notranslate"><span class="pre">artifact.zip</span></code>, and finally: unzip it to obtain <code class="docutils literal notranslate"><span class="pre">openeo-0.8.0-py3-none-any.whl</span></code></p></li>
+<li><p><em>Or, if you know what you are doing</em> and you’re sure you have a clean
+local checkout, you can also build it locally:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">bdist_wheel</span>
+</pre></div>
+</div>
+<p>This should create <code class="docutils literal notranslate"><span class="pre">dist/openeo-0.8.0-py3-none-any.whl</span></code></p>
+</li>
+</ul>
+</li>
+<li><p><strong>Upload</strong> this wheel to <a class="reference external" href="https://pypi.org/project/openeo/">openeo project on PyPI</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">twine</span> <span class="n">upload</span> <span class="n">openeo</span><span class="o">-</span><span class="mf">0.8.0</span><span class="o">-</span><span class="n">py3</span><span class="o">-</span><span class="n">none</span><span class="o">-</span><span class="nb">any</span><span class="o">.</span><span class="n">whl</span>
+</pre></div>
+</div>
+<p>Check the <a class="reference external" href="https://pypi.org/project/openeo/#history">release history on PyPI</a>
+to verify the twine upload.
+Another way to verify that the freshly created release installs
+is using docker to do a quick install-and-burn,
+for example as follows (check the installed version in pip’s output):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">it</span> <span class="n">python</span> <span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">deps</span> <span class="n">openeo</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</li>
+<li><p>Create a <strong>git version tag</strong> and push it to GitHub:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">tag</span> <span class="n">v0</span><span class="mf">.8.0</span>
+<span class="n">git</span> <span class="n">push</span> <span class="n">origin</span> <span class="n">v0</span><span class="mf">.8.0</span>
+</pre></div>
+</div>
+</li>
+<li><p>Create a <strong>release in GitHub</strong>:
+Go to <a class="github reference external" href="https://github.com/Open-EO/openeo-python-client/releases/new">Open-EO/openeo-python-client</a>,
+Enter <code class="docutils literal notranslate"><span class="pre">v0.8.0</span></code> under “tag”,
+enter title: <code class="docutils literal notranslate"><span class="pre">openEO</span> <span class="pre">Python</span> <span class="pre">Client</span> <span class="pre">v0.8.0</span></code>,
+use the corresponding <code class="docutils literal notranslate"><span class="pre">CHANGELOG.md</span></code> section as description
+and publish it
+(no need to attach binaries).</p></li>
+<li><p><strong>Bump the version</strong> in <code class="docutils literal notranslate"><span class="pre">openeo/_version.py</span></code>, (usually the “minor” level)
+and append a pre-release “a1” suffix again, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.9.0a1&#39;</span>
+</pre></div>
+</div>
+<p>Commit this (e.g. with message <code class="docutils literal notranslate"><span class="pre">_version.py:</span> <span class="pre">bump</span> <span class="pre">to</span> <span class="pre">0.9.0a1</span></code>)
+and push to GitHub.</p>
+</li>
+<li><p>Update <a class="reference external" href="https://github.com/conda-forge/openeo-feedstock">conda-forge package</a> too
+(requires conda recipe maintainer role).
+Normally, the “regro-cf-autotick-bot” will create a <a class="reference external" href="https://github.com/conda-forge/openeo-feedstock/pulls">pull request</a>.
+If it builds fine, merge it.
+If not, fix the issue
+(typically in <a class="reference external" href="https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml">recipe/meta.yaml</a>)
+and merge.</p></li>
+<li><p>Optionally: make a post about the new release
+on the <a class="reference external" href="https://discuss.eodc.eu/c/openeo-platform/clients/18">openEO Platform Forum</a>
+or the <a class="reference external" href="https://forum.dataspace.copernicus.eu/c/openeo/28">CDSE Forum</a>.</p></li>
+</ol>
+<section id="verification">
+<h4>Verification<a class="headerlink" href="#verification" title="Link to this heading">#</a></h4>
+<p>The new release should now be available/listed at:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://pypi.org/project/openeo/#history">https://pypi.org/project/openeo/#history</a></p></li>
+<li><p><a class="github reference external" href="https://github.com/Open-EO/openeo-python-client/releases">Open-EO/openeo-python-client</a></p></li>
+</ul>
+<p>Here is a bash (subshell) oneliner to verify that the PyPI release works properly:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span>
+    <span class="n">cd</span> <span class="o">/</span><span class="n">tmp</span> <span class="o">&amp;&amp;</span>\
+    <span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">venv</span><span class="o">-</span><span class="n">openeo</span> <span class="o">&amp;&amp;</span>\
+    <span class="n">source</span> <span class="n">venv</span><span class="o">-</span><span class="n">openeo</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span> <span class="o">&amp;&amp;</span>\
+    <span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">U</span> <span class="n">openeo</span> <span class="o">&amp;&amp;</span>\
+    <span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import openeo;print(openeo);print(openeo.__version__)&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>It tries to install the latest version of the <code class="docutils literal notranslate"><span class="pre">openeo</span></code> package in a temporary virtual env,
+import it and print the package version.</p>
+</section>
+</section>
+</section>
+<section id="development-installation-on-windows">
+<h2>Development Installation on Windows<a class="headerlink" href="#development-installation-on-windows" title="Link to this heading">#</a></h2>
+<p>Normally you can install the client the same way on Windows as on Linux, like so:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">pip install -e .[dev]</span>
+</pre></div>
+</div>
+<section id="alternative-development-installation">
+<h3>Alternative development installation<a class="headerlink" href="#alternative-development-installation" title="Link to this heading">#</a></h3>
+<p>The standard pure-<code class="docutils literal notranslate"><span class="pre">pip</span></code> based installation should work with the most recent code.
+However, in the past we sometimes had issues with this procedure.
+Should you experience problems, consider using an alternative conda-based installation procedure:</p>
+<ol class="arabic">
+<li><p>Create and activate a new conda environment for developing the openeo-python-client.
+For example:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">conda create -n openeopyclient</span>
+<span class="go">conda activate openeopyclient</span>
+</pre></div>
+</div>
+</li>
+<li><p>In that conda environment, install only the dependencies of <code class="docutils literal notranslate"><span class="pre">openeo</span></code> via conda,
+but not the <code class="docutils literal notranslate"><span class="pre">openeo</span></code> package itself.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Install<span class="w"> </span>openeo<span class="w"> </span>dependencies<span class="w"> </span><span class="o">(</span>from<span class="w"> </span>the<span class="w"> </span>conda-forge<span class="w"> </span>channel<span class="o">)</span>
+<span class="go">conda install --only-deps -c conda-forge openeo</span>
+</pre></div>
+</div>
+</li>
+<li><p>Do a <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> from the project root in <em>editable mode</em> (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">-e</span></code>):</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">pip install -e .[dev]</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+</section>
+<section id="update-of-generated-files">
+<h2>Update of generated files<a class="headerlink" href="#update-of-generated-files" title="Link to this heading">#</a></h2>
+<p>Some parts of the openEO Python Client Library source code are
+generated/compiled from upstream sources (e.g. official openEO specifications).
+Because updates are not often required,
+it’s just a semi-manual procedure (to run from the project root):</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Update<span class="w"> </span>the<span class="w"> </span>sub-repositories<span class="w"> </span><span class="o">(</span>like<span class="w"> </span>git<span class="w"> </span>submodules,<span class="w"> </span>but<span class="w"> </span>optional<span class="o">)</span>
+<span class="go">python specs/update-subrepos.py</span>
+
+<span class="gp"># </span>Update<span class="w"> </span><span class="sb">`</span>openeo/processes.py<span class="sb">`</span><span class="w"> </span>from<span class="w"> </span>specifications<span class="w"> </span><span class="k">in</span><span class="w"> </span>openeo-processes<span class="w"> </span>repository
+<span class="go">python openeo/internal/processes/generator.py  specs/openeo-processes specs/openeo-processes/proposals --output openeo/processes.py</span>
+
+<span class="gp"># </span>Update<span class="w"> </span>the<span class="w"> </span>openEO<span class="w"> </span>process<span class="w"> </span>mapping<span class="w"> </span>documentation<span class="w"> </span>page
+<span class="go">python docs/process_mapping.py &gt; docs/process_mapping.rst</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="process_mapping.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">openEO Process Mapping</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="best_practices.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Best practices, coding style and general tips</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-the-unit-tests">Running the unit tests</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#building-the-documentation">Building the documentation</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#quick-and-easy">Quick and easy</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#like-a-pro">Like a Pro</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributing-code">Contributing code</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pull-requests">Pull requests</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pre-commit-for-basic-code-quality-checks">Pre-commit for basic code quality checks</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#pre-commit-set-up">Pre-commit set up</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#pre-commit-usage">Pre-commit usage</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-a-release">Creating a release</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#prerequisites">Prerequisites</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#important-files">Important files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#procedure">Procedure</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#verification">Verification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-installation-on-windows">Development Installation on Windows</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#alternative-development-installation">Alternative development installation</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update-of-generated-files">Update of generated files</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

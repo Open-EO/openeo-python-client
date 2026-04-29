@@ -1,0 +1,602 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Analysis Ready Data generation &#8212; openEO Python Client 0.50.0a2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../_static/documentation_options.js?v=9ad9c3f4"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'cookbook/ard';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dataset sampling" href="sampling.html" />
+    <link rel="prev" title="openEO CookBook" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.50" />
+    <meta name="docbuild:last-update" content="2026/04/29"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spectral_indices.html">Spectral Indices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="job_manager.html">Multi Backend Job Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localprocessing.html">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.50.0a2</code></div>
+  <div>Last updated: 2026/04/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">openEO CookBook</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Analysis Ready Data generation</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="analysis-ready-data-generation">
+<span id="ard"></span><h1>Analysis Ready Data generation<a class="headerlink" href="#analysis-ready-data-generation" title="Link to this heading">#</a></h1>
+<p>For certain use cases, the preprocessed data collections available in the openEO back-ends are not sufficient or simply not
+available. For that case, openEO supports a few very common preprocessing scenario:</p>
+<ul class="simple">
+<li><p>Atmospheric correction of optical data</p></li>
+<li><p>SAR backscatter computation</p></li>
+</ul>
+<p>These processes also offer a number of parameters to customize the processing. There’s also variants with a default
+parametrization that results in data that is compliant with CEOS CARD4L specifications <a class="reference external" href="https://ceos.org/ard/">https://ceos.org/ard/</a>.</p>
+<p>We should note that these operations can be computationally expensive, so certainly affect overall processing time and
+cost of your final algorithm. Hence, make sure to make an informed decision when you decide to use these methods.</p>
+<section id="atmospheric-correction">
+<h2>Atmospheric correction<a class="headerlink" href="#atmospheric-correction" title="Link to this heading">#</a></h2>
+<p>The <a class="reference external" href="https://processes.openeo.org/draft/#atmospheric_correction">atmospheric correction</a> process can apply a chosen
+method on raw ‘L1C’ data. The supported methods and input datasets depend on the back-end, because not every method is
+validated or works on any dataset, and different back-ends try to offer a variety of options. This gives you as a user
+more options to run and compare different methods, and select the most suitable one for your case.</p>
+<p>To perform an <a class="reference external" href="https://processes.openeo.org/draft/#atmospheric_correction">atmospheric correction</a>, the user has to
+load an uncorrected L1C optical dataset. On the resulting datacube, the <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.atmospheric_correction" title="openeo.rest.datacube.DataCube.atmospheric_correction"><code class="xref py py-func docutils literal notranslate"><span class="pre">atmospheric_correction()</span></code></a>
+method can be invoked. Note that it may not be possible to apply certain processes to the raw input data: preprocessing
+algorithms can be tightly coupled with the raw data, making it hard or impossible for the back-end to perform operations
+in between loading and correcting the data.</p>
+<p>The CARD4L variant of this process is: <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_surface_reflectance" title="openeo.rest.datacube.DataCube.ard_surface_reflectance"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_surface_reflectance()</span></code></a>. This process follows
+CEOS specifications, and thus can additional processing steps, like a BRDF correction, that are not yet available as a
+separate process.</p>
+<section id="reference-implementations">
+<h3>Reference implementations<a class="headerlink" href="#reference-implementations" title="Link to this heading">#</a></h3>
+<p>This section shows a few working examples for these processes.</p>
+<section id="eodc-back-end">
+<h4>EODC back-end<a class="headerlink" href="#eodc-back-end" title="Link to this heading">#</a></h4>
+<p>EODC (<a class="reference external" href="https://openeo.eodc.eu/v1.0">https://openeo.eodc.eu/v1.0</a>) supports ard_surface_reflectance, based on the FORCE toolbox. (<a class="github reference external" href="https://github.com/davidfrantz/force">davidfrantz/force</a>)</p>
+</section>
+<section id="geotrellis-back-end">
+<h4>Geotrellis back-end<a class="headerlink" href="#geotrellis-back-end" title="Link to this heading">#</a></h4>
+<p>The geotrellis back-end (<a class="reference external" href="https://openeo.vito.be">https://openeo.vito.be</a>) supports <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.atmospheric_correction" title="openeo.rest.datacube.DataCube.atmospheric_correction"><code class="xref py py-func docutils literal notranslate"><span class="pre">atmospheric_correction()</span></code></a> with iCor and SMAC as methods.
+The version of iCor only offers basic atmoshperic correction features, without special options for water products: <a class="reference external" href="https://remotesensing.vito.be/case/icor">https://remotesensing.vito.be/case/icor</a>
+SMAC is implemented based on: <a class="github reference external" href="https://github.com/olivierhagolle/SMAC">olivierhagolle/SMAC</a>
+Both methods have been tested with Sentinel-2 as input. The viewing and sun angles need to be selected by the user to make them
+available for the algorithm.</p>
+<p>This is an example of applying iCor:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l1c</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s2">&quot;SENTINEL2_L1C_SENTINELHUB&quot;</span><span class="p">,</span>
+        <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;west&#39;</span><span class="p">:</span><span class="mf">3.758216409030558</span><span class="p">,</span><span class="s1">&#39;east&#39;</span><span class="p">:</span><span class="mf">4.087806252</span><span class="p">,</span><span class="s1">&#39;south&#39;</span><span class="p">:</span><span class="mf">51.291835566</span><span class="p">,</span><span class="s1">&#39;north&#39;</span><span class="p">:</span><span class="mf">51.3927399</span><span class="p">},</span>
+        <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2017-03-07&quot;</span><span class="p">,</span><span class="s2">&quot;2017-03-07&quot;</span><span class="p">],</span><span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;B04&#39;</span><span class="p">,</span><span class="s1">&#39;B03&#39;</span><span class="p">,</span><span class="s1">&#39;B02&#39;</span><span class="p">,</span><span class="s1">&#39;B09&#39;</span><span class="p">,</span><span class="s1">&#39;B8A&#39;</span><span class="p">,</span><span class="s1">&#39;B11&#39;</span><span class="p">,</span><span class="s1">&#39;sunAzimuthAngles&#39;</span><span class="p">,</span><span class="s1">&#39;sunZenithAngles&#39;</span><span class="p">,</span><span class="s1">&#39;viewAzimuthMean&#39;</span><span class="p">,</span><span class="s1">&#39;viewZenithMean&#39;</span><span class="p">]</span> <span class="p">)</span>
+<span class="n">l1c</span><span class="o">.</span><span class="n">atmospheric_correction</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;iCor&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s2">&quot;rgb-icor.geotiff&quot;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="sar-backscatter">
+<h2>SAR backscatter<a class="headerlink" href="#sar-backscatter" title="Link to this heading">#</a></h2>
+<p>Data from synthetic aperture radar sensors requires significant preprocessing to be calibrated and normalized for terrain.
+This is referred to as backscatter computation, and supported by
+<a class="reference external" href="https://processes.openeo.org/draft/#sar_backscatter">sar_backscatter</a> and the CARD4L compliant variant
+<a class="reference external" href="https://processes.openeo.org/draft/#ard_normalized_radar_backscatter">ard_normalized_radar_backscatter</a></p>
+<p>The user should load a datacube containing raw SAR data, such as Sentinel-1 GRD. On the resulting datacube, the
+<a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.sar_backscatter" title="openeo.rest.datacube.DataCube.sar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">sar_backscatter()</span></code></a> method can be invoked. The CEOS CARD4L variant is:
+<a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter" title="openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_normalized_radar_backscatter()</span></code></a>. These processes are tightly coupled to
+metadata from specific sensors, so it is not possible to apply other processes to the datacube first,
+with the exception of specifying filters in space and time.</p>
+<section id="id4">
+<h3>Reference implementations<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<p>This section shows a few working examples for these processes.</p>
+<section id="id5">
+<h4>EODC back-end<a class="headerlink" href="#id5" title="Link to this heading">#</a></h4>
+<p>EODC (<a class="reference external" href="https://openeo.eodc.eu/v1.0">https://openeo.eodc.eu/v1.0</a>) supports sar_backscatter, based on the Sentinel-1 toolbox. (<a class="reference external" href="https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1">https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</a>)</p>
+</section>
+<section id="id6">
+<h4>Geotrellis back-end<a class="headerlink" href="#id6" title="Link to this heading">#</a></h4>
+<p>When working with the Sentinelhub SENTINEL1_GRD collection, both sar processes can be used. The underlying implementation is
+provided by Sentinelhub, (<a class="reference external" href="https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options">https://docs.sentinel-hub.com/api/latest/data/sentinel-1-grd/#processing-options</a>), and offers full
+CARD4L compliant processing options.</p>
+<p>This is an example of <a class="reference internal" href="../api.html#openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter" title="openeo.rest.datacube.DataCube.ard_normalized_radar_backscatter"><code class="xref py py-func docutils literal notranslate"><span class="pre">ard_normalized_radar_backscatter()</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s1grd</span> <span class="o">=</span> <span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span><span class="s1">&#39;SENTINEL1_GRD&#39;</span><span class="p">,</span> <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;VH&#39;</span><span class="p">,</span> <span class="s1">&#39;VV&#39;</span><span class="p">])</span>
+ <span class="o">.</span><span class="n">filter_bbox</span><span class="p">(</span><span class="n">west</span><span class="o">=</span><span class="mf">2.59003</span><span class="p">,</span> <span class="n">east</span><span class="o">=</span><span class="mf">2.8949</span><span class="p">,</span> <span class="n">north</span><span class="o">=</span><span class="mf">51.2206</span><span class="p">,</span> <span class="n">south</span><span class="o">=</span><span class="mf">51.069</span><span class="p">)</span>
+ <span class="o">.</span><span class="n">filter_temporal</span><span class="p">(</span><span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2019-10-10&quot;</span><span class="p">,</span><span class="s2">&quot;2019-10-10&quot;</span><span class="p">]))</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">s1grd</span><span class="o">.</span><span class="n">ard_normalized_radar_backscatter</span><span class="p">()</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">get_assets</span><span class="p">():</span>
+    <span class="n">asset</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>When working with other GRD data, an implementation based on Orfeo Toolbox is used:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.orfeo-toolbox.org/CookBook/Applications/app_SARCalibration.html">Orfeo docs</a></p></li>
+<li><p><a class="reference external" href="https://github.com/Open-EO/openeo-geopyspark-driver/blob/master/openeogeotrellis/collections/s1backscatter_orfeo.py">Implementation</a></p></li>
+</ul>
+<p>The Orfeo implementation currently only supports sigma0 computation, and is not CARD4L compliant.</p>
+</section>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">openEO CookBook</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="sampling.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Dataset sampling</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#atmospheric-correction">Atmospheric correction</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reference-implementations">Reference implementations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#eodc-back-end">EODC back-end</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#geotrellis-back-end">Geotrellis back-end</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sar-backscatter">SAR backscatter</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">Reference implementations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">EODC back-end</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">Geotrellis back-end</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

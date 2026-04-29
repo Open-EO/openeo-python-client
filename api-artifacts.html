@@ -1,0 +1,704 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>API: openeo.extra.artifacts &#8212; openEO Python Client 0.50.0a2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="_static/documentation_options.js?v=9ad9c3f4"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api-artifacts';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="openEO Process Mapping" href="process_mapping.html" />
+    <link rel="prev" title="API: openeo.processes" href="api-processes.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.50" />
+    <meta name="docbuild:last-update" content="2026/04/29"/>
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.50.0a2</code></div>
+  <div>Last updated: 2026/04/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">API: openeo.extra.artifacts</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="api-openeo-extra-artifacts">
+<span id="id1"></span><h1>API: openeo.extra.artifacts<a class="headerlink" href="#api-openeo-extra-artifacts" title="Link to this heading">#</a></h1>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 0.45.0.</span></p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is a new experimental API, subject to change.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The artifacts functionality relies on extra Python packages. They can be installed using:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;openeo[artifacts]&quot;</span><span class="w"> </span>--upgrade
+</pre></div>
+</div>
+</div>
+<p>When running openEO jobs it is not uncommon to require artifacts that should be accessible during job execution. This
+requires the artifacts to be accessible from within the openEO processing environment. <code class="xref py py-mod docutils literal notranslate"><span class="pre">openeo.extra.artifacts</span></code> tries
+to perform the heavy lifting for this use case by allowing staging artifacts to a secure but temporary location using 3
+simple steps:</p>
+<ol class="arabic simple">
+<li><p>Connect to your openEO backend</p></li>
+<li><p>Create an artifact helper from your openEO connection</p></li>
+<li><p>Upload your file using the artifact helper and optionally get a presigned URI</p></li>
+</ol>
+<p>So in code this looks like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.artifacts</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_artifact_helper</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;my-openeo.prod.example&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span>
+
+<span class="n">artifact_helper</span> <span class="o">=</span> <span class="n">build_artifact_helper</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+<span class="n">storage_uri</span> <span class="o">=</span> <span class="n">artifact_helper</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">object_name</span><span class="p">)</span>
+<span class="n">presigned_uri</span> <span class="o">=</span> <span class="n">artifact_helper</span><span class="o">.</span><span class="n">get_presigned_url</span><span class="p">(</span><span class="n">storage_uri</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note:</p>
+<ul class="simple">
+<li><p>The presigned_uri should be used for accessing the objects. It has authentication details embedded so if your data is
+sensitive you must make sure to keep this URL secret. You can lower expires_in_seconds in
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.get_presigned_url()</span></code>
+to limit the time window in which the URI can be used.</p></li>
+<li><p>The openEO backend must expose additional metadata in its capabilities doc to make this possible. Implementers of a
+backend can check the extra documentation <a class="reference internal" href="#for-backend-providers"><span class="std std-ref">For backend providers</span></a>.</p></li>
+</ul>
+<section id="user-facing-api">
+<h2>User facing API<a class="headerlink" href="#user-facing-api" title="Link to this heading">#</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.build_artifact_helper">
+<span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.</span></span><span class="sig-name descname"><span class="pre">build_artifact_helper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/artifact_helper.html#build_artifact_helper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.build_artifact_helper" title="Link to this definition">#</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>connection</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="api.html#openeo.rest.connection.Connection" title="openeo.rest.connection.Connection"><code class="xref py py-class docutils literal notranslate"><span class="pre">Connection</span></code></a></span>) – <code class="docutils literal notranslate"><span class="pre">openeo.Connection</span></code>  connection to an openEOBackend</p></li>
+<li><p><strong>config</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ArtifactsStorageConfigABC</span></code>]</span>) – Optional <strong>This parameter should only be used when instructed by the maintainer of the OpenEO
+backend.</strong> object to specify configuration for Artifact storage.  If omitted the helper will try to
+get the preferred config as advertised by the OpenEO backend.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ArtifactHelperABC</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An Artifact helper instance that can be used to manage artifacts</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts._artifact_helper_abc.</span></span><span class="sig-name descname"><span class="pre">ArtifactHelperABC</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/_artifact_helper_abc.html#ArtifactHelperABC"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>This class defines the <em>interface</em> that an artifact helper should implement and support. This is used by OpenEO users
+willing to manage artifacts.</p>
+<p>Instances that implement it get created by the <cite>openeo.extra.artifacts.build_artifact_helper</cite> factory</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_presigned_url</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">storage_uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires_in_seconds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">604800</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/_artifact_helper_abc.html#ArtifactHelperABC.get_presigned_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>A method to get a signed https URL for a given StorageURI which can be accessed via normal http libraries.</p>
+<p>These URIs should be kept secret as they provide access to the data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>storage_uri</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">StorageURI</span></code></span>) – URI to the artifact that is stored by a previous <cite>upload_file</cite> call</p></li>
+<li><p><strong>expires_in_seconds</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Optional how long expressed in seconds before the returned signed URL becomes invalid</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The signed https URI.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">upload_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">object_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/_artifact_helper_abc.html#ArtifactHelperABC.upload_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>A method to store an artifact remotely and get a StorageURI which points to the stored data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></a></span>) – Location of the file to be uploaded absolute path or relative to current
+working directory.</p></li>
+<li><p><strong>object_name</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – Optional name you want to give to the object. If not specified the filename will be
+used.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">StorageURI</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If you want to use the StorageURI in a processgraph convert it using Python’s built-in <cite>str()</cite>
+function which is understood by the OpenEO processor.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="how-does-it-work">
+<h2>How does it work ?<a class="headerlink" href="#how-does-it-work" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#openeo.extra.artifacts.build_artifact_helper" title="openeo.extra.artifacts.build_artifact_helper"><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.extra.artifacts.build_artifact_helper()</span></code></a> is a factory method that
+will create an artifact helper where the type is defined by the config type. The openEO connection object is used to
+see if the openEO backend advertises a preferred config.</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.upload_file()</span></code> and
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.get_presigned_url()</span></code> do the heavy lifting to
+store your artifact in provider managed storage and to return references that can be used. In case the backend uses
+an Object storage that has an S3 API it will:</p>
+<ol class="arabic simple">
+<li><p>Get temporary S3 credentials based on config advertised by the backend and the session from your connection</p></li>
+<li><p>Upload the file into object storage and return an S3 URI which the backend can resolve</p></li>
+<li><p>Optional the <code class="xref py py-meth docutils literal notranslate"><span class="pre">openeo.extra.artifacts._artifact_helper_abc.ArtifactHelperABC.get_presigned_url()</span></code> makes a
+URI signed with the temporary credentials such that it works standalone (Some tools and execution steps do not
+support handling of internal references. presigned URLs should work in any tool).</p></li>
+</ol>
+</li>
+</ol>
+</section>
+<section id="for-backend-providers">
+<span id="id2"></span><h2>For backend providers<a class="headerlink" href="#for-backend-providers" title="Link to this heading">#</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Investigation is ongoing whether this would be a good fit for the workspace extension
+<a class="github reference external" href="https://github.com/Open-EO/openeo-api/issues/566">Open-EO/openeo-api#566</a> which would mean a big overhaul for backend implementations. If you
+are a backend provider and interested in this feature please create an issue to allow collaboration.</p>
+</div>
+<section id="artifacts-exceptions">
+<h3>Artifacts exceptions<a class="headerlink" href="#artifacts-exceptions" title="Link to this heading">#</a></h3>
+<p>When using artifacts your interactions can result in the following exceptions.</p>
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.ArtifactsException">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">ArtifactsException</span></span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#ArtifactsException"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.ArtifactsException" title="Link to this definition">#</a></dt>
+<dd><p>Family of exceptions related to artifacts</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.NoAdvertisedProviders">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">NoAdvertisedProviders</span></span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#NoAdvertisedProviders"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.NoAdvertisedProviders" title="Link to this definition">#</a></dt>
+<dd><p>The providers list is empty. This OpenEO backend does not seem to support artifacts or at least not advertise its
+capabilities.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.UnsupportedArtifactsType">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">UnsupportedArtifactsType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#UnsupportedArtifactsType"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.UnsupportedArtifactsType" title="Link to this definition">#</a></dt>
+<dd><p>The artifacts type is not supported. This should only occur if you specify config manually and the artifact type
+is not supported by the backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>type_id</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – The type_id that is not supported but which was attempted to be used</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.NoDefaultConfig">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">NoDefaultConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#NoDefaultConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.NoDefaultConfig" title="Link to this definition">#</a></dt>
+<dd><p>This OpenEO backend does not seem to advertise a default value for a config parameter. This is likely a bug in the
+capabilities advertised by the backend. If you are not specify config manually you should contact support of the
+backend provider.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – The key for which no config value was found</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.InvalidProviderConfig">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">InvalidProviderConfig</span></span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#InvalidProviderConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.InvalidProviderConfig" title="Link to this definition">#</a></dt>
+<dd><p>The backend has an invalid provider config. This must be fixed by the provider of the backend.
+If you are not specify config manually you should contact support of the backend provider.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="openeo.extra.artifacts.exceptions.ProviderSpecificException">
+<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">openeo.extra.artifacts.exceptions.</span></span><span class="sig-name descname"><span class="pre">ProviderSpecificException</span></span><a class="reference internal" href="_modules/openeo/extra/artifacts/exceptions.html#ProviderSpecificException"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#openeo.extra.artifacts.exceptions.ProviderSpecificException" title="Link to this definition">#</a></dt>
+<dd><p>This is an exception specific to the type of artifact that is used. The exception itself will contain additional
+information.</p>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="api-processes.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="process_mapping.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">openEO Process Mapping</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#user-facing-api">User facing API</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.build_artifact_helper"><code class="docutils literal notranslate"><span class="pre">build_artifact_helper()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-does-it-work">How does it work ?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#for-backend-providers">For backend providers</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#artifacts-exceptions">Artifacts exceptions</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.ArtifactsException"><code class="docutils literal notranslate"><span class="pre">ArtifactsException</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.NoAdvertisedProviders"><code class="docutils literal notranslate"><span class="pre">NoAdvertisedProviders</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.UnsupportedArtifactsType"><code class="docutils literal notranslate"><span class="pre">UnsupportedArtifactsType</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.NoDefaultConfig"><code class="docutils literal notranslate"><span class="pre">NoDefaultConfig</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.InvalidProviderConfig"><code class="docutils literal notranslate"><span class="pre">InvalidProviderConfig</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#openeo.extra.artifacts.exceptions.ProviderSpecificException"><code class="docutils literal notranslate"><span class="pre">ProviderSpecificException</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
