@@ -182,7 +182,8 @@ class Connection(RestApiConnection):
         self._refresh_token_store = refresh_token_store
         self._oidc_auth_renewer = oidc_auth_renewer
         self._auto_validate = auto_validate
-        self._on_response_headers_sync = on_response_headers_sync
+        if on_response_headers_sync:
+            self._on_response_headers_sync = on_response_headers_sync
 
     @classmethod
     def version_discovery(
@@ -221,6 +222,10 @@ class Connection(RestApiConnection):
         if self._auth_config is None:
             self._auth_config = AuthConfig()
         return self._auth_config
+
+    def _on_response_headers_sync(self, headers: Mapping):
+        if identifier := headers.get("OpenEO-Identifier"):
+            _log.debug(f"Synchronous processing identifier: {identifier!r}")
 
     def _get_refresh_token_store(self) -> RefreshTokenStore:
         if self._refresh_token_store is None:

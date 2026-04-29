@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add public `split_area` function for tile-grid based job splitting
+- Log synchronous processing identifier ("OpenEO-Identifier" response header) by default (debug level) ([#890](https://github.com/Open-EO/openeo-python-client/issues/890))
+
 
 ### Changed
 
