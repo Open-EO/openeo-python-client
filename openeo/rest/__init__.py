@@ -81,10 +81,10 @@ class OpenEoApiError(OpenEoApiPlainError):
 
     def __init__(
         self,
+        message: str,
         *,
         http_status_code: int,
         code: str,
-        message: str,
         id: Optional[str] = None,
         url: Optional[str] = None,
     ):
