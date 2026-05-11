@@ -873,6 +873,46 @@ def test_resample_spatial_no_metadata(s2cube_without_metadata):
     ]
 
 
+def test_resample_spatial_parameter_resolution(s2cube):
+    """A Parameter object passed as resolution must not crash and must appear in the process graph."""
+    param = Parameter.number("res", description="The spatial resolution.")
+    cube = s2cube.resample_spatial(resolution=param, projection=32631)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": {"from_parameter": "res"},
+                "projection": 32631,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=32631, step=None),
+        SpatialDimension(name="y", extent=None, crs=32631, step=None),
+    ]
+
+
+def test_resample_spatial_parameter_resolution_no_projection(s2cube):
+    """A Parameter resolution with no concrete projection leaves step and crs unchanged."""
+    param = Parameter.number("res", description="The spatial resolution.")
+    cube = s2cube.resample_spatial(resolution=param)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": {"from_parameter": "res"},
+                "projection": None,
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+
+
 def test_resample_cube_spatial(s2cube):
     cube1 = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
     cube2 = s2cube.resample_spatial(resolution=10, projection=32631)
