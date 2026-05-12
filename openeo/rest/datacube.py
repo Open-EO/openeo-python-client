@@ -810,7 +810,7 @@ class DataCube(_ProcessGraphAbstraction):
     def resample_spatial(
         self,
         resolution: Union[float, Tuple[float, float], List[float], Parameter] = 0.0,
-        projection: Union[int, str, None] = None,
+        projection: Union[int, str, Parameter, None] = None,
         method: str = "near",
         align: str = "upper-left",
     ) -> DataCube:

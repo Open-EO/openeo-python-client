@@ -495,13 +495,14 @@ class CubeMetadata:
 
     def resample_spatial(
         self,
-        resolution: Union[float, Tuple[float, float], List[float], "Parameter"] = 0.0,
-        projection: Union[int, str, None] = None,
+        resolution: Union[float, Tuple[float, float], List[float], Parameter] = 0.0,
+        projection: Union[int, str, Parameter, None] = None,
     ) -> CubeMetadata:
         if isinstance(resolution, Parameter):
-            normalized_resolution = None
+            normalized_resolution = None, None
         else:
             normalized_resolution = normalize_resample_resolution(resolution)
+
         if self._dimensions is None:
             # Best-effort fallback to work with
             dimensions = [
@@ -516,25 +517,16 @@ class CubeMetadata:
         spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
         if len(spatial_indices) != 2:
             raise MetadataException(f"Expected two spatial dimensions but found {spatial_indices=}")
-        if normalized_resolution is not None:
-            assert len(normalized_resolution) == 2
-            for i, r in zip(spatial_indices, normalized_resolution):
-                dim: SpatialDimension = dimensions[i]
-                dimensions[i] = SpatialDimension(
-                    name=dim.name,
-                    extent=dim.extent,
-                    crs=projection or dim.crs,
-                    step=r if r != 0.0 else dim.step,
-                )
-        elif projection:
-            for i in spatial_indices:
-                dim: SpatialDimension = dimensions[i]
-                dimensions[i] = SpatialDimension(
-                    name=dim.name,
-                    extent=dim.extent,
-                    crs=projection,
-                    step=dim.step,
-                )
+
+        assert len(normalized_resolution) == 2
+        for i, r in zip(spatial_indices, normalized_resolution):
+            dim: SpatialDimension = dimensions[i]
+            dimensions[i] = SpatialDimension(
+                name=dim.name,
+                extent=dim.extent,
+                crs=None if isinstance(projection, Parameter) else projection or dim.crs,
+                step=r if r != 0.0 else dim.step,
+            )
 
         return self._clone_and_update(dimensions=dimensions)
 

@@ -913,6 +913,51 @@ def test_resample_spatial_parameter_resolution_no_projection(s2cube):
     }
 
 
+def test_resample_spatial_parameter_projection(s2cube):
+    """A Parameter object passed as projection must appear in the process graph; metadata crs should be None."""
+    proj_param = Parameter.integer("proj", description="The target projection.")
+    cube = s2cube.resample_spatial(resolution=10, projection=proj_param)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": 10,
+                "projection": {"from_parameter": "proj"},
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=None, step=10),
+        SpatialDimension(name="y", extent=None, crs=None, step=10),
+    ]
+
+
+def test_resample_spatial_parameter_resolution_and_projection(s2cube):
+    """When both resolution and projection are Parameters, step and crs should both be None."""
+    res_param = Parameter.number("res", description="The spatial resolution.")
+    proj_param = Parameter.integer("proj", description="The target projection.")
+    cube = s2cube.resample_spatial(resolution=res_param, projection=proj_param)
+    assert get_download_graph(cube, drop_load_collection=True, drop_save_result=True) == {
+        "resamplespatial1": {
+            "process_id": "resample_spatial",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "resolution": {"from_parameter": "res"},
+                "projection": {"from_parameter": "proj"},
+                "method": "near",
+                "align": "upper-left",
+            },
+        }
+    }
+    assert cube.metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=None, crs=None, step=None),
+        SpatialDimension(name="y", extent=None, crs=None, step=None),
+    ]
+
+
 def test_resample_cube_spatial(s2cube):
     cube1 = s2cube.resample_spatial(resolution=[2.0, 3.0], projection=4578)
     cube2 = s2cube.resample_spatial(resolution=10, projection=32631)
