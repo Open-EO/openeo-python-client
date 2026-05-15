@@ -1156,11 +1156,29 @@ def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
     # TODO #738 real request mocking of STAC resources compatible with pystac?
     path.write_text(json.dumps(test_stac))
     metadata = metadata_from_stac(str(path))
-    if expected:
-        assert metadata.band_names == expected
-    else:
-        assert not metadata.has_band_dimension()
+    assert metadata.band_names == expected
 
+
+def test_metadata_from_stac_stac_1_1_common_bands_without_datacube_extension(tmp_path):
+    stac_dict = StacDummyBuilder.collection(
+        stac_version="1.1.0",
+        bands=[
+            {"name": "red", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+            {"name": "nir", "eo:common_name": "nir", "eo:center_wavelength": 0.842},
+        ],
+    )
+    assert "stac_extensions" not in stac_dict
+    assert "cube:dimensions" not in stac_dict
+
+    path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+
+    assert metadata.dimension_names() == ["x", "y", "bands", "t"]
+    assert metadata.band_names == ["red", "nir"]
+    assert metadata.band_dimension.bands[0].common_name == "red"
+    assert metadata.band_dimension.bands[1].wavelength_um == 0.842
 
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
@@ -1213,7 +1231,17 @@ def test_metadata_from_stac_collection_bands_from_item_assets(
     [
         (
             StacDummyBuilder.item(),
-            None,
+            ("t", ["2024-03-08", "2024-03-08"]),
+        ),
+        (
+            StacDummyBuilder.item(
+                properties={
+                    "datetime": "2024-03-08T00:00:00Z",
+                    "start_datetime": "2024-04-04T00:00:00Z",
+                    "end_datetime": "2024-06-06T00:00:00Z",
+                }
+            ),
+            ("t", ["2024-04-04T00:00:00Z", "2024-06-06T00:00:00Z"]),
         ),
         (
             StacDummyBuilder.item(cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}),
@@ -1256,22 +1284,7 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
         assert isinstance(dim, TemporalDimension)
         assert (dim.name, dim.extent) == expected
     else:
-        # With openEO defaults, a temporal dimension name ('t') can exist even when extent is unknown.
-        # Depending on STAC input, pystac/datacube parsing can produce:
-        #   - a degenerate extent [d, d] when a single `datetime` is present
-        #   - an "unknown" extent [None, None] when there is no temporal info
-        assert metadata.has_temporal_dimension()
-        extent = metadata.temporal_dimension.extent
-        if extent is None:
-            pass
-        else:
-            assert isinstance(extent, list) and len(extent) == 2
-            # Allow "unknown" temporal extent representation
-            if extent == [None, None]:
-                pass
-            else:
-                # Allow degenerate interval when a single datetime is available
-                assert extent[0] == extent[1]
+        assert not metadata.has_temporal_dimension()
 
 
 
@@ -1302,6 +1315,18 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
                 }
             ),
             {"time", "band", "y", "x"},
+        ),
+        (
+            # cube:dimensions present without band dimension -> don't inject an openEO "bands" dimension
+            StacDummyBuilder.collection(
+                summaries={"eo:bands": [{"name": "B01"}]},
+                cube_dimensions={
+                    "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+                    "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
+                    "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+                },
+            ),
+            {"time", "y", "x"},
         ),
     ],
 )

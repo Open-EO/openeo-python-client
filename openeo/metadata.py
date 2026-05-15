@@ -747,56 +747,69 @@ class _StacMetadataParser:
         """
         Build cube metadata from a STAC object.
         """
-        bands = self.bands_from_stac_object(stac_object)
-        dimensions = self.dimensions_from_stac_object(stac_object=stac_object, bands=bands)
+        dimensions = self.dimensions_from_stac_object(stac_object=stac_object)
         return CubeMetadata(dimensions=dimensions)
 
-    def dimensions_from_stac_object(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+    def dimensions_from_stac_object(self, stac_object: pystac.STACObject) -> List[Dimension]:
         """
         Build dimension metadata from a STAC object.
 
         Philosophy:
           - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
-          - Otherwise: apply openEO-style defaults (x, y, t) and (for Collection/Item) keep bands dimension even if empty.
+          - Otherwise: apply openEO-style defaults (x, y, bands, optional t).
         """
-        if self.has_cube_dimensions(stac_object):
-            dimensions = self.parse_declared_dimensions(stac_object=stac_object, bands=bands)
-            if not any(isinstance(d, BandDimension) for d in dimensions) and isinstance(
-                stac_object, (pystac.Collection, pystac.Item)
-            ):
-                dimensions.append(BandDimension(name="bands", bands=list(bands)))
-            return dimensions
+        bands = self.bands_from_stac_object(stac_object)
+        if self._has_cube_dimensions(stac_object):
+            return self._parse_declared_dimensions(stac_object=stac_object, bands=bands)
 
         dimensions: List[Dimension] = [
             SpatialDimension(name="x", extent=[None, None]),
             SpatialDimension(name="y", extent=[None, None]),
-            TemporalDimension(name="t", extent=self.infer_temporal_extent(stac_object)),
+            BandDimension(name="bands", bands=list(bands)),
         ]
-        if isinstance(stac_object, (pystac.Collection, pystac.Item)):
-            dimensions.append(BandDimension(name="bands", bands=list(bands)))
+        temporal_dimension = self.get_temporal_dimension(stac_object)
+        if temporal_dimension:
+            dimensions.append(temporal_dimension)
         return dimensions
 
     def get_temporal_dimension(self, stac_obj: pystac.STACObject) -> Union[TemporalDimension, None]:
         """
         Extract the temporal dimension from a STAC Collection/Item (if any)
         """
-        if self.has_cube_dimensions(stac_obj):
+        if self._has_cube_dimensions(stac_obj):
             temporal_dimensions = [
                 d
-                for d in self.parse_declared_dimensions(stac_object=stac_obj, bands=_BandList([]))
+                for d in self._parse_declared_dimensions(stac_object=stac_obj, bands=_BandList([]))
                 if isinstance(d, TemporalDimension)
             ]
             if len(temporal_dimensions) == 1:
                 return temporal_dimensions[0]
 
-        if isinstance(stac_obj, (pystac.Collection, pystac.Item)):
-            return TemporalDimension(name="t", extent=self.infer_temporal_extent(stac_obj))
+        if isinstance(stac_obj, pystac.Collection) and stac_obj.extent and stac_obj.extent.temporal:
+            extent = [Rfc3339(propagate_none=True).normalize(d) for d in stac_obj.extent.temporal.intervals[0]]
+            return TemporalDimension(name="t", extent=extent)
 
-    def has_cube_dimensions(self, stac_object: pystac.STACObject) -> bool:
-        cube_dimensions = self.cube_dimensions_dict(stac_object)
+        if isinstance(stac_obj, pystac.Item):
+            props = stac_obj.properties
+            start = props.get("start_datetime")
+            end = props.get("end_datetime")
+            if start or end:
+                extent = [
+                    Rfc3339(propagate_none=True).normalize(start),
+                    Rfc3339(propagate_none=True).normalize(end),
+                ]
+                return TemporalDimension(name="t", extent=extent)
+
+            dt = props.get("datetime")
+            if dt:
+                norm = Rfc3339(propagate_none=True).normalize(dt)
+                return TemporalDimension(name="t", extent=[norm, norm])
+
+    def _has_cube_dimensions(self, stac_object: pystac.STACObject) -> bool:
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
         return isinstance(cube_dimensions, dict) and len(cube_dimensions) > 0
 
-    def cube_dimensions_dict(self, stac_object: pystac.STACObject) -> Dict[str, dict]:
+    def _cube_dimensions_dict(self, stac_object: pystac.STACObject) -> Dict[str, dict]:
         """
         Return raw cube:dimensions dict from a Collection/Item, or {}.
         """
@@ -805,32 +818,6 @@ class _StacMetadataParser:
         if isinstance(stac_object, pystac.Collection):
             return stac_object.extra_fields.get("cube:dimensions", {}) or {}
         return {}
-
-    def infer_temporal_extent(self, stac_object: pystac.STACObject) -> List[Optional[str]]:
-        """
-        Best-effort temporal extent:
-          - Collection: extent.temporal interval
-          - Item: datetime or start/end
-        """
-        if isinstance(stac_object, pystac.Collection) and stac_object.extent and stac_object.extent.temporal:
-            interval = stac_object.extent.temporal.intervals[0]
-            return [Rfc3339(propagate_none=True).normalize(d) for d in interval]
-
-        if isinstance(stac_object, pystac.Item):
-            props = getattr(stac_object, "properties", {}) or {}
-            dt_ = props.get("datetime")
-            if dt_:
-                norm = Rfc3339(propagate_none=True).normalize(dt_)
-                return [norm, norm]
-            start = props.get("start_datetime")
-            end = props.get("end_datetime")
-            if start or end:
-                return [
-                    Rfc3339(propagate_none=True).normalize(start),
-                    Rfc3339(propagate_none=True).normalize(end),
-                ]
-
-        return [None, None]
 
     @staticmethod
     def _safe_extent_from_pystac_cube_dim(dim) -> list:
@@ -849,7 +836,7 @@ class _StacMetadataParser:
 
         return ext or [None, None]
 
-    def parse_declared_dimensions(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+    def _parse_declared_dimensions(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
         """
         Parse dimensions declared through cube:dimensions.
         """
@@ -890,7 +877,7 @@ class _StacMetadataParser:
         Supports 'spatial', 'temporal', and ('bands' or 'spectral' as an alias).
         """
         dimensions = []
-        cube_dimensions = self.cube_dimensions_dict(stac_object)
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
 
         for name, dim in cube_dimensions.items():
             if not isinstance(dim, dict):
