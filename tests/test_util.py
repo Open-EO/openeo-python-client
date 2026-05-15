@@ -798,24 +798,6 @@ class TestBBoxDict:
         geometry = shapely.geometry.Polygon([(4, 2), (7, 4), (5, 8), (3, 3), (4, 2)])
         assert to_bbox_dict(geometry) == {"west": 3, "south": 2, "east": 7, "north": 8}
 
-    def test_as_polygon(self):
-        bbox = BBoxDict(west=1, south=2, east=3, north=4)
-        polygon = bbox.as_polygon()
-        assert isinstance(polygon, shapely.geometry.Polygon)
-        assert shapely.geometry.mapping(polygon) == {
-            "type": "Polygon",
-            "coordinates": (((3, 2), (3, 4), (1, 4), (1, 2), (3, 2)),),
-        }
-
-    def test_as_polygon_across_anti_meridian(self):
-        bbox = BBoxDict(west=170, south=50, east=-170, north=51, crs=4326)
-        polygon = bbox.as_polygon()
-        assert isinstance(polygon, shapely.geometry.Polygon)
-        assert shapely.geometry.mapping(polygon) == {
-            "type": "Polygon",
-            "coordinates": (((190, 50), (190, 51), (170, 51), (170, 50), (190, 50)),),
-        }
-
     def test_as_geometry_basic(self):
         bbox = BBoxDict(west=1, south=2, east=3, north=4)
         polygon = bbox.as_geometry()
