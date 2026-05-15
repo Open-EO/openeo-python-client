@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `metadata_from_stac()` now keeps declared STAC `cube:dimensions` as the dimension source of truth and handles STAC 1.1 common `bands` metadata without requiring the datacube extension ([#743](https://github.com/Open-EO/openeo-python-client/issues/743), [#867](https://github.com/Open-EO/openeo-python-client/pull/867)).
+
 
 ## [0.52.0] - 2026-09-08
 
