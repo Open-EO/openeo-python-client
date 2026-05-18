@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `has_conformance()` method in capabilities to check for JWT bearer token conformance
+- Add Bearer token formatting check for JWT conformance in `authenticate_basic()` and `_authenticate_oidc()` methods of `Connection` class
+- Add `build_conformance()` helper to build conformance dicts for testing
+- Parametrize test cases for additional JWT bearer token use and conformance checking in `test_connection`
+
 ### Changed
+
+- `build_capabilities()` helper: add `conformance` argument to allow building capabilities with custom conformance classes for testing
 
 ### Removed
 
