@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
-- `DataCube.resample_spatial()` now supports `openeo.api.process.Parameter` objects for the `resolution` and `projection` parameter.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
+- `DataCube.resample_spatial()` now supports parameterized `resolution` and `projection` arguments.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
 
 ## [0.50.0] - 2026-05-18
 
