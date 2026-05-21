@@ -9,18 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add public `split_area` function for tile-grid based job splitting
-- Log synchronous processing identifier ("OpenEO-Identifier" response header) by default (debug level) ([#890](https://github.com/Open-EO/openeo-python-client/issues/890))
-
-
 ### Changed
-
-- `ProcessGraphVisitor.dereference_from_node_arguments()`: add original node id (by default) to the dereferenced nodes in the process graph ([Open-EO/openeo-python-driver#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
 
 ### Removed
 
 ### Fixed
 - `DataCube.resample_spatial()` now supports `openeo.api.process.Parameter` objects for the `resolution` and `projection` parameter.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
+
+## [0.50.0] - 2026-05-18
+
+### Added
+
+- Add public `split_area` function for tile-grid based job splitting
+- Log synchronous processing identifier ("OpenEO-Identifier" response header) by default (debug level) ([#890](https://github.com/Open-EO/openeo-python-client/issues/890))
+
+### Changed
+
+- `ProcessGraphVisitor.dereference_from_node_arguments()`: add original node id (by default) to the dereferenced nodes in the process graph ([Open-EO/openeo-python-driver#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
+
 
 ## [0.49.0] - 2026-04-01
 
