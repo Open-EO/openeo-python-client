@@ -524,7 +524,7 @@ class CubeMetadata:
             dimensions[i] = SpatialDimension(
                 name=dim.name,
                 extent=dim.extent,
-                crs=None if isinstance(projection, Parameter) else projection or dim.crs,
+                crs=None if isinstance(projection, Parameter) else (projection or dim.crs),
                 step=r if r != 0.0 else dim.step,
             )
 
