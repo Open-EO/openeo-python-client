@@ -266,6 +266,70 @@ This will create a GeoDataFrame with one row per tile, and a geometry column con
 
 Note that while the original bounding box was in EPSG:4326, the resulting GeoDataFrame is in the tiling projection (EPSG:3857 in this case).
 
+.. note::
+
+   The size-based splitting anchors tiles at the southwest corner of the
+   bounding box and does **not** snap tile boundaries to multiples of a
+   pixel size. This means the resulting tile coordinates may not be
+   pixel-aligned, which can lead to sub-pixel shifts when mosaicking
+   results afterwards.
+
+   If pixel-aligned tile boundaries are important for your workflow (e.g.
+   for seamless merging of output rasters), consider providing a
+   pre-computed tile grid via the ``tile_grid`` parameter instead. See the
+   :ref:`custom tile grid example <job-splitting-custom-grid>` below.
+
+.. _job-splitting-custom-grid:
+
+Using a custom tile grid
+------------------------
+
+For workflows that require pixel-aligned tiles or a non-regular tiling
+scheme, you can pass a :class:`~geopandas.GeoDataFrame` as the
+``tile_grid`` argument. Only tiles that intersect the area of interest
+are retained.
+
+Example: creating a pixel-aligned 20 km grid snapped to a 10 m resolution:
+
+.. code-block:: python
+
+    import numpy as np
+    import geopandas as gpd
+    from shapely.geometry import box
+    from openeo.extra.job_management import split_area
+
+    bbox = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+
+    # Define grid parameters
+    tile_size = 20_000  # 20 km
+    resolution = 10     # 10 m pixel size
+
+    # Reproject the AOI bounds to the target CRS (e.g. EPSG:32631) and snap
+    # the origin to a multiple of the resolution to ensure pixel alignment.
+    from pyproj import Transformer
+    transformer = Transformer.from_crs("EPSG:4326", "EPSG:32631", always_xy=True)
+    xmin, ymin = transformer.transform(bbox["west"], bbox["south"])
+    xmax, ymax = transformer.transform(bbox["east"], bbox["north"])
+
+    # Floor origin and ceil extent to resolution multiples
+    xmin = np.floor(xmin / resolution) * resolution
+    ymin = np.floor(ymin / resolution) * resolution
+    xmax = np.ceil(xmax / resolution) * resolution
+    ymax = np.ceil(ymax / resolution) * resolution
+
+    # Build the grid
+    tiles = []
+    for x in np.arange(xmin, xmax, tile_size):
+        for y in np.arange(ymin, ymax, tile_size):
+            tiles.append(box(x, y, min(x + tile_size, xmax), min(y + tile_size, ymax)))
+
+    tile_grid = gpd.GeoDataFrame(geometry=tiles, crs="EPSG:32631")
+
+    # Pass the pre-computed grid to split_area
+    gdf = split_area(aoi=bbox, tile_grid=tile_grid)
+
+This gives you full control over tile alignment, projection, and size.
+
 Customizing Job Handling
 ========================
 
