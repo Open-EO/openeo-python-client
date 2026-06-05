@@ -269,7 +269,7 @@ Note that while the original bounding box was in EPSG:4326, the resulting GeoDat
 .. note::
 
    The size-based splitting anchors tiles at the southwest corner of the
-   bounding box and does **not** snap tile boundaries to multiples of a
+   extent and does **not** snap tile boundaries to multiples of a
    pixel size. This means the resulting tile coordinates may not be
    pixel-aligned, which can lead to sub-pixel shifts when mosaicking
    results afterwards.
@@ -294,13 +294,13 @@ or any other custom partitioning, you can pass a pre-computed
     import geopandas as gpd
     from openeo.extra.job_management import split_area
 
-    bbox = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+    extent  = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
 
     # Load a pre-computed tile grid (e.g. a pixel-aligned UTM grid stored as GeoParquet)
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
 
     # Only tiles intersecting the AOI are returned
-    gdf = split_area(aoi=bbox, tile_grid=tile_grid)
+    gdf = split_area(aoi=extent , tile_grid=tile_grid)
 
 Customizing Job Handling
 ========================
