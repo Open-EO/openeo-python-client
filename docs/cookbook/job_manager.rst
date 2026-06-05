@@ -243,11 +243,11 @@ Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
     from openeo.extra.job_management import split_area
 
     # Define the bounding box to split
-    bbox = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+    extent = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
 
     # Split into 10x10 km tiles in EPSG:3857
     gdf = split_area(
-        aoi=bbox,
+        aoi=extent,
         tile_size=10_000,  # tile size in meters (units of the projection)
         projection="EPSG:3857",  # projection for tiling
     )
