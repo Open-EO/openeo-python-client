@@ -243,11 +243,11 @@ Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
     from openeo.extra.job_management import split_area
 
     # Define the bounding box to split
-    bbox = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+    extent = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
 
     # Split into 10x10 km tiles in EPSG:3857
     gdf = split_area(
-        aoi=bbox,
+        aoi=extent,
         tile_size=10_000,  # tile size in meters (units of the projection)
         projection="EPSG:3857",  # projection for tiling
     )
@@ -265,6 +265,42 @@ This will create a GeoDataFrame with one row per tile, and a geometry column con
    4  POLYGON ((576597.454 6621293.723, 576597.454 6...
 
 Note that while the original bounding box was in EPSG:4326, the resulting GeoDataFrame is in the tiling projection (EPSG:3857 in this case).
+
+.. note::
+
+   The size-based splitting anchors tiles at the southwest corner of the
+   extent and does **not** snap tile boundaries to multiples of a
+   pixel size. This means the resulting tile coordinates may not be
+   pixel-aligned, which can lead to sub-pixel shifts when mosaicking
+   results afterwards.
+
+   If pixel-aligned tile boundaries are important for your workflow (e.g.
+   for seamless merging of output rasters), consider providing a
+   pre-computed tile grid via the ``tile_grid`` parameter instead. See the
+   :ref:`custom tile grid example <job-splitting-custom-grid>` below.
+
+.. _job-splitting-custom-grid:
+
+Using a custom tile grid
+------------------------
+
+For workflows that require pixel-aligned tiles, a specific tiling scheme,
+or any other custom partitioning, you can pass a pre-computed
+:class:`~geopandas.GeoDataFrame` as the ``tile_grid`` argument.
+``split_area`` will then only return tiles that intersect the area of interest.
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import split_area
+
+    extent  = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+
+    # Load a pre-computed tile grid (e.g. a pixel-aligned UTM grid stored as GeoParquet)
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+
+    # Only tiles intersecting the AOI are returned
+    gdf = split_area(aoi=extent , tile_grid=tile_grid)
 
 Customizing Job Handling
 ========================
