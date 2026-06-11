@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional, Union
 
 from openeo.internal.jupyter import render_component
@@ -6,6 +7,8 @@ from openeo.util import deep_get
 from openeo.utils.version import ApiVersionException, ComparableVersion
 
 __all__ = ["OpenEoCapabilities"]
+
+CONFORMANCE_JWT_BEARER = re.compile(r"https://api\.openeo\.org/[^/]+/authentication/jwt")
 
 
 class OpenEoCapabilities:
@@ -36,6 +39,13 @@ class OpenEoCapabilities:
         if not api_version:
             raise ApiVersionException("No API version found")
         return ComparableVersion(api_version)
+
+    def has_conformance(self, uri: str) -> bool:
+        """Check if backend provides a given conformance string"""
+        for conformance_uri in self.capabilities.get("conformsTo", []):
+            if re.fullmatch(uri, conformance_uri):
+                return True
+        return False
 
     def supports_endpoint(self, path: str, method="GET") -> bool:
         """Check if backend supports given endpoint"""
