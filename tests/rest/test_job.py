@@ -4,7 +4,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from unittest import mock
 
 import httpretty
@@ -17,6 +17,7 @@ from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientExc
 from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
+from openeo.util import dict_no_none
 from openeo.utils.http import (
     HTTP_402_PAYMENT_REQUIRED,
     HTTP_429_TOO_MANY_REQUESTS,
@@ -24,6 +25,8 @@ from openeo.utils.http import (
     HTTP_502_BAD_GATEWAY,
     HTTP_503_SERVICE_UNAVAILABLE,
 )
+
+_log = logging.getLogger(__name__)
 
 API_URL = "https://oeo.test"
 
@@ -665,20 +668,37 @@ def test_get_results_metadata_url_full(con100):
 
 
 @pytest.fixture
-def job_with_1_asset(con100, requests_mock, tmp_path) -> BatchJob:
-    requests_mock.get(
-        API_URL + "/jobs/jj1/results",
-        json={
-            "assets": {
-                "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-            }
-        },
-    )
-    requests_mock.head(API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
+def job_with_results_mocker(con100, requests_mock) -> Callable:
+    """
+    Helper to set up a job with downloadable assets
+    """
 
-    job = BatchJob("jj1", connection=con100)
-    return job
+    def setup(*, job_id="jj1", assets: dict, media_type: str = "image/tiff; application=geotiff"):
+        results_doc = {
+            "type": "Feature",
+            "assets": {
+                asset_key: {"href": f"{API_URL}/{asset_path.lstrip('/')}", "type": media_type}
+                for asset_key, asset_path in assets.items()
+            },
+        }
+        _log.info(f"{results_doc=}")
+        requests_mock.get(f"{API_URL}/jobs/{job_id}/results", json=results_doc)
+
+        for asset_key, asset_path in assets.items():
+            requests_mock.head(
+                f"{API_URL}/{asset_path.lstrip('/')}", headers={"Content-Length": f"{len(TIFF_CONTENT)}"}
+            )
+            requests_mock.get(f"{API_URL}/{asset_path.lstrip('/')}", content=TIFF_CONTENT)
+
+        job = BatchJob(job_id, connection=con100)
+        return job
+
+    return setup
+
+
+@pytest.fixture
+def job_with_1_asset(job_with_results_mocker) -> BatchJob:
+    return job_with_results_mocker(job_id="jj1", assets={"1.tiff": "/dl/jjr1.tiff"})
 
 
 @pytest.fixture
@@ -740,25 +760,14 @@ def job_with_chunked_asset_using_head_old(con100, requests_mock, tmp_path) -> Ba
 
 
 @pytest.fixture
-def job_with_2_assets(con100, requests_mock, tmp_path) -> BatchJob:
-    requests_mock.get(
-        API_URL + "/jobs/jj2/results",
-        json={
-            # This is a STAC Item
-            "type": "Feature",
-            "assets": {
-                "1.tiff": {"href": API_URL + "/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
-                "2.tiff": {"href": API_URL + "/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
-            },
+def job_with_2_assets(job_with_results_mocker) -> BatchJob:
+    return job_with_results_mocker(
+        job_id="jj2",
+        assets={
+            "1.tiff": "/dl/jjr1.tiff",
+            "2.tiff": "/dl/jjr2.tiff",
         },
     )
-    requests_mock.head(API_URL + "/dl/jjr1.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
-    requests_mock.get(API_URL + "/dl/jjr1.tiff", content=TIFF_CONTENT)
-    requests_mock.head(API_URL + "/dl/jjr2.tiff", headers={"Content-Length": f"{len(TIFF_CONTENT)}"})
-    requests_mock.get(API_URL + "/dl/jjr2.tiff", content=TIFF_CONTENT)
-
-    job = BatchJob("jj2", connection=con100)
-    return job
 
 
 def test_download_result(job_with_1_asset: BatchJob, tmp_path):
@@ -810,6 +819,34 @@ def test_get_results_download_file_to_folder(job_with_1_asset: BatchJob, tmp_pat
         assert f.read() == TIFF_CONTENT
 
 
+@pytest.mark.parametrize(
+    ["asset_key", "href", "expected"],
+    [
+        ("1.tiff", "/dl/1.tiff", "1.tiff"),
+        ("1.tiff", "/dl-1", "1.tiff"),
+        ("res1", "/dl/1.tiff", "res1-1.tiff"),
+        ("res1", "/dl-1", "res1-dl-1.tiff"),
+        ("res/1", "/dl/1.tiff", "res1-1.tiff"),
+        ("res/1", "/dl-1", "res1-dl-1.tiff"),
+        ("res/1.tiff", "/dl/1.tiff", "res1.tiff-1.tiff"),
+        ("res/1.tiff", "/dl-1", "res1.tiff-dl-1.tiff"),
+        ("re$:1t#f", "/dl/1.tiff", "re1tf-1.tiff"),
+        ("re$:1t#f", "/dl-1", "re1tf-dl-1.tiff"),
+        ("26/06/19 1:2:3#45z", "/dl/45z", "26061912345z-45z.tiff"),
+    ],
+)
+def test_get_results_download_file_asset_keys(job_with_results_mocker, tmp_path, asset_key, href, expected):
+    job = job_with_results_mocker(job_id="job-123", assets={asset_key: href})
+    target = tmp_path / "folder"
+    target.mkdir()
+
+    res = job.get_results().download_file(target)
+
+    assert res == target / expected
+    assert list(p.name for p in target.iterdir()) == [expected]
+    assert res.read_bytes() == TIFF_CONTENT
+
+
 def test_download_result_multiple(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     expected = re.escape("Can not use `download_file` with multiple assets. Use `download_files` instead")
@@ -824,22 +861,22 @@ def test_get_results_multiple_download_single(job_with_2_assets: BatchJob, tmp_p
         job.get_results().download_file(tmp_path / "res.tiff")
 
 
-def test_get_results_multiple_download_single_by_name(job_with_2_assets: BatchJob, tmp_path):
+def test_get_results_multiple_download_single_by_key(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "res.tiff"
-    path = job.get_results().download_file(target, name="1.tiff")
+    path = job.get_results().download_file(target, key="1.tiff")
     assert path == target
     assert list(p.name for p in tmp_path.iterdir()) == ["res.tiff"]
     with path.open("rb") as f:
         assert f.read() == TIFF_CONTENT
 
 
-def test_get_results_multiple_download_single_by_wrong_name(job_with_2_assets: BatchJob, tmp_path):
+def test_get_results_multiple_download_single_by_wrong_key(job_with_2_assets: BatchJob, tmp_path):
     job = job_with_2_assets
     target = tmp_path / "res.tiff"
     expected = r"No asset 'foobar\.tiff' in: \['.\.tiff', '.\.tiff'\]"
     with pytest.raises(OpenEoClientException, match=expected):
-        job.get_results().download_file(target, name="foobar.tiff")
+        job.get_results().download_file(target, key="foobar.tiff")
 
 
 def test_download_results(job_with_2_assets: BatchJob, tmp_path):
@@ -875,7 +912,7 @@ def test_get_results_download_files(job_with_2_assets: BatchJob, tmp_path):
     results = job.get_results()
 
     assets = job.get_results().get_assets()
-    assert {a.name: a.metadata for a in assets} == {
+    assert {a.key: a.metadata for a in assets} == {
         "1.tiff": {"href": "https://oeo.test/dl/jjr1.tiff", "type": "image/tiff; application=geotiff"},
         "2.tiff": {"href": "https://oeo.test/dl/jjr2.tiff", "type": "image/tiff; application=geotiff"},
     }
@@ -932,7 +969,7 @@ def test_result_asset_download_file(con100, requests_mock, tmp_path):
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
+    asset = ResultAsset(job, key="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     target = tmp_path / "res.tiff"
     path = asset.download(target)
 
@@ -948,7 +985,7 @@ def test_result_asset_download_file_error(con100, requests_mock, tmp_path):
     requests_mock.get(href, status_code=500, text="Nope!")
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
+    asset = ResultAsset(job, key="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
 
     with pytest.raises(OpenEoApiPlainError, match="Nope!"):
         _ = asset.download(tmp_path / "res.tiff")
@@ -963,7 +1000,7 @@ def test_result_asset_download_folder(con100, requests_mock, tmp_path):
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
+    asset = ResultAsset(job, key="1.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     target = tmp_path / "folder"
     target.mkdir()
     path = asset.download(target)
@@ -979,7 +1016,7 @@ def test_result_asset_load_json(con100, requests_mock):
     requests_mock.get(href, json={"bands": [1, 2, 3]})
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="out.json", href=href, metadata={"type": "application/json"})
+    asset = ResultAsset(job, key="out.json", href=href, metadata={"type": "application/json"})
     res = asset.load_json()
 
     assert res == {"bands": [1, 2, 3]}
@@ -991,7 +1028,7 @@ def test_result_asset_load_bytes(con100, requests_mock):
     requests_mock.get(href, content=TIFF_CONTENT)
 
     job = BatchJob("jj", connection=con100)
-    asset = ResultAsset(job, name="out.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
+    asset = ResultAsset(job, key="out.tiff", href=href, metadata={"type": "image/tiff; application=geotiff"})
     res = asset.load_bytes()
 
     assert res == TIFF_CONTENT
@@ -1027,6 +1064,37 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
     assert res == target
     with target.open("rb") as f:
         assert f.read() == TIFF_CONTENT
+
+
+class TestResultAsset:
+
+    @pytest.fixture
+    def job(self, con100):
+        return BatchJob("jj", connection=con100)
+
+    @pytest.mark.parametrize(
+        ["key", "href", "media_type", "expected"],
+        [
+            ("cube.tiff", "http://data.test/dl/cube.tiff", None, "cube.tiff"),
+            ("cube.tiff", "http://data.test/dl/output.tiff", None, "cube.tiff"),
+            ("output", "http://data.test/dl/cube.tiff", None, "output-cube.tiff"),
+            ("output/1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output#1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output:1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output:1", "http://data.test/dl/cube", None, "output1-cube"),
+            ("output:1", "http://data.test/dl/cube", "image/tiff", "output1-cube.tiff"),
+            ("output:1", "http://data.test/dl/cube", "image/tiff; application=geotiff", "output1-cube.tiff"),
+            ("output:1", "http://data.test/dl/cube", "application/x-netcdf", "output1-cube.nc"),
+        ],
+    )
+    def test_download_make_filename(self, tmp_path, job, key, href, media_type, expected, requests_mock):
+        requests_mock.head(href, headers={"Content-Length": "data"})
+        requests_mock.get(href, text="data")
+
+        asset = ResultAsset(job=job, key=key, href=href, metadata=dict_no_none(type=media_type))
+        res = asset.download(tmp_path)
+        assert res == tmp_path / expected
+        assert res.read_bytes() == b"data"
 
 
 @pytest.mark.parametrize(
