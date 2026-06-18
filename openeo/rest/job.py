@@ -77,7 +77,7 @@ class BatchJob:
         self.connection = connection
 
     def __repr__(self):
-        return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
+        return "<{c} job_id={i!r}>".format(c=self.__class__.__name__, i=self.job_id)
 
     def _repr_html_(self):
         data = self.describe()
@@ -127,11 +127,9 @@ class BatchJob:
     @openeo_endpoint("GET /jobs/{job_id}/estimate")
     def estimate(self):
         """Calculate time/cost estimate for a job."""
-        data = self.connection.get(
-            f"/jobs/{self.job_id}/estimate", expected_status=200
-        ).json()
+        data = self.connection.get(f"/jobs/{self.job_id}/estimate", expected_status=200).json()
         currency = self.connection.capabilities().currency()
-        return VisualDict('job-estimate', data=data, parameters={'currency': currency})
+        return VisualDict("job-estimate", data=data, parameters={"currency": currency})
 
     estimate_job = legacy_alias(estimate, name="estimate_job", since="0.20.0", mode="soft")
 
@@ -186,7 +184,8 @@ class BatchJob:
 
     @deprecated(
         "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
-        version="0.4.10")
+        version="0.4.10",
+    )
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
         Download all job result files into given folder (current working dir by default).
@@ -364,7 +363,7 @@ class BatchJob:
             else:
                 progress = "N/A"
             print_status(f"{status} (progress {progress})")
-            if status not in ('submitted', 'created', 'queued', 'running'):
+            if status not in ("submitted", "created", "queued", "running"):
                 break
 
             # Sleep for next poll (and adaptively make polling less frequent)
@@ -419,7 +418,11 @@ class ResultAsset:
         )
 
     def download(
-        self, target: Optional[Union[Path, str]] = None, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE
+        self,
+        target: Optional[Union[Path, str]] = None,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> Path:
         """
         Download asset to given location
@@ -452,18 +455,33 @@ class ResultAsset:
 
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
 
-
-    def _download_to_file(self, url: str, target: Path, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE):
+    def _download_to_file(
+        self,
+        url: str,
+        target: Path,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+    ):
         head = self.job.connection.head(url, stream=True)
-        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and 'Content-Length' in head.headers:
-            file_size = int(head.headers['Content-Length'])
-            self._download_ranged(url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size)
+        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
+            file_size = int(head.headers["Content-Length"])
+            self._download_ranged(
+                url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size
+            )
         else:
             self._download_all_at_once(url=url, target=target, chunk_size=chunk_size)
 
-
-    def _download_ranged(self, url: str, target: Path, file_size: int, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE):
-        with target.open('wb') as f:
+    def _download_ranged(
+        self,
+        url: str,
+        target: Path,
+        file_size: int,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+    ):
+        with target.open("wb") as f:
             for from_byte_index in range(0, file_size, range_size):
                 to_byte_index = min(from_byte_index + range_size - 1, file_size - 1)
                 tries_left = MAX_RETRIES_PER_RANGE
@@ -478,13 +496,14 @@ class ResultAsset:
                     except OpenEoApiPlainError as error:
                         tries_left -= 1
                         if tries_left > 0 and error.http_status_code in RETRIABLE_STATUSCODES:
-                            logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying")
+                            logger.warning(
+                                f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying"
+                            )
                             continue
                         else:
                             raise error
 
-
-    def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE):
+    def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE):
         with self.job.connection.get(path=url, stream=True) as r:
             r.raise_for_status()
             with target.open("wb") as f:
@@ -517,16 +536,14 @@ class JobResults:
     def _repr_html_(self):
         try:
             response = self.get_metadata()
-            return render_component("batch-job-result", data = response)
+            return render_component("batch-job-result", data=response)
         except OpenEoApiError as error:
             return render_error(error)
 
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
-            self._results = self._job.connection.get(
-                self._job.get_results_metadata_url(), expected_status=200
-            ).json()
+            self._results = self._job.connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
         return self._results
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
@@ -542,8 +559,7 @@ class JobResults:
         if not assets:
             logger.warning("No assets found in job result metadata.")
         return [
-            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
-            for name, asset in assets.items()
+            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset) for name, asset in assets.items()
         ]
 
     def get_asset(self, name: str = None) -> ResultAsset:
@@ -558,18 +574,23 @@ class JobResults:
             if len(assets) == 1:
                 return assets[0]
             else:
-                raise MultipleAssetException("Multiple result assets for job {j}: {a}".format(
-                    j=self._job.job_id, a=[a.name for a in assets]
-                ))
+                raise MultipleAssetException(
+                    "Multiple result assets for job {j}: {a}".format(j=self._job.job_id, a=[a.name for a in assets])
+                )
         else:
             try:
                 return next(a for a in assets if a.name == name)
             except StopIteration:
-                raise OpenEoClientException(
-                    "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
-                )
+                raise OpenEoClientException("No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets]))
 
-    def download_file(self, target: Union[Path, str] = None, name: str = None, *, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE) -> Path:
+    def download_file(
+        self,
+        target: Union[Path, str] = None,
+        name: str = None,
+        *,
+        chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+    ) -> Path:
         """
         Download single asset. Can be used when there is only one asset in the
         :py:class:`JobResults`, or when the desired asset name is given explicitly.
@@ -584,9 +605,15 @@ class JobResults:
             return self.get_asset(name=name).download(target=target, chunk_size=chunk_size, range_size=range_size)
         except MultipleAssetException:
             raise OpenEoClientException(
-                "Can not use `download_file` with multiple assets. Use `download_files` instead.")
+                "Can not use `download_file` with multiple assets. Use `download_files` instead."
+            )
 
-    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE) -> List[Path]:
+    def download_files(
+        self,
+        target: Union[Path, str] = None,
+        include_stac_metadata: bool = True,
+        chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    ) -> List[Path]:
         """
         Download all assets to given folder.
 
