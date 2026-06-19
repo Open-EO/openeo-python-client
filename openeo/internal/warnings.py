@@ -27,6 +27,13 @@ class UserDeprecationWarning(Warning):
     pass
 
 
+def user_deprecation_warning(message: str, stacklevel: int = 3):
+    """
+    Helper to compactly raise a `UserDeprecationWarning` with proper stacklevel.
+    """
+    warnings.warn(message, category=UserDeprecationWarning, stacklevel=stacklevel)
+
+
 def test_warnings(stacklevel=1):
     """Trigger some warnings (for test contexts)."""
     for warning in [UserWarning, DeprecationWarning, UserDeprecationWarning]:

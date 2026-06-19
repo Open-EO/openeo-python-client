@@ -378,11 +378,11 @@ If you know that there is just a single result file, you can also download it di
 This will fail however if there are multiple assets in the job result
 (like in the metadata example above).
 In that case you can still download a single by specifying which one you
-want to download with the ``name`` argument:
+want to download with the ``key`` argument:
 
 .. code-block:: python
 
-    results.download_file("data/out/result.tiff", name="res002.tiff")
+    results.download_file("data/out/result.tiff", key="res002.tiff")
 
 
 Fine-grained asset downloads
@@ -396,9 +396,14 @@ with :py:meth:`~openeo.rest.job.ResultAsset.download`, like this:
 .. code-block:: python
 
     for asset in results.get_assets():
-        if asset.metadata["type"].startswith("image/tiff"):
-            asset.download("data/out/result-v2-" + asset.name)
+        if asset.media_type.startswith("image/tiff"):
+            asset.download("data/out/result-v2-" + asset.key)
 
+.. note::
+    The ``key`` of an asset is not guaranteed to be directly usable as filename safe,
+    so while the snippet above glosses over that aspect,
+    make sure to properly sanitize the filename or
+    at least check the behavior of the backend you are working with.
 
 Directly load batch job results
 ===============================
