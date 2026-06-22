@@ -1077,14 +1077,23 @@ class TestResultAsset:
         [
             ("cube.tiff", "http://data.test/dl/cube.tiff", None, "cube.tiff"),
             ("cube.tiff", "http://data.test/dl/output.tiff", None, "cube.tiff"),
+            ("cube123.tiff", "http://data.test/dl/output.tiff", None, "cube123.tiff"),
+            ("cube-123.tiff", "http://data.test/dl/output.tiff", None, "cube-123.tiff"),
+            ("cube.v123.tiff", "http://data.test/dl/output.tiff", None, "cube.v123.tiff"),
+            ("cube_123.tiff", "http://data.test/dl/output.tiff", None, "cube_123.tiff"),
+            ("cube.t1ff", "http://data.test/dl/output.tiff", None, "cube.t1ff"),
             ("output", "http://data.test/dl/cube.tiff", None, "output-cube.tiff"),
             ("output/1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
             ("output#1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output(1)", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output[1]", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
             ("output:1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
             ("output:1", "http://data.test/dl/cube", None, "output1-cube"),
             ("output:1", "http://data.test/dl/cube", "image/tiff", "output1-cube.tiff"),
             ("output:1", "http://data.test/dl/cube", "image/tiff; application=geotiff", "output1-cube.tiff"),
             ("output:1", "http://data.test/dl/cube", "application/x-netcdf", "output1-cube.nc"),
+            ("ΩuτΠuτ.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "ΩuτΠuτ.tiff"),
+            ("donnée-discrètes.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "donnée-discrètes.tiff"),
         ],
     )
     def test_download_make_filename(self, tmp_path, job, key, href, media_type, expected, requests_mock):

@@ -463,7 +463,7 @@ class ResultAsset:
         and filename in href (if any)
         """
 
-        if re.fullmatch(r"^[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
+        if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
             # Legacy mode: asset key already looks like a filename
             return self.key
 
