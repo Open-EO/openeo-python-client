@@ -395,7 +395,7 @@ class RESTJob(BatchJob):
     """
 
 
-FILENAME_UNSAFE_REGEX = re.compile(r"[^a-zA-Z0-9_.-]+")
+FILENAME_UNSAFE_REGEX = re.compile(r"[^\w_.-]+")
 
 
 def _sanitize_filename(s: str, replacement: str = "") -> str:

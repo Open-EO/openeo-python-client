@@ -1094,6 +1094,11 @@ class TestResultAsset:
             ("output:1", "http://data.test/dl/cube", "application/x-netcdf", "output1-cube.nc"),
             ("ΩuτΠuτ.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "ΩuτΠuτ.tiff"),
             ("donnée-discrètes.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "donnée-discrètes.tiff"),
+            ("band-weiß.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "band-weiß.tiff"),
+            ("bands/weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bandsweiß-cube.tiff"),
+            ("bands:weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bandsweiß-cube.tiff"),
+            ("立方体.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "立方体.tiff"),
+            ("立方体;123", "http://data.test/dl/cube.tiff", "image/tiff", "立方体123-cube.tiff"),
         ],
     )
     def test_download_make_filename(self, tmp_path, job, key, href, media_type, expected, requests_mock):
