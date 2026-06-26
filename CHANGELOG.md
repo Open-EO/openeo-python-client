@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ResultAsset.__init__()`: renamed `name` argument to `key` for clarity and consistency with the spec ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
+
 ### Removed
 
 ### Fixed

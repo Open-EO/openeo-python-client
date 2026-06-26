@@ -429,6 +429,9 @@ class ResultAsset:
     Result asset of a batch job (e.g. a GeoTIFF or JSON file)
 
     .. versionadded:: 0.4.10
+
+    .. versionchanged:: 0.51.0
+        Renamed argument ``name`` to ``key``
     """
 
     __slots__ = ("job", "key", "href", "media_type", "metadata")
