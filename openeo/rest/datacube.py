@@ -877,7 +877,7 @@ class DataCube(_ProcessGraphAbstraction):
             dict_no_none({"data": self, "target": target, "dimension": dimension, "valid_within": valid_within})
         )
 
-    def _operator_binary(self, operator: str, other: Union[DataCube, int, float], reverse=False) -> DataCube:
+    def _operator_binary(self, operator: str, other: Union[DataCube, int, float, Parameter], reverse=False) -> DataCube:
         """Generic handling of (mathematical) binary operator"""
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
@@ -888,7 +888,7 @@ class DataCube(_ProcessGraphAbstraction):
         else:
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
-            elif isinstance(other, (int, float)):
+            elif isinstance(other, (int, float, Parameter)):
                 # "`apply` math" mode
                 return self._apply_operator(
                     operator=operator, other=other, reverse=reverse
@@ -907,7 +907,7 @@ class DataCube(_ProcessGraphAbstraction):
     def _apply_operator(
         self,
         operator: str,
-        other: Optional[Union[int, float]] = None,
+        other: Optional[Union[int, float, Parameter]] = None,
         reverse: Optional[bool] = None,
         extra_arguments: Optional[dict] = None,
     ) -> DataCube:

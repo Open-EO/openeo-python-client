@@ -3628,6 +3628,11 @@ def test_update_arguments_priority(con100):
     (lambda c: 4 > c, "lt", {"x": {"from_parameter": "x"}, "y": 4}),
     (lambda c: c == 4, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
     (lambda c: 4 == c, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+    (
+        lambda c: c >= Parameter.number("threshold"),
+        "gte",
+        {"x": {"from_parameter": "x"}, "y": {"from_parameter": "threshold"}},
+    ),
 ])
 def test_apply_math_simple(con100, math, process, args):
     """https://github.com/Open-EO/openeo-python-client/issues/323"""

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Support `Parameter` values in `DataCube` binary operators outside band math mode. ([#903](https://github.com/Open-EO/openeo-python-client/issues/903))
+
 ## [0.50.0] - 2026-05-18
 
 ### Added
