@@ -1110,6 +1110,21 @@ class TestResultAsset:
         assert res == tmp_path / expected
         assert res.read_bytes() == b"data"
 
+    def test_download_uses_file_local_path(self, tmp_path, job, requests_mock):
+        href = "http://data.test/dl/asset"
+        requests_mock.head(href, headers={"Content-Length": "data"})
+        requests_mock.get(href, text="data")
+
+        asset = ResultAsset(
+            job=job,
+            key="asset",
+            href=href,
+            metadata={"type": "image/tiff", "file:local_path": "tiles/2026/result.tiff"},
+        )
+        res = asset.download(tmp_path)
+        assert res == tmp_path / "tiles" / "2026" / "result.tiff"
+        assert res.read_bytes() == b"data"
+
 
 @pytest.mark.parametrize(
     ["list_jobs_kwargs", "expected_qs"],

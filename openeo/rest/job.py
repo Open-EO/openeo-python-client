@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import typing
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Union
 from urllib.parse import urlparse
 
@@ -465,6 +465,8 @@ class ResultAsset:
         based on: asset key (which is not guaranteed to consist of filename-safe characters)
         and filename in href (if any)
         """
+        if local_path := self._make_filename_from_local_path():
+            return local_path
 
         if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
             # Legacy mode: asset key already looks like a filename
@@ -482,6 +484,18 @@ class ResultAsset:
             if extension := _MEDIA_TYPE_EXTENSION_MAP.get(self.media_type):
                 filename += extension
         return filename
+
+    def _make_filename_from_local_path(self) -> Optional[str]:
+        local_path = self.metadata.get("file:local_path")
+        if not isinstance(local_path, str) or "\\" in local_path:
+            return None
+        path = PurePosixPath(local_path)
+        if path.is_absolute() or any(p == ".." for p in path.parts):
+            return None
+        parts = [p for p in path.parts if p not in {"", "."}]
+        if not parts:
+            return None
+        return str(Path(*parts))
 
     def download(
         self,
