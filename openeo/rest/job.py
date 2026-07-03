@@ -6,6 +6,7 @@ import logging
 import re
 import time
 import typing
+import warnings
 from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Union
 from urllib.parse import urlparse
@@ -486,16 +487,32 @@ class ResultAsset:
         return filename
 
     def _make_filename_from_local_path(self) -> Optional[str]:
-        local_path = self.metadata.get("file:local_path")
-        if not isinstance(local_path, str) or "\\" in local_path:
+        if "file:local_path" not in self.metadata:
             return None
-        path = PurePosixPath(local_path)
-        if path.is_absolute() or any(p == ".." for p in path.parts):
-            return None
-        parts = [p for p in path.parts if p not in {"", "."}]
-        if not parts:
-            return None
-        return str(Path(*parts))
+        local_path = self.metadata["file:local_path"]
+        reason = None
+        if not isinstance(local_path, str):
+            reason = "not a string"
+        elif "\\" in local_path:
+            reason = "contains backslash path separators"
+        else:
+            path = PurePosixPath(local_path)
+            if path.is_absolute():
+                reason = "is not relative"
+            elif any(p == ".." for p in path.parts):
+                reason = "contains parent directory references"
+            else:
+                parts = [p for p in path.parts if p not in {"", "."}]
+                if parts:
+                    return str(Path(*parts))
+                reason = "does not contain a filename"
+
+        warnings.warn(
+            f"Ignoring invalid STAC file:local_path metadata value {local_path!r}: {reason}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return None
 
     def download(
         self,
