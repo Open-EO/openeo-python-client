@@ -146,6 +146,8 @@ class DataCube(_ProcessGraphAbstraction):
             of all log entries. It can help to group or filter log entries and is usually not unique.
         :param level: The severity level of this message, defaults to `info`.
         :return: new DataCube instance
+
+        .. versionadded:: 0.51.0
         """
         arguments = {"data": self}
         if message is not _UNSET:

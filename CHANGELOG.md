@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `DataCube.inspect()` helper for the openEO `inspect` process. ([#795](https://github.com/Open-EO/openeo-python-client/issues/795))
 - `DataCube.resample_spatial()` now supports parameterized `resolution` and `projection` arguments.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
 - Sanitize asset download filenames (e.g. strip slashes, (semi)colon, hash, ...), instead of blindly using the asset key as filename. ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
 - Support parameters in `DataCube` apply- and band-math operations ([#903](https://github.com/Open-EO/openeo-python-client/issues/903))

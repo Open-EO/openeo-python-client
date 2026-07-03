@@ -2900,15 +2900,7 @@ def test_inspect(con100: Connection):
     cube = con100.load_collection("S2")
     res = cube.inspect(message="debug cube", code="Debug", level="warning")
 
-    assert res.flat_graph() == {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {
-                "id": "S2",
-                "spatial_extent": None,
-                "temporal_extent": None,
-            },
-        },
+    assert get_download_graph(res, drop_save_result=True, drop_load_collection=True) == {
         "inspect1": {
             "process_id": "inspect",
             "arguments": {
@@ -2917,7 +2909,6 @@ def test_inspect(con100: Connection):
                 "code": "Debug",
                 "level": "warning",
             },
-            "result": True,
         },
     }
 
@@ -2926,21 +2917,12 @@ def test_inspect_without_log_fields(con100: Connection):
     cube = con100.load_collection("S2")
     res = cube.inspect()
 
-    assert res.flat_graph() == {
-        "loadcollection1": {
-            "process_id": "load_collection",
-            "arguments": {
-                "id": "S2",
-                "spatial_extent": None,
-                "temporal_extent": None,
-            },
-        },
+    assert get_download_graph(res, drop_save_result=True, drop_load_collection=True) == {
         "inspect1": {
             "process_id": "inspect",
             "arguments": {
                 "data": {"from_node": "loadcollection1"},
             },
-            "result": True,
         },
     }
 
