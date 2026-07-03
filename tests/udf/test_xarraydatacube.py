@@ -155,10 +155,11 @@ def _get_netcdf_engines() -> List[str]:
     return netcdf_engines
 
 
-def _roundtrips() -> Iterator[_SaveLoadRoundTrip]:
-    yield pytest.param(_SaveLoadRoundTrip(format="json"), id="json")
-
-    yield pytest.param(_SaveLoadRoundTrip(format="netcdf"), id=f"netcdf-defaults")
+def _roundtrips() -> List[_SaveLoadRoundTrip]:
+    roundtrips = [
+        pytest.param(_SaveLoadRoundTrip(format="json"), id="json"),
+        pytest.param(_SaveLoadRoundTrip(format="netcdf"), id=f"netcdf-defaults"),
+    ]
 
     netcdf_engines = _get_netcdf_engines()
     assert len(netcdf_engines) > 0
@@ -166,12 +167,13 @@ def _roundtrips() -> Iterator[_SaveLoadRoundTrip]:
         if (e1 == "scipy") != (e2 == "scipy"):
             # Only test scipy engine against itself
             continue
-        yield pytest.param(
-            _SaveLoadRoundTrip(
-                format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}
-            ),
-            id=f"netcdf-{e1}-{e2}",
+        roundtrips.append(
+            pytest.param(
+                _SaveLoadRoundTrip(format="netcdf", save_kwargs={"engine": e1}, load_kwargs={"engine": e2}),
+                id=f"netcdf-{e1}-{e2}",
+            )
         )
+    return roundtrips
 
 
 def _assert_equal_after_save_and_load(
