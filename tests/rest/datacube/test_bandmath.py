@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 import openeo
+from openeo.api.process import Parameter
 from openeo.rest import BandMathException
 
 from .. import get_download_graph
@@ -225,6 +226,26 @@ def test_ndvi_reduce_bands_udf_v100(con100, test_data):
                 }
             },
         ),
+        (
+            (lambda b: b + Parameter.number("offset")),
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_parameter": "offset"}},
+                    "result": True,
+                }
+            },
+        ),
+        (
+            (lambda b: Parameter.number("offset") + b),
+            {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {"x": {"from_parameter": "offset"}, "y": {"from_node": "arrayelement1"}},
+                    "result": True,
+                }
+            },
+        ),
     ],
 )
 def test_band_operation(con100, process, expected):
@@ -272,6 +293,35 @@ def test_gt_scalar(connection, api_version, test_data):
     band = cube.band("B04")
     result = band > 42
     assert result.flat_graph() == test_data.load_json("%s/bm_gt_scalar.json" % api_version)
+
+
+def test_gt_param(connection, api_version):
+    cube = connection.load_collection("S2")
+    band = cube.band("B04")
+    threshold = Parameter.number(name="threshold")
+    result = band > threshold
+    assert get_download_graph(result, drop_save_result=True, drop_load_collection=True) == {
+        "reducedimension1": {
+            "process_id": "reduce_dimension",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "dimension": "bands",
+                "reducer": {
+                    "process_graph": {
+                        "arrayelement1": {
+                            "process_id": "array_element",
+                            "arguments": {"data": {"from_parameter": "data"}, "index": 2},
+                        },
+                        "gt1": {
+                            "process_id": "gt",
+                            "arguments": {"x": {"from_node": "arrayelement1"}, "y": {"from_parameter": "threshold"}},
+                            "result": True,
+                        },
+                    }
+                },
+            },
+        },
+    }
 
 
 @pytest.mark.parametrize(

@@ -3774,6 +3774,21 @@ def test_update_arguments_priority(con100):
         (lambda c: 4 > c, "lt", {"x": {"from_parameter": "x"}, "y": 4}),
         (lambda c: c == 4, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
         (lambda c: 4 == c, "eq", {"x": {"from_parameter": "x"}, "y": 4}),
+        (
+            lambda c: c + Parameter.number("offset"),
+            "add",
+            {"x": {"from_parameter": "x"}, "y": {"from_parameter": "offset"}},
+        ),
+        (
+            lambda c: Parameter.number("offset") + c,
+            "add",
+            {"x": {"from_parameter": "offset"}, "y": {"from_parameter": "x"}},
+        ),
+        (
+            lambda c: c >= Parameter.number("threshold"),
+            "gte",
+            {"x": {"from_parameter": "x"}, "y": {"from_parameter": "threshold"}},
+        ),
     ],
 )
 def test_apply_math_simple(con100, math, process, args):
@@ -3903,6 +3918,20 @@ def test_apply_math_simple(con100, math, process, args):
                 "not1": {
                     "process_id": "not",
                     "arguments": {"x": {"from_node": "eq1"}},
+                    "result": True,
+                },
+            },
+        ),
+        (
+            lambda c: Parameter.number(name="scale") * (c >= Parameter.number(name="threshold")),
+            {
+                "gte1": {
+                    "process_id": "gte",
+                    "arguments": {"x": {"from_parameter": "x"}, "y": {"from_parameter": "threshold"}},
+                },
+                "multiply1": {
+                    "process_id": "multiply",
+                    "arguments": {"x": {"from_parameter": "scale"}, "y": {"from_node": "gte1"}},
                     "result": True,
                 },
             },
