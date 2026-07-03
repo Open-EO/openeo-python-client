@@ -2896,6 +2896,55 @@ def test_custom_process_arguments_namespacd(con100: Connection, test_data):
     assert res.flat_graph() == expected
 
 
+def test_inspect(con100: Connection):
+    cube = con100.load_collection("S2")
+    res = cube.inspect(message="debug cube", code="Debug", level="warning")
+
+    assert res.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+            },
+        },
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "message": "debug cube",
+                "code": "Debug",
+                "level": "warning",
+            },
+            "result": True,
+        },
+    }
+
+
+def test_inspect_without_log_fields(con100: Connection):
+    cube = con100.load_collection("S2")
+    res = cube.inspect()
+
+    assert res.flat_graph() == {
+        "loadcollection1": {
+            "process_id": "load_collection",
+            "arguments": {
+                "id": "S2",
+                "spatial_extent": None,
+                "temporal_extent": None,
+            },
+        },
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+            },
+            "result": True,
+        },
+    }
+
+
 @pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process(con100, requests_mock, test_data):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
