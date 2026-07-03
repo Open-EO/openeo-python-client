@@ -36,7 +36,7 @@ from .conftest import API_URL
 
 
 def test_apply_dimension_temporal_cumsum(s2cube, api_version, test_data):
-    cumsum = s2cube.apply_dimension('cumsum', dimension="t")
+    cumsum = s2cube.apply_dimension("cumsum", dimension="t")
     actual_graph = get_download_graph(cumsum)
     expected_graph = test_data.load_json("{v}/apply_dimension_temporal_cumsum.json".format(v=api_version))
     assert actual_graph == expected_graph
@@ -80,7 +80,7 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
     if isinstance(cube, DataCube):
         if force_flat:
             flat_graph = cube.flat_graph()
-            node, = [n for n in flat_graph.values() if n.get("result")]
+            (node,) = [n for n in flat_graph.values() if n.get("result")]
             return node
         else:
             return cube._pg.to_dict()
@@ -89,7 +89,6 @@ def _get_leaf_node(cube, force_flat=True) -> dict:
 
 
 class TestDataCube:
-
     def test_load_collection_connectionless_basic(self):
         cube = DataCube.load_collection("T3")
         assert cube.flat_graph() == {
@@ -354,22 +353,22 @@ class TestDataCube:
 def test_filter_temporal_basic_positional_args(s2cube):
     im = s2cube.filter_temporal("2016-01-01", "2016-03-10")
     graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
 
 
 def test_filter_temporal_basic_start_end(s2cube):
     im = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
     graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
 
 
 def test_filter_temporal_basic_extent(s2cube):
     im = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
     graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == ["2016-01-01", "2016-03-10"]
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
 
 
 @pytest.mark.parametrize(
@@ -408,8 +407,8 @@ def test_filter_temporal_basic_extent(s2cube):
 def test_filter_temporal_generic(s2cube, args, kwargs, extent):
     im = s2cube.filter_temporal(*args, **kwargs)
     graph = _get_leaf_node(im)
-    assert graph['process_id'] == 'filter_temporal'
-    assert graph['arguments']['extent'] == extent
+    assert graph["process_id"] == "filter_temporal"
+    assert graph["arguments"]["extent"] == extent
 
 
 @pytest.mark.parametrize(
@@ -585,41 +584,56 @@ def test_filter_bbox_crs_4326(s2cube):
 
 
 def test_filter_bbox_crs_32632(s2cube):
-    im = s2cube.filter_bbox(
-        west=652000, east=672000, north=5161000, south=5181000, crs=32632
-    )
+    im = s2cube.filter_bbox(west=652000, east=672000, north=5161000, south=5181000, crs=32632)
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632
+        "west": 652000,
+        "east": 672000,
+        "north": 5161000,
+        "south": 5181000,
+        "crs": 32632,
     }
 
 
 def test_filter_bbox_base_height(s2cube):
     im = s2cube.filter_bbox(
-        west=652000, east=672000, north=5161000, south=5181000, crs=32632,
-        base=100, height=200,
+        west=652000,
+        east=672000,
+        north=5161000,
+        south=5181000,
+        crs=32632,
+        base=100,
+        height=200,
     )
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "filter_bbox"
     assert graph["arguments"]["extent"] == {
-        "west": 652000, "east": 672000, "north": 5161000, "south": 5181000, "crs": 32632,
-        "base": 100, "height": 200,
+        "west": 652000,
+        "east": 672000,
+        "north": 5161000,
+        "south": 5181000,
+        "crs": 32632,
+        "base": 100,
+        "height": 200,
     }
 
 
-@pytest.mark.parametrize(["kwargs", "expected"], [
-    ({}, {}),
-    ({"crs": None}, {}),
-    ({"crs": 4326}, {"crs": 4326}),
-    ({"crs": 32632}, {"crs": 32632}),
-    ({"base": None}, {}),
-    ({"base": 123}, {"base": 123}),
-    ({"height": None}, {}),
-    ({"height": 456}, {"height": 456}),
-    ({"base": None, "height": 456}, {"height": 456}),
-    ({"base": 123, "height": 456}, {"base": 123, "height": 456}),
-])
+@pytest.mark.parametrize(
+    ["kwargs", "expected"],
+    [
+        ({}, {}),
+        ({"crs": None}, {}),
+        ({"crs": 4326}, {"crs": 4326}),
+        ({"crs": 32632}, {"crs": 32632}),
+        ({"base": None}, {}),
+        ({"base": 123}, {"base": 123}),
+        ({"height": None}, {}),
+        ({"height": 456}, {"height": 456}),
+        ({"base": None, "height": 456}, {"height": 456}),
+        ({"base": 123, "height": 456}, {"base": 123, "height": 456}),
+    ],
+)
 def test_filter_bbox_default_handling(s2cube, kwargs, expected):
     im = s2cube.filter_bbox(west=3, east=4, south=8, north=9, **kwargs)
     graph = _get_leaf_node(im)
@@ -795,11 +809,11 @@ def test_mask_polygon(s2cube, api_version):
     graph = _get_leaf_node(im)
     assert graph["process_id"] == expected_proces_id
     assert graph["arguments"] == {
-        "data": {'from_node': 'loadcollection1'},
+        "data": {"from_node": "loadcollection1"},
         "mask": {
-            'type': 'Polygon',
-            'coordinates': (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
-        }
+            "type": "Polygon",
+            "coordinates": (((0.0, 0.0), (1.9, 0.0), (1.9, 1.9), (0.0, 1.9), (0.0, 0.0)),),
+        },
     }
 
 
@@ -824,11 +838,11 @@ def test_apply_kernel(s2cube):
     graph = _get_leaf_node(im)
     assert graph["process_id"] == "apply_kernel"
     assert graph["arguments"] == {
-        'data': {'from_node': 'loadcollection1'},
-        'factor': 3,
-        'border': 0,
-        'replace_invalid': 0,
-        'kernel': [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
+        "data": {"from_node": "loadcollection1"},
+        "factor": 3,
+        "border": 0,
+        "replace_invalid": 0,
+        "kernel": [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     }
 
 
@@ -1097,8 +1111,8 @@ def test_subtract_dates_ep3129(s2cube, api_version):
     bbox = {"west": 5.16, "south": 51.23, "east": 5.18, "north": 51.25}
     date1 = "2018-08-01"
     date2 = "2019-10-28"
-    im1 = s2cube.filter_temporal(date1, date1).filter_bbox(**bbox).band('B04')
-    im2 = s2cube.filter_temporal(date2, date2).filter_bbox(**bbox).band('B04')
+    im1 = s2cube.filter_temporal(date1, date1).filter_bbox(**bbox).band("B04")
+    im2 = s2cube.filter_temporal(date2, date2).filter_bbox(**bbox).band("B04")
 
     with pytest.raises(BandMathException, match="between bands of different"):
         im2.subtract(im1)
@@ -1114,23 +1128,26 @@ def test_tiled_viewing_service(s2cube, connection, requests_mock, api_version, t
     requests_mock.post(
         API_URL + "/services",
         status_code=201,
-        text='',
-        headers={'Location': API_URL + "/services/sf00", 'OpenEO-Identifier': 'sf00'},
-        additional_matcher=check_request
+        text="",
+        headers={"Location": API_URL + "/services/sf00", "OpenEO-Identifier": "sf00"},
+        additional_matcher=check_request,
     )
 
     res = s2cube.tiled_viewing_service(type="WMTS", title="S2 Foo", description="Nice!", custom_param=45)
-    assert res.service_id == 'sf00'
+    assert res.service_id == "sf00"
 
 
 def test_apply_dimension(connection, requests_mock):
-    requests_mock.get(API_URL + "/collections/S22", json={
-        "cube:dimensions": {
-            "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
-            "alpha": {"type": "spatial"},
-            "date": {"type": "temporal"}
-        }
-    })
+    requests_mock.get(
+        API_URL + "/collections/S22",
+        json={
+            "cube:dimensions": {
+                "color": {"type": "bands", "values": ["cyan", "magenta", "yellow", "black"]},
+                "alpha": {"type": "spatial"},
+                "date": {"type": "temporal"},
+            }
+        },
+    )
     s22 = connection.load_collection("S22")
 
     for dim in ["color", "alpha", "date"]:
@@ -1138,7 +1155,7 @@ def test_apply_dimension(connection, requests_mock):
         assert cube.flat_graph()["applydimension1"]["process_id"] == "apply_dimension"
         assert cube.flat_graph()["applydimension1"]["arguments"]["dimension"] == dim
     with pytest.raises(ValueError, match="Invalid dimension 'wut'"):
-        s22.apply_dimension(dimension='wut', code="subtract_mean")
+        s22.apply_dimension(dimension="wut", code="subtract_mean")
 
 
 def test_apply_dimension_unspecified_dimension(s2cube, dummy_backend, recwarn):
@@ -1166,7 +1183,7 @@ def test_apply_dimension_unspecified_dimension(s2cube, dummy_backend, recwarn):
 
 def test_download_path_str(connection, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/collections/S2", json={})
-    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    requests_mock.post(API_URL + "/result", content=b"tiffdata")
     path = tmp_path / "tmp.tiff"
     connection.load_collection("S2").download(str(path), format="GTiff")
     assert path.read_bytes() == b"tiffdata"
@@ -1174,7 +1191,7 @@ def test_download_path_str(connection, requests_mock, tmp_path):
 
 def test_download_pathlib(connection, requests_mock, tmp_path):
     requests_mock.get(API_URL + "/collections/S2", json={})
-    requests_mock.post(API_URL + '/result', content=b"tiffdata")
+    requests_mock.post(API_URL + "/result", content=b"tiffdata")
     path = tmp_path / "tmp.tiff"
     connection.load_collection("S2").download(pathlib.Path(str(path)), format="GTIFF")
     assert path.read_bytes() == b"tiffdata"
@@ -1209,18 +1226,22 @@ def test_execute_tiff_raw(connection, requests_mock):
     assert isinstance(result, requests.Response)
     assert result.content == b"tiffdata"
 
-@pytest.mark.parametrize(["filename", "expected_format"], [
-    ("result.tiff", "GTiff"),
-    ("result.tif", "GTiff"),
-    ("result.gtiff", "GTiff"),
-    ("result.geotiff", "GTiff"),
-    ("result.nc", "netCDF"),
-    ("result.netcdf", "netCDF"),
-    ("result.csv", "CSV"),
-])
+
+@pytest.mark.parametrize(
+    ["filename", "expected_format"],
+    [
+        ("result.tiff", "GTiff"),
+        ("result.tif", "GTiff"),
+        ("result.gtiff", "GTiff"),
+        ("result.geotiff", "GTiff"),
+        ("result.nc", "netCDF"),
+        ("result.netcdf", "netCDF"),
+        ("result.csv", "CSV"),
+    ],
+)
 @pytest.mark.parametrize("path_type", [str, pathlib.Path])
 def test_download_format_guessing(
-        connection, requests_mock, tmp_path, api_version, filename, path_type, expected_format
+    connection, requests_mock, tmp_path, api_version, filename, path_type, expected_format
 ):
     requests_mock.get(API_URL + "/collections/S2", json={})
 
@@ -1230,17 +1251,20 @@ def test_download_format_guessing(
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 
-    requests_mock.post(API_URL + '/result', content=result_callback)
+    requests_mock.post(API_URL + "/result", content=result_callback)
     path = tmp_path / filename
     connection.load_collection("S2").download(path_type(path))
     assert path.read_bytes() == b"data"
 
 
-@pytest.mark.parametrize(["format", "expected_format"], [
-    ("GTiff", "GTiff"),
-    ("netCDF", "netCDF"),
-    (None, "GTiff"),
-])
+@pytest.mark.parametrize(
+    ["format", "expected_format"],
+    [
+        ("GTiff", "GTiff"),
+        ("netCDF", "netCDF"),
+        (None, "GTiff"),
+    ],
+)
 def test_download_bytes(connection, requests_mock, api_version, format, expected_format):
     requests_mock.get(API_URL + "/collections/S2", json={})
 
@@ -1250,7 +1274,7 @@ def test_download_bytes(connection, requests_mock, api_version, format, expected
         assert pg["saveresult1"]["arguments"]["format"] == expected_format
         return b"data"
 
-    requests_mock.post(API_URL + '/result', content=result_callback)
+    requests_mock.post(API_URL + "/result", content=result_callback)
     result = connection.load_collection("S2").download(format=format)
     assert result == b"data"
 
@@ -1287,9 +1311,7 @@ class TestExecuteBatch:
         ["out_format", "expected"],
         [("GTiff", "GTiff"), ("NetCDF", "NetCDF")],
     )
-    def test_create_job_out_format(
-        self, s2cube, get_create_job_pg, out_format, expected
-    ):
+    def test_create_job_out_format(self, s2cube, get_create_job_pg, out_format, expected):
         s2cube.create_job(out_format=out_format)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
@@ -1400,9 +1422,7 @@ class TestExecuteBatch:
         ["out_format", "expected"],
         [("GTiff", "GTiff"), ("NetCDF", "NetCDF")],
     )
-    def test_execute_batch_out_format(
-        self, s2cube, get_create_job_pg, out_format, expected
-    ):
+    def test_execute_batch_out_format(self, s2cube, get_create_job_pg, out_format, expected):
         s2cube.execute_batch(out_format=out_format)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
@@ -1420,9 +1440,7 @@ class TestExecuteBatch:
         ["output_file", "expected"],
         [("cube.tiff", "GTiff"), ("cube.nc", "netCDF")],
     )
-    def test_execute_batch_out_format_from_output_file(
-        self, s2cube, get_create_job_pg, output_file, expected
-    ):
+    def test_execute_batch_out_format_from_output_file(self, s2cube, get_create_job_pg, output_file, expected):
         s2cube.execute_batch(outputfile=output_file)
         pg = get_create_job_pg()
         assert set(pg.keys()) == {"loadcollection1", "saveresult1"}
