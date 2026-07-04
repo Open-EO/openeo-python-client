@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clarify UDF documentation on required function type annotations. ([#757](https://github.com/Open-EO/openeo-python-client/issues/757))
+
 ## [0.50.0] - 2026-05-18
 
 ### Added
