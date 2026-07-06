@@ -211,7 +211,7 @@ Prerequisites
 Important files
 ---------------
 
-``setup.py``
+``pyproject.toml``
     describes the metadata of the package,
     like package name ``openeo`` and version
     (which is extracted from ``openeo/_version.py``).
@@ -289,7 +289,7 @@ we will use a concrete version ``0.8.0`` in the examples below.
         -   *Or, if you know what you are doing* and you're sure you have a clean
             local checkout, you can also build it locally::
 
-                python setup.py bdist_wheel
+                python -m build -w
 
             This should create ``dist/openeo-0.8.0-py3-none-any.whl``
 

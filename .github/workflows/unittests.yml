@@ -3,13 +3,11 @@ name: Unit tests
 on:
   push:
     paths:
-      - 'setup.py'
       - 'pyproject.toml'
       - 'openeo/**'
       - 'tests/**'
   pull_request:
     paths:
-      - 'setup.py'
       - 'pyproject.toml'
       - 'openeo/**'
       - 'tests/**'
@@ -42,6 +40,6 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install .[tests]
+        python -m pip install -e .[tests]
     - name: Test with pytest
       run: pytest
