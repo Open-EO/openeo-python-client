@@ -844,7 +844,8 @@ def test_authenticate_basic(requests_mock, api_version, basic_auth):
 
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
+    result = conn.authenticate_basic(username=basic_auth.username, password=basic_auth.password)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == "basic//6cc3570k3n"
 
@@ -880,7 +881,8 @@ def test_authenticate_oidc_authorization_code_100_single_implicit(requests_mock,
     caplog.set_level(logging.INFO)
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    result = conn.authenticate_oidc_authorization_code(client_id=client_id, webbrowser_open=oidc_mock.webbrowser_open)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/fauth/' + oidc_mock.state["access_token"]
     assert "No OIDC provider given, but only one available: 'fauth'. Using that one." in caplog.text
@@ -1070,9 +1072,8 @@ def test_authenticate_oidc_client_credentials(requests_mock):
     refresh_token_store = mock.Mock()
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_client_credentials(
-        client_id=client_id, client_secret=client_secret
-    )
+    result = conn.authenticate_oidc_client_credentials(client_id=client_id, client_secret=client_secret)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
@@ -1305,9 +1306,10 @@ def test_authenticate_oidc_resource_owner_password_credentials(requests_mock):
     refresh_token_store = mock.Mock()
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_resource_owner_password_credentials(
+    result = conn.authenticate_oidc_resource_owner_password_credentials(
         client_id=client_id, username=username, password=password, client_secret=client_secret
     )
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert refresh_token_store.mock_calls == []
@@ -1393,9 +1395,10 @@ def test_authenticate_oidc_device_flow_with_secret(
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
     # with oidc_mock
     with oidc_device_code_flow_checker():
-        conn.authenticate_oidc_device(
+        result = conn.authenticate_oidc_device(
             client_id=client_id, client_secret=client_secret, store_refresh_token=store_refresh_token
         )
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     if store_refresh_token:
@@ -1819,7 +1822,8 @@ def test_authenticate_oidc_refresh_token(requests_mock):
     refresh_token_store = mock.Mock()
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc_refresh_token(refresh_token=refresh_token, client_id=client_id)
+    result = conn.authenticate_oidc_refresh_token(refresh_token=refresh_token, client_id=client_id)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
 
@@ -1931,7 +1935,7 @@ def test_authenticate_oidc_auto_with_existing_refresh_token(requests_mock, refre
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL, refresh_token_store=refresh_token_store)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc(client_id=client_id, store_refresh_token=store_refresh_token)
+    assert conn.authenticate_oidc(client_id=client_id, store_refresh_token=store_refresh_token) is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
 
@@ -1976,7 +1980,8 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
     with oidc_device_code_flow_checker():
-        conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
+        result = conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
@@ -2021,7 +2026,8 @@ def test_authenticate_oidc_auto_expired_refresh_token(
     assert isinstance(conn.auth, NullAuth)
     oidc_mock.state["device_code_callback_timeline"] = ["great success"]
     with oidc_device_code_flow_checker():
-        conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
+        result = conn.authenticate_oidc(client_id=client_id, use_pkce=use_pkce)
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == 'oidc/oi/' + oidc_mock.state["access_token"]
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
@@ -2070,7 +2076,8 @@ def test_authenticate_oidc_method_client_credentials_from_env(
     # With all this set up, kick off the openid connect flow
     conn = Connection(API_URL)
     assert isinstance(conn.auth, NullAuth)
-    conn.authenticate_oidc()
+    result = conn.authenticate_oidc()
+    assert result is conn
     assert isinstance(conn.auth, BearerAuth)
     assert conn.auth.bearer == f"oidc/{expected_provider_id}/" + oidc_mock.state["access_token"]
 
@@ -2818,7 +2825,8 @@ class TestAuthenticateOidcAccessToken:
 
     def test_authenticate_oidc_access_token_default_provider(self):
         connection = Connection(API_URL)
-        connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#")
+        result = connection.authenticate_oidc_access_token(access_token="Th3Tok3n!@#")
+        assert result is connection
         assert isinstance(connection.auth, BearerAuth)
         assert connection.auth.bearer == "oidc/oi/Th3Tok3n!@#"
 
@@ -2838,7 +2846,8 @@ class TestAuthenticateOidcAccessToken:
 
     def test_authenticate_bearer_token(self):
         connection = Connection(API_URL)
-        connection.authenticate_bearer_token("custom/foo/b666r")
+        result = connection.authenticate_bearer_token("custom/foo/b666r")
+        assert result is connection
         assert isinstance(connection.auth, BearerAuth)
         assert connection.auth.bearer == "custom/foo/b666r"
 
