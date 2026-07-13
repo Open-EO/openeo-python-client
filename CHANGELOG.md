@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Better error message when passing a bounding box with field typos in `Connection.load_collection()` and alike  ([#910](https://github.com/Open-EO/openeo-python-client/issues/910))
+
+
 ## [0.50.0] - 2026-05-18
 
 ### Added

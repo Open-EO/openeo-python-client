@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import os
@@ -2882,6 +2883,37 @@ class TestLoadCollection:
             "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
             "temporal_extent": None,
         }
+
+    @pytest.mark.parametrize(
+        ["bbox", "expected_failure"],
+        [
+            # No problems here
+            ({"west": 1, "south": 2, "east": 3, "north": 4}, None),
+            ({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}, None),
+            ({"west": 1, "south": 2, "east": 3, "north": 4, "_internal_ref": "id123"}, None),
+            # Typo
+            (
+                {"west": 1, "south": 2, "east": 3, "norht": 4},
+                r"Invalid bounding box.*has fields\W+east\W+south\W+west.*but is missing\W*north.*",
+            ),
+            # Missing fields
+            (
+                {"west": 1, "south": 2, "east": 3},
+                r"Invalid bounding box.*has fields\W+east\W+south\W+west.*but is missing\W*north.*",
+            ),
+            (
+                {"west": 1, "east": 3},
+                r"Invalid bounding box.*has fields\W+east\W+west.*but is missing\W*north\W*south.*",
+            ),
+        ],
+    )
+    def test_load_collection_spatial_extent_bbox_invalid(self, dummy_backend, bbox, expected_failure):
+        if expected_failure:
+            context = pytest.raises(OpenEoClientException, match=expected_failure)
+        else:
+            context = contextlib.nullcontext()
+        with context:
+            _ = dummy_backend.connection.load_collection("S2", spatial_extent=bbox)
 
     @pytest.mark.parametrize(
         "spatial_extent",
