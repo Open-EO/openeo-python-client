@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Report missing bounding-box fields clearly for `load_collection()` and `load_stac()` spatial extents. ([#910](https://github.com/Open-EO/openeo-python-client/issues/910))
+
 ## [0.50.0] - 2026-05-18
 
 ### Added

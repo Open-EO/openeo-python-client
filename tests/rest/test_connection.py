@@ -2883,6 +2883,16 @@ class TestLoadCollection:
             "temporal_extent": None,
         }
 
+    def test_load_collection_spatial_extent_bbox_missing_field(self, dummy_backend):
+        spatial_extent = {"west": 3.1, "south": 51.1, "east": 3.2, "norht": 51.2}
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape(
+                "Invalid bounding box given to `spatial_extent` in `load_collection`: missing fields ['north']."
+            ),
+        ):
+            dummy_backend.connection.load_collection("S2", spatial_extent=spatial_extent)
+
     @pytest.mark.parametrize(
         "spatial_extent",
         [
@@ -3626,6 +3636,14 @@ class TestLoadStac:
             "url": "https://stac.test/data",
             "spatial_extent": {"west": 1, "south": 2, "east": 3, "north": 4},
         }
+
+    def test_load_stac_spatial_extent_bbox_missing_field(self, dummy_backend):
+        spatial_extent = {"west": 3.1, "south": 51.1, "east": 3.2, "norht": 51.2}
+        with pytest.raises(
+            OpenEoClientException,
+            match=re.escape("Invalid bounding box given to `spatial_extent` in `load_stac`: missing fields ['north']."),
+        ):
+            dummy_backend.connection.load_stac("https://stac.test/data", spatial_extent=spatial_extent)
 
     @pytest.mark.parametrize(
         "spatial_extent",

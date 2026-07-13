@@ -3170,12 +3170,16 @@ def _get_geometry_argument(
         return argument.from_node()
     elif allow_none and argument is None:
         return argument
-    elif (
-        allow_bounding_box
-        and isinstance(argument, dict)
-        and all(k in argument for k in ["west", "south", "east", "north"])
-    ):
-        return argument
+    elif allow_bounding_box and isinstance(argument, dict):
+        bbox_fields = {"west", "south", "east", "north"}
+        missing_bbox_fields = bbox_fields.difference(argument)
+        if not missing_bbox_fields:
+            return argument
+        if bbox_fields.intersection(argument) and not argument.get("type"):
+            raise OpenEoClientException(
+                f"Invalid bounding box given to `{argument_name}` in `{process_id}`: "
+                f"missing fields {sorted(missing_bbox_fields)}."
+            )
 
     # Support URL based geometry references (with `load_url` and best-effort format guess)
     if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
