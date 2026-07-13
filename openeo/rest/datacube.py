@@ -137,6 +137,27 @@ class DataCube(_ProcessGraphAbstraction):
 
     graph_add_node = legacy_alias(process, "graph_add_node", since="0.1.1")
 
+    def inspect(self, message=_UNSET, code=_UNSET, level=_UNSET) -> DataCube:
+        """
+        Add information to the logs for this data cube.
+
+        :param message: A message to send in addition to the data.
+        :param code: A label to help identify one or more log entries originating from this process in the list
+            of all log entries. It can help to group or filter log entries and is usually not unique.
+        :param level: The severity level of this message, defaults to `info`.
+        :return: new DataCube instance
+
+        .. versionadded:: 0.51.0
+        """
+        arguments = {"data": self}
+        if message is not _UNSET:
+            arguments["message"] = message
+        if code is not _UNSET:
+            arguments["code"] = code
+        if level is not _UNSET:
+            arguments["level"] = level
+        return self.process(process_id="inspect", arguments=arguments)
+
     def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> DataCube:
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)

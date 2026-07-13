@@ -2896,6 +2896,37 @@ def test_custom_process_arguments_namespacd(con100: Connection, test_data):
     assert res.flat_graph() == expected
 
 
+def test_inspect(con100: Connection):
+    cube = con100.load_collection("S2")
+    res = cube.inspect(message="debug cube", code="Debug", level="warning")
+
+    assert get_download_graph(res, drop_save_result=True, drop_load_collection=True) == {
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+                "message": "debug cube",
+                "code": "Debug",
+                "level": "warning",
+            },
+        },
+    }
+
+
+def test_inspect_without_log_fields(con100: Connection):
+    cube = con100.load_collection("S2")
+    res = cube.inspect()
+
+    assert get_download_graph(res, drop_save_result=True, drop_load_collection=True) == {
+        "inspect1": {
+            "process_id": "inspect",
+            "arguments": {
+                "data": {"from_node": "loadcollection1"},
+            },
+        },
+    }
+
+
 @pytest.mark.parametrize("api_capabilities", [{"udp": True}])
 def test_save_user_defined_process(con100, requests_mock, test_data):
     requests_mock.get(API_URL + "/processes", json={"processes": [{"id": "add"}]})
