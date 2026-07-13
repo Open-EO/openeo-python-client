@@ -150,6 +150,37 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
+    def test_concurrent_job_limit_is_retried_in_later_cycle(
+        self, tmp_path, job_manager, dummy_backend_foo, requests_mock, sleep_mock
+    ):
+        attempts = []
+
+        def start_response(request, context):
+            attempts.append(request.url)
+            if len(attempts) == 1:
+                context.status_code = 400
+                return {"code": "ConcurrentJobLimit", "message": "At most one job can run."}
+
+            context.status_code = 202
+            dummy_backend_foo.batch_jobs["job-2018"]["status"] = "queued"
+            return {}
+
+        requests_mock.post("https://foo.test/jobs/job-2018/results", json=start_response)
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(pd.DataFrame({"year": [2018]}))
+
+        stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+
+        assert len(attempts) == 2
+        assert stats == dirty_equals.IsPartialDict(
+            {
+                "job start retry": 1,
+                "job_queued_for_start": 2,
+                "job start": 1,
+                "job finished": 1,
+            }
+        )
+        assert job_db.read().loc[0, "status"] == "finished"
+
     def test_basic(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         """
         `run_jobs()` usage with a `CsvJobDatabase`

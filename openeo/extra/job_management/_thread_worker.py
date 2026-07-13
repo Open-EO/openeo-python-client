@@ -3,16 +3,17 @@ Internal utilities to handle job management tasks through threads.
 """
 
 import concurrent.futures
+import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import json
 import urllib3.util
 
 import openeo
+from openeo.rest import OpenEoApiError
 from openeo.utils.http import HTTP_429_TOO_MANY_REQUESTS, retry_configuration
 
 _log = logging.getLogger(__name__)
@@ -132,16 +133,34 @@ class _JobStartTask(ConnectedTask):
                 db_update={"status": "queued"},
                 stats_update={"job start": 1},
             )
+        except OpenEoApiError as e:
+            if e.code == "ConcurrentJobLimit":
+                _log.warning(
+                    "Backend concurrent job limit reached while starting job %r; "
+                    "scheduling another attempt in a later job manager cycle.",
+                    self.job_id,
+                )
+                return _TaskResult(
+                    job_id=self.job_id,
+                    df_idx=self.df_idx,
+                    db_update={"status": "created"},
+                    stats_update={"job start retry": 1},
+                )
+            return self._start_failure_result(e)
         except Exception as e:
-            _log.error(f"Failed to start job {self.job_id!r}: {e!r}")
-            # TODO: more insights about the failure (e.g. the exception) are just logged, but lost from the result
-            return _TaskResult(
-                job_id=self.job_id,
-                df_idx=self.df_idx,
-                db_update={"status": "start_failed"},
-                stats_update={"start_job error": 1},
-            )
-        
+            return self._start_failure_result(e)
+
+    def _start_failure_result(self, error: Exception) -> _TaskResult:
+        """Build the terminal result for a non-retryable job start failure."""
+        _log.error(f"Failed to start job {self.job_id!r}: {error!r}")
+        # TODO: more insights about the failure (e.g. the exception) are just logged, but lost from the result
+        return _TaskResult(
+            job_id=self.job_id,
+            df_idx=self.df_idx,
+            db_update={"status": "start_failed"},
+            stats_update={"start_job error": 1},
+        )
+
 @dataclass(frozen=True)
 class _JobDownloadTask(ConnectedTask):
     """
@@ -159,7 +178,7 @@ class _JobDownloadTask(ConnectedTask):
 
             # Count assets (files to download)
             file_count = len(job.get_results().get_assets())
-            
+
             # Download results
             job.get_results().download_files(target=self.download_dir)
 
@@ -168,7 +187,7 @@ class _JobDownloadTask(ConnectedTask):
             metadata_path = self.download_dir / f"job_{self.job_id}.json"
             with metadata_path.open("w", encoding="utf-8") as f:
                 json.dump(job_metadata, f, ensure_ascii=False)
-            
+
             _log.info(f"Job {self.job_id!r} results downloaded successfully")
             return _TaskResult(
                 job_id=self.job_id,
@@ -184,7 +203,8 @@ class _JobDownloadTask(ConnectedTask):
                 db_update={},
                 stats_update={"job download error": 1, "files downloaded": 0},
             )
-        
+
+
 class _TaskThreadPool:
     """
     Thread pool-based worker that manages the execution of asynchronous tasks.
@@ -261,11 +281,11 @@ class _TaskThreadPool:
         self._total_processed += len(results)
 
         return results, len(to_keep)
-    
+
     def get_unprocessed_count(self) -> int:
         """Get number of tasks that haven't been processed yet."""
         return self._total_submitted - self._total_processed
-    
+
     def has_unprocessed_tasks(self) -> bool:
         """Check if there are tasks that haven't been processed yet."""
         return self._total_submitted > self._total_processed
@@ -280,7 +300,7 @@ class _JobManagerWorkerThreadPool:
     """
     Generic wrapper that manages multiple thread pools with a dict.
     """
-    
+
     def __init__(self, pool_configs: Optional[Dict[str, int]] = None):
         self._pools: Dict[str, _TaskThreadPool] = {}
         self._pool_configs = pool_configs or {}
@@ -288,23 +308,23 @@ class _JobManagerWorkerThreadPool:
     def list_pools(self) -> List[str]:
         """List all active pool names."""
         return list(self._pools.keys())
-    
+
     def submit_task(self, task: Task, pool_name: str = "default") -> None:
         if pool_name not in self._pools:
             max_workers = self._pool_configs.get(pool_name, 2)
             self._pools[pool_name] = _TaskThreadPool(max_workers=max_workers)
             _log.info(f"Created pool '{pool_name}' with {max_workers} workers")
-        
+
         self._pools[pool_name].submit_task(task)
 
     def get_unprocessed_counts(self) -> Dict[str, int]:
         """Get unprocessed (submitted but not processed) task counts per pool."""
         return {name: pool.get_unprocessed_count() for name, pool in self._pools.items()}
-    
+
     def has_unprocessed_tasks(self) -> bool:
         """Check if any pool has unprocessed (submitted but not processed) tasks."""
         return any(pool.has_unprocessed_tasks() for pool in self._pools.values())
-    
+
     def process_futures(self, timeout: Union[float, None] = 0) -> Tuple[List[_TaskResult], Dict[str, int]]:
         """
         Process updates from ALL pools.
@@ -312,7 +332,7 @@ class _JobManagerWorkerThreadPool:
         """
         all_results = []
         to_keep = {}
-        
+
         for pool_name, pool in self._pools.items():
             results, remaining = pool.process_futures(timeout)
             all_results.extend(results)
@@ -320,7 +340,7 @@ class _JobManagerWorkerThreadPool:
             to_keep[pool_name] = remaining
 
         return all_results, to_keep
-    
+
     def shutdown(self, pool_name: Optional[str] = None) -> None:
         """
         Shutdown pools.
@@ -334,6 +354,3 @@ class _JobManagerWorkerThreadPool:
             for pool_name, pool in list(self._pools.items()):
                 pool.shutdown()
                 del self._pools[pool_name]
-    
-    
-
