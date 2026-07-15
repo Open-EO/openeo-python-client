@@ -4307,6 +4307,15 @@ def test_create_job_log_level(dummy_backend, create_kwargs, expected):
     }
 
 
+def test_create_job_event(dummy_backend):
+    history = []
+    dummy_backend.connection.events.on("job.created", lambda **kwargs: history.append(kwargs))
+    pg = {"foo1": {"process_id": "foo"}}
+    job = dummy_backend.connection.create_job(pg)
+    assert isinstance(job, BatchJob)
+    assert history == [{"event": "job.created", "job_id": "job-000"}]
+
+
 @pytest.mark.parametrize(
     "pg",
     [

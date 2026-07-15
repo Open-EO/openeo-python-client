@@ -92,6 +92,7 @@ from openeo.util import (
     load_json_resource,
     rfc3339,
 )
+from openeo.utils.events import EventBus
 from openeo.utils.http import (
     HTTP_201_CREATED,
     HTTP_401_UNAUTHORIZED,
@@ -182,6 +183,9 @@ class Connection(RestApiConnection):
         self._refresh_token_store = refresh_token_store
         self._oidc_auth_renewer = oidc_auth_renewer
         self._auto_validate = auto_validate
+
+        self.events = EventBus()
+        # TODO: migrate `on_response_headers_sync` to more generic events system
         if on_response_headers_sync:
             self._on_response_headers_sync = on_response_headers_sync
 
@@ -1911,6 +1915,7 @@ class Connection(RestApiConnection):
             job_id = response.headers['location'].split("/")[-1]
         if not job_id:
             raise OpenEoClientException("Job creation response did not contain a valid job id")
+        self.events.emit("job.created", job_id=job_id)
         return BatchJob(job_id=job_id, connection=self)
 
     def job(self, job_id: str) -> BatchJob:

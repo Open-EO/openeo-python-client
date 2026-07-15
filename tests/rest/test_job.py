@@ -449,6 +449,16 @@ def test_execute_batch_retry_after_429_too_many_requests(
     assert actual_sleeps == expected_sleeps
 
 
+def test_start_job_event(dummy_backend):
+    history = []
+    dummy_backend.connection.events.on("job.started", lambda **kwargs: history.append(kwargs))
+    cube = dummy_backend.connection.load_collection("S2").save_result(format="GTiff")
+    job = cube.create_job()
+    assert history == []
+    job.start()
+    assert history == [{"event": "job.started", "job_id": "job-000"}]
+
+
 class LogGenerator:
     """Helper to generate log entry (dicts) with auto-generated ids, messages, etc."""
 

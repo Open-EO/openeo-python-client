@@ -146,6 +146,7 @@ class BatchJob:
             This method was previously called :py:meth:`start_job`.
         """
         self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
+        self.connection.events.emit("job.started", job_id=self.job_id)
         return self
 
     start_job = legacy_alias(start, name="start_job", since="0.20.0", mode="soft")
