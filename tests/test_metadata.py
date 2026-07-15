@@ -8,6 +8,7 @@ import dirty_equals
 import pystac
 import pytest
 
+from openeo.api.process import Parameter
 from openeo.metadata import (
     _PYSTAC_1_9_EXTENSION_INTERFACE,
     Band,
@@ -1368,6 +1369,64 @@ def test_metadata_resample_spatial(cube_metadata, kwargs, expected_x, expected_y
     assert metadata.spatial_dimensions == [
         SpatialDimension(name="x", extent=[2, 7], **expected_x),
         SpatialDimension(name="y", extent=[49, 52], **expected_y),
+    ]
+    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+    assert metadata.band_dimension == cube_metadata.band_dimension
+
+
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_spatial_parameter_resolution_only(cube_metadata):
+    """When resolution is a Parameter, step should remain unchanged and crs should stay as-is."""
+    param = Parameter.number("res", description="The spatial resolution.")
+    metadata = cube_metadata.resample_spatial(resolution=param)
+    assert isinstance(metadata, CubeMetadata)
+    # step must be set to None after parametrized resample_spatial.
+    assert metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=None),
+        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=None),
+    ]
+    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+    assert metadata.band_dimension == cube_metadata.band_dimension
+
+
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_spatial_parameter_resolution_with_projection(cube_metadata):
+    """When resolution is a Parameter but projection is concrete, crs should be updated."""
+    param = Parameter.number("res", description="The spatial resolution.")
+    metadata = cube_metadata.resample_spatial(resolution=param, projection=32631)
+    assert isinstance(metadata, CubeMetadata)
+    assert metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[2, 7], crs=32631, step=None),
+        SpatialDimension(name="y", extent=[49, 52], crs=32631, step=None),
+    ]
+    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+    assert metadata.band_dimension == cube_metadata.band_dimension
+
+
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_spatial_parameter_projection_only(cube_metadata):
+    """When projection is a Parameter, crs should be set to None."""
+    param = Parameter.integer("proj", description="The target projection.")
+    metadata = cube_metadata.resample_spatial(resolution=10, projection=param)
+    assert isinstance(metadata, CubeMetadata)
+    assert metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[2, 7], crs=None, step=10),
+        SpatialDimension(name="y", extent=[49, 52], crs=None, step=10),
+    ]
+    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+    assert metadata.band_dimension == cube_metadata.band_dimension
+
+
+@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+def test_metadata_resample_spatial_parameter_resolution_and_projection(cube_metadata):
+    """When both resolution and projection are Parameters, step and crs should both be None."""
+    res_param = Parameter.number("res", description="The spatial resolution.")
+    proj_param = Parameter.integer("proj", description="The target projection.")
+    metadata = cube_metadata.resample_spatial(resolution=res_param, projection=proj_param)
+    assert isinstance(metadata, CubeMetadata)
+    assert metadata.spatial_dimensions == [
+        SpatialDimension(name="x", extent=[2, 7], crs=None, step=None),
+        SpatialDimension(name="y", extent=[49, 52], crs=None, step=None),
     ]
     assert metadata.temporal_dimension == cube_metadata.temporal_dimension
     assert metadata.band_dimension == cube_metadata.band_dimension

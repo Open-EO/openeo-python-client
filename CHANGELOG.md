@@ -9,19 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add public `split_area` function for tile-grid based job splitting
-- Log synchronous processing identifier ("OpenEO-Identifier" response header) by default (debug level) ([#890](https://github.com/Open-EO/openeo-python-client/issues/890))
-
+- `DataCube.resample_spatial()` now supports parameterized `resolution` and `projection` arguments.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
+- Sanitize asset download filenames (e.g. strip slashes, (semi)colon, hash, ...), instead of blindly using the asset key as filename. ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
+- Support parameters in `DataCube` apply- and band-math operations ([#903](https://github.com/Open-EO/openeo-python-client/issues/903))
 
 ### Changed
 
-- `ProcessGraphVisitor.dereference_from_node_arguments()`: add original node id (by default) to the dereferenced nodes in the process graph ([Open-EO/openeo-python-driver#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
+- `ResultAsset.__init__()`: renamed `name` argument to `key` for clarity and consistency with the spec ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
 
 ### Removed
 
 ### Fixed
 
 - `metadata_from_stac()` now keeps declared STAC `cube:dimensions` as the dimension source of truth and handles STAC 1.1 common `bands` metadata without requiring the datacube extension ([#743](https://github.com/Open-EO/openeo-python-client/issues/743), [#867](https://github.com/Open-EO/openeo-python-client/pull/867)).
+- Better error message when passing a bounding box with field typos in `Connection.load_collection()` and alike  ([#910](https://github.com/Open-EO/openeo-python-client/issues/910))
+
+
+## [0.50.0] - 2026-05-18
+
+### Added
+
+- Add public `split_area` function for tile-grid based job splitting
+- Log synchronous processing identifier ("OpenEO-Identifier" response header) by default (debug level) ([#890](https://github.com/Open-EO/openeo-python-client/issues/890))
+
+### Changed
+
+- `ProcessGraphVisitor.dereference_from_node_arguments()`: add original node id (by default) to the dereferenced nodes in the process graph ([Open-EO/openeo-python-driver#479](https://github.com/Open-EO/openeo-python-driver/issues/479))
 
 
 ## [0.49.0] - 2026-04-01

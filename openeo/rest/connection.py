@@ -613,7 +613,7 @@ class Connection(RestApiConnection):
         use_pkce: Optional[bool] = None,
         display: Callable[[str], None] = print,
         max_poll_time: float = OidcDeviceAuthenticator.DEFAULT_MAX_POLL_TIME,
-    ):
+    ) -> Connection:
         """
         Generic method to do OpenID Connect authentication.
 

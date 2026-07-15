@@ -3,16 +3,18 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import re
 import time
 import typing
 from pathlib import Path
 from typing import Dict, List, Optional, Union
+from urllib.parse import urlparse
 
 import requests
 
 from openeo.internal.documentation import openeo_endpoint
 from openeo.internal.jupyter import VisualDict, render_component, render_error
-from openeo.internal.warnings import deprecated, legacy_alias
+from openeo.internal.warnings import deprecated, legacy_alias, user_deprecation_warning
 from openeo.rest import (
     DEFAULT_DOWNLOAD_CHUNK_SIZE,
     DEFAULT_DOWNLOAD_RANGE_SIZE,
@@ -77,7 +79,7 @@ class BatchJob:
         self.connection = connection
 
     def __repr__(self):
-        return '<{c} job_id={i!r}>'.format(c=self.__class__.__name__, i=self.job_id)
+        return "<{c} job_id={i!r}>".format(c=self.__class__.__name__, i=self.job_id)
 
     def _repr_html_(self):
         data = self.describe()
@@ -127,11 +129,9 @@ class BatchJob:
     @openeo_endpoint("GET /jobs/{job_id}/estimate")
     def estimate(self):
         """Calculate time/cost estimate for a job."""
-        data = self.connection.get(
-            f"/jobs/{self.job_id}/estimate", expected_status=200
-        ).json()
+        data = self.connection.get(f"/jobs/{self.job_id}/estimate", expected_status=200).json()
         currency = self.connection.capabilities().currency()
-        return VisualDict('job-estimate', data=data, parameters={'currency': currency})
+        return VisualDict("job-estimate", data=data, parameters={"currency": currency})
 
     estimate_job = legacy_alias(estimate, name="estimate_job", since="0.20.0", mode="soft")
 
@@ -186,7 +186,8 @@ class BatchJob:
 
     @deprecated(
         "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
-        version="0.4.10")
+        version="0.4.10",
+    )
     def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
         """
         Download all job result files into given folder (current working dir by default).
@@ -364,7 +365,7 @@ class BatchJob:
             else:
                 progress = "N/A"
             print_status(f"{status} (progress {progress})")
-            if status not in ('submitted', 'created', 'queued', 'running'):
+            if status not in ("submitted", "created", "queued", "running"):
                 break
 
             # Sleep for next poll (and adaptively make polling less frequent)
@@ -394,46 +395,116 @@ class RESTJob(BatchJob):
     """
 
 
+FILENAME_UNSAFE_REGEX = re.compile(r"[^\w_.-]+")
+
+
+def _sanitize_filename(s: str, replacement: str = "") -> str:
+    """
+    Sanitize a filename (strip/replace risky characters)
+    so that it can be safely used as a filename.
+    """
+    s = str(s).strip()
+    return FILENAME_UNSAFE_REGEX.sub(replacement, s)
+
+
+_MEDIA_TYPE_EXTENSION_MAP = {
+    "image/tiff": ".tiff",
+    "image/tiff; application=geotiff": ".tiff",
+    "image/tiff; application=geotiff; profile=cloud-optimized": ".tiff",
+    "application/x-netcdf": ".nc",
+    "image/png": ".png",
+    "application/json": ".json",
+    "application/geo+json": ".json",
+    "text/csv": ".csv",
+    "x-gis/x-shapefile": ".shp",
+    "application/geopackage+sqlite3": ".gpkg",
+    "application/parquet; profile=geo": ".parquet",
+    "application/zip+zarr": ".zarr",
+    "application/zip": ".zip",
+}
+
+
 class ResultAsset:
     """
     Result asset of a batch job (e.g. a GeoTIFF or JSON file)
 
     .. versionadded:: 0.4.10
+
+    .. versionchanged:: 0.51.0
+        Renamed argument ``name`` to ``key``
     """
 
-    def __init__(self, job: BatchJob, name: str, href: str, metadata: dict):
+    __slots__ = ("job", "key", "href", "media_type", "metadata")
+
+    def __init__(self, job: BatchJob, key: str, href: str, metadata: dict):
+        # TODO: the owning job is actually only used to obtain a Connection for downloading. Eliminate BatchJob as requirement
         self.job = job
+        self.key = key
 
-        self.name = name
-        """Asset name as advertised by the backend."""
-
+        # URL to the downloadable asset
         self.href = href
-        """Download URL of the asset."""
 
+        self.media_type = metadata.get("type")
+
+        # Asset metadata provided by the backend, possibly containing keys "roles", "title", "description".
         self.metadata = metadata
-        """Asset metadata provided by the backend, possibly containing keys "type" (for media type), "roles", "title", "description"."""
 
     def __repr__(self):
-        return "<ResultAsset {n!r} (type {t}) at {h!r}>".format(
-            n=self.name, t=self.metadata.get("type", "unknown"), h=self.href
-        )
+        return f"<ResultAsset {self.key!r} (media type {self.media_type}) at {self.href!r}>"
+
+    @property
+    def name(self):
+        # TODO: remove this once users got enough time to migrate
+        user_deprecation_warning("`ResultAsset.name` is deprecated and will be removed, use `ResultAsset.key` instead")
+        return self.key
+
+    def _make_filename(self) -> str:
+        """
+        Produce a filename for downloading the asset to
+        as fallback when user did not provide something,
+        based on: asset key (which is not guaranteed to consist of filename-safe characters)
+        and filename in href (if any)
+        """
+
+        if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
+            # Legacy mode: asset key already looks like a filename
+            return self.key
+
+        # Build filename from key, href's path (if any)
+        # and guess extension from media type if necessary
+        sanitized_key = _sanitize_filename(self.key)
+        href_path = urlparse(str(self.href)).path
+        href_basename = _sanitize_filename(Path(href_path).name)
+        filename = f"{sanitized_key}-{href_basename}"
+
+        if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
+            # Extension seems missing, do media type based guess (best effort)
+            if extension := _MEDIA_TYPE_EXTENSION_MAP.get(self.media_type):
+                filename += extension
+        return filename
 
     def download(
-        self, target: Optional[Union[Path, str]] = None, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE
+        self,
+        target: Optional[Union[Path, str]] = None,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> Path:
         """
         Download asset to given location
 
-        :param target: download target path. Can be an existing folder
-            (in which case the filename advertised by backend will be used)
-            or full file name. By default, the working directory will be used.
+        :param target: target path to download to.
+            Can be a path to file, or to an existing folder
+            (in which case the filename will be constructed
+            in best-effort fashion, based on available metadata)
+            By default, the working directory will be used.
         :param chunk_size: chunk size for streaming response.
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
-            target = target / self.name
+            target = target / self._make_filename()
         ensure_dir(target.parent)
-        logger.info("Downloading Job result asset {n!r} from {h!s} to {t!s}".format(n=self.name, h=self.href, t=target))
+        logger.info(f"Downloading job result asset {self.key!r} from {self.href!s} to {target!s}")
         self._download_to_file(url=self.href, target=target, chunk_size=chunk_size, range_size=range_size)
         return target
 
@@ -442,7 +513,7 @@ class ResultAsset:
 
     def load_json(self) -> dict:
         """Load asset in memory and parse as JSON."""
-        if not (self.name.lower().endswith(".json") or self.metadata.get("type") == "application/json"):
+        if self.media_type not in {"application/json", "application/geo+json"}:
             logger.warning("Asset might not be JSON")
         return self._get_response().json()
 
@@ -452,18 +523,33 @@ class ResultAsset:
 
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
 
-
-    def _download_to_file(self, url: str, target: Path, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE):
+    def _download_to_file(
+        self,
+        url: str,
+        target: Path,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+    ):
         head = self.job.connection.head(url, stream=True)
-        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and 'Content-Length' in head.headers:
-            file_size = int(head.headers['Content-Length'])
-            self._download_ranged(url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size)
+        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
+            file_size = int(head.headers["Content-Length"])
+            self._download_ranged(
+                url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size
+            )
         else:
             self._download_all_at_once(url=url, target=target, chunk_size=chunk_size)
 
-
-    def _download_ranged(self, url: str, target: Path, file_size: int, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE):
-        with target.open('wb') as f:
+    def _download_ranged(
+        self,
+        url: str,
+        target: Path,
+        file_size: int,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+    ):
+        with target.open("wb") as f:
             for from_byte_index in range(0, file_size, range_size):
                 to_byte_index = min(from_byte_index + range_size - 1, file_size - 1)
                 tries_left = MAX_RETRIES_PER_RANGE
@@ -478,13 +564,14 @@ class ResultAsset:
                     except OpenEoApiPlainError as error:
                         tries_left -= 1
                         if tries_left > 0 and error.http_status_code in RETRIABLE_STATUSCODES:
-                            logger.warning(f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying")
+                            logger.warning(
+                                f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying"
+                            )
                             continue
                         else:
                             raise error
 
-
-    def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int=DEFAULT_DOWNLOAD_CHUNK_SIZE):
+    def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE):
         with self.job.connection.get(path=url, stream=True) as r:
             r.raise_for_status()
             with target.open("wb") as f:
@@ -517,16 +604,14 @@ class JobResults:
     def _repr_html_(self):
         try:
             response = self.get_metadata()
-            return render_component("batch-job-result", data = response)
+            return render_component("batch-job-result", data=response)
         except OpenEoApiError as error:
             return render_error(error)
 
     def get_metadata(self, force=False) -> dict:
         """Get batch job results metadata (parsed JSON)"""
         if self._results is None or force:
-            self._results = self._job.connection.get(
-                self._job.get_results_metadata_url(), expected_status=200
-            ).json()
+            self._results = self._job.connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
         return self._results
 
     # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
@@ -542,51 +627,76 @@ class JobResults:
         if not assets:
             logger.warning("No assets found in job result metadata.")
         return [
-            ResultAsset(job=self._job, name=name, href=asset["href"], metadata=asset)
-            for name, asset in assets.items()
+            ResultAsset(job=self._job, key=key, href=asset["href"], metadata=asset) for key, asset in assets.items()
         ]
 
-    def get_asset(self, name: str = None) -> ResultAsset:
+    def get_asset(self, key: Optional[str] = None, *, name: Optional[str] = None) -> ResultAsset:
         """
-        Get single asset by name or without name if there is only one.
+        Get single asset by asset key or without key if there is only one.
         """
         # TODO: also support getting a single asset by type or role?
+        if name:
+            # TODO: remove this legacy `name` support when users got enough time to migrate
+            user_deprecation_warning("Argument `name` is deprecated and will be removed, use `key` instead.")
+            key = name
+            del name
+
         assets = self.get_assets()
         if len(assets) == 0:
             raise OpenEoClientException("No assets in result.")
-        if name is None:
+        if key is None:
             if len(assets) == 1:
                 return assets[0]
             else:
-                raise MultipleAssetException("Multiple result assets for job {j}: {a}".format(
-                    j=self._job.job_id, a=[a.name for a in assets]
-                ))
+                raise MultipleAssetException(
+                    "Multiple result assets for job {j}: {a}".format(j=self._job.job_id, a=[a.key for a in assets])
+                )
         else:
             try:
-                return next(a for a in assets if a.name == name)
+                return next(a for a in assets if a.key == key)
             except StopIteration:
-                raise OpenEoClientException(
-                    "No asset {n!r} in: {a}".format(n=name, a=[a.name for a in assets])
-                )
+                raise OpenEoClientException("No asset {k!r} in: {a}".format(k=key, a=[a.key for a in assets]))
 
-    def download_file(self, target: Union[Path, str] = None, name: str = None, *, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE, range_size: int=DEFAULT_DOWNLOAD_RANGE_SIZE) -> Path:
+    def download_file(
+        self,
+        target: Union[Path, str, None] = None,
+        key: Optional[str] = None,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+        name: Optional[str] = None,
+    ) -> Path:
         """
         Download single asset. Can be used when there is only one asset in the
-        :py:class:`JobResults`, or when the desired asset name is given explicitly.
+        :py:class:`JobResults`, or when the desired asset key is given explicitly.
 
-        :param target: path to download to. Can be an existing directory
-            (in which case the filename advertised by backend will be used)
-            or full file name. By default, the working directory will be used.
-        :param name: asset name to download (not required when there is only one asset)
+        :param target: target path to download to.
+            Can be a path to file, or to an existing folder
+            (in which case the filename will be constructed
+            in best-effort fashion, based on available metadata)
+            By default, the working directory will be used.
+        :param key: asset key to download (not required when there is only one asset)
         :return: path of downloaded asset
         """
+        if name:
+            # TODO: remove this legacy `name` support when users got enough time to migrate
+            user_deprecation_warning("Argument `name` is deprecated and will be removed, use `key` instead.")
+            key = name
+            del name
+
         try:
-            return self.get_asset(name=name).download(target=target, chunk_size=chunk_size, range_size=range_size)
+            return self.get_asset(key=key).download(target=target, chunk_size=chunk_size, range_size=range_size)
         except MultipleAssetException:
             raise OpenEoClientException(
-                "Can not use `download_file` with multiple assets. Use `download_files` instead.")
+                "Can not use `download_file` with multiple assets. Use `download_files` instead."
+            )
 
-    def download_files(self, target: Union[Path, str] = None, include_stac_metadata: bool = True, chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE) -> List[Path]:
+    def download_files(
+        self,
+        target: Union[Path, str] = None,
+        include_stac_metadata: bool = True,
+        chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    ) -> List[Path]:
         """
         Download all assets to given folder.
 

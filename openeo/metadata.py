@@ -19,6 +19,7 @@ import pystac.extensions.datacube
 import pystac.extensions.eo
 import pystac.extensions.item_assets
 
+from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
 from openeo.util import Rfc3339, deep_get
 from openeo.utils.normalize import normalize_resample_resolution, unique
@@ -491,10 +492,14 @@ class CubeMetadata:
 
     def resample_spatial(
         self,
-        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
-        projection: Union[int, str, None] = None,
+        resolution: Union[float, Tuple[float, float], List[float], Parameter] = 0.0,
+        projection: Union[int, str, Parameter, None] = None,
     ) -> CubeMetadata:
-        resolution = normalize_resample_resolution(resolution)
+        if isinstance(resolution, Parameter):
+            normalized_resolution = None, None
+        else:
+            normalized_resolution = normalize_resample_resolution(resolution)
+
         if self._dimensions is None:
             # Best-effort fallback to work with
             dimensions = [
@@ -509,13 +514,14 @@ class CubeMetadata:
         spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
         if len(spatial_indices) != 2:
             raise MetadataException(f"Expected two spatial dimensions but found {spatial_indices=}")
-        assert len(resolution) == 2
-        for i, r in zip(spatial_indices, resolution):
+
+        assert len(normalized_resolution) == 2
+        for i, r in zip(spatial_indices, normalized_resolution):
             dim: SpatialDimension = dimensions[i]
             dimensions[i] = SpatialDimension(
                 name=dim.name,
                 extent=dim.extent,
-                crs=projection or dim.crs,
+                crs=None if isinstance(projection, Parameter) else (projection or dim.crs),
                 step=r if r != 0.0 else dim.step,
             )
 

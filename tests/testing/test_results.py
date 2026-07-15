@@ -33,7 +33,11 @@ class TestCompareXarray:
             (
                 xarray.DataArray([1, 2, 3, 4]),
                 [
-                    "Coordinates mismatch for dimension 'dim_0': [0 1 2 3] != [0 1 2]",
+                    (
+                        "Coordinate shape mismatch for dimension 'dim_0':"
+                        " acs.shape=(4,) != ecs.shape=(3,)"
+                        " (acs=array([0, 1, 2, 3]), ecs=array([0, 1, 2]))"
+                    ),
                     "Shape mismatch: (4,) != (3,)",
                     dirty_equals.IsStr(regex="Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
                 ],
@@ -42,7 +46,11 @@ class TestCompareXarray:
                 xarray.DataArray([[1, 2, 3], [4, 5, 6]]),
                 [
                     "Dimension mismatch: ('dim_0', 'dim_1') != ('dim_0',)",
-                    "Coordinates mismatch for dimension 'dim_0': [0 1] != [0 1 2]",
+                    (
+                        "Coordinate shape mismatch for dimension 'dim_0':"
+                        " acs.shape=(2,) != ecs.shape=(3,)"
+                        " (acs=array([0, 1]), ecs=array([0, 1, 2]))"
+                    ),
                     "Shape mismatch: (2, 3) != (3,)",
                     dirty_equals.IsStr(regex="Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
                 ],
@@ -72,8 +80,16 @@ class TestCompareXarray:
                 xarray.DataArray([[1, 2, 3], [4, 5, 6]], dims=["y", "x"]),
                 [
                     "Dimension mismatch: ('y', 'x') != ('x', 'y')",
-                    "Coordinates mismatch for dimension 'x': [0 1 2] != [0 1]",
-                    "Coordinates mismatch for dimension 'y': [0 1] != [0 1 2]",
+                    (
+                        "Coordinate shape mismatch for dimension 'x':"
+                        " acs.shape=(3,) != ecs.shape=(2,)"
+                        " (acs=array([0, 1, 2]), ecs=array([0, 1]))"
+                    ),
+                    (
+                        "Coordinate shape mismatch for dimension 'y':"
+                        " acs.shape=(2,) != ecs.shape=(3,)"
+                        " (acs=array([0, 1]), ecs=array([0, 1, 2]))"
+                    ),
                     dirty_equals.IsStr(
                         regex=r"Left and right DataArray objects are not close.*Differing dimensions:.*\(y: 2, x: 3\) != \(x: 2, y: 3\)",
                         regex_flags=re.DOTALL,
@@ -106,7 +122,11 @@ class TestCompareXarray:
             (
                 xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("x", [111, 222]), ("y", [33, 44, 55])]),
                 [
-                    "Coordinates mismatch for dimension 'x': [111 222] != [11 22]",
+                    (
+                        "Coordinate value mismatch for dimension 'x':"
+                        " acs=array([111, 222]) (acs.shape=(2,)) != ecs=array([11, 22]) (ecs.shape=(2,))"
+                        " (acs-ecs=array([100, 200]))"
+                    ),
                     dirty_equals.IsStr(
                         regex=r"Left and right DataArray objects are not close.*Differing coordinates:.*L \* x\s+\(x\).*?111 222.*R \* x\s+\(x\).*?11 22",
                         regex_flags=re.DOTALL,
@@ -220,14 +240,23 @@ class TestAssertXarray:
         expected = xarray.DataArray([1, 2, 3])
         actual = xarray.DataArray([1, 2, 3, 4])
         with raises_assertion_error_or_not(
-            r"Coordinates mismatch for dimension 'dim_0': \[0 1 2 3\] != \[0 1 2\].*Shape mismatch: \(4,\) != \(3,\)"
+            re.escape("Coordinate shape mismatch for dimension 'dim_0': acs.shape=(4,) != ecs.shape=(3,)")
+            + ".*"
+            + re.escape("Shape mismatch: (4,) != (3,)")
         ):
             assert_xarray_dataarray_allclose(actual=actual, expected=expected)
 
     def test_assert_xarray_dataarray_allclose_coords_mismatch(self):
         expected = xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("space", [11, 22]), ("time", [33, 44, 55])])
         actual = xarray.DataArray([[1, 2, 3], [4, 5, 6]], coords=[("space", [11, 666]), ("time", [33, 44, 55])])
-        with raises_assertion_error_or_not(r"Coordinates mismatch for dimension 'space': \[ 11 666\] != \[11 22\]"):
+        with raises_assertion_error_or_not(
+            re.escape(
+                r"Coordinate value mismatch for dimension 'space':"
+                r" acs=array([ 11, 666]) (acs.shape=(2,))"
+                r" != ecs=array([11, 22]) (ecs.shape=(2,))"
+                r" (acs-ecs=array([  0, 644]))"
+            )
+        ):
             assert_xarray_dataarray_allclose(actual=actual, expected=expected)
 
     @pytest.mark.parametrize(
@@ -305,7 +334,13 @@ class TestAssertXarray:
             coords={"time": [11, 22, 666]},
         )
         with raises_assertion_error_or_not(
-            r"Issues for variable 'a':.*Coordinates mismatch for dimension 'time': \[ 11  22 666\] != \[11 22 33\]"
+            r"Issues for variable 'a':.*"
+            + re.escape(
+                "Coordinate value mismatch for dimension 'time':"
+                " acs=array([ 11,  22, 666]) (acs.shape=(3,))"
+                " != ecs=array([11, 22, 33]) (ecs.shape=(3,))"
+                " (acs-ecs=array([  0,   0, 633]))"
+            )
         ):
             assert_xarray_dataset_allclose(actual=actual, expected=expected)
 

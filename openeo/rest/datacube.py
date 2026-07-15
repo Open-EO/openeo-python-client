@@ -809,8 +809,8 @@ class DataCube(_ProcessGraphAbstraction):
     @openeo_process
     def resample_spatial(
         self,
-        resolution: Union[float, Tuple[float, float], List[float]] = 0.0,
-        projection: Union[int, str, None] = None,
+        resolution: Union[float, Tuple[float, float], List[float], Parameter] = 0.0,
+        projection: Union[int, str, Parameter, None] = None,
         method: str = "near",
         align: str = "upper-left",
     ) -> DataCube:
@@ -877,18 +877,18 @@ class DataCube(_ProcessGraphAbstraction):
             dict_no_none({"data": self, "target": target, "dimension": dimension, "valid_within": valid_within})
         )
 
-    def _operator_binary(self, operator: str, other: Union[DataCube, int, float], reverse=False) -> DataCube:
+    def _operator_binary(self, operator: str, other: Union[DataCube, int, float, Parameter], reverse=False) -> DataCube:
         """Generic handling of (mathematical) binary operator"""
         band_math_mode = self._in_bandmath_mode()
         if band_math_mode:
-            if isinstance(other, (int, float)):
+            if isinstance(other, (int, float, Parameter)):
                 return self._bandmath_operator_binary_scalar(operator, other, reverse=reverse)
             elif isinstance(other, DataCube):
                 return self._bandmath_operator_binary_cubes(operator, other)
         else:
             if isinstance(other, DataCube):
                 return self._merge_operator_binary_cubes(operator, other)
-            elif isinstance(other, (int, float)):
+            elif isinstance(other, (int, float, Parameter)):
                 # "`apply` math" mode
                 return self._apply_operator(
                     operator=operator, other=other, reverse=reverse
@@ -907,7 +907,7 @@ class DataCube(_ProcessGraphAbstraction):
     def _apply_operator(
         self,
         operator: str,
-        other: Optional[Union[int, float]] = None,
+        other: Optional[Union[int, float, Parameter]] = None,
         reverse: Optional[bool] = None,
         extra_arguments: Optional[dict] = None,
     ) -> DataCube:
@@ -1140,7 +1140,9 @@ class DataCube(_ProcessGraphAbstraction):
         )
         return self.process_with_node(left.clone_with_new_reducer(merged))
 
-    def _bandmath_operator_binary_scalar(self, operator: str, other: Union[int, float], reverse=False) -> DataCube:
+    def _bandmath_operator_binary_scalar(
+        self, operator: str, other: Union[int, float, Parameter], reverse=False
+    ) -> DataCube:
         """Band math binary operator with scalar value (int or float) as right hand side argument"""
         node = self._get_bandmath_node()
         x = {'from_node': node.reducer_process_graph()}
@@ -3171,9 +3173,16 @@ def _get_geometry_argument(
     elif (
         allow_bounding_box
         and isinstance(argument, dict)
-        and all(k in argument for k in ["west", "south", "east", "north"])
+        and (bbox_fields := {"west", "south", "east", "north"}.intersection(argument.keys()))
     ):
-        return argument
+        if len(bbox_fields) == 4:
+            return argument
+        elif len(bbox_fields) >= 2:
+            missing_fields = {"west", "south", "east", "north"}.difference(argument.keys())
+            raise OpenEoClientException(
+                f"Invalid bounding box given to `{argument_name}` in `{process_id}`:"
+                f" has fields {sorted(bbox_fields)} but is missing {sorted(missing_fields)}: {argument}"
+            )
 
     # Support URL based geometry references (with `load_url` and best-effort format guess)
     if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):

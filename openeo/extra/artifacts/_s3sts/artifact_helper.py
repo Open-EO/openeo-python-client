@@ -39,8 +39,7 @@ class S3STSArtifactHelper(ArtifactHelperABC):
         return self._creds.get_user_hash()
 
     def _get_upload_prefix(self) -> str:
-        # TODO: replace utcnow when `datetime.datetime.now(datetime.UTC)` in oldest supported Python version
-        return f"{self._user_prefix()}/{datetime.datetime.utcnow().strftime('%Y/%m/%d')}/"
+        return f"{self._user_prefix()}/{datetime.datetime.now(tz=datetime.timezone.utc).strftime('%Y/%m/%d')}/"
 
     def _get_upload_key(self, object_name: str) -> str:
         return f"{self._get_upload_prefix()}{object_name}"
