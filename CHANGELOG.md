@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a `py.typed` to indicate to type checkers that the package contains type annotations.
+
 ### Changed
 
 ### Removed
