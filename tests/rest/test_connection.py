@@ -53,6 +53,7 @@ from openeo.rest.models.general import Link, ValidationResponse
 from openeo.rest.vectorcube import VectorCube
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import ContextTimer, deep_get, dict_no_none
+from openeo.utils.events import EVENTS
 from openeo.utils.version import ApiVersionException
 
 from .auth.test_cli import auth_config, refresh_token_store
@@ -4309,7 +4310,7 @@ def test_create_job_log_level(dummy_backend, create_kwargs, expected):
 
 def test_create_job_event(dummy_backend):
     history = []
-    dummy_backend.connection.events.on("job.created", lambda **kwargs: history.append(kwargs))
+    dummy_backend.connection.events.on(EVENTS.JOB_CREATED, lambda **kwargs: history.append(kwargs))
     pg = {"foo1": {"process_id": "foo"}}
     job = dummy_backend.connection.create_job(pg)
     assert isinstance(job, BatchJob)
@@ -4429,6 +4430,23 @@ def test_connection_on_response_headers_sync_download(dummy_backend, tmp_path):
         tmp_path / "result.data",
     )
     assert results == [{"OpenEO-Identifier": "r-001"}]
+
+
+def test_download_event_sync_result(dummy_backend, tmp_path):
+    history = []
+    dummy_backend.connection.events.on(EVENTS.SYNC_RESULT, lambda **kwargs: history.append(kwargs))
+    dummy_backend.connection.download(
+        {"foo1": {"process_id": "foo"}},
+        tmp_path / "result.data",
+    )
+    assert history == [{"event": "sync.result", "sync_id": "r-001"}]
+
+
+def test_execute_event_sync_result(dummy_backend):
+    history = []
+    dummy_backend.connection.events.on(EVENTS.SYNC_RESULT, lambda **kwargs: history.append(kwargs))
+    _ = dummy_backend.connection.execute({"foo1": {"process_id": "foo"}})
+    assert history == [{"event": "sync.result", "sync_id": "r-001"}]
 
 
 @pytest.mark.parametrize(

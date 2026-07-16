@@ -92,7 +92,7 @@ from openeo.util import (
     load_json_resource,
     rfc3339,
 )
-from openeo.utils.events import EventBus
+from openeo.utils.events import EVENTS, EventBus
 from openeo.utils.http import (
     HTTP_201_CREATED,
     HTTP_401_UNAUTHORIZED,
@@ -145,7 +145,11 @@ class Connection(RestApiConnection):
         Added ``retry`` argument.
 
     .. versionchanged:: 0.48
-            Added argument ``on_response_headers_sync``.
+        Added argument ``on_response_headers_sync``.
+
+    .. versionchanged:: 0.51.0
+        Added ``events`` attribute as entrypoint for generic event handling
+
     """
 
     _MINIMUM_API_VERSION = ComparableVersion("1.0.0")
@@ -1763,6 +1767,7 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.40
             Added argument ``on_response_headers``.
         """
+        # TODO: unify or better code reuse with `.execute()`
         pg_with_metadata = self._build_request_with_process_graph(
             process_graph=graph, additional=additional, job_options=job_options
         )
@@ -1774,8 +1779,12 @@ class Connection(RestApiConnection):
             stream=True,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+
+        # TODO: deprecate on_response_headers in favor of self.events?
         if on_response_headers := (on_response_headers or self._on_response_headers_sync):
             on_response_headers(response.headers)
+        if sync_id := response.headers.get("OpenEO-Identifier"):
+            self.events.emit(EVENTS.SYNC_RESULT, sync_id=sync_id)
 
         if outputfile is not None:
             target = Path(outputfile)
@@ -1819,6 +1828,7 @@ class Connection(RestApiConnection):
         .. versionchanged:: 0.48
             Added argument ``on_response_headers``.
         """
+        # TODO: unify or better code reuse with `.download()`
         pg_with_metadata = self._build_request_with_process_graph(
             process_graph=process_graph, additional=additional, job_options=job_options
         )
@@ -1829,8 +1839,12 @@ class Connection(RestApiConnection):
             expected_status=200,
             timeout=timeout or DEFAULT_TIMEOUT_SYNCHRONOUS_EXECUTE,
         )
+
+        # TODO: deprecate on_response_headers in favor of self.events?
         if on_response_headers := (on_response_headers or self._on_response_headers_sync):
             on_response_headers(response.headers)
+        if sync_id := response.headers.get("OpenEO-Identifier"):
+            self.events.emit(EVENTS.SYNC_RESULT, sync_id=sync_id)
 
         if auto_decode:
             try:
@@ -1915,7 +1929,7 @@ class Connection(RestApiConnection):
             job_id = response.headers['location'].split("/")[-1]
         if not job_id:
             raise OpenEoClientException("Job creation response did not contain a valid job id")
-        self.events.emit("job.created", job_id=job_id)
+        self.events.emit(EVENTS.JOB_CREATED, job_id=job_id)
         return BatchJob(job_id=job_id, connection=self)
 
     def job(self, job_id: str) -> BatchJob:
