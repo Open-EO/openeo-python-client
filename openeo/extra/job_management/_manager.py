@@ -30,9 +30,9 @@ import openeo.extra.job_management._job_db
 from openeo import BatchJob, Connection
 from openeo.extra.job_management._interface import JobDatabaseInterface
 from openeo.extra.job_management._thread_worker import (
+    _JobDownloadTask,
     _JobManagerWorkerThreadPool,
     _JobStartTask,
-    _JobDownloadTask
 )
 from openeo.rest import OpenEoApiError
 from openeo.rest.auth.auth import BearerAuth
@@ -512,16 +512,11 @@ class MultiBackendJobManager:
 
         self._worker_pool = _JobManagerWorkerThreadPool()
 
-
-        while (
-            sum(
-                job_db.count_by_status(
-                    statuses=["not_started", "created", "queued_for_start", "queued", "running"]
-                ).values()) > 0
-
-            or (self._worker_pool is not None and self._worker_pool.has_unprocessed_tasks()) 
-                
-        ):
+        while sum(
+            job_db.count_by_status(
+                statuses=["not_started", "created", "queued_for_start", "queued", "running"]
+            ).values()
+        ) > 0 or (self._worker_pool is not None and self._worker_pool.has_unprocessed_tasks()):
             self._job_update_loop(job_db=job_db, start_job=start_job, stats=stats)
             stats["run_jobs loop"] += 1
 
@@ -530,8 +525,6 @@ class MultiBackendJobManager:
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 
-
-       
         self._worker_pool.shutdown()
         self._worker_pool = None
 
@@ -553,6 +546,11 @@ class MultiBackendJobManager:
         with ignore_connection_errors(context="get statuses"):
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
+
+        # A start task that hits the backend's concurrent-job limit moves the
+        # job back to "created". Re-submit such jobs here, in a later manager
+        # cycle, instead of failing them or blocking a worker with sleep/retry.
+        self._queue_created_jobs(job_db=job_db, stats=stats)
 
         not_started = job_db.get_by_status(statuses=["not_started"], max=200).copy()
         if len(not_started) > 0:
@@ -581,7 +579,7 @@ class MultiBackendJobManager:
 
         if self._worker_pool is not None:
             self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
-            
+
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -648,28 +646,52 @@ class MultiBackendJobManager:
                     if status == "created":
                         # start job if not yet done by callback
                         try:
-                            job_con = job.connection
-                            # Proactively refresh bearer token (because task in thread will not be able to do that)
-                            self._refresh_bearer_token(connection=job_con)
-                            task = _JobStartTask(
-                                root_url=job_con.root_url,
-                                bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
-                                job_id=job.job_id,
-                                df_idx=i,
-                            )
-                            _log.info(f"Submitting task {task} to thread pool")
-                            self._worker_pool.submit_task(task=task, pool_name="job_start")
-
-                            stats["job_queued_for_start"] += 1
+                            self._submit_job_start(job=job, df_idx=i, stats=stats)
                             df.loc[i, "status"] = "queued_for_start"
                         except OpenEoApiError as e:
-                            _log.info(f"Failed submitting task {task} to thread pool with error: {e}")
+                            _log.info(f"Failed to submit start task for job {job.job_id!r} with error: {e}")
                             df.loc[i, "status"] = "queued_for_start_failed"
                             stats["job queued for start failed"] += 1
             else:
                 # TODO: what is this "skipping" about actually?
                 df.loc[i, "status"] = "skipped"
                 stats["start_job skipped"] += 1
+
+    def _submit_job_start(self, job: BatchJob, df_idx: int, stats: dict) -> None:
+        """Submit a non-blocking start task for an already created batch job."""
+        job_con = job.connection
+        # Proactively refresh bearer token because the worker cannot refresh it.
+        self._refresh_bearer_token(connection=job_con)
+        task = _JobStartTask(
+            root_url=job_con.root_url,
+            bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
+            job_id=job.job_id,
+            df_idx=df_idx,
+        )
+        _log.info(f"Submitting task {task} to thread pool")
+        self._worker_pool.submit_task(task=task, pool_name="job_start")
+        stats["job_queued_for_start"] += 1
+
+    def _queue_created_jobs(self, *, job_db: JobDatabaseInterface, stats: dict) -> None:
+        """Re-submit created jobs whose previous start attempt was deferred."""
+        created = job_db.get_by_status(statuses=["created"]).copy()
+        if created.empty:
+            return
+
+        for i in created.index:
+            job_id = created.loc[i, "id"]
+            backend_name = created.loc[i, "backend_name"]
+            try:
+                job = self._get_connection(backend_name).job(job_id)
+                self._submit_job_start(job=job, df_idx=i, stats=stats)
+                created.loc[i, "status"] = "queued_for_start"
+            except OpenEoApiError as e:
+                _log.info(f"Failed to re-submit start task for job {job_id!r} with error: {e}")
+                created.loc[i, "status"] = "queued_for_start_failed"
+                stats["job queued for start failed"] += 1
+
+        job_db.persist(created)
+        stats["job_db persist"] += 1
 
     def _refresh_bearer_token(self, connection: Connection, *, max_age: float = 60) -> None:
         """
@@ -758,19 +780,19 @@ class MultiBackendJobManager:
             #Proactively refresh bearer token
             job_con =  job.connection
             self._refresh_bearer_token(connection=job_con)
-            
+
             task = _JobDownloadTask(
                 job_id=job.job_id,
-                df_idx=row.name, 
+                df_idx=row.name,
                 root_url=job_con.root_url,
                 bearer_token=job_con.auth.bearer if isinstance(job_con.auth, BearerAuth) else None,
                 download_dir=job_dir,
             )
             _log.info(f"Submitting download task {task} to download thread pool")
-            
+
             if self._worker_pool is None:
                 self._worker_pool = _JobManagerWorkerThreadPool()
-                
+
             self._worker_pool.submit_task(task=task, pool_name="job_download")
 
     def on_job_error(self, job: BatchJob, row):
