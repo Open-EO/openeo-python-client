@@ -12,8 +12,9 @@ these plugins obviously do.
 
 ## `auto_list_job_ids`
 
-Plugin to automatically list job ids that are created during a test
-in the test report (e.g. terminal output, HTML report, JUnit XML report).
+Plugin to automatically list created jobs (and synchronous processing)
+from during the test (regardless of current/final state)
+in the test report (e.g. terminal output, ...).
 
 Usage instructions:
 
@@ -36,8 +37,8 @@ def connection(auto_list_job_ids):
     return con
 ```
 
-Failed tests will get an additional section listing all jobs
-that were created during the test (regardless of current/final status):
+Failed tests will get an additional section listing all created jobs
+and synchronous processing requests that happened during the test:
 
 ```
 =================================== FAILURES ===================================
@@ -45,7 +46,7 @@ ________________________________ test_something ________________________________
 ...
 E       ZeroDivisionError: division by zero
 ...
------------------------- Jobs created during this test -------------------------
+--------------- Jobs created and sync processing during this test --------------
 job-123
 ```
 

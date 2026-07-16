@@ -44,7 +44,7 @@ class TestAutoListJobIds:
         result.assert_outcomes(failed=1)
         result.stdout.fnmatch_lines(
             [
-                "*Jobs created during this test*",
+                "*Jobs created*during this test*",
                 "job-3535",
             ]
         )
@@ -72,6 +72,30 @@ class TestAutoListJobIds:
         result_default.assert_outcomes(passed=1)
         assert ("job-3535" in result_default.stdout.str()) == expected
 
+    def test_job_and_sync_result_ids_listed_on_failure(self, pytester: pytest.Pytester):
+        """
+        Sync processing identifiers (from `Connection.download()`) should be
+        listed in the report too, alongside job ids.
+        """
+        pytester.makepyfile(
+            """
+            def test_download_then_fail(connection, tmp_path):
+                pg = {"add35": {"process_id": "add", "arguments": {"x": 3, "y": 5}, "result": True}}
+                connection.create_job(pg)
+                connection.download(pg, tmp_path / "result.data")
+                x = 4 / 0
+            """
+        )
+        result = pytester.runpytest()
+        result.assert_outcomes(failed=1)
+        result.stdout.fnmatch_lines(
+            [
+                "*Jobs created and sync processing during this test*",
+                "job-3535",
+                "r-001",
+            ]
+        )
+
     def test_isolated_histories(self, pytester: pytest.Pytester):
         """Job ids from one test must not leak into another test's report."""
         pytester.makepyfile(
@@ -93,10 +117,10 @@ class TestAutoListJobIds:
             [
                 # TODO: this might need hardening against plugins that randomize test order
                 "*test_35*",
-                "*Jobs created during this test*",
+                "*Jobs created*during this test*",
                 "job-3535",
                 "*test_58*",
-                "*Jobs created during this test*",
+                "*Jobs created*during this test*",
                 "job-5858",
             ]
         )

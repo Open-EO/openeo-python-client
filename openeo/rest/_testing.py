@@ -202,6 +202,7 @@ class DummyBackend:
         elif isinstance(result, str):
             result = result.encode("utf-8")
         assert isinstance(result, bytes)
+        # TODO: also allow customization of request id like `job_id_generator`?
         context.headers["OpenEO-Identifier"] = f"r-{len(self.sync_requests):03d}"
         return result
 

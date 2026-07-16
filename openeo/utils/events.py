@@ -9,6 +9,12 @@ EventName = str
 EventHandler = Callable[..., None]
 
 
+class EVENTS:
+    JOB_CREATED = "job.created"
+    JOB_STARTED = "job.started"
+    SYNC_RESULT = "sync.result"
+
+
 class EventBus:
     """
     Simple event bus implementation:

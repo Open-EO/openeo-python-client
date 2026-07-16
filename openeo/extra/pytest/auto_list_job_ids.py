@@ -10,6 +10,7 @@ from typing import List
 import pytest
 
 from openeo import Connection
+from openeo.utils.events import EVENTS
 
 _log = logging.getLogger(__name__)
 
@@ -28,12 +29,17 @@ def _instrument_connection(connection: Connection, *, request: pytest.FixtureReq
     #       it does not properly support workflows where a connection object is shared across tests:
     #       there is no unregistration of the handler or guarding against double registration
 
-    @connection.events.on("job.created")
-    def on_job_created(job_id: str, **kwargs):
+    def _register(id: str):
         history = request.node.stash.setdefault(_AUTO_LIST_JOB_IDS_KEY, [])
-        history.append(job_id)
+        history.append(id)
 
-    # TODO: collect synchronous processing ids too
+    @connection.events.on(EVENTS.JOB_CREATED)
+    def on_job_created(job_id: str, **kwargs):
+        _register(job_id)
+
+    @connection.events.on(EVENTS.SYNC_RESULT)
+    def on_sync_result(sync_id: str, **kwargs):
+        _register(sync_id)
 
 
 @pytest.fixture(scope="function")
@@ -57,7 +63,7 @@ def pytest_runtest_makereport(item, call):
         report = outcome.get_result()
 
         if history := item.stash.get(_AUTO_LIST_JOB_IDS_KEY, []):
-            title = "Jobs created during this test"
+            title = "Jobs created and sync processing during this test"
             # TODO: represent as Markdown list
             # TODO: allow callback on the job_ids (e.g. to wrap them in link to some debug utility?)
             listing = "\n".join(history)
