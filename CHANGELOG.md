@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Connection.unroll_process_graph()` to recursively inline user-defined and remote process definitions. ([#749](https://github.com/Open-EO/openeo-python-client/issues/749))
+
 ### Changed
 
 ### Removed
