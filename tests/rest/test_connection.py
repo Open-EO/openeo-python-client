@@ -3241,6 +3241,41 @@ class TestLoadStac:
             }
         }
 
+    def test_property_filtering_with_queryables(self, con120, build_stac_ref, tmp_path, recwarn):
+        (tmp_path / "queryables.json").write_text(
+            json.dumps(
+                {
+                    "type": "object",
+                    "properties": {"platform": {"type": "string"}},
+                    "additionalProperties": False,
+                }
+            ),
+            encoding="utf8",
+        )
+        stac_ref = build_stac_ref(
+            StacDummyBuilder.collection(
+                links=[
+                    {
+                        "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+                        "href": "queryables.json",
+                    }
+                ]
+            )
+        )
+
+        cube = con120.load_stac(
+            stac_ref,
+            properties={
+                "platform": lambda p: p == "S2A",
+                "unsupported": lambda p: p == "value",
+            },
+        )
+
+        assert set(cube.flat_graph()["loadstac1"]["arguments"]["properties"]) == {"platform", "unsupported"}
+        assert [str(w.message) for w in recwarn] == [
+            "Property filtering with unsupported properties ['unsupported'] (queryables: ['platform'])."
+        ]
+
     def test_load_stac_from_job_canonical(self, con120, requests_mock):
         requests_mock.get(
             API_URL + "jobs/j0bi6/results",
@@ -3522,18 +3557,20 @@ class TestLoadStac:
     ):
         stac_ref = build_stac_ref(StacDummyBuilder.collection())
 
-        # This is a temporary mock.patch hack to make metadata_from_stac return metadata without a band dimension
+        # This is a temporary mock.patch hack to return metadata without a band dimension
         # TODO #743: Do this properly through appropriate STAC metadata
-        from openeo.metadata import metadata_from_stac as orig_metadata_from_stac
+        from openeo.metadata import (
+            metadata_from_stac_object as orig_metadata_from_stac_object,
+        )
 
-        def metadata_from_stac(url: str):
-            metadata = orig_metadata_from_stac(url=url)
+        def metadata_from_stac_object(stac_object):
+            metadata = orig_metadata_from_stac_object(stac_object)
             assert metadata.has_band_dimension()
             metadata = metadata.drop_dimension("bands")
             assert not metadata.has_band_dimension()
             return metadata
 
-        with mock.patch("openeo.rest.datacube.metadata_from_stac", new=metadata_from_stac):
+        with mock.patch("openeo.rest.datacube.metadata_from_stac_object", new=metadata_from_stac_object):
             cube = dummy_backend.connection.load_stac(stac_ref, bands=bands)
 
         assert cube.metadata.has_band_dimension() == has_band_dimension
@@ -3580,14 +3617,13 @@ class TestLoadStac:
     ):
         stac_ref = build_stac_ref(StacDummyBuilder.collection())
 
-        # This is a temporary mock.patch hack to make metadata_from_stac return metadata with a custom band dimension
+        # This is a temporary mock.patch hack to return metadata with a custom band dimension
         # TODO #743: Do this properly through appropriate STAC metadata
-        from openeo.metadata import metadata_from_stac as orig_metadata_from_stac
 
-        def metadata_from_stac(url: str):
+        def metadata_from_stac_object(stac_object):
             return CubeMetadata(dimensions=[BandDimension(name="bandzz", bands=[Band("Bz1"), Band("Bz2")])])
 
-        with mock.patch("openeo.rest.datacube.metadata_from_stac", new=metadata_from_stac):
+        with mock.patch("openeo.rest.datacube.metadata_from_stac_object", new=metadata_from_stac_object):
             cube = dummy_backend.connection.load_stac(stac_ref, bands=bands)
 
         assert cube.metadata.has_band_dimension()

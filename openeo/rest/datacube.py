@@ -31,6 +31,7 @@ from typing import (
 )
 
 import numpy as np
+import pystac
 import requests
 import shapely.geometry
 import shapely.geometry.base
@@ -50,7 +51,7 @@ from openeo.metadata import (
     Band,
     CollectionMetadata,
     CubeMetadata,
-    metadata_from_stac,
+    metadata_from_stac_object,
 )
 from openeo.rest import (
     DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
@@ -73,7 +74,14 @@ from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
 from openeo.rest.udp import RESTUserDefinedProcess
 from openeo.rest.vectorcube import VectorCube
-from openeo.util import dict_no_none, guess_format, load_json, normalize_crs, rfc3339
+from openeo.util import (
+    dict_no_none,
+    guess_format,
+    load_json,
+    load_json_resource,
+    normalize_crs,
+    rfc3339,
+)
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -444,16 +452,10 @@ class DataCube(_ProcessGraphAbstraction):
         if bands is not None:
             arguments["bands"] = bands
 
-        properties = cls._build_load_properties_argument(
-            properties=properties,
-            # TODO: possible to detect queryables here too?
-        )
-        if properties is not None:
-            arguments["properties"] = properties
-
-        graph = PGNode("load_stac", arguments=arguments)
+        stac_object = None
         try:
-            metadata = metadata_from_stac(url)
+            stac_object = pystac.read_file(href=url)
+            metadata = metadata_from_stac_object(stac_object)
             # TODO: also apply spatial/temporal filters to metadata?
 
             if isinstance(bands, list):
@@ -477,6 +479,15 @@ class DataCube(_ProcessGraphAbstraction):
         except Exception as e:
             log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
             metadata = None
+
+        properties = cls._build_load_properties_argument(
+            properties=properties,
+            queryables=_Queryables.build_stac(stac_object) if properties is not None else None,
+        )
+        if properties is not None:
+            arguments["properties"] = properties
+
+        graph = PGNode("load_stac", arguments=arguments)
         return cls(graph=graph, connection=connection, metadata=metadata)
 
     @classmethod
@@ -3253,17 +3264,62 @@ class _Queryables:
         self.additional = bool(additional)
 
     @classmethod
+    def _from_json_schema(cls, data: dict, *, source: str) -> _Queryables:
+        properties = list(data.get("properties", {}).keys())
+        additional = data.get("additionalProperties", False)
+        log.debug(f"Queryables from {source!r}: {properties=} {additional=}")
+        return cls(properties=properties, additional=additional)
+
+    @classmethod
     def build(cls, *, collection_id: str, connection: Optional[Connection]) -> Union[_Queryables, None]:
         if connection and connection.capabilities().supports_endpoint("/collections/{collection_id}/queryables"):
             path = f"/collections/{collection_id}/queryables"
             try:
                 resp = connection.get(path, allow_redirects=True)
                 resp.raise_for_status()
-                data = resp.json()
-                properties = list(data.get("properties", {}).keys())
-                additional = data.get("additionalProperties", False)
-                log.debug(f"Queryables from {path!r}: {properties=} {additional=}")
-                return cls(properties=properties, additional=additional)
+                return cls._from_json_schema(resp.json(), source=path)
             except Exception as e:
                 log.warning(f"Failed to get/parse queryables of from {path}: {e!r}")
+        return None
+
+    @classmethod
+    def build_stac(cls, stac_object: Optional[pystac.STACObject]) -> Union[_Queryables, None]:
+        """Discover queryables advertised by a STAC object or its STAC API root."""
+        if stac_object is None:
+            return None
+
+        queryables_rels = ["http://www.opengis.net/def/rel/ogc/1.0/queryables", "queryables"]
+        queryables_link = next(
+            (link for rel in queryables_rels for link in stac_object.get_links(rel=rel)),
+            None,
+        )
+        source = queryables_link.get_absolute_href() if queryables_link else None
+
+        if source is None and isinstance(stac_object, pystac.Collection):
+            self_href = stac_object.get_self_href()
+            root_href = next(
+                (
+                    href
+                    for link in stac_object.get_links("root")
+                    if (href := link.get_absolute_href()) and href != self_href
+                ),
+                None,
+            )
+            try:
+                root = pystac.read_file(root_href) if root_href else None
+                conformance = root.extra_fields.get("conformsTo", []) if root else []
+                if (
+                    self_href
+                    and isinstance(conformance, list)
+                    and any("filter" in item.lower() for item in conformance if isinstance(item, str))
+                ):
+                    source = urllib.parse.urljoin(self_href.rstrip("/") + "/", "queryables")
+            except Exception as e:
+                log.debug(f"Failed to inspect STAC root for queryables: {e!r}")
+
+        if source:
+            try:
+                return cls._from_json_schema(load_json_resource(source), source=source)
+            except Exception as e:
+                log.warning(f"Failed to get/parse STAC queryables from {source}: {e!r}")
         return None

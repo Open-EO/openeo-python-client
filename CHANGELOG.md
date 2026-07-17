@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Validate `load_stac` property filters against discoverable STAC queryables. ([#884](https://github.com/Open-EO/openeo-python-client/issues/884))
+
 ### Changed
 
 ### Removed

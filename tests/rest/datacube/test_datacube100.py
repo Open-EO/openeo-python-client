@@ -15,6 +15,7 @@ from typing import Optional
 
 import dirty_equals
 import pyproj
+import pystac
 import pytest
 import requests
 import shapely.geometry
@@ -30,6 +31,7 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube, _Queryables
+from openeo.testing.stac import StacDummyBuilder
 from openeo.utils.version import ComparableVersion
 
 from .. import get_download_graph
@@ -2362,6 +2364,26 @@ class TestQueryables:
         requests_mock.get(f"{API_URL}/collections/S2/queryables", status_code=500, text="nope")
         queryables = _Queryables.build(collection_id="S2", connection=con100)
         assert queryables is None
+
+    def test_stac_api_filter_conformance(self, monkeypatch):
+        collection = pystac.Collection.from_dict(StacDummyBuilder.collection())
+        collection.set_self_href("https://stac.test/collections/S2")
+        collection.add_link(pystac.Link(rel="root", target="https://stac.test/"))
+        root = pystac.Catalog(id="root", description="STAC API root")
+        root.extra_fields["conformsTo"] = ["https://api.stacspec.org/v1.0.0/item-search#filter"]
+        sources = []
+
+        monkeypatch.setattr(pystac, "read_file", lambda href: root)
+        monkeypatch.setattr(
+            "openeo.rest.datacube.load_json_resource",
+            lambda source: sources.append(source) or _build_queryables_doc(platform=True, additional=False),
+        )
+
+        queryables = _Queryables.build_stac(collection)
+
+        assert sources == ["https://stac.test/collections/S2/queryables"]
+        assert queryables.properties == {"eo:cloud_cover", "platform"}
+        assert queryables.additional is False
 
 
 @pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
