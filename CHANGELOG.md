@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `AGENTS.md` with guidance for AI coding agents contributing to this project, including a request to disclose AI assistance in PRs ([#923](https://github.com/Open-EO/openeo-python-client/issues/923))
+
 ### Changed
 
 ### Removed
