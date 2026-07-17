@@ -1,5 +1,6 @@
 import contextlib
 import json
+import math
 import re
 from pathlib import Path
 from typing import List, Optional, Union
@@ -9,6 +10,7 @@ import numpy
 import pytest
 import xarray
 
+import openeo.testing.results
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
@@ -212,6 +214,69 @@ class TestCompareXarray:
         assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.0001) == [
             dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
         ]
+
+    def test_large_array_comparison_is_chunked(self, monkeypatch):
+        monkeypatch.setattr(openeo.testing.results, "_DEFAULT_COMPARISON_MEMORY_BUDGET", 1024)
+        expected = xarray.DataArray(numpy.arange(10_000, dtype=numpy.int16).reshape(100, 100), dims=["y", "x"])
+        actual = expected.copy(deep=True)
+        original_isclose = numpy.isclose
+        compared_shapes = []
+
+        def recording_isclose(a, b, **kwargs):
+            compared_shapes.append(a.shape)
+            return original_isclose(a, b, **kwargs)
+
+        monkeypatch.setattr(openeo.testing.results.numpy, "isclose", recording_isclose)
+
+        assert _compare_xarray_dataarray(actual, expected) == []
+        assert len(compared_shapes) > 1
+        assert max(math.prod(shape) for shape in compared_shapes) <= 16
+
+    def test_large_array_comparison_reports_streaming_statistics(self, monkeypatch):
+        monkeypatch.setattr(openeo.testing.results, "_DEFAULT_COMPARISON_MEMORY_BUDGET", 1024)
+        expected = xarray.DataArray(numpy.zeros((100, 100)), dims=["y", "x"])
+        actual = expected.copy(deep=True)
+        actual.values[10, 20] = 2
+        actual.values[90, 80] = 4
+
+        issues = _compare_xarray_dataarray(actual, expected, rtol=0, atol=0.1)
+
+        assert issues == [
+            dirty_equals.IsStr(
+                regex=r"Data values are not close .*2/10000 values differ \(0.02%\).*min: 2.0, max: 4.0.*mean: 3.0.*"
+            )
+        ]
+
+    def test_large_array_pixel_tolerance(self, monkeypatch):
+        monkeypatch.setattr(openeo.testing.results, "_DEFAULT_COMPARISON_MEMORY_BUDGET", 1024)
+        expected = xarray.DataArray(numpy.zeros((100, 100)), dims=["y", "x"])
+        actual = expected.copy(deep=True)
+        actual.values.flat[:100] = 1
+
+        assert _compare_xarray_dataarray(actual, expected, pixel_tolerance=1.0) == []
+        assert _compare_xarray_dataarray(actual, expected, pixel_tolerance=0.5) == [
+            dirty_equals.IsStr(regex=r"Fraction significantly differing pixels: 1.0% > 0.5% \(100/10000 values\)")
+        ]
+
+    def test_large_complex_array_statistics(self, monkeypatch):
+        monkeypatch.setattr(openeo.testing.results, "_DEFAULT_COMPARISON_MEMORY_BUDGET", 32)
+        expected = xarray.DataArray(numpy.zeros(4, dtype=numpy.complex128), dims=["x"])
+        actual = expected.copy(deep=True)
+        actual.values[2] = 3 + 4j
+
+        assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0) == [
+            dirty_equals.IsStr(regex=r".*1/4 values differ .*min: 5.0, max: 5.0, mean: 5.0.*")
+        ]
+
+    def test_load_netcdf_is_lazy(self, tmp_path):
+        path = tmp_path / "large.nc"
+        xarray.Dataset({"data": (("y", "x"), numpy.ones((100, 100), dtype=numpy.int16))}).to_netcdf(path)
+
+        dataset = openeo.testing.results._load_xarray_netcdf(path)
+        try:
+            assert dataset["data"].variable._in_memory is False
+        finally:
+            dataset.close()
 
 
 @contextlib.contextmanager
