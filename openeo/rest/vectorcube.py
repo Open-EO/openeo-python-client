@@ -212,8 +212,8 @@ class VectorCube(_ProcessGraphAbstraction):
             of another :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
         """
         format = format or "GeoJSON"
-        if self._connection:
-            self._connection._warn_on_invalid_output_format_options(format=format, options=options)
+        if self._connection and options:
+            self._connection._check_output_format(format=format, options=options)
 
         pg = self._build_pgnode(
             process_id="save_result",

@@ -240,6 +240,11 @@ def test_save_result_format_options_warning(vector_cube, dummy_backend):
     assert result.flat_graph()["saveresult1"]["arguments"]["options"] == {"indent": 2, "invalid": True}
 
 
+def test_save_result_invalid_format(vector_cube):
+    with pytest.raises(ValueError, match="Invalid format 'invalid'"):
+        vector_cube.save_result(format="invalid", options={"indent": 2})
+
+
 @pytest.mark.parametrize(
     ["save_result_format", "execute_format", "output_file", "expected"],
     [

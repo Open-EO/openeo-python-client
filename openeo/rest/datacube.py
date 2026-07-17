@@ -2403,15 +2403,9 @@ class DataCube(_ProcessGraphAbstraction):
             of another :py:class:`~openeo.rest.datacube.DataCube` instance.
         """
         if self._connection:
-            output_formats = self._connection.list_output_formats()
-            formats = set(output_formats)
-            # TODO: map format to correct casing too?
-            if format.lower() not in {f.lower() for f in formats}:
-                raise ValueError("Invalid format {f!r}. Should be one of {s}".format(f=format, s=formats))
-            self._connection._warn_on_invalid_output_format_options(
+            self._connection._check_output_format(
                 format=format,
                 options=options,
-                output_formats=output_formats,
             )
 
         pg = self._build_pgnode(
