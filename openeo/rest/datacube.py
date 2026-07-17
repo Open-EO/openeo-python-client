@@ -2183,18 +2183,16 @@ class DataCube(_ProcessGraphAbstraction):
         arguments = {"cube1": self, "cube2": other}
         if overlap_resolver:
             arguments["overlap_resolver"] = build_child_callback(overlap_resolver, parent_parameters=["x", "y"])
-        if (
-            self.metadata
-            and self.metadata.has_band_dimension()
-            and isinstance(other, DataCube)
-            and other.metadata
-            and other.metadata.has_band_dimension()
-        ):
-            # Minimal client side metadata merging
+        if self.metadata and isinstance(other, DataCube) and other.metadata:
+            # Minimal client-side metadata merging: preserve metadata when one or
+            # both cubes have no band dimension, and merge bands when both do.
             merged_metadata = self.metadata
-            for b in other.metadata.band_dimension.bands:
-                if b not in merged_metadata.bands:
-                    merged_metadata = merged_metadata.append_band(b)
+            if self.metadata.has_band_dimension() and other.metadata.has_band_dimension():
+                for b in other.metadata.band_dimension.bands:
+                    if b not in merged_metadata.bands:
+                        merged_metadata = merged_metadata.append_band(b)
+            elif other.metadata.has_band_dimension():
+                merged_metadata = other.metadata
         else:
             merged_metadata = None
         # Overlapping bands without overlap resolver will give an error in the backend
