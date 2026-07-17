@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support comparison of GeoJSON vector cube assets in `assert_job_results_allclose`. ([#862](https://github.com/Open-EO/openeo-python-client/issues/862))
+
 ### Changed
 
 ### Removed

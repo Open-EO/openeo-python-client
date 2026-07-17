@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy
+import pandas
 import xarray
 import xarray.testing
 from xarray import DataArray
@@ -93,6 +94,55 @@ def _as_xarray_dataarray(data: Union[str, Path, xarray.DataArray]) -> xarray.Dat
     if not isinstance(data, xarray.DataArray):
         raise ValueError(f"Unsupported type: {type(data)}")
     return data
+
+
+def _load_geodataframe(path: Union[str, Path]):
+    """Load a vector data file as a GeoPandas GeoDataFrame."""
+    try:
+        import geopandas
+    except ImportError as e:
+        raise ImportError("Comparing vector data requires the 'geopandas' dependency.") from e
+    return geopandas.read_file(path)
+
+
+def _compare_geodataframes(
+    actual: Union[str, Path],
+    expected: Union[str, Path],
+    *,
+    rtol: float = _DEFAULT_RTOL,
+    atol: float = _DEFAULT_ATOL,
+) -> List[str]:
+    """Compare vector geometries and their attribute data."""
+    actual_gdf = _load_geodataframe(actual)
+    expected_gdf = _load_geodataframe(expected)
+    import geopandas.testing
+
+    issues = []
+
+    try:
+        pandas.testing.assert_frame_equal(
+            actual_gdf.drop(columns=actual_gdf.geometry.name),
+            expected_gdf.drop(columns=expected_gdf.geometry.name),
+            check_dtype=False,
+            check_like=True,
+            rtol=rtol,
+            atol=atol,
+        )
+    except AssertionError as e:
+        issues.append(f"Attribute data mismatch:\n{str(e).strip()}")
+
+    try:
+        geopandas.testing.assert_geoseries_equal(
+            actual_gdf.geometry,
+            expected_gdf.geometry,
+            check_dtype=False,
+            check_geom_type=True,
+            check_crs=True,
+        )
+    except AssertionError as e:
+        issues.append(f"Geometry data mismatch:\n{str(e).strip()}")
+
+    return issues
 
 
 def _ascii_art(
@@ -456,6 +506,11 @@ def _compare_job_results(
             issues = _compare_xarray_dataarray(
                 actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
             )
+            if issues:
+                all_issues.append(f"Issues for file {filename!r}:")
+                all_issues.extend(issues)
+        elif expected_path.suffix.lower() == ".geojson":
+            issues = _compare_geodataframes(actual=actual_path, expected=expected_path, rtol=rtol, atol=atol)
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
                 all_issues.extend(issues)

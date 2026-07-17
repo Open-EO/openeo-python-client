@@ -432,6 +432,43 @@ class TestAssertJobResults:
         ds.to_netcdf(actual_dir / "data.nc")
         assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
+    @staticmethod
+    def _write_geojson(path: Path, *, value: float, coordinates):
+        path.write_text(
+            json.dumps(
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {"name": "sample", "value": value},
+                            "geometry": {"type": "Point", "coordinates": coordinates},
+                        }
+                    ],
+                }
+            )
+        )
+
+    def test_allclose_geojson_success(self, tmp_path, actual_dir, expected_dir):
+        self._write_geojson(expected_dir / "vectorcube.geojson", value=10, coordinates=[3, 51])
+        self._write_geojson(actual_dir / "vectorcube.geojson", value=10.000005, coordinates=[3, 51])
+
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_geojson_attribute_mismatch(self, tmp_path, actual_dir, expected_dir):
+        self._write_geojson(expected_dir / "vectorcube.geojson", value=10, coordinates=[3, 51])
+        self._write_geojson(actual_dir / "vectorcube.geojson", value=11, coordinates=[3, 51])
+
+        with raises_assertion_error_or_not(r"Issues for file 'vectorcube.geojson'.*Attribute data mismatch"):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_geojson_geometry_mismatch(self, tmp_path, actual_dir, expected_dir):
+        self._write_geojson(expected_dir / "vectorcube.geojson", value=10, coordinates=[3, 51])
+        self._write_geojson(actual_dir / "vectorcube.geojson", value=10, coordinates=[4, 52])
+
+        with raises_assertion_error_or_not(r"Issues for file 'vectorcube.geojson'.*Geometry data mismatch"):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
     def test_allclose_xy_success(self, tmp_path, actual_dir, expected_dir):
         expected_ds = xarray.Dataset(
             {
