@@ -688,7 +688,11 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     """
-    stac_object = pystac.read_file(href=url)
+    return metadata_from_stac_object(pystac.read_file(href=url))
+
+
+def metadata_from_stac_object(stac_object: pystac.STACObject) -> CubeMetadata:
+    """Build cube metadata from an already loaded PySTAC object."""
     bands = _StacMetadataParser().bands_from_stac_object(stac_object)
 
     # At least assume there are spatial dimensions
