@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Allow `Connection.load_stac_from_job()` to require or avoid canonical result links. ([#634](https://github.com/Open-EO/openeo-python-client/issues/634))
+
 ### Changed
 
 ### Removed
