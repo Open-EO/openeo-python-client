@@ -3241,7 +3241,8 @@ class TestLoadStac:
             }
         }
 
-    def test_load_stac_from_job_canonical(self, con120, requests_mock):
+    @pytest.mark.parametrize("canonical_link", ["auto", "require"])
+    def test_load_stac_from_job_canonical(self, con120, requests_mock, canonical_link):
         requests_mock.get(
             API_URL + "jobs/j0bi6/results",
             json={
@@ -3258,7 +3259,7 @@ class TestLoadStac:
             },
         )
         job = con120.job("j0bi6")
-        cube = con120.load_stac_from_job(job)
+        cube = con120.load_stac_from_job(job, canonical_link=canonical_link)
 
         fg = cube.flat_graph()
         assert fg == {
@@ -3294,6 +3295,30 @@ class TestLoadStac:
                 "result": True,
             }
         }
+
+    def test_load_stac_from_job_require_canonical_missing(self, con120, requests_mock):
+        requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={"links": [{"href": "https://wrong.test", "rel": "self"}]},
+        )
+
+        with pytest.raises(OpenEoClientException, match="No canonical link found in job results metadata"):
+            con120.load_stac_from_job("j0bi6", canonical_link="require")
+
+    def test_load_stac_from_job_avoid_canonical(self, con120, requests_mock):
+        results = requests_mock.get(
+            API_URL + "jobs/j0bi6/results",
+            json={"links": [{"href": "https://stac.test", "rel": "canonical"}]},
+        )
+
+        cube = con120.load_stac_from_job("j0bi6", canonical_link="avoid")
+
+        assert results.called is False
+        assert cube.flat_graph()["loadstac1"]["arguments"]["url"] == API_URL + "jobs/j0bi6/results"
+
+    def test_load_stac_from_job_invalid_canonical_link_mode(self, con120):
+        with pytest.raises(ValueError, match="Invalid canonical_link mode 'sometimes'"):
+            con120.load_stac_from_job("j0bi6", canonical_link="sometimes")
 
     def test_load_stac_from_job_from_jobid(self, con120, requests_mock):
         requests_mock.get(
