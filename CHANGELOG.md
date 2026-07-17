@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Compare large xarray job result arrays in memory-bounded chunks to avoid out-of-memory failures. ([#871](https://github.com/Open-EO/openeo-python-client/issues/871))
+
 ### Changed
 
 ### Removed

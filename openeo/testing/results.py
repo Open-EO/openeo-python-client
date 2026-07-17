@@ -2,8 +2,10 @@
 Assert functions for comparing actual (batch job) results against expected reference data.
 """
 
+import itertools
 import json
 import logging
+import math
 import re
 import tempfile
 from pathlib import Path
@@ -22,6 +24,7 @@ _log = logging.getLogger(__name__)
 _DEFAULT_RTOL = 1e-6
 _DEFAULT_ATOL = 1e-6
 _DEFAULT_PIXELTOL = 0.0
+_DEFAULT_COMPARISON_MEMORY_BUDGET = 64 * 1024 * 1024
 
 # https://paulbourke.net/dataformats/asciiart
 DEFAULT_GRAYSCALE_70_CHARACTERS = r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "[::-1]
@@ -33,7 +36,96 @@ def _load_xarray_netcdf(path: Union[str, Path], **kwargs) -> xarray.Dataset:
     Load a netCDF file as Xarray Dataset
     """
     _log.debug(f"_load_xarray_netcdf: {path!r}")
-    return xarray.load_dataset(path, **kwargs)
+    # Keep variables backed by the file so large arrays can be read in bounded chunks.
+    kwargs.setdefault("cache", False)
+    return xarray.open_dataset(path, **kwargs)
+
+
+def _iter_chunk_indexers(
+    data: xarray.DataArray,
+    *,
+    bytes_per_cell: int,
+    memory_budget: Optional[int] = None,
+):
+    """Yield rectangular ``isel`` indexers within an approximate memory budget."""
+    memory_budget = memory_budget or _DEFAULT_COMPARISON_MEMORY_BUDGET
+    max_cells = max(1, memory_budget // max(1, bytes_per_cell))
+    chunk_sizes = list(data.shape)
+    while math.prod(chunk_sizes) > max_cells:
+        axis = max(range(len(chunk_sizes)), key=chunk_sizes.__getitem__)
+        chunk_sizes[axis] = max(1, (chunk_sizes[axis] + 1) // 2)
+
+    ranges = [range(0, size, chunk) for size, chunk in zip(data.shape, chunk_sizes)]
+    for starts in itertools.product(*ranges):
+        yield {
+            dim: slice(start, min(start + chunk, size))
+            for dim, start, chunk, size in zip(data.dims, starts, chunk_sizes, data.shape)
+        }
+
+
+def _compare_xarray_dataarray_chunked(
+    actual: xarray.DataArray,
+    expected: xarray.DataArray,
+    *,
+    rtol: float,
+    atol: float,
+    pixel_tolerance: float,
+) -> List[str]:
+    """Compare compatible numerical arrays without materializing full-size intermediates."""
+    bytes_per_cell = max(actual.dtype.itemsize, expected.dtype.itemsize, 8) * 8
+    bad_count = 0
+    total_count = 0
+    finite_diff_count = 0
+    diff_sum = 0.0
+    diff_sum_squared = 0.0
+    diff_min = math.inf
+    diff_max = -math.inf
+
+    for indexers in _iter_chunk_indexers(actual, bytes_per_cell=bytes_per_cell):
+        actual_chunk = numpy.asarray(actual.isel(indexers).values)
+        expected_chunk = numpy.asarray(expected.isel(indexers).values)
+        with numpy.errstate(all="ignore"):
+            close = numpy.isclose(actual_chunk, expected_chunk, rtol=rtol, atol=atol, equal_nan=True)
+        bad = ~close
+        chunk_bad_count = int(numpy.count_nonzero(bad))
+        bad_count += chunk_bad_count
+        total_count += int(bad.size)
+
+        if chunk_bad_count:
+            with numpy.errstate(all="ignore"):
+                comparison_dtype = numpy.result_type(actual_chunk.dtype, expected_chunk.dtype, numpy.float64)
+                differences = numpy.abs(
+                    actual_chunk.astype(comparison_dtype) - expected_chunk.astype(comparison_dtype)
+                )[bad]
+            finite_differences = differences[numpy.isfinite(differences)]
+            if finite_differences.size:
+                finite_diff_count += int(finite_differences.size)
+                diff_sum += float(finite_differences.sum(dtype=float))
+                diff_sum_squared += float(numpy.square(finite_differences).sum(dtype=float))
+                diff_min = min(diff_min, float(finite_differences.min()))
+                diff_max = max(diff_max, float(finite_differences.max()))
+
+    bad_percentage = bad_count * 100 / total_count if total_count else 0.0
+    if bad_percentage <= pixel_tolerance:
+        return []
+
+    if pixel_tolerance:
+        return [
+            f"Fraction significantly differing pixels: {bad_percentage}% > {pixel_tolerance}% "
+            f"({bad_count}/{total_count} values)"
+        ]
+
+    statistics = ""
+    if finite_diff_count:
+        diff_mean = diff_sum / finite_diff_count
+        diff_variance = max(0.0, diff_sum_squared / finite_diff_count - diff_mean**2)
+        statistics = (
+            f", absolute difference min: {diff_min}, max: {diff_max}, " f"mean: {diff_mean}, variance: {diff_variance}"
+        )
+    return [
+        f"Data values are not close (rtol={rtol}, atol={atol}): "
+        f"{bad_count}/{total_count} values differ ({bad_percentage}%){statistics}"
+    ]
 
 
 def _load_rioxarray_geotiff(path: Union[str, Path], **kwargs) -> xarray.DataArray:
@@ -240,6 +332,21 @@ def _compare_xarray_dataarray(
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
     is_numerical_data = numpy.issubdtype(actual.dtype, numpy.number) and numpy.issubdtype(expected.dtype, numpy.number)
+    use_chunked_comparison = (
+        compatible and is_numerical_data and actual.nbytes + expected.nbytes > _DEFAULT_COMPARISON_MEMORY_BUDGET
+    )
+    if use_chunked_comparison:
+        issues.extend(
+            _compare_xarray_dataarray_chunked(
+                actual=actual,
+                expected=expected,
+                rtol=rtol,
+                atol=atol,
+                pixel_tolerance=pixel_tolerance,
+            )
+        )
+        return issues
+
     try:
         if pixel_tolerance and compatible and is_numerical_data:
             threshold = abs(expected * rtol) + atol
