@@ -4168,6 +4168,97 @@ def test_describe_processes(requests_mock):
         conn.describe_process("invalid")
 
 
+def test_unroll_process_graph_registered_udp(requests_mock):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.0.0", udp=True))
+    processes = requests_mock.get(API_URL + "processes", json={"processes": [{"id": "add"}]})
+    udp = requests_mock.get(
+        API_URL + "process_graphs/increment",
+        json={
+            "id": "increment",
+            "parameters": [{"name": "data"}, {"name": "amount", "default": 1}],
+            "process_graph": {
+                "add1": {
+                    "process_id": "add",
+                    "arguments": {
+                        "x": {"from_parameter": "data"},
+                        "y": {"from_parameter": "amount"},
+                    },
+                    "result": True,
+                }
+            },
+        },
+    )
+    conn = Connection(API_URL)
+
+    result = conn.unroll_process_graph(
+        {
+            "process_graph": {
+                "increment1": {"process_id": "increment", "arguments": {"data": 3}},
+                "increment2": {
+                    "process_id": "increment",
+                    "arguments": {"data": {"from_node": "increment1"}, "amount": 5},
+                    "result": True,
+                },
+            }
+        }
+    )
+
+    assert result == {
+        "increment1_add1": {"process_id": "add", "arguments": {"x": 3, "y": 1}},
+        "increment2_add1": {
+            "process_id": "add",
+            "arguments": {"x": {"from_node": "increment1_add1"}, "y": 5},
+            "result": True,
+        },
+    }
+    assert processes.call_count == 1
+    assert udp.call_count == 1
+
+
+def test_unroll_process_graph_remote_definition(requests_mock):
+    requests_mock.get(API_URL, json=build_capabilities(api_version="1.0.0"))
+    requests_mock.get(API_URL + "processes", json={"processes": [{"id": "multiply"}]})
+    remote = requests_mock.get(
+        "https://processes.test/definitions",
+        json={
+            "processes": [
+                {
+                    "id": "double",
+                    "parameters": [{"name": "x"}],
+                    "process_graph": {
+                        "multiply1": {
+                            "process_id": "multiply",
+                            "arguments": {"x": {"from_parameter": "x"}, "y": 2},
+                            "result": True,
+                        }
+                    },
+                }
+            ]
+        },
+    )
+    conn = Connection(API_URL)
+
+    result = conn.unroll_process_graph(
+        {
+            "double1": {
+                "process_id": "double",
+                "namespace": "https://processes.test/definitions",
+                "arguments": {"x": 21},
+                "result": True,
+            }
+        }
+    )
+
+    assert result == {
+        "double1_multiply1": {
+            "process_id": "multiply",
+            "arguments": {"x": 21, "y": 2},
+            "result": True,
+        }
+    }
+    assert remote.call_count == 1
+
+
 def test_list_processes_namespace(requests_mock):
     requests_mock.get(API_URL, json={"api_version": "1.0.0"})
     processes = [{"id": "add"}, {"id": "mask"}]
