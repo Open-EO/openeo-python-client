@@ -2965,6 +2965,39 @@ def test_save_result_format(con100, requests_mock):
     cube.save_result(format="pNg")
 
 
+def test_save_result_format_options_warning(con100, requests_mock):
+    requests_mock.get(
+        API_URL + "/file_formats",
+        json={
+            "output": {
+                "GTiff": {
+                    "gis_data_types": ["raster"],
+                    "parameters": {
+                        "compression": {"type": "string"},
+                        "tile_size": {"type": "integer"},
+                    },
+                }
+            }
+        },
+    )
+
+    cube = con100.load_collection("S2")
+    with pytest.warns(
+        UserWarning,
+        match=r"Unsupported options \['overview_level'\] for output format 'gtiff' "
+        r"\(supported options: \['compression', 'tile_size'\]\)\.",
+    ):
+        result = cube.save_result(
+            format="gtiff",
+            options={"compression": "DEFLATE", "overview_level": 4},
+        )
+
+    assert result.flat_graph()["saveresult1"]["arguments"]["options"] == {
+        "compression": "DEFLATE",
+        "overview_level": 4,
+    }
+
+
 EXPECTED_JSON_EXPORT_S2_NDVI = textwrap.dedent(
     """\
   {

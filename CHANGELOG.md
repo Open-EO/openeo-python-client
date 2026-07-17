@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Warn when `save_result` uses output format options that are not advertised by the backend. ([#649](https://github.com/Open-EO/openeo-python-client/issues/649))
+
 ### Changed
 
 ### Removed
