@@ -223,6 +223,28 @@ def test_save_result_and_download_filename(
     assert output_path.read_bytes() == DummyBackend.DEFAULT_RESULT
 
 
+def test_save_result_format_options_warning(vector_cube, dummy_backend):
+    dummy_backend.setup_file_format(
+        "GeoJSON",
+        gis_data_types=("vector",),
+        parameters={"indent": {"type": "integer"}},
+    )
+
+    with pytest.warns(
+        UserWarning,
+        match=r"Unsupported options \['invalid'\] for output format 'geojson' "
+        r"\(supported options: \['indent'\]\)\.",
+    ):
+        result = vector_cube.save_result(format="geojson", options={"indent": 2, "invalid": True})
+
+    assert result.flat_graph()["saveresult1"]["arguments"]["options"] == {"indent": 2, "invalid": True}
+
+
+def test_save_result_invalid_format(vector_cube):
+    with pytest.raises(ValueError, match="Invalid format 'invalid'"):
+        vector_cube.save_result(format="invalid", options={"indent": 2})
+
+
 @pytest.mark.parametrize(
     ["save_result_format", "execute_format", "output_file", "expected"],
     [

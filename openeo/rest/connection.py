@@ -856,6 +856,36 @@ class Connection(RestApiConnection):
     def list_output_formats(self) -> dict:
         return self.list_file_formats().get("output", {})
 
+    def _check_output_format(
+        self,
+        *,
+        format: str,
+        options: Optional[Mapping],
+    ) -> None:
+        """Validate an output format and warn about options not advertised by the backend."""
+        output_formats = self.list_output_formats()
+        format_name = next(
+            (
+                name
+                for name in output_formats
+                if isinstance(name, str) and name.lower() == format.lower()
+            ),
+            None,
+        )
+        if format_name is None:
+            raise ValueError(f"Invalid format {format!r}. Should be one of {set(output_formats)}")
+
+        format_metadata = output_formats[format_name]
+        parameters = format_metadata.get("parameters") if isinstance(format_metadata, Mapping) else None
+        if options and isinstance(parameters, Mapping):
+            unsupported = sorted(set(options).difference(parameters))
+            if unsupported:
+                warnings.warn(
+                    f"Unsupported options {unsupported} for output format {format!r} "
+                    f"(supported options: {sorted(parameters)}).",
+                    stacklevel=3,
+                )
+
     list_file_types = legacy_alias(
         list_output_formats, "list_file_types", since="0.4.6"
     )

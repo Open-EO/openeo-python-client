@@ -181,11 +181,17 @@ class DummyBackend:
         )
         return self
 
-    def setup_file_format(self, name: str, type: str = "output", gis_data_types: Iterable[str] = ("raster",)):
+    def setup_file_format(
+        self,
+        name: str,
+        type: str = "output",
+        gis_data_types: Iterable[str] = ("raster",),
+        parameters: Optional[dict] = None,
+    ):
         self.file_formats[type][name] = {
             "title": name,
             "gis_data_types": list(gis_data_types),
-            "parameters": {},
+            "parameters": parameters or {},
         }
         self._requests_mock.get(self.connection.build_url("/file_formats"), json=self.file_formats)
         return self
