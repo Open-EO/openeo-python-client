@@ -102,8 +102,8 @@ def test_legacy_alias_classmethod(recwarn):
 
     expected_warning = (
         r"Call to deprecated .*(method|function).* do_plus\."
-        " \(Usage of this legacy .*(method|function).* is deprecated\. Use `\.add` instead\.\)"
-        " -- Deprecated since version v1\.2\."
+        r" \(Usage of this legacy .*(method|function).* is deprecated\. Use `\.add` instead\.\)"
+        r" -- Deprecated since version v1\.2\."
     )
 
     with pytest.warns(UserDeprecationWarning, match=expected_warning):
