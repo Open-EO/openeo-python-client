@@ -1,7 +1,144 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
 
-#[build-system]
-#requires = ["setuptools"]
-#build-backend = "setuptools.build_meta"
+[project]
+name = "openeo"
+dynamic = ["version"]
+description = "Client API for openEO"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.8"
+authors = [
+    { name = "Jeroen Dries", email = "jeroen.dries@vito.be" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "deprecated>=1.2.12",
+    # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
+    "geopandas",  # Best-effort geopandas dependency for Python 3.8
+    "geopandas>=0.14; python_version>='3.9'",
+    "importlib_resources; python_version<'3.9'",
+    "numpy>=1.17.0",
+    "oschmod>=0.3.12; sys_platform == \"win32\"",
+    "pandas>0.20.0,<3.0.0",  # TODO pandas 3 compatibility https://github.com/Open-EO/openeo-python-client/issues/856
+    # TODO #578: pystac 1.5.0 is highest version available for lowest Python
+    # version we still support (3.7).
+    "pystac>=1.5.0",
+    "requests>=2.26.0",
+    "shapely>=1.6.4",
+    "urllib3>=1.9.0",
+    "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
+]
+
+[project.optional-dependencies]
+artifacts = [
+    "boto3",
+    "botocore",
+]
+dev = [
+    "boto3",
+    "boto3~=1.37.38; python_version<'3.9'",
+    "botocore",
+    "botocore~=1.37.38; python_version<'3.9'",
+    "dirty_equals>=0.8.0",
+    "flake8>=5.0.0",
+    "httpretty>=1.1.4",
+    "mock",
+    "moto>=5.0.0",
+    "moto~=5.0.28; python_version<'3.9'",
+    "myst-parser",
+    "netCDF4>=1.7.0",
+    "pyarrow>=10.0.1",
+    "pydata_sphinx_theme",
+    "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
+    "pystac-client>=0.7.5",
+    "pytest>=4.5.0",
+    "python-dateutil>=2.7.0",
+    "requests-mock>=1.8.0",
+    "sphinx",
+    "sphinx-autodoc-annotation",
+    "sphinx-autodoc-typehints >=2.2.3; python_version>='3.10'",
+    "sphinx-autodoc-typehints; python_version<='3.9'",
+    "sphinx-copybutton",
+    "time_machine>=2.13.0",
+    "types-boto3-s3",
+    "types-boto3-sts",
+    "urllib3<2.3.0",
+]
+docs = [
+    "myst-parser",
+    "pydata_sphinx_theme",
+    "sphinx",
+    "sphinx-autodoc-annotation",
+    "sphinx-autodoc-typehints >=2.2.3; python_version>='3.10'",
+    "sphinx-autodoc-typehints; python_version<='3.9'",
+    "sphinx-copybutton",
+]
+jupyter = [
+    "ipyleaflet>=0.17.0",
+    "ipython",
+]
+localprocessing = [
+    "openeo_pg_parser_networkx>=2023.5.1; python_version>='3.9'",
+    "openeo_processes_dask[implementations]>=2023.7.1; python_version>='3.9'",
+    "pyproj",
+    "rioxarray>=0.13.0",
+]
+# Install oschmod even when platform is not Windows, e.g. for testing in CI.
+oschmod = [
+    "oschmod>=0.3.12",
+]
+tests = [
+    "boto3",
+    "boto3~=1.37.38; python_version<'3.9'",
+    "botocore",
+    "botocore~=1.37.38; python_version<'3.9'",
+    "dirty_equals>=0.8.0",
+    "flake8>=5.0.0",
+    "httpretty>=1.1.4",
+    "mock",
+    "moto>=5.0.0",
+    # Some pins to speed up slow dependency resolution in Python 3.8 venvs
+    "moto~=5.0.28; python_version<'3.9'",
+    "netCDF4>=1.7.0",
+    "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
+    "pyproj>=3.2.0",
+    "pystac-client>=0.7.5",
+    "pytest>=4.5.0",
+    "python-dateutil>=2.7.0",
+    "requests-mock>=1.8.0",
+    "time_machine>=2.13.0",
+    # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and
+    # https://github.com/gabrielfalcao/HTTPretty/issues/484
+    "urllib3<2.3.0",
+]
+
+[project.scripts]
+openeo-auth = "openeo.rest.auth.cli:main"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/Open-EO/openeo-python-client/issues"
+Changelog = "https://github.com/Open-EO/openeo-python-client/blob/master/CHANGELOG.md"
+Documentation = "https://open-eo.github.io/openeo-python-client/"
+Homepage = "https://github.com/Open-EO/openeo-python-client"
+"Source Code" = "https://github.com/Open-EO/openeo-python-client"
+
+[tool.setuptools.dynamic]
+version = {attr = "openeo._version.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["openeo"]
 
 [tool.black]
 line-length = 120

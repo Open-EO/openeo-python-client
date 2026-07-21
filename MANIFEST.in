@@ -1,3 +1,4 @@
+include pyproject.toml
 include openeo/extra/spectral_indices/resources/*.json
 include openeo/extra/spectral_indices/resources/*/*.json
 include openeo/extra/spectral_indices/resources/*/LICENSE*

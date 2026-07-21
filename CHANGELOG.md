@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Convert setup.py to pyproject.toml ([#920](https://github.com/Open-EO/openeo-python-client/issues/920))
+
 ### Removed
 
 ### Fixed
