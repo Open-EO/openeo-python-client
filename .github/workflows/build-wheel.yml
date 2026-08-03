@@ -3,6 +3,8 @@ name: Build wheel
 
 on: [workflow_dispatch]
 
+permissions: {}
+
 jobs:
   build:
     name: Build wheel

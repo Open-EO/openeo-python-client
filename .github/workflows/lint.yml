@@ -8,6 +8,7 @@ on:
     paths:
       - '**.py'
 concurrency: ci-${{ github.ref }}
+permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest
