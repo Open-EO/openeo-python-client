@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Lookup collection queryables only when property filtering is actually used in `load_collection` ([#926](https://github.com/Open-EO/openeo-python-client/issues/926))
+
 ### Removed
 
 ### Fixed
