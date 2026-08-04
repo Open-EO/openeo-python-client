@@ -152,6 +152,26 @@ as defined in the :py:mod:`openeo.udf.udf_signatures` module,
 so that the back-end knows what the *entrypoint* function is
 of your UDF implementation.
 
+The function name and Python type annotations are part of that signature:
+they are used to detect how the UDF should be invoked.
+Do not omit the type annotations on the UDF entrypoint, even if your editor
+or linter would otherwise consider them optional.
+For example, this is not enough:
+
+.. code-block:: python
+
+    def apply_datacube(cube, context):
+        ...
+
+Instead, write the full annotated signature:
+
+.. code-block:: python
+
+    import xarray
+
+    def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+        ...
+
 
 Module ``openeo.udf.udf_signatures``
 -------------------------------------
