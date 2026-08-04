@@ -247,9 +247,13 @@ class DataCube(_ProcessGraphAbstraction):
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
 
+        if isinstance(collection_id, str) and connection:
+            queryables = lambda: _Queryables.from_openeo_collection(collection_id=collection_id, connection=connection)
+        else:
+            queryables = None
         properties = cls._build_load_properties_argument(
             properties=properties,
-            queryables=_Queryables.build(collection_id=collection_id, connection=connection),
+            queryables=queryables,
             max_cloud_cover=max_cloud_cover,
         )
         if properties is not None:
@@ -275,7 +279,7 @@ class DataCube(_ProcessGraphAbstraction):
             None,
         ],
         *,
-        queryables: Optional[_Queryables] = None,
+        queryables: Union[None, _Queryables, Callable[[], _Queryables]] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> Union[Dict[str, PGNode], None]:
         """
@@ -296,6 +300,9 @@ class DataCube(_ProcessGraphAbstraction):
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
 
         if isinstance(properties, dict):
+            if callable(queryables):
+                # Lazy discovery of queryables
+                queryables = queryables()
             if queryables and not queryables.additional:
                 unsupported_properties = set(properties.keys()).difference(queryables.properties)
                 if unsupported_properties:
@@ -3173,9 +3180,16 @@ def _get_geometry_argument(
     elif (
         allow_bounding_box
         and isinstance(argument, dict)
-        and all(k in argument for k in ["west", "south", "east", "north"])
+        and (bbox_fields := {"west", "south", "east", "north"}.intersection(argument.keys()))
     ):
-        return argument
+        if len(bbox_fields) == 4:
+            return argument
+        elif len(bbox_fields) >= 2:
+            missing_fields = {"west", "south", "east", "north"}.difference(argument.keys())
+            raise OpenEoClientException(
+                f"Invalid bounding box given to `{argument_name}` in `{process_id}`:"
+                f" has fields {sorted(bbox_fields)} but is missing {sorted(missing_fields)}: {argument}"
+            )
 
     # Support URL based geometry references (with `load_url` and best-effort format guess)
     if isinstance(argument, str) and re.match(r"^https?://", argument, flags=re.I):
@@ -3246,7 +3260,10 @@ class _Queryables:
         self.additional = bool(additional)
 
     @classmethod
-    def build(cls, *, collection_id: str, connection: Optional[Connection]) -> Union[_Queryables, None]:
+    def from_openeo_collection(
+        cls, *, collection_id: str, connection: Optional[Connection]
+    ) -> Union[_Queryables, None]:
+        """Build ``_Queryables`` from openEO collection metadata"""
         if connection and connection.capabilities().supports_endpoint("/collections/{collection_id}/queryables"):
             path = f"/collections/{collection_id}/queryables"
             try:
