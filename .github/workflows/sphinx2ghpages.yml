@@ -8,6 +8,7 @@ on:
     paths:
       - 'docs/**'
       - 'openeo/**'
+      - '.github/workflows/sphinx2ghpages.yml'
 
 concurrency:
   group: docs-${{ github.ref }}
