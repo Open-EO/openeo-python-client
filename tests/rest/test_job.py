@@ -1110,6 +1110,14 @@ class TestResultAsset:
             ("bands:weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bandsweiß-cube.tiff"),
             ("立方体.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "立方体.tiff"),
             ("立方体;123", "http://data.test/dl/cube.tiff", "image/tiff", "立方体123-cube.tiff"),
+            # Percent-encoded unicode in href URL (e.g. from signed S3 URLs)
+            ("output", "http://data.test/dl/file_%CF%83.nc", "application/x-netcdf", "output-file_σ.nc"),
+            (
+                "7ff3410f",
+                "https://s3.example.com/jobs/test-dotError_proba-cube_year2024_32%CF%83LB03.nc?X-Amz-Signature=abc",
+                "application/x-netcdf",
+                "7ff3410f-test-dotError_proba-cube_year2024_32σLB03.nc",
+            ),
         ],
     )
     def test_download_make_filename(self, tmp_path, job, key, href, media_type, expected, requests_mock):

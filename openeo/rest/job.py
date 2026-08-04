@@ -8,7 +8,7 @@ import time
 import typing
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -475,7 +475,7 @@ class ResultAsset:
         # Build filename from key, href's path (if any)
         # and guess extension from media type if necessary
         sanitized_key = _sanitize_filename(self.key)
-        href_path = urlparse(str(self.href)).path
+        href_path = unquote(urlparse(str(self.href)).path)
         href_basename = _sanitize_filename(Path(href_path).name)
         filename = f"{sanitized_key}-{href_basename}"
 
