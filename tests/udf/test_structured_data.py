@@ -29,5 +29,7 @@ def test_structured_data_table():
     values = [("col_1", "col_2"), (1, 2), (2, 3)]
     st = StructuredData(data=values, type="table", description="Table output")
     assert st.to_dict() == {
-        "data": [("col_1", "col_2"), (1, 2), (2, 3)], "type": "table", "description": "Table output"
+        "data": [("col_1", "col_2"), (1, 2), (2, 3)],
+        "type": "table",
+        "description": "Table output",
     }

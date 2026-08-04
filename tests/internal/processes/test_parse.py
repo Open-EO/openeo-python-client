@@ -80,11 +80,13 @@ def test_get_enum_options(schema, expected):
 
 
 def test_parameter():
-    p = Parameter.from_dict({
-        "name": "foo",
-        "description": "Foo amount",
-        "schema": {"type": "number"},
-    })
+    p = Parameter.from_dict(
+        {
+            "name": "foo",
+            "description": "Foo amount",
+            "schema": {"type": "number"},
+        }
+    )
     assert p.name == "foo"
     assert p.description == "Foo amount"
     assert p.schema.schema == {"type": "number"}
@@ -93,22 +95,12 @@ def test_parameter():
 
 
 def test_parameter_default():
-    p = Parameter.from_dict({
-        "name": "foo",
-        "description": "Foo amount",
-        "schema": {"type": "number"},
-        "default": 5
-    })
+    p = Parameter.from_dict({"name": "foo", "description": "Foo amount", "schema": {"type": "number"}, "default": 5})
     assert p.default == 5
 
 
 def test_parameter_default_none():
-    p = Parameter.from_dict({
-        "name": "foo",
-        "description": "Foo amount",
-        "schema": {"type": "number"},
-        "default": None
-    })
+    p = Parameter.from_dict({"name": "foo", "description": "Foo amount", "schema": {"type": "number"}, "default": None})
     assert p.default is None
 
 
@@ -121,29 +113,28 @@ def test_parameter_equality():
 
 
 def test_returns():
-    r = Returns.from_dict({
-        "description": "Roo",
-        "schema": {"type": "number"}
-    })
+    r = Returns.from_dict({"description": "Roo", "schema": {"type": "number"}})
     assert r.schema.schema == {"type": "number"}
     assert r.description == "Roo"
 
 
 def test_process():
-    p = Process.from_dict({
-        "id": "absolute",
-        "summary": "Absolute value",
-        "description": "Computes the absolute value of a real number.",
-        "categories": ["math"],
-        "parameters": [
-            {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
-        ],
-        "returns": {
-            "description": "The computed absolute value.",
-            "schema": {"type": ["number", "null"], "minimum": 0}
-        },
-        "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
-    })
+    p = Process.from_dict(
+        {
+            "id": "absolute",
+            "summary": "Absolute value",
+            "description": "Computes the absolute value of a real number.",
+            "categories": ["math"],
+            "parameters": [
+                {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
+            ],
+            "returns": {
+                "description": "The computed absolute value.",
+                "schema": {"type": ["number", "null"], "minimum": 0},
+            },
+            "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
+        }
+    )
 
     assert p.id == "absolute"
     assert p.description == "Computes the absolute value of a real number."
@@ -157,7 +148,8 @@ def test_process():
 
 
 def test_process_from_json():
-    p = Process.from_json('''{
+    p = Process.from_json(
+        """{
         "id": "absolute",
         "summary": "Absolute value",
         "description": "Computes the absolute value of a real number.",
@@ -169,7 +161,8 @@ def test_process_from_json():
             "description": "The computed absolute value.",
             "schema": {"type": ["number", "null"], "minimum": 0}
         }
-    }''')
+    }"""
+    )
     assert p.id == "absolute"
     assert p.description == "Computes the absolute value of a real number."
     assert p.summary == "Absolute value"
@@ -182,46 +175,51 @@ def test_process_from_json():
 
 
 @pytest.mark.parametrize(
-    ("key", "expected"), [
+    ("key", "expected"),
+    [
         ("x", Parameter.from_dict({"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}})),
         ("y", Parameter.from_dict({"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}})),
-    ]
+    ],
 )
 def test_get_parameter(key, expected):
-    p = Process.from_dict({
-        "id": "absolute",
-        "summary": "Absolute value",
-        "description": "Computes the absolute value of a real number.",
-        "categories": ["math"],
-        "parameters": [
-            {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
-            {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
-        ],
-        "returns": {
-            "description": "The computed absolute value.",
-            "schema": {"type": ["number", "null"], "minimum": 0}
-        },
-        "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
-    })
+    p = Process.from_dict(
+        {
+            "id": "absolute",
+            "summary": "Absolute value",
+            "description": "Computes the absolute value of a real number.",
+            "categories": ["math"],
+            "parameters": [
+                {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
+                {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
+            ],
+            "returns": {
+                "description": "The computed absolute value.",
+                "schema": {"type": ["number", "null"], "minimum": 0},
+            },
+            "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
+        }
+    )
     assert p.get_parameter(key) == expected
 
 
 def test_get_parameter_error():
-    p = Process.from_dict({
-        "id": "absolute",
-        "summary": "Absolute value",
-        "description": "Computes the absolute value of a real number.",
-        "categories": ["math"],
-        "parameters": [
-            {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
-            {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
-        ],
-        "returns": {
-            "description": "The computed absolute value.",
-            "schema": {"type": ["number", "null"], "minimum": 0}
-        },
-        "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
-    })
+    p = Process.from_dict(
+        {
+            "id": "absolute",
+            "summary": "Absolute value",
+            "description": "Computes the absolute value of a real number.",
+            "categories": ["math"],
+            "parameters": [
+                {"name": "x", "description": "A number.", "schema": {"type": ["number", "null"]}},
+                {"name": "y", "description": "A number.", "schema": {"type": ["number", "null"]}},
+            ],
+            "returns": {
+                "description": "The computed absolute value.",
+                "schema": {"type": ["number", "null"], "minimum": 0},
+            },
+            "links": [{"rel": "about", "href": "http://example.com/abs.html"}],
+        }
+    )
     with pytest.raises(LookupError):
         p.get_parameter("z")
 

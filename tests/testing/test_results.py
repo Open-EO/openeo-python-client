@@ -26,7 +26,6 @@ class TestCompareXarray:
         issues = _compare_xarray_dataarray(actual, expected)
         assert issues == []
 
-
     @pytest.mark.parametrize(
         ["actual", "expected_issues"],
         [
@@ -202,7 +201,6 @@ class TestCompareXarray:
             )
             == expected_issues
         )
-
 
     def test_nan_handling(self):
         expected = xarray.DataArray([1, 2, numpy.nan, 4, float("nan")])
