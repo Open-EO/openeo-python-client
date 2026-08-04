@@ -2353,14 +2353,14 @@ class TestQueryables:
     def test_basic(self, con100, requests_mock, api_capabilities):
         queryables_doc = _build_queryables_doc(platform=True, cloud_cover=True, additional=True)
         requests_mock.get(f"{API_URL}/collections/S2/queryables", json=queryables_doc)
-        queryables = _Queryables.build(collection_id="S2", connection=con100)
+        queryables = _Queryables.from_openeo_collection(collection_id="S2", connection=con100)
         assert queryables.properties == {"eo:cloud_cover", "platform"}
         assert queryables.additional is True
 
     @pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
     def test_broken(self, con100, requests_mock, api_capabilities):
         requests_mock.get(f"{API_URL}/collections/S2/queryables", status_code=500, text="nope")
-        queryables = _Queryables.build(collection_id="S2", connection=con100)
+        queryables = _Queryables.from_openeo_collection(collection_id="S2", connection=con100)
         assert queryables is None
 
 
@@ -2419,6 +2419,24 @@ def test_load_collection_with_queryables(
         },
     }
     assert [str(w.message) for w in recwarn] == expected_warnings
+
+
+@pytest.mark.parametrize("api_capabilities", [{"collection_queryables": True}])
+@pytest.mark.parametrize(
+    ["properties", "expected_queryables_request"],
+    [
+        (None, False),
+        ([collection_property("eo:cloud_cover") <= 75], True),
+    ],
+)
+def test_load_collection_with_queryables_lazily(
+    con100, requests_mock, api_capabilities, properties, expected_queryables_request
+):
+    queryables_doc = _build_queryables_doc(platform=True, cloud_cover=True, additional=False)
+    queryables_mock = requests_mock.get(f"{API_URL}/collections/S2/queryables", json=queryables_doc)
+
+    _ = con100.load_collection("S2", properties=properties)
+    assert queryables_mock.called == expected_queryables_request
 
 
 def test_load_collection_temporal_extent_process_builder_function(con100):

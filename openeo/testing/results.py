@@ -228,8 +228,14 @@ def _compare_xarray_dataarray(
     for dim in sorted(set(expected.dims).intersection(actual.dims)):
         acs = actual.coords[dim].values
         ecs = expected.coords[dim].values
-        if not (acs.shape == ecs.shape and (acs == ecs).all()):
-            issues.append(f"Coordinates mismatch for dimension {dim!r}: {acs} != {ecs}")
+        if acs.shape != ecs.shape:
+            issues.append(
+                f"Coordinate shape mismatch for dimension {dim!r}: {acs.shape=} != {ecs.shape=} ({acs=}, {ecs=})"
+            )
+        elif not (acs == ecs).all():
+            issues.append(
+                f"Coordinate value mismatch for dimension {dim!r}: {acs=} ({acs.shape=}) != {ecs=} ({ecs.shape=}) ({acs-ecs=})"
+            )
     if actual.shape != expected.shape:
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0

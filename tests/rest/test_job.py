@@ -18,6 +18,7 @@ from openeo.rest.job import BatchJob, ResultAsset
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
 from openeo.util import dict_no_none
+from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_402_PAYMENT_REQUIRED,
     HTTP_429_TOO_MANY_REQUESTS,
@@ -447,6 +448,16 @@ def test_execute_batch_retry_after_429_too_many_requests(
     actual_sleeps = [args[0] for args, kwargs in sleep_mock.call_args_list]
     actual_sleeps = [s for s in actual_sleeps if s != max_poll_interval]
     assert actual_sleeps == expected_sleeps
+
+
+def test_start_job_event(dummy_backend):
+    history = []
+    dummy_backend.connection.events.on(EVENTS.JOB_STARTED, lambda **kwargs: history.append(kwargs))
+    cube = dummy_backend.connection.load_collection("S2").save_result(format="GTiff")
+    job = cube.create_job()
+    assert history == []
+    job.start()
+    assert history == [{"event": "job.started", "job_id": "job-000"}]
 
 
 class LogGenerator:
