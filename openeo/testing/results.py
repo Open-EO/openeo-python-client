@@ -6,16 +6,19 @@ import json
 import logging
 import re
 import tempfile
+import urllib.parse
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Iterable, Iterator, List, NamedTuple, Optional, Set, Union
 
 import numpy
+import requests
 import xarray
 import xarray.testing
 from xarray import DataArray
 
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME, BatchJob, JobResults
 from openeo.util import repr_truncate
+from openeo.utils.http import session_with_retries
 
 _log = logging.getLogger(__name__)
 
@@ -465,14 +468,105 @@ def _compare_job_results(
     return all_issues
 
 
-_EODATA_SAFE_REGEX = re.compile(r"/eodata/.*/([^/]+).SAFE")
+class _ProductRef(NamedTuple):
+    item_id: str
+    collection_id: Optional[str] = None
 
 
-def _normalize_derived_from(derived_from: str) -> str:
-    """Normalize derived from links for better signal-to-noise ratio in comparisons."""
-    if match := _EODATA_SAFE_REGEX.match(derived_from):
-        return match.group(1)
-    return derived_from
+class _DerivedFrom:
+    """
+    Helper to extract "derived_from" product references.
+
+    Supports:
+
+    - legacy style where "href" is not a URL but a direct product reference:
+
+        "links": [
+          {"rel": "derived_from", "href": "NDVI300_20250921_V3"},
+          {"rel": "derived_from", "href": "NDVI300_20250927_V3"},
+          ...
+
+    - STAC ItemCollection references:
+
+        "links": [
+          {
+            "rel": "derived_from",
+            "href": "https://openeo.example.com/.../stac-item-collection-loadcollection1.json",
+            "type": "application/geo+json"
+          },
+          ...
+    """
+
+    _EODATA_SAFE_REGEX = re.compile(r"/eodata/.*/([^/]+).SAFE")
+
+    def __init__(self, retry=None):
+        self._request_session: requests.Session = session_with_retries(retry)
+
+    def from_links(self, links: Iterable[dict], base: Union[str, Path, None] = None) -> Iterable[_ProductRef]:
+        """
+        Extract product references from a list of link objects
+        (e.g. as part of result metadata).
+
+        :param links: list of link objects (with at least a "rel" and "href" field)
+        :param base: base URL/path to the metadata document to use as anchor to resolve relative references
+        """
+        for link in links:
+            if link["rel"] == "derived_from":
+                yield from self._from_href(href=link["href"], base=base)
+
+    def _from_href(self, href: str, base: Union[str, Path, None] = None) -> Iterable[_ProductRef]:
+        parsed = urllib.parse.urlparse(href)
+        if parsed.scheme in ["http", "https"]:
+            # Full URL to external resource
+            return self._from_url(url=href)
+        elif parsed.scheme in ["file"]:
+            # Explicit file:/// reference (assumed to be local)
+            return self._from_path(parsed.path)
+        elif (
+            parsed.scheme == ""
+            and base
+            and (href.startswith("./") or href.endswith(".json") or href.endswith(".geojson"))
+        ):
+            # Path relative to (local) metadata file
+            # Note that the heuristics for triggering this code path
+            # can not be more generic/straightforward currently
+            # because the support for legacy "derived_from" style
+            if isinstance(base, str) and urllib.parse.urlparse(base).scheme in ["http", "https"]:
+                return self._from_url(url=urllib.parse.urljoin(base, href))
+            else:
+                return self._from_path(Path(base).parent / href)
+        else:
+            # Legacy style: use href as is
+            return [_ProductRef(item_id=self._normalize_legacy_derived_from(href))]
+
+    def _from_url(self, url: str) -> Iterable[_ProductRef]:
+        resp = self._request_session.get(url)
+        resp.raise_for_status()
+        doc = resp.json()
+        return self._from_json_document(doc=doc, doc_ref=url)
+
+    def _from_path(self, path: Union[str, Path]) -> Iterable[_ProductRef]:
+        with open(path) as f:
+            doc = json.load(f)
+        return self._from_json_document(doc=doc, doc_ref=path)
+
+    def _from_json_document(self, doc: dict, doc_ref: Union[str, Path] = "<unknown>") -> Iterable[_ProductRef]:
+        if (
+            # Check for being STAC ItemCollection: a FeatureCollection with STAC items
+            doc.get("type") == "FeatureCollection"
+            and (features := doc.get("features", []))
+            and "stac_version" in features[0]
+        ):
+            return set(_ProductRef(item_id=f["id"], collection_id=f.get("collection")) for f in features)
+        else:
+            raise ValueError(f"Unsupported document at {doc_ref=}")
+
+    @classmethod
+    def _normalize_legacy_derived_from(cls, ref: str) -> str:
+        """Normalize legacy `derived_from` (fake) HREFs for better signal-to-noise ratio in comparisons."""
+        if match := cls._EODATA_SAFE_REGEX.match(ref):
+            return match.group(1)
+        return ref
 
 
 def _compare_job_result_metadata(
@@ -484,13 +578,8 @@ def _compare_job_result_metadata(
     expected_metadata = _load_json(expected)
 
     # Check "derived_from" links
-    actual_derived_from = set(
-        _normalize_derived_from(k["href"]) for k in actual_metadata.get("links", []) if k["rel"] == "derived_from"
-    )
-    expected_derived_from = set(
-        _normalize_derived_from(k["href"]) for k in expected_metadata.get("links", []) if k["rel"] == "derived_from"
-    )
-
+    actual_derived_from = set(_DerivedFrom().from_links(actual_metadata["links"], base=actual))
+    expected_derived_from = set(_DerivedFrom().from_links(expected_metadata["links"], base=expected))
     if actual_derived_from != expected_derived_from:
         actual_only = actual_derived_from - expected_derived_from
         expected_only = expected_derived_from - actual_derived_from
