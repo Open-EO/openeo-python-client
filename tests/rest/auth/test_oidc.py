@@ -148,6 +148,23 @@ def test_provider_info_scopes(requests_mock):
     ).get_scopes_string()
 
 
+def test_provider_info_scopes_not_in_scopes_supported(requests_mock):
+    """
+    Requested scopes should be preserved even when the provider's `scopes_supported`
+    discovery field does not list them (e.g. Microsoft Entra ID, which reports a fixed
+    tenant-wide list there regardless of which custom scopes it actually accepts).
+    https://github.com/Open-EO/openeo-python-client/issues/930
+    """
+    requests_mock.get(
+        "https://authit.test/.well-known/openid-configuration",
+        json={"scopes_supported": ["openid", "profile", "email", "offline_access"]},
+    )
+    provider = OidcProviderInfo(
+        issuer="https://authit.test", scopes=["openid", "profile", "email", "api://client-id/openeo"]
+    )
+    assert provider.get_scopes_string() == "api://client-id/openeo email openid profile"
+
+
 def test_provider_info_default_client_none(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
     info = OidcProviderInfo(issuer="https://authit.test")

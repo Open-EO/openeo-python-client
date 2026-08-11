@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Clarify UDF documentation on required function type annotations. ([#757](https://github.com/Open-EO/openeo-python-client/issues/757))
+- `OidcProviderInfo` no longer drops requested OIDC scopes that are not listed in the provider's `scopes_supported` discovery field which made it impossible to authenticate against such providers. ([#930](https://github.com/Open-EO/openeo-python-client/issues/930))
 
 ## [0.51.0] - 2026-07-16
 
