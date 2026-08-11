@@ -6,9 +6,9 @@ import logging
 import re
 import time
 import typing
+import urllib.parse
 from pathlib import Path
-from typing import Dict, List, Optional, Union
-from urllib.parse import unquote, urlparse
+from typing import Dict, Iterable, List, Optional, Union
 
 import requests
 
@@ -48,16 +48,6 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_JOB_RESULTS_FILENAME = "job-results.json"
-MAX_RETRIES_PER_RANGE = 3
-RETRIABLE_STATUSCODES = [
-    HTTP_408_REQUEST_TIMEOUT,
-    HTTP_429_TOO_MANY_REQUESTS,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-    HTTP_501_NOT_IMPLEMENTED,
-    HTTP_502_BAD_GATEWAY,
-    HTTP_503_SERVICE_UNAVAILABLE,
-    HTTP_504_GATEWAY_TIMEOUT,
-]
 
 
 class BatchJob:
@@ -409,6 +399,21 @@ def _sanitize_filename(s: str, replacement: str = "") -> str:
     return FILENAME_UNSAFE_REGEX.sub(replacement, s)
 
 
+def _filename_from_url(url: str, *, full: bool = False) -> str:
+    """
+    Try to extract a filename from a URL (based on the path),
+    with sanitization of risky characters,
+    and option to only get the final part (basename) or the full path.
+    """
+    parsed = urllib.parse.urlparse(url)
+    path = urllib.parse.unquote(parsed.path)
+    parts = path.strip("/").split("/")
+    if not full:
+        parts = parts[-1:]
+    parts = [_sanitize_filename(p) for p in parts if p]
+    return "/".join(parts)
+
+
 _MEDIA_TYPE_EXTENSION_MAP = {
     "image/tiff": ".tiff",
     "image/tiff; application=geotiff": ".tiff",
@@ -475,8 +480,7 @@ class ResultAsset:
         # Build filename from key, href's path (if any)
         # and guess extension from media type if necessary
         sanitized_key = _sanitize_filename(self.key)
-        href_path = unquote(urlparse(str(self.href)).path)
-        href_basename = _sanitize_filename(Path(href_path).name)
+        href_basename = _filename_from_url(self.href, full=False)
         filename = f"{sanitized_key}-{href_basename}"
 
         if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
@@ -507,7 +511,7 @@ class ResultAsset:
             target = target / self._make_filename()
         ensure_dir(target.parent)
         logger.info(f"Downloading job result asset {self.key!r} from {self.href!s} to {target!s}")
-        self._download_to_file(url=self.href, target=target, chunk_size=chunk_size, range_size=range_size)
+        self.job.connection.download_url(url=self.href, target=target, chunk_size=chunk_size, range_size=range_size)
         return target
 
     def _get_response(self, stream=True) -> requests.Response:
@@ -524,61 +528,6 @@ class ResultAsset:
         return self._get_response().content
 
     # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
-
-    def _download_to_file(
-        self,
-        url: str,
-        target: Path,
-        *,
-        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
-        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
-    ):
-        head = self.job.connection.head(url, stream=True)
-        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
-            file_size = int(head.headers["Content-Length"])
-            self._download_ranged(
-                url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size
-            )
-        else:
-            self._download_all_at_once(url=url, target=target, chunk_size=chunk_size)
-
-    def _download_ranged(
-        self,
-        url: str,
-        target: Path,
-        file_size: int,
-        *,
-        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
-        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
-    ):
-        with target.open("wb") as f:
-            for from_byte_index in range(0, file_size, range_size):
-                to_byte_index = min(from_byte_index + range_size - 1, file_size - 1)
-                tries_left = MAX_RETRIES_PER_RANGE
-                while tries_left > 0:
-                    try:
-                        range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
-                        with self.job.connection.get(path=url, headers=range_headers, stream=True) as r:
-                            r.raise_for_status()
-                            for block in r.iter_content(chunk_size=chunk_size):
-                                f.write(block)
-                        break
-                    except OpenEoApiPlainError as error:
-                        tries_left -= 1
-                        if tries_left > 0 and error.http_status_code in RETRIABLE_STATUSCODES:
-                            logger.warning(
-                                f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying"
-                            )
-                            continue
-                        else:
-                            raise error
-
-    def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE):
-        with self.job.connection.get(path=url, stream=True) as r:
-            r.raise_for_status()
-            with target.open("wb") as f:
-                for block in r.iter_content(chunk_size=chunk_size):
-                    f.write(block)
 
 
 class MultipleAssetException(OpenEoClientException):
@@ -721,6 +670,161 @@ class JobResults:
             downloaded.append(metadata_file)
 
         return downloaded
+
+    def download_as_collection(
+        self,
+        target: Union[Path, str, None] = None,
+        *,
+        rewrite_references: bool = True,
+        download_derived_from: bool = False,
+        download_collection_assets: bool = False,
+        json_dumping: Optional[dict] = None,
+    ) -> List[Path]:
+        """
+        Download the job results as a self-contained STAC collection:
+
+        - job result metadata (the root STAC collection)
+        - linked items containing the result assets
+        - additionally linked metadata
+
+
+        :param target: folder path to download to
+        :param rewrite_references: whether to rewrite (item/asset/...) references
+            in the downloaded STAC collection to point to the local files
+            instead of the original URLs
+        :param download_derived_from: whether to download
+            additional "derived_from" documents linked from the STAC collection.
+        :param download_collection_assets: whether to download
+            the STAC Collection level assets in addition to assets from linked STAC Items
+        :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files
+        """
+        downloader = _JobResultDownloader(
+            job=self._job,
+            target=target,
+            rewrite_references=rewrite_references,
+            json_dumping=json_dumping,
+        )
+        return downloader.download_collection(
+            download_derived_from=download_derived_from,
+            download_collection_assets=download_collection_assets,
+        )
+
+
+class _JobResultDownloader:
+    """
+    Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
+    recursively walking through items, assets and additional linked metadata.
+    """
+
+    # TODO: make this a public API that users can implement for custom download behavior (e.g. download to S3, ...)
+    # TODO: strategy to handle download failures: retry, warn, ignore, error, ...
+    # TODO: API to warn about or skip existing/previously downloaded files?
+    # TODO: dedicated request session (with appropriate retry strategy) for downloading?
+
+    def __init__(
+        self,
+        *,
+        job: BatchJob,
+        target: Union[Path, str, None] = None,
+        rewrite_references: bool = True,
+        json_dumping: Optional[dict] = None,
+    ):
+        self._job = job
+        self._connection = job.connection
+        self._root_dir = Path(target or Path.cwd() / job.job_id)
+        if self._root_dir.exists() and not self._root_dir.is_dir():
+            raise OpenEoClientException(f"Download target {self._root_dir} exists but isn't a folder.")
+        self._rewrite_references = rewrite_references
+        # TODO: also support passing a `json.dump`-style callable to customize json dumping
+        self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
+        self._downloaded: List[Path] = []
+
+    def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
+        path = Path(path)
+        ensure_dir(path.parent)
+        with open(path, mode="w", encoding="utf-8") as f:
+            json.dump(obj=data, fp=f, **self._json_dumping)
+        return path
+
+    def download_collection(
+        self,
+        *,
+        download_derived_from: bool = False,
+        download_collection_assets: bool = False,
+    ) -> List[Path]:
+        """
+        Download the job results as a self-contained STAC collection.
+        """
+        result_metadata = self._connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
+        if result_metadata.get("type") != "Collection":
+            raise OpenEoClientException(
+                f"Result metadata is not a STAC Collection (openEO API 1.1 style), but {result_metadata.get('type')}"
+            )
+
+        result_metadata_path = self._root_dir / DEFAULT_JOB_RESULTS_FILENAME
+        # Initial write of metadata, will possibly be updated later if rewrite_references is True
+        self._write_json_file(data=result_metadata, path=result_metadata_path)
+
+        extra_rels = ["derived_from"] if download_derived_from else []
+        for link in result_metadata["links"]:
+            if link["rel"] == "item":
+                path = self._download_item(href=link["href"])
+                if self._rewrite_references:
+                    link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+            elif link["rel"] in extra_rels:
+                path = self._root_dir / (_filename_from_url(link["href"], full=False) or link["rel"])
+                self._connection.download_url(url=link["href"], target=path)
+                if self._rewrite_references:
+                    link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+
+        if download_collection_assets:
+            for asset_key, asset_metadata in result_metadata.get("assets", {}).items():
+                path = self._download_asset(
+                    asset_key=asset_key, asset_href=asset_metadata["href"], asset_metadata=asset_metadata, item_id=None
+                )
+                if self._rewrite_references:
+                    asset_metadata["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+
+        if self._rewrite_references:
+            # Rewrite the root collection metadata with updated references
+            self._write_json_file(data=result_metadata, path=result_metadata_path)
+
+        self._downloaded.append(result_metadata_path)
+
+        return self._downloaded
+
+    def _download_item(self, href: str) -> Path:
+        item_metadata = self._connection.get(href, expected_status=200).json()
+        # TODO: sanitize item id to be safe as filename?
+        # TODO: different strategy to build structure: tree vs flat
+        metadata_path = self._root_dir / item_metadata["id"] / (item_metadata["id"] + ".json")
+        self._write_json_file(data=item_metadata, path=metadata_path)
+
+        for asset_key, asset in item_metadata.get("assets", {}).items():
+            asset_path = self._download_asset(
+                asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_metadata["id"]
+            )
+            if self._rewrite_references:
+                asset["href"] = asset_path.relative_to(metadata_path.parent).as_posix()
+
+        if self._rewrite_references:
+            self._write_json_file(data=item_metadata, path=metadata_path)
+
+        self._downloaded.append(metadata_path)
+
+        return metadata_path
+
+    def _download_asset(
+        self, *, asset_key: str, asset_href: str, asset_metadata: dict, item_id: Optional[str] = None
+    ) -> Path:
+        asset = ResultAsset(job=self._job, key=asset_key, href=asset_href, metadata=asset_metadata)
+        path = self._root_dir
+        if item_id:
+            path = path / item_id
+        path = path / (_filename_from_url(asset_href, full=False) or asset_key)
+        asset.download(target=path)
+        self._downloaded.append(path)
+        return path
 
 
 @deprecated(reason="Use :py:class:`JobResults` instead", version="0.4.10")

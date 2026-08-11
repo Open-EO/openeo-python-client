@@ -21,6 +21,7 @@ class StacDummyBuilder:
         properties: Optional[dict] = None,
         cube_dimensions: Optional[dict] = None,
         stac_extensions: Optional[List[str]] = None,
+        assets: Union[dict, None] = None,
         **kwargs,
     ) -> dict:
         """Create a STAC Item represented as dictionary."""
@@ -38,7 +39,7 @@ class StacDummyBuilder:
             "geometry": None,
             "properties": properties,
             "links": [],
-            "assets": {},
+            "assets": assets or {},
             **kwargs,
         }
 

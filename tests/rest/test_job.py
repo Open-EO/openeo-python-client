@@ -4,9 +4,10 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 from unittest import mock
 
+import dirty_equals
 import httpretty
 import pytest
 import requests
@@ -14,10 +15,18 @@ import requests
 import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
-from openeo.rest.job import BatchJob, ResultAsset
+from openeo.rest._testing import JobResultCollectionMocker
+from openeo.rest.job import (
+    BatchJob,
+    ResultAsset,
+    _filename_from_url,
+    _JobResultDownloader,
+    _sanitize_filename,
+)
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
-from openeo.util import dict_no_none
+from openeo.testing.stac import StacDummyBuilder
+from openeo.util import dict_no_none, load_json
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_402_PAYMENT_REQUIRED,
@@ -682,6 +691,7 @@ def test_get_results_metadata_url_full(con100):
 def job_with_results_mocker(con100, requests_mock) -> Callable:
     """
     Helper to set up a job with downloadable assets
+    (STAC Item style)
     """
 
     def setup(*, job_id="jj1", assets: dict, media_type: str = "image/tiff; application=geotiff"):
@@ -705,6 +715,7 @@ def job_with_results_mocker(con100, requests_mock) -> Callable:
         return job
 
     return setup
+
 
 
 @pytest.fixture
@@ -1078,7 +1089,6 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
 
 
 class TestResultAsset:
-
     @pytest.fixture
     def job(self, con100):
         return BatchJob("jj", connection=con100)
@@ -1200,3 +1210,182 @@ def test_list_jobs_extra_metadata(con100, requests_mock, caplog, basic_auth):
     assert jobs.links == [Link(rel="next", href="https://oeo.test/jobs?limit=2&offset=2")]
     assert jobs.ext_federation_missing() == ["oeob"]
     assert "Partial job listing: missing federation components: ['oeob']." in caplog.text
+
+
+def test_sanitize_filename():
+    assert _sanitize_filename("foo/bar.txt") == "foobar.txt"
+    assert _sanitize_filename("foo/bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename(r"foo\bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo\nbar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo$bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo%bar.txt", replacement="_") == "foo_bar.txt"
+
+
+def test_filename_from_url():
+    assert _filename_from_url("https://example.com/foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag") == "bar.txt"
+    assert _filename_from_url("https://example.com/foo/ba%CF%83.txt") == "baσ.txt"
+    assert _filename_from_url("https://example.com/foo/bar") == "bar"
+    assert _filename_from_url("https://example.com/foo/bar/") == "bar"
+    assert _filename_from_url("https://example.com/") == ""
+
+    # Full mode
+    assert _filename_from_url("https://example.com/foo/bar.txt", full=True) == "foo/bar.txt"
+    assert _filename_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag", full=True) == "foo/bar.txt"
+    assert _filename_from_url("https://example.com/fo%CF%83/ba%CF%83", full=True) == "foσ/baσ"
+    assert _filename_from_url("https://example.com/foo/bar", full=True) == "foo/bar"
+    assert _filename_from_url("https://example.com/foo/bar/", full=True) == "foo/bar"
+    assert _filename_from_url("https://example.com/", full=True) == ""
+
+    # Relative href
+    assert _filename_from_url("foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("/foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("foo/bar.txt", full=True) == "foo/bar.txt"
+    assert _filename_from_url("/foo/bar.txt", full=True) == "foo/bar.txt"
+
+
+class TestJobResultDownloader:
+
+    @pytest.fixture
+    def result_mocker(self, con100, requests_mock) -> JobResultCollectionMocker:
+        return JobResultCollectionMocker(requests_mock=requests_mock, connection=con100)
+
+    def check_expected_downloads(self, downloaded: List[Path], expected: Dict[str, Any], tmp_path: Path):
+        expected_paths = set(tmp_path / k for k in expected.keys())
+        assert set(downloaded) == expected_paths
+        assert set(p for p in tmp_path.glob("**/*") if p.is_file()) == expected_paths
+
+        for path, expected_value in expected.items():
+            actual = tmp_path / path
+            if actual.suffix == ".json":
+                assert load_json(actual) == expected_value
+            elif actual.suffix in {".tif", ".tiff"}:
+                assert actual.read_bytes() == expected_value
+            else:
+                raise ValueError(f"Unsupported {path=} {expected_value=}")
+
+    def test_basic(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"asset1": {"path": "asset1.tiff"}}},
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_one_item_multiple_assets(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "assets": {
+                        "asset1": {"path": "asset1.tiff"},
+                        "asset2": {"path": "asset2.tiff"},
+                        "asset3": {"path": "asset3.tiff"},
+                    }
+                }
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                        "asset2": dirty_equals.IsPartialDict(href="asset2.tiff"),
+                        "asset3": dirty_equals.IsPartialDict(href="asset3.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "item1/asset2.tiff": b"TIFF-DUMMY-DATA",
+            "item1/asset3.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_multiple_items(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "assets": {
+                        "asset1": {"path": "asset1.tiff"},
+                    },
+                },
+                "item2": {
+                    "assets": {
+                        "asset2": {"path": "asset2.tiff"},
+                        "asset3": {"path": "asset3.tiff"},
+                    }
+                },
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "links": [
+                        {"rel": "item", "href": "item1/item1.json"},
+                        {"rel": "item", "href": "item2/item2.json"},
+                    ],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {"asset1": dirty_equals.IsPartialDict(href="asset1.tiff")},
+                }
+            ),
+            "item2/item2.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item2",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset2": dirty_equals.IsPartialDict(href="asset2.tiff"),
+                        "asset3": dirty_equals.IsPartialDict(href="asset3.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "item2/asset2.tiff": b"TIFF-DUMMY-DATA",
+            "item2/asset3.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
