@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import copy
 import datetime
 import json
 import logging
@@ -710,14 +712,19 @@ class JobResults:
         )
 
 
+class JobResultDownloadException(OpenEoClientException):
+    pass
+
+
 class _JobResultDownloader:
     """
     Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
     recursively walking through items, assets and additional linked metadata.
+
+    Experimental API, subject to change.
     """
 
     # TODO: make this a public API that users can implement for custom download behavior (e.g. download to S3, ...)
-    # TODO: strategy to handle download failures: retry, warn, ignore, error, ...
     # TODO: API to warn about or skip existing/previously downloaded files?
     # TODO: dedicated request session (with appropriate retry strategy) for downloading?
 
@@ -728,6 +735,7 @@ class _JobResultDownloader:
         target: Union[Path, str, None] = None,
         rewrite_references: bool = True,
         json_dumping: Optional[dict] = None,
+        on_download_failure: str = "warn",
     ):
         self._job = job
         self._connection = job.connection
@@ -738,6 +746,7 @@ class _JobResultDownloader:
         # TODO: also support passing a `json.dump`-style callable to customize json dumping
         self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
         self._downloaded: List[Path] = []
+        self._on_download_failure = on_download_failure
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
@@ -745,6 +754,17 @@ class _JobResultDownloader:
         with open(path, mode="w", encoding="utf-8") as f:
             json.dump(obj=data, fp=f, **self._json_dumping)
         return path
+
+    @contextlib.contextmanager
+    def _download_attempt_context(self, name: str):
+        try:
+            yield
+        except Exception as e:
+            message = f"Failed to download {name} ({e=})"
+            if self._on_download_failure == "warn":
+                logger.warning(message, exc_info=True)
+            else:
+                raise JobResultDownloadException(message) from e
 
     def download_collection(
         self,
@@ -760,6 +780,8 @@ class _JobResultDownloader:
             raise OpenEoClientException(
                 f"Result metadata is not a STAC Collection (openEO API 1.1 style), but {result_metadata.get('type')}"
             )
+        # Make a copy of the metadata, as we will rewrite references
+        result_metadata = copy.deepcopy(result_metadata)
 
         result_metadata_path = self._root_dir / DEFAULT_JOB_RESULTS_FILENAME
         # Initial write of metadata, will possibly be updated later if rewrite_references is True
@@ -768,22 +790,26 @@ class _JobResultDownloader:
         extra_rels = ["derived_from"] if download_derived_from else []
         for link in result_metadata["links"]:
             if link["rel"] == "item":
-                path = self._download_item(href=link["href"])
-                if self._rewrite_references:
-                    link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+                with self._download_attempt_context(name=f"item {link=}"):
+                    path = self._download_item(href=link["href"])
+                    if self._rewrite_references:
+                        link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+
             elif link["rel"] in extra_rels:
-                path = self._root_dir / (_filename_from_url(link["href"], full=False) or link["rel"])
-                self._connection.download_url(url=link["href"], target=path)
-                if self._rewrite_references:
-                    link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+                with self._download_attempt_context(name=f"link {link=}"):
+                    path = self._root_dir / (_filename_from_url(link["href"], full=False) or link["rel"])
+                    self._connection.download_url(url=link["href"], target=path)
+                    if self._rewrite_references:
+                        link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
 
         if download_collection_assets:
-            for asset_key, asset_metadata in result_metadata.get("assets", {}).items():
-                path = self._download_asset(
-                    asset_key=asset_key, asset_href=asset_metadata["href"], asset_metadata=asset_metadata, item_id=None
-                )
-                if self._rewrite_references:
-                    asset_metadata["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+            for asset_key, asset in result_metadata.get("assets", {}).items():
+                with self._download_attempt_context(name=f"collection asset {asset_key=} {asset=}"):
+                    path = self._download_asset(
+                        asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
+                    )
+                    if self._rewrite_references:
+                        asset["href"] = path.relative_to(result_metadata_path.parent).as_posix()
 
         if self._rewrite_references:
             # Rewrite the root collection metadata with updated references
@@ -794,21 +820,22 @@ class _JobResultDownloader:
         return self._downloaded
 
     def _download_item(self, href: str) -> Path:
-        item_metadata = self._connection.get(href, expected_status=200).json()
+        item: dict = self._connection.get(href, expected_status=200).json()
         # TODO: sanitize item id to be safe as filename?
         # TODO: different strategy to build structure: tree vs flat
-        metadata_path = self._root_dir / item_metadata["id"] / (item_metadata["id"] + ".json")
-        self._write_json_file(data=item_metadata, path=metadata_path)
+        metadata_path = self._root_dir / item["id"] / (item["id"] + ".json")
+        self._write_json_file(data=item, path=metadata_path)
 
-        for asset_key, asset in item_metadata.get("assets", {}).items():
-            asset_path = self._download_asset(
-                asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_metadata["id"]
-            )
-            if self._rewrite_references:
-                asset["href"] = asset_path.relative_to(metadata_path.parent).as_posix()
+        for asset_key, asset in item.get("assets", {}).items():
+            with self._download_attempt_context(name=f"item asset {asset_key=} {asset=}"):
+                asset_path = self._download_asset(
+                    asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item["id"]
+                )
+                if self._rewrite_references:
+                    asset["href"] = asset_path.relative_to(metadata_path.parent).as_posix()
 
         if self._rewrite_references:
-            self._write_json_file(data=item_metadata, path=metadata_path)
+            self._write_json_file(data=item, path=metadata_path)
 
         self._downloaded.append(metadata_path)
 

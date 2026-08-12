@@ -513,7 +513,7 @@ class JobResultCollectionMocker:
                 assets[asset_key] = asset
                 collection_assets[f"{item_id}-{asset_key}"] = asset
 
-            item_href = self.setup_item(job_id=job_id, item_id=item_id, assets=assets)
+            item_href = self.setup_item(job_id=job_id, item_id=item_id, item_data=item_data, assets=assets)
             links.append({"rel": "item", "href": item_href})
 
         collection_href = self.connection.build_url(f"/jobs/{job_id}/results")
@@ -528,21 +528,35 @@ class JobResultCollectionMocker:
         job = BatchJob(job_id, connection=self.connection)
         return job
 
-    def setup_item(self, *, job_id: str, item_id: str, assets: dict) -> dict:
-        href = self.connection.build_url(f"/j/{job_id}/r/i/{item_id}.json")
-        doc = StacDummyBuilder.item(
-            id=item_id,
-            stac_version="1.1.0",
-            assets=assets,
+    def setup_error(self, href, error: dict):
+        self.requests_mock.get(
+            href,
+            status_code=error.get("status", 500),
+            text=error.get("message", "Unspecified error"),
         )
-        self.requests_mock.get(href, json=doc)
+
+    def setup_item(self, *, job_id: str, item_id: str, item_data: dict, assets: dict) -> dict:
+        href = self.connection.build_url(f"/j/{job_id}/r/i/{item_id}.json")
+        if error := item_data.get("error"):
+            self.setup_error(href, error=error)
+        else:
+            doc = StacDummyBuilder.item(
+                id=item_id,
+                stac_version="1.1.0",
+                assets=assets,
+            )
+            self.requests_mock.get(href, json=doc)
         return href
 
     def setup_asset(self, *, job_id: str, asset_data: dict) -> dict:
         href = self.connection.build_url(f"/j/{job_id}/r/a/{asset_data.get('path', 'asset.tiff')}")
-        content = asset_data.get("content", b"TIFF-DUMMY-DATA")
-        self.requests_mock.head(href, headers={"Content-Length": f"{len(content)}"})
-        self.requests_mock.get(href, content=content)
+        if error := asset_data.get("error"):
+            self.requests_mock.head(href, headers={})
+            self.setup_error(href, error=error)
+        else:
+            content = asset_data.get("content", b"TIFF-DUMMY-DATA")
+            self.requests_mock.head(href, headers={"Content-Length": f"{len(content)}"})
+            self.requests_mock.get(href, content=content)
         return StacDummyBuilder.asset(
             href=href,
             type=asset_data.get("type", "image/tiff; application=geotiff"),

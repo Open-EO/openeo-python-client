@@ -18,6 +18,7 @@ from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientExc
 from openeo.rest._testing import JobResultCollectionMocker
 from openeo.rest.job import (
     BatchJob,
+    JobResultDownloadException,
     ResultAsset,
     _filename_from_url,
     _JobResultDownloader,
@@ -1389,3 +1390,54 @@ class TestJobResultDownloader:
             "item2/asset3.tiff": b"TIFF-DUMMY-DATA",
         }
         self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    @pytest.mark.parametrize(
+        ["on_download_failure", "items_setup", "expected"],
+        [
+            (
+                "warn",
+                {
+                    "item1": {
+                        "assets": {"asset1": {"path": "asset1.tiff", "error": {"message": "Nope no asset1 for you"}}},
+                    }
+                },
+                "Failed to download item asset..*Nope no asset1 for you",
+            ),
+            (
+                "error",
+                {
+                    "item1": {
+                        "assets": {"asset1": {"path": "asset1.tiff", "error": {"message": "Nope no asset1 for you"}}},
+                    }
+                },
+                "Failed to download item asset.*Nope no asset1 for you",
+            ),
+            (
+                "warn",
+                {"item1": {"error": {"message": "Nope no item1 for you"}}},
+                "Failed to download item.*Nope no item1 for you",
+            ),
+            (
+                "error",
+                {"item1": {"error": {"message": "Nope no item1 for you"}}},
+                "Failed to download item.*Nope no item1 for you",
+            ),
+        ],
+    )
+    def test_warn_or_error_on_download_fail(
+        self, result_mocker, tmp_path, caplog, on_download_failure, items_setup, expected
+    ):
+        job = result_mocker.setup_job_results(items=items_setup)
+
+        expected = re.compile(expected)
+        if on_download_failure == "error":
+            context = pytest.raises(JobResultDownloadException, match=expected)
+        else:
+            context = contextlib.nullcontext()
+
+        downloader = _JobResultDownloader(job=job, target=tmp_path, on_download_failure=on_download_failure)
+        with context:
+            downloader.download_collection()
+
+        if on_download_failure == "warn":
+            assert expected.search(caplog.text)

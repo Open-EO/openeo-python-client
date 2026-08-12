@@ -3,7 +3,7 @@ import re
 import dirty_equals
 import pytest
 
-from openeo.rest import OpenEoApiError
+from openeo.rest import OpenEoApiError, OpenEoRestError
 from openeo.rest._testing import DummyBackend, JobResultCollectionMocker
 
 
@@ -112,7 +112,7 @@ class TestJobResultCollectionMocker:
         result_mocker = JobResultCollectionMocker(requests_mock=requests_mock, connection=con120)
         result_mocker.setup_job_results(
             job_id="job-456",
-            items={"item-567": {"assets": {"asset-678": {"path": "assets/asset-678.tif"}}}},
+            items={"item-567": {"assets": {"asset-678": {"path": "asset-678.tif"}}}},
         )
 
         job = con120.job("job-456")
@@ -129,7 +129,7 @@ class TestJobResultCollectionMocker:
                 ],
                 "assets": {
                     "item-567-asset-678": {
-                        "href": "https://oeo.test/j/job-456/r/a/assets/asset-678.tif",
+                        "href": "https://oeo.test/j/job-456/r/a/asset-678.tif",
                         "roles": ["data"],
                         "type": "image/tiff; application=geotiff",
                     }
@@ -143,11 +143,29 @@ class TestJobResultCollectionMocker:
                 "id": "item-567",
                 "assets": {
                     "asset-678": {
-                        "href": "https://oeo.test/j/job-456/r/a/assets/asset-678.tif",
+                        "href": "https://oeo.test/j/job-456/r/a/asset-678.tif",
                         "roles": ["data"],
                         "type": "image/tiff; application=geotiff",
                     }
                 },
             }
         )
-        assert con120.get("https://oeo.test/j/job-456/r/a/assets/asset-678.tif").content == b"TIFF-DUMMY-DATA"
+        assert con120.get("https://oeo.test/j/job-456/r/a/asset-678.tif").content == b"TIFF-DUMMY-DATA"
+
+    def test_item_error(self, requests_mock, con120):
+        result_mocker = JobResultCollectionMocker(requests_mock=requests_mock, connection=con120)
+        result_mocker.setup_job_results(
+            job_id="job-456",
+            items={"item-567": {"error": {"message": "Nope!"}}},
+        )
+        with pytest.raises(OpenEoRestError, match=re.escape("[500] Nope!")):
+            con120.get("https://oeo.test/j/job-456/r/i/item-567.json")
+
+    def test_asset_error(self, requests_mock, con120):
+        result_mocker = JobResultCollectionMocker(requests_mock=requests_mock, connection=con120)
+        result_mocker.setup_job_results(
+            job_id="job-456",
+            items={"item-567": {"assets": {"asset-678": {"path": "asset-678.tif", "error": {"message": "Nope!"}}}}},
+        )
+        with pytest.raises(OpenEoRestError, match=re.escape("[500] Nope!")):
+            con120.get("https://oeo.test/j/job-456/r/a/asset-678.tif")
