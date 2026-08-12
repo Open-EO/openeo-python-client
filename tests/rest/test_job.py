@@ -1441,3 +1441,126 @@ class TestJobResultDownloader:
 
         if on_download_failure == "warn":
             assert expected.search(caplog.text)
+
+    @pytest.mark.parametrize(
+        [
+            "download_derived_from",
+            "expected_links",
+            "expected_downloads_extra",
+        ],
+        [
+            (
+                False,
+                [
+                    {"rel": "item", "href": "item1/item1.json"},
+                    {"rel": "derived_from", "href": "https://oeo.test/j/job-123/r/d/derived_from.json"},
+                ],
+                {},
+            ),
+            (
+                True,
+                [
+                    {"rel": "item", "href": "item1/item1.json"},
+                    {"rel": "derived_from", "href": "derived_from.json"},
+                ],
+                {
+                    "derived_from.json": {"hello": "world"},
+                },
+            ),
+        ],
+    )
+    def test_download_derived_from_link(
+        self, result_mocker, tmp_path, download_derived_from, expected_links, expected_downloads_extra
+    ):
+        job = result_mocker.setup_job_results(
+            items={"item1": {}},
+            linked_docs=[
+                {"rel": "derived_from", "path": "derived_from.json", "json": {"hello": "world"}},
+            ],
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection(download_derived_from=download_derived_from)
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "type": "Collection",
+                    "links": expected_links,
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict({"id": "item1", "type": "Feature"}),
+            **expected_downloads_extra,
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    @pytest.mark.parametrize(
+        ["path_templates", "expected"],
+        [
+            (
+                # Flat structure
+                {
+                    "collection": "CO_{job_id}.json",
+                    "item": "IT_{item_id}.json",
+                    "asset": "AS_{item_id}-{asset_key}-{asset_filename}",
+                    "collection-asset": "CA_{asset_key}",
+                    "generic-link": "GL_{filename}",
+                },
+                {
+                    "CO_job-123.json": dirty_equals.IsPartialDict(
+                        {
+                            "links": [
+                                {"rel": "item", "href": "IT_item1.json"},
+                                {"rel": "derived_from", "href": "GL_derived_from.json"},
+                            ]
+                        }
+                    ),
+                    "IT_item1.json": dirty_equals.IsPartialDict(
+                        {"assets": {"a1": dirty_equals.IsPartialDict(href="AS_item1-a1-asset1.tiff")}}
+                    ),
+                    "AS_item1-a1-asset1.tiff": b"TIFF-DUMMY-DATA",
+                    "GL_derived_from.json": {"hello": "world"},
+                },
+            ),
+            (
+                # folder organisation per type
+                {
+                    "collection": "collections/{job_id}.json",
+                    "item": "items/{job_id}-{item_id}/item.json",
+                    "asset": "assets/{job_id}-{item_id}-{asset_key}/{asset_filename}",
+                    "collection-asset": "assets/{job_id}-{asset_key}/{asset_filename}",
+                    "generic-link": "docs/{job_id}/{filename}",
+                },
+                {
+                    "collections/job-123.json": dirty_equals.IsPartialDict(
+                        {
+                            "links": [
+                                {"rel": "item", "href": "../items/job-123-item1/item.json"},
+                                {"rel": "derived_from", "href": "../docs/job-123/derived_from.json"},
+                            ]
+                        }
+                    ),
+                    "items/job-123-item1/item.json": dirty_equals.IsPartialDict(
+                        {"assets": {"a1": dirty_equals.IsPartialDict(href="../../assets/job-123-item1-a1/asset1.tiff")}}
+                    ),
+                    "assets/job-123-item1-a1/asset1.tiff": b"TIFF-DUMMY-DATA",
+                    "docs/job-123/derived_from.json": {"hello": "world"},
+                },
+            ),
+        ],
+    )
+    def test_custom_file_tree_structure(self, result_mocker, tmp_path, path_templates, expected):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a1": {"path": "asset1.tiff"}}},
+            },
+            linked_docs=[
+                {"rel": "derived_from", "path": "derived_from.json", "json": {"hello": "world"}},
+            ],
+        )
+        downloader = _JobResultDownloader(
+            job=job,
+            target=tmp_path,
+            path_templates=path_templates,
+        )
+        downloaded = downloader.download_collection(download_derived_from=True)
+
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)

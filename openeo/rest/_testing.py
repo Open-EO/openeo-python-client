@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -502,9 +503,14 @@ class JobResultCollectionMocker:
         self.connection = connection
 
     def setup_job_results(
-        self, *, job_id: str = "job-123", items: dict, add_collection_assets: bool = True
+        self,
+        *,
+        job_id: str = "job-123",
+        items: dict,
+        add_collection_assets: bool = True,
+        linked_docs: Iterable[dict] = (),
     ) -> BatchJob:
-        links = []
+        collection_links = []
         collection_assets = {}
         for item_id, item_data in items.items():
             assets = {}
@@ -514,13 +520,16 @@ class JobResultCollectionMocker:
                 collection_assets[f"{item_id}-{asset_key}"] = asset
 
             item_href = self.setup_item(job_id=job_id, item_id=item_id, item_data=item_data, assets=assets)
-            links.append({"rel": "item", "href": item_href})
+            collection_links.append({"rel": "item", "href": item_href})
+
+        for doc in linked_docs:
+            collection_links.append(self.setup_linked_document(job_id=job_id, doc=doc))
 
         collection_href = self.connection.build_url(f"/jobs/{job_id}/results")
         collection_doc = StacDummyBuilder.collection(
             id=f"{job_id}-results",
             stac_version="1.1.0",
-            links=links,
+            links=collection_links,
             assets=collection_assets if add_collection_assets else {},
         )
         self.requests_mock.get(collection_href, json=collection_doc)
@@ -561,3 +570,13 @@ class JobResultCollectionMocker:
             href=href,
             type=asset_data.get("type", "image/tiff; application=geotiff"),
         )
+
+    def setup_linked_document(self, *, job_id: str, doc: dict):
+        href = self.connection.build_url(f"/j/{job_id}/r/d/{doc.get('path', 'doc.txt')}")
+        if "json" in doc:
+            text = json.dumps(doc["json"])
+        else:
+            text = doc.get("text", "hello world")
+        self.requests_mock.head(href, headers={"Content-Length": f"{len(text)}"})
+        self.requests_mock.get(href, text=text)
+        return {"rel": doc.get("rel", "doc"), "href": href}

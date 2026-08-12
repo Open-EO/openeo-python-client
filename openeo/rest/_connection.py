@@ -19,7 +19,13 @@ from openeo.rest import (
     OpenEoRestError,
 )
 from openeo.rest.auth.auth import NullAuth
-from openeo.util import ContextTimer, ensure_list, str_truncate, url_join
+from openeo.util import (
+    ContextTimer,
+    ensure_list,
+    ensure_parent_dir_for,
+    str_truncate,
+    url_join,
+)
 from openeo.utils.http import (
     HTTP_408_REQUEST_TIMEOUT,
     HTTP_429_TOO_MANY_REQUESTS,
@@ -311,6 +317,7 @@ class RestApiConnection:
     def _download_all_at_once(self, url: str, target: Path, *, chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE) -> None:
         with self.get(path=url, stream=True) as r:
             r.raise_for_status()
+            ensure_parent_dir_for(target)
             with target.open("wb") as f:
                 for block in r.iter_content(chunk_size=chunk_size):
                     f.write(block)
@@ -324,6 +331,7 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
+        ensure_parent_dir_for(target)
         with target.open("wb") as f:
             for from_byte_index in range(0, file_size, range_size):
                 to_byte_index = min(from_byte_index + range_size - 1, file_size - 1)

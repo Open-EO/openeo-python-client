@@ -5,6 +5,7 @@ import copy
 import datetime
 import json
 import logging
+import os.path
 import re
 import time
 import typing
@@ -30,7 +31,7 @@ from openeo.rest import (
 )
 from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import log_level_name
-from openeo.util import ensure_dir
+from openeo.util import ensure_dir, ensure_parent_dir_for
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_408_REQUEST_TIMEOUT,
@@ -681,6 +682,7 @@ class JobResults:
         download_derived_from: bool = False,
         download_collection_assets: bool = False,
         json_dumping: Optional[dict] = None,
+        path_templates: Optional[dict] = None,
     ) -> List[Path]:
         """
         Download the job results as a self-contained STAC collection:
@@ -699,12 +701,14 @@ class JobResults:
         :param download_collection_assets: whether to download
             the STAC Collection level assets in addition to assets from linked STAC Items
         :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files
+        :param path_templates: optional tempalte overrides for download paths.
         """
         downloader = _JobResultDownloader(
             job=self._job,
             target=target,
             rewrite_references=rewrite_references,
             json_dumping=json_dumping,
+            path_templates=path_templates,
         )
         return downloader.download_collection(
             download_derived_from=download_derived_from,
@@ -736,6 +740,7 @@ class _JobResultDownloader:
         rewrite_references: bool = True,
         json_dumping: Optional[dict] = None,
         on_download_failure: str = "warn",
+        path_templates: Optional[dict] = None,
     ):
         self._job = job
         self._connection = job.connection
@@ -747,10 +752,18 @@ class _JobResultDownloader:
         self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
         self._downloaded: List[Path] = []
         self._on_download_failure = on_download_failure
+        self._path_templates = {
+            "collection": "job-results.json",
+            "item": "{item_id}/{item_id}.json",
+            "asset": "{item_id}/{asset_filename}",
+            "collection-asset": "{asset_filename}",
+            "generic-link": "{filename}",
+            **(path_templates or {}),
+        }
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
-        ensure_dir(path.parent)
+        ensure_parent_dir_for(path)
         with open(path, mode="w", encoding="utf-8") as f:
             json.dump(obj=data, fp=f, **self._json_dumping)
         return path
@@ -765,6 +778,51 @@ class _JobResultDownloader:
                 logger.warning(message, exc_info=True)
             else:
                 raise JobResultDownloadException(message) from e
+
+    def _check_download_path(self, path: Path):
+        if path in self._downloaded:
+            raise JobResultDownloadException("Download collision: {path} already downloaded")
+
+    def build_path_collection(self, *, collection_id: str) -> Path:
+        """Build path for the root STAC collection metadata file (job results metadata)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "collection_id": _sanitize_filename(collection_id),
+        }
+        return self._root_dir / self._path_templates["collection"].format(**vars)
+
+    def build_path_item(self, *, item_id: str) -> Path:
+        """Build path for a STAC item metadata file (job result item)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "item_id": _sanitize_filename(item_id),
+        }
+        return self._root_dir / self._path_templates["item"].format(**vars)
+
+    def build_path_asset(self, *, asset_key: str, asset_href: str, item_id: Optional[str] = None) -> Path:
+        """Build path for a STAC asset file (job result asset)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "asset_key": _sanitize_filename(asset_key),
+            "asset_filename": _filename_from_url(asset_href, full=False),
+        }
+        if item_id:
+            vars["item_id"] = _sanitize_filename(item_id)
+            return self._root_dir / self._path_templates["asset"].format(**vars)
+        else:
+            return self._root_dir / self._path_templates["collection-asset"].format(**vars)
+
+    def build_path_generic_link(self, *, rel: str, href: str) -> Path:
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "rel": _sanitize_filename(rel),
+            "filename": _filename_from_url(href, full=False),
+        }
+        return self._root_dir / self._path_templates["generic-link"].format(**vars)
+
+    def _relative_to(self, target: Path, doc: Path) -> str:
+        """Get relative reference to target to be used from given document"""
+        return Path(os.path.relpath(target, start=doc.parent)).as_posix()
 
     def download_collection(
         self,
@@ -783,7 +841,8 @@ class _JobResultDownloader:
         # Make a copy of the metadata, as we will rewrite references
         result_metadata = copy.deepcopy(result_metadata)
 
-        result_metadata_path = self._root_dir / DEFAULT_JOB_RESULTS_FILENAME
+        result_metadata_path = self.build_path_collection(collection_id=result_metadata.get("id"))
+        self._check_download_path(result_metadata_path)
         # Initial write of metadata, will possibly be updated later if rewrite_references is True
         self._write_json_file(data=result_metadata, path=result_metadata_path)
 
@@ -793,14 +852,16 @@ class _JobResultDownloader:
                 with self._download_attempt_context(name=f"item {link=}"):
                     path = self._download_item(href=link["href"])
                     if self._rewrite_references:
-                        link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+                        link["href"] = self._relative_to(target=path, doc=result_metadata_path)
 
             elif link["rel"] in extra_rels:
                 with self._download_attempt_context(name=f"link {link=}"):
-                    path = self._root_dir / (_filename_from_url(link["href"], full=False) or link["rel"])
+                    path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
+                    self._check_download_path(path)
                     self._connection.download_url(url=link["href"], target=path)
+                    self._downloaded.append(path)
                     if self._rewrite_references:
-                        link["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+                        link["href"] = self._relative_to(target=path, doc=result_metadata_path)
 
         if download_collection_assets:
             for asset_key, asset in result_metadata.get("assets", {}).items():
@@ -809,7 +870,7 @@ class _JobResultDownloader:
                         asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
                     )
                     if self._rewrite_references:
-                        asset["href"] = path.relative_to(result_metadata_path.parent).as_posix()
+                        asset["href"] = self._relative_to(target=path, doc=result_metadata_path)
 
         if self._rewrite_references:
             # Rewrite the root collection metadata with updated references
@@ -821,9 +882,8 @@ class _JobResultDownloader:
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
-        # TODO: sanitize item id to be safe as filename?
-        # TODO: different strategy to build structure: tree vs flat
-        metadata_path = self._root_dir / item["id"] / (item["id"] + ".json")
+        metadata_path = self.build_path_item(item_id=item["id"])
+        self._check_download_path(metadata_path)
         self._write_json_file(data=item, path=metadata_path)
 
         for asset_key, asset in item.get("assets", {}).items():
@@ -832,7 +892,7 @@ class _JobResultDownloader:
                     asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item["id"]
                 )
                 if self._rewrite_references:
-                    asset["href"] = asset_path.relative_to(metadata_path.parent).as_posix()
+                    asset["href"] = self._relative_to(target=asset_path, doc=metadata_path)
 
         if self._rewrite_references:
             self._write_json_file(data=item, path=metadata_path)
@@ -845,10 +905,8 @@ class _JobResultDownloader:
         self, *, asset_key: str, asset_href: str, asset_metadata: dict, item_id: Optional[str] = None
     ) -> Path:
         asset = ResultAsset(job=self._job, key=asset_key, href=asset_href, metadata=asset_metadata)
-        path = self._root_dir
-        if item_id:
-            path = path / item_id
-        path = path / (_filename_from_url(asset_href, full=False) or asset_key)
+        path = self.build_path_asset(asset_key=asset_key, asset_href=asset_href, item_id=item_id)
+        self._check_download_path(path)
         asset.download(target=path)
         self._downloaded.append(path)
         return path
