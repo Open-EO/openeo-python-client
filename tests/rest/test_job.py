@@ -1606,3 +1606,30 @@ class TestJobResultDownloader:
         downloaded = downloader.download_collection(download_derived_from=True)
 
         self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_download_collision_default(self, result_mocker, tmp_path, caplog):
+        """Download collisions are logged as warning by default (on_download_failure="warn")"""
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a": {"full_path": "data/item1/asset.tiff"}}},
+                "item2": {"assets": {"a": {"full_path": "data/item2/asset.tiff"}}},
+            },
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path, path_templates={"asset": "assets/{asset_filename}"})
+        downloader.download_collection()
+        assert caplog.text == dirty_equals.IsStr(
+            regex=r".*Download collision, already downloaded.*asset\.tiff.*", regex_flags=re.DOTALL
+        )
+
+    def test_download_collision_with_raise(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a": {"full_path": "data/item1/asset.tiff"}}},
+                "item2": {"assets": {"a": {"full_path": "data/item2/asset.tiff"}}},
+            },
+        )
+        downloader = _JobResultDownloader(
+            job=job, target=tmp_path, path_templates={"asset": "assets/{asset_filename}"}, on_download_failure="raise"
+        )
+        with pytest.raises(JobResultDownloadException, match=r"Download collision, already downloaded.*asset\.tiff"):
+            downloader.download_collection()

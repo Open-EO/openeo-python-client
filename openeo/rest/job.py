@@ -695,8 +695,8 @@ class JobResults:
         .. warning:: this is an experimental API, subject to change.
 
         :param target: folder path to download to
-        :param rewrite_references: whether to rewrite (item/asset/...) HREFs in the STAC documents.
-            in the downloaded STAC collection to point to the local files
+        :param rewrite_references: whether to rewrite (item/asset/...) HREFs
+            in the downloaded STAC documents to point to the local files
             instead of the original URLs.
         :param download_derived_from: whether to download
             additional "derived_from" documents linked from the STAC collection.
@@ -726,6 +726,27 @@ class JobResultDownloadException(OpenEoClientException):
     pass
 
 
+class _DownloadTracker:
+    """Simple tracker of download paths to avoid unintended collisions or double downloads."""
+
+    # TODO: also track the origin of a download for better error reporting?
+
+    __slots__ = ("paths",)
+
+    def __init__(self):
+        self.paths: List[Path] = []
+
+    def assert_new(self, path: Path):
+        """Check that download path is not known already, to avoid download collisions."""
+        if path in self.paths:
+            raise JobResultDownloadException(f"Download collision, already downloaded {path}")
+
+    def register(self, path: Path):
+        """Register a path as downloaded."""
+        # TODO: add verification if path actually exists?
+        self.paths.append(path)
+
+
 class _JobResultDownloader:
     """
     Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
@@ -742,6 +763,15 @@ class _JobResultDownloader:
     # TODO: expose chunk_size/range_size from ResultAsset.download
     # TODO: verbose mode to log/print each downloaded file to allow showing progress on large result sets
     # TODO: download STAC documents (root collection, items) to file before parsing, instead of parsing in memory an re-json-encode them to file
+    # TODO: give STAC collection/item docs an ".inprogress" suffix on initial write, before rewriting is done
+
+    DEFAULT_PATH_TEMPLATES = {
+        "collection": "job-results.json",
+        "item": "{item_id}/{item_id}.json",
+        "asset": "{item_id}/{asset_filename}",
+        "collection-asset": "{asset_filename}",
+        "generic-link": "{filename}",
+    }
 
     def __init__(
         self,
@@ -761,16 +791,9 @@ class _JobResultDownloader:
         self._rewrite_references = rewrite_references
         # TODO: also support passing a `json.dump`-style callable to customize json dumping
         self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
-        self._downloaded: List[Path] = []
+        self._download_tracker = _DownloadTracker()
         self._on_download_failure = on_download_failure
-        self._path_templates = {
-            "collection": "job-results.json",
-            "item": "{item_id}/{item_id}.json",
-            "asset": "{item_id}/{asset_filename}",
-            "collection-asset": "{asset_filename}",
-            "generic-link": "{filename}",
-            **(path_templates or {}),
-        }
+        self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
@@ -793,10 +816,6 @@ class _JobResultDownloader:
                 if self._on_download_failure != "raise":
                     logger.warning(f"Unknown on_download_failure strategy {self._on_download_failure!r}")
                 raise JobResultDownloadException(message) from e
-
-    def _check_download_path(self, path: Path):
-        if path in self._downloaded:
-            raise JobResultDownloadException(f"Download collision: {path} already downloaded")
 
     def build_path_collection(self, *, collection_id: str) -> Path:
         """Build path for the root STAC collection metadata file (job results metadata)"""
@@ -857,7 +876,7 @@ class _JobResultDownloader:
         result_metadata = copy.deepcopy(result_metadata)
 
         result_metadata_path = self.build_path_collection(collection_id=result_metadata.get("id"))
-        self._check_download_path(result_metadata_path)
+        self._download_tracker.assert_new(result_metadata_path)
         # Initial write of metadata, will possibly be updated later if rewrite_references is True
         self._write_json_file(data=result_metadata, path=result_metadata_path)
 
@@ -872,9 +891,9 @@ class _JobResultDownloader:
             elif link["rel"] in extra_rels:
                 with self._download_attempt_context(name=f"link {link=}"):
                     path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
-                    self._check_download_path(path)
+                    self._download_tracker.assert_new(path)
                     self._connection.download_url(url=link["href"], target=path)
-                    self._downloaded.append(path)
+                    self._download_tracker.register(path)
                     if self._rewrite_references:
                         link["href"] = self._relative_to(target=path, doc=result_metadata_path)
 
@@ -891,14 +910,14 @@ class _JobResultDownloader:
             # Rewrite the root collection metadata with updated references
             self._write_json_file(data=result_metadata, path=result_metadata_path)
 
-        self._downloaded.append(result_metadata_path)
+        self._download_tracker.register(result_metadata_path)
 
-        return self._downloaded
+        return self._download_tracker.paths
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
         metadata_path = self.build_path_item(item_id=item["id"])
-        self._check_download_path(metadata_path)
+        self._download_tracker.assert_new(metadata_path)
         self._write_json_file(data=item, path=metadata_path)
 
         for asset_key, asset in item.get("assets", {}).items():
@@ -912,7 +931,7 @@ class _JobResultDownloader:
         if self._rewrite_references:
             self._write_json_file(data=item, path=metadata_path)
 
-        self._downloaded.append(metadata_path)
+        self._download_tracker.register(metadata_path)
 
         return metadata_path
 
@@ -921,9 +940,9 @@ class _JobResultDownloader:
     ) -> Path:
         asset = ResultAsset(job=self._job, key=asset_key, href=asset_href, metadata=asset_metadata)
         path = self.build_path_asset(asset_key=asset_key, asset_href=asset_href, item_id=item_id)
-        self._check_download_path(path)
+        self._download_tracker.assert_new(path)
         asset.download(target=path)
-        self._downloaded.append(path)
+        self._download_tracker.register(path)
         return path
 
 

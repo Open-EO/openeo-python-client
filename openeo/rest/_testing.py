@@ -544,7 +544,8 @@ class JobResultCollectionMocker:
         )
 
     def setup_item(self, *, job_id: str, item_id: str, item_data: dict, assets: dict) -> dict:
-        href = self.connection.build_url(f"/j/{job_id}/r/i/{item_id}.json")
+        path = item_data.get("full_path") or f"/j/{job_id}/r/i/{item_id}.json"
+        href = self.connection.build_url(path)
         if error := item_data.get("error"):
             self.setup_error(href, error=error)
         else:
@@ -557,7 +558,8 @@ class JobResultCollectionMocker:
         return href
 
     def setup_asset(self, *, job_id: str, asset_data: dict) -> dict:
-        href = self.connection.build_url(f"/j/{job_id}/r/a/{asset_data.get('path', 'asset.tiff')}")
+        path = asset_data.get("full_path") or f"/j/{job_id}/r/a/{asset_data.get('path', 'asset.tiff')}"
+        href = self.connection.build_url(path)
         if error := asset_data.get("error"):
             self.requests_mock.head(href, headers={})
             self.setup_error(href, error=error)
@@ -571,7 +573,8 @@ class JobResultCollectionMocker:
         )
 
     def setup_linked_document(self, *, job_id: str, doc: dict):
-        href = self.connection.build_url(f"/j/{job_id}/r/d/{doc.get('path', 'doc.txt')}")
+        path = doc.get("full_path") or f"/j/{job_id}/r/d/{doc.get('path', 'doc.txt')}"
+        href = self.connection.build_url(path)
         if "json" in doc:
             text = json.dumps(doc["json"])
         else:
