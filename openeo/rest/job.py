@@ -691,6 +691,7 @@ class JobResults:
         - linked items containing the result assets
         - additionally linked metadata
 
+        .. warning:: this is an experimental API, subject to change.
 
         :param target: folder path to download to
         :param rewrite_references: whether to rewrite (item/asset/...) references
@@ -702,6 +703,8 @@ class JobResults:
             the STAC Collection level assets in addition to assets from linked STAC Items
         :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files
         :param path_templates: optional tempalte overrides for download paths.
+
+        .. versionadded:: 0.52.0
         """
         downloader = _JobResultDownloader(
             job=self._job,
@@ -725,12 +728,17 @@ class _JobResultDownloader:
     Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
     recursively walking through items, assets and additional linked metadata.
 
-    Experimental API, subject to change.
+    .. warning:: this is an experimental API, subject to change.
+
+    .. versionadded:: 0.52.0
     """
 
     # TODO: make this a public API that users can implement for custom download behavior (e.g. download to S3, ...)
     # TODO: API to warn about or skip existing/previously downloaded files?
     # TODO: dedicated request session (with appropriate retry strategy) for downloading?
+    # TODO: expose chunk_size/range_size from ResultAsset.download
+    # TODO: verbose mode to log/print each downloaded file to allow showing progress on large result sets
+    # TODO: download STAC documents (root collection, items) to file before parsing, instead of parsing in memory an re-json-encode them to file
 
     def __init__(
         self,
