@@ -11,7 +11,7 @@ import time
 import typing
 import urllib.parse
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Container, Dict, List, Literal, Optional, Union
 
 import requests
 
@@ -34,13 +34,8 @@ from openeo.rest.models.logs import log_level_name
 from openeo.util import ensure_dir, ensure_parent_dir_for
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
-    HTTP_408_REQUEST_TIMEOUT,
-    HTTP_429_TOO_MANY_REQUESTS,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-    HTTP_501_NOT_IMPLEMENTED,
     HTTP_502_BAD_GATEWAY,
     HTTP_503_SERVICE_UNAVAILABLE,
-    HTTP_504_GATEWAY_TIMEOUT,
 )
 
 if typing.TYPE_CHECKING:
@@ -393,13 +388,18 @@ class RESTJob(BatchJob):
 FILENAME_UNSAFE_REGEX = re.compile(r"[^\w_.-]+")
 
 
-def _sanitize_filename(s: str, replacement: str = "") -> str:
+def _sanitize_filename(
+    name: str, *, replacement: str = "", invalid: Container[str] = frozenset(("", ".", ".."))
+) -> str:
     """
-    Sanitize a filename (strip/replace risky characters)
-    so that it can be safely used as a filename.
+    Sanitize a string (strip/replace risky characters)
+    so that it can be safely used as file or folder name.
     """
-    s = str(s).strip()
-    return FILENAME_UNSAFE_REGEX.sub(replacement, s)
+    sanitized = str(name).strip()
+    sanitized = FILENAME_UNSAFE_REGEX.sub(replacement, sanitized)
+    if sanitized in invalid:
+        raise ValueError(f"Invalid file/folder name {sanitized!r} (sanitized from {name!r})")
+    return sanitized
 
 
 def _filename_from_url(url: str, *, full: bool = False) -> str:
@@ -682,27 +682,29 @@ class JobResults:
         download_derived_from: bool = False,
         download_collection_assets: bool = False,
         json_dumping: Optional[dict] = None,
+        on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
     ) -> List[Path]:
         """
         Download the job results as a self-contained STAC collection:
 
         - job result metadata (the root STAC collection)
-        - linked items containing the result assets
-        - additionally linked metadata
+        - linked STAC items: metadata and the result assets
+        - additionally linked metadata (e.g. "derived_from" documents)
 
         .. warning:: this is an experimental API, subject to change.
 
         :param target: folder path to download to
-        :param rewrite_references: whether to rewrite (item/asset/...) references
+        :param rewrite_references: whether to rewrite (item/asset/...) HREFs in the STAC documents.
             in the downloaded STAC collection to point to the local files
-            instead of the original URLs
+            instead of the original URLs.
         :param download_derived_from: whether to download
             additional "derived_from" documents linked from the STAC collection.
         :param download_collection_assets: whether to download
-            the STAC Collection level assets in addition to assets from linked STAC Items
-        :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files
-        :param path_templates: optional tempalte overrides for download paths.
+            the STAC Collection level assets in addition to assets from linked STAC Items.
+        :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files.
+        :param on_download_failure: how to handle download failures, one of "warn" or "raise".
+        :param path_templates: optional template overrides for download paths.
 
         .. versionadded:: 0.52.0
         """
@@ -711,6 +713,7 @@ class JobResults:
             target=target,
             rewrite_references=rewrite_references,
             json_dumping=json_dumping,
+            on_download_failure=on_download_failure,
             path_templates=path_templates,
         )
         return downloader.download_collection(
@@ -747,7 +750,7 @@ class _JobResultDownloader:
         target: Union[Path, str, None] = None,
         rewrite_references: bool = True,
         json_dumping: Optional[dict] = None,
-        on_download_failure: str = "warn",
+        on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
     ):
         self._job = job
@@ -782,14 +785,18 @@ class _JobResultDownloader:
             yield
         except Exception as e:
             message = f"Failed to download {name} ({e=})"
-            if self._on_download_failure == "warn":
+            if self._on_download_failure in {"warn"}:
                 logger.warning(message, exc_info=True)
             else:
+                # TODO: other handling strategies?
+                #       e.g. collect all failures and raise a single exception at the end,
+                if self._on_download_failure != "raise":
+                    logger.warning(f"Unknown on_download_failure strategy {self._on_download_failure!r}")
                 raise JobResultDownloadException(message) from e
 
     def _check_download_path(self, path: Path):
         if path in self._downloaded:
-            raise JobResultDownloadException("Download collision: {path} already downloaded")
+            raise JobResultDownloadException(f"Download collision: {path} already downloaded")
 
     def build_path_collection(self, *, collection_id: str) -> Path:
         """Build path for the root STAC collection metadata file (job results metadata)"""

@@ -1222,6 +1222,17 @@ def test_sanitize_filename():
     assert _sanitize_filename("foo%bar.txt", replacement="_") == "foo_bar.txt"
 
 
+def test_sanitize_filename_invalid():
+    for filename in ["", " ", ".", " . ", "..", " .. "]:
+        with pytest.raises(ValueError):
+            _sanitize_filename(filename)
+
+    # This is still fine however
+    assert _sanitize_filename(".config") == ".config"
+    # Weird, but you do you
+    assert _sanitize_filename("..config") == "..config"
+
+
 def test_filename_from_url():
     assert _filename_from_url("https://example.com/foo/bar.txt") == "bar.txt"
     assert _filename_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag") == "bar.txt"
@@ -1243,6 +1254,37 @@ def test_filename_from_url():
     assert _filename_from_url("/foo/bar.txt") == "bar.txt"
     assert _filename_from_url("foo/bar.txt", full=True) == "foo/bar.txt"
     assert _filename_from_url("/foo/bar.txt", full=True) == "foo/bar.txt"
+
+
+@pytest.mark.parametrize(
+    ["url", "full", "expected"],
+    [
+        # Base cases
+        ("https://example.com/foo/bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/bar.txt", True, "foo/bar.txt"),
+        # Period usage
+        ("https://example.com/foo/./bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/./bar.txt", True, ValueError(r"Invalid file/folder name '\.'")),
+        ("https://example.com/foo/%2E/bar.txt", True, ValueError(r"Invalid file/folder name '\.'")),
+        ("https://example.com/foo/.", False, ValueError(r"Invalid file/folder name '\.'")),
+        # Double period usage
+        ("https://example.com/foo/../bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/../bar.txt", True, ValueError(r"Invalid file/folder name '\.\.'")),
+        ("https://example.com/foo/%2E%2E/bar.txt", True, ValueError(r"Invalid file/folder name '\.\.'")),
+        ("https://example.com/foo/..", False, ValueError(r"Invalid file/folder name '\.\.'")),
+        # Empty path parts
+        ("https://example.com/foo/bar/", False, "bar"),
+        ("https://example.com/foo/bar/", True, "foo/bar"),
+        ("https://example.com/foo//bar.txt", False, "bar.txt"),
+        ("https://example.com/foo//bar.txt", True, "foo/bar.txt"),
+    ],
+)
+def test_test_filename_from_url_invalid_parts(url, full, expected):
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=str(expected)):
+            _filename_from_url(url, full=full)
+    else:
+        assert _filename_from_url(url, full=full) == expected
 
 
 class TestJobResultDownloader:
