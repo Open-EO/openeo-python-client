@@ -1089,6 +1089,43 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         assert f.read() == TIFF_CONTENT
 
 
+class TestJobResults:
+    # TODO: move all "job.get_results()" based tests
+    #       inside this class for cleaner test structure
+
+    @pytest.fixture
+    def result_collection_mocker(self, con100, requests_mock) -> JobResultCollectionMocker:
+        """helper to mock collection-style job results"""
+        return JobResultCollectionMocker(requests_mock=requests_mock, connection=con100)
+
+    def test_download_as_collection_basic(self, result_collection_mocker, tmp_path):
+        job = result_collection_mocker.setup_job_results(
+            items={"item1": {"assets": {"asset1": {"path": "asset1.tiff"}}}}
+        )
+        downloaded = job.get_results().download_as_collection(target=tmp_path)
+
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "type": "Collection",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+        }
+
+        TestJobResultDownloader.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+
 class TestResultAsset:
     @pytest.fixture
     def job(self, con100):
@@ -1293,7 +1330,8 @@ class TestJobResultDownloader:
     def result_mocker(self, con100, requests_mock) -> JobResultCollectionMocker:
         return JobResultCollectionMocker(requests_mock=requests_mock, connection=con100)
 
-    def check_expected_downloads(self, downloaded: List[Path], expected: Dict[str, Any], tmp_path: Path):
+    @staticmethod
+    def check_expected_downloads(downloaded: List[Path], expected: Dict[str, Any], tmp_path: Path):
         expected_paths = set(tmp_path / k for k in expected.keys())
         assert set(downloaded) == expected_paths
         assert set(p for p in tmp_path.glob("**/*") if p.is_file()) == expected_paths

@@ -495,6 +495,24 @@ class JobResultCollectionMocker:
     """
     Helper to mock job result metadata (openEO 1.1 Collection style)
     with items and assets.
+
+    Usage:
+
+    - Define a fixture to create an instance with injected `requests_mock`
+      and `connection`. E.g.:
+
+          @pytest.fixture
+          def result_collection_mocker(requests_mock, con) -> JobResultCollectionMocker:
+              return JobResultCollectionMocker(requests_mock=requests_mock, connection=con)
+
+    - Call `setup_job_results` to mock the job results collection,
+      items, assets, ... E.g.:
+
+          job = result_collection_mocker.setup_job_results(
+              items={
+                  "item1": {"assets": {"asset1": {"path": "asset1.tiff"}}},
+              }
+          )
     """
 
     def __init__(self, *, requests_mock, connection: Connection):
