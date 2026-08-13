@@ -14,8 +14,9 @@ from typing import (
     Union,
 )
 
-from openeo import Connection, DataCube
+from openeo import BatchJob, Connection, DataCube
 from openeo.rest.vectorcube import VectorCube
+from openeo.testing.stac import StacDummyBuilder
 from openeo.utils.http import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
 
 OPENEO_BACKEND = "https://openeo.test/"
@@ -488,3 +489,114 @@ def build_capabilities(
         "links": [],
     }
     return capabilities
+
+
+class JobResultCollectionMocker:
+    """
+    Helper to mock job result metadata (openEO 1.1 Collection style)
+    with items and assets.
+
+    Usage:
+
+    - Define a fixture to create an instance with injected `requests_mock`
+      and `connection`. E.g.:
+
+          @pytest.fixture
+          def result_collection_mocker(requests_mock, con) -> JobResultCollectionMocker:
+              return JobResultCollectionMocker(requests_mock=requests_mock, connection=con)
+
+    - Call `setup_job_results` to mock the job results collection,
+      items, assets, ... E.g.:
+
+          job = result_collection_mocker.setup_job_results(
+              items={
+                  "item1": {"assets": {"asset1": {"path": "asset1.tiff"}}},
+              }
+          )
+    """
+
+    def __init__(self, *, requests_mock, connection: Connection):
+        self.requests_mock = requests_mock
+        self.connection = connection
+
+    def setup_job_results(
+        self,
+        *,
+        job_id: str = "job-123",
+        items: dict,
+        add_collection_assets: bool = True,
+        linked_docs: Iterable[dict] = (),
+    ) -> BatchJob:
+        collection_links = []
+        collection_assets = {}
+        for item_id, item_data in items.items():
+            assets = {}
+            for asset_key, asset_data in item_data.get("assets", {}).items():
+                asset = self.setup_asset(job_id=job_id, asset_data=asset_data)
+                assets[asset_key] = asset
+                collection_assets[f"{item_id}-{asset_key}"] = asset
+
+            item_href = self.setup_item(job_id=job_id, item_id=item_id, item_data=item_data, assets=assets)
+            collection_links.append({"rel": "item", "href": item_href})
+
+        for doc in linked_docs:
+            collection_links.append(self.setup_linked_document(job_id=job_id, doc=doc))
+
+        collection_href = self.connection.build_url(f"/jobs/{job_id}/results")
+        collection_doc = StacDummyBuilder.collection(
+            id=f"{job_id}-results",
+            stac_version="1.1.0",
+            links=collection_links,
+            assets=collection_assets if add_collection_assets else {},
+        )
+        self.requests_mock.get(collection_href, json=collection_doc)
+
+        job = BatchJob(job_id, connection=self.connection)
+        return job
+
+    def setup_error(self, href, error: dict):
+        self.requests_mock.get(
+            href,
+            status_code=error.get("status", 500),
+            text=error.get("message", "Unspecified error"),
+        )
+
+    def setup_item(self, *, job_id: str, item_id: str, item_data: dict, assets: dict) -> dict:
+        path = item_data.get("full_path") or f"/j/{job_id}/r/i/{item_id}.json"
+        href = self.connection.build_url(path)
+        if error := item_data.get("error"):
+            self.setup_error(href, error=error)
+        else:
+            doc = StacDummyBuilder.item(
+                id=item_id,
+                stac_version="1.1.0",
+                assets=assets,
+            )
+            self.requests_mock.get(href, json=doc)
+        return href
+
+    def setup_asset(self, *, job_id: str, asset_data: dict) -> dict:
+        path = asset_data.get("full_path") or f"/j/{job_id}/r/a/{asset_data.get('path', 'asset.tiff')}"
+        href = self.connection.build_url(path)
+        if error := asset_data.get("error"):
+            self.requests_mock.head(href, headers={})
+            self.setup_error(href, error=error)
+        else:
+            content = asset_data.get("content", b"TIFF-DUMMY-DATA")
+            self.requests_mock.head(href, headers={"Content-Length": f"{len(content)}"})
+            self.requests_mock.get(href, content=content)
+        return StacDummyBuilder.asset(
+            href=href,
+            type=asset_data.get("type", "image/tiff; application=geotiff"),
+        )
+
+    def setup_linked_document(self, *, job_id: str, doc: dict):
+        path = doc.get("full_path") or f"/j/{job_id}/r/d/{doc.get('path', 'doc.txt')}"
+        href = self.connection.build_url(path)
+        if "json" in doc:
+            text = json.dumps(doc["json"])
+        else:
+            text = doc.get("text", "hello world")
+        self.requests_mock.head(href, headers={"Content-Length": f"{len(text)}"})
+        self.requests_mock.get(href, text=text)
+        return {"rel": doc.get("rel", "doc"), "href": href}

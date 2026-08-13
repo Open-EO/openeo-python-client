@@ -247,6 +247,10 @@ def ensure_dir(path: Union[str, Path]) -> Path:
     return path
 
 
+def ensure_parent_dir_for(path: Union[str, Path]) -> Path:
+    return ensure_dir(Path(path).parent)
+
+
 def ensure_list(x):
     """Convert given data structure to a list."""
     try:

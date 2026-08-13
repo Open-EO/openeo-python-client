@@ -4,9 +4,10 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 from unittest import mock
 
+import dirty_equals
 import httpretty
 import pytest
 import requests
@@ -14,10 +15,19 @@ import requests
 import openeo
 import openeo.rest.job
 from openeo.rest import JobFailedException, OpenEoApiPlainError, OpenEoClientException
-from openeo.rest.job import BatchJob, ResultAsset
+from openeo.rest._testing import JobResultCollectionMocker
+from openeo.rest.job import (
+    BatchJob,
+    JobResultDownloadException,
+    ResultAsset,
+    _filename_from_url,
+    _JobResultDownloader,
+    _sanitize_filename,
+)
 from openeo.rest.models.general import Link
 from openeo.rest.models.logs import LogEntry
-from openeo.util import dict_no_none
+from openeo.testing.stac import StacDummyBuilder
+from openeo.util import dict_no_none, load_json
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_402_PAYMENT_REQUIRED,
@@ -682,6 +692,7 @@ def test_get_results_metadata_url_full(con100):
 def job_with_results_mocker(con100, requests_mock) -> Callable:
     """
     Helper to set up a job with downloadable assets
+    (STAC Item style)
     """
 
     def setup(*, job_id="jj1", assets: dict, media_type: str = "image/tiff; application=geotiff"):
@@ -705,6 +716,7 @@ def job_with_results_mocker(con100, requests_mock) -> Callable:
         return job
 
     return setup
+
 
 
 @pytest.fixture
@@ -1077,8 +1089,44 @@ def test_get_results_download_file_other_domain(con100, requests_mock, tmp_path)
         assert f.read() == TIFF_CONTENT
 
 
-class TestResultAsset:
+class TestJobResults:
+    # TODO: move all "job.get_results()" based tests
+    #       inside this class for cleaner test structure
 
+    @pytest.fixture
+    def result_collection_mocker(self, con100, requests_mock) -> JobResultCollectionMocker:
+        """helper to mock collection-style job results"""
+        return JobResultCollectionMocker(requests_mock=requests_mock, connection=con100)
+
+    def test_download_as_collection_basic(self, result_collection_mocker, tmp_path):
+        job = result_collection_mocker.setup_job_results(
+            items={"item1": {"assets": {"asset1": {"path": "asset1.tiff"}}}}
+        )
+        downloaded = job.get_results().download_as_collection(target=tmp_path)
+
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "type": "Collection",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+        }
+
+        TestJobResultDownloader.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+
+class TestResultAsset:
     @pytest.fixture
     def job(self, con100):
         return BatchJob("jj", connection=con100)
@@ -1200,3 +1248,426 @@ def test_list_jobs_extra_metadata(con100, requests_mock, caplog, basic_auth):
     assert jobs.links == [Link(rel="next", href="https://oeo.test/jobs?limit=2&offset=2")]
     assert jobs.ext_federation_missing() == ["oeob"]
     assert "Partial job listing: missing federation components: ['oeob']." in caplog.text
+
+
+def test_sanitize_filename():
+    assert _sanitize_filename("foo/bar.txt") == "foobar.txt"
+    assert _sanitize_filename("foo/bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename(r"foo\bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo\nbar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo$bar.txt", replacement="_") == "foo_bar.txt"
+    assert _sanitize_filename("foo%bar.txt", replacement="_") == "foo_bar.txt"
+
+
+def test_sanitize_filename_invalid():
+    for filename in ["", " ", ".", " . ", "..", " .. "]:
+        with pytest.raises(ValueError):
+            _sanitize_filename(filename)
+
+    # This is still fine however
+    assert _sanitize_filename(".config") == ".config"
+    # Weird, but you do you
+    assert _sanitize_filename("..config") == "..config"
+
+
+def test_filename_from_url():
+    assert _filename_from_url("https://example.com/foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag") == "bar.txt"
+    assert _filename_from_url("https://example.com/foo/ba%CF%83.txt") == "baσ.txt"
+    assert _filename_from_url("https://example.com/foo/bar") == "bar"
+    assert _filename_from_url("https://example.com/foo/bar/") == "bar"
+    assert _filename_from_url("https://example.com/") == ""
+
+    # Full mode
+    assert _filename_from_url("https://example.com/foo/bar.txt", full=True) == "foo/bar.txt"
+    assert _filename_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag", full=True) == "foo/bar.txt"
+    assert _filename_from_url("https://example.com/fo%CF%83/ba%CF%83", full=True) == "foσ/baσ"
+    assert _filename_from_url("https://example.com/foo/bar", full=True) == "foo/bar"
+    assert _filename_from_url("https://example.com/foo/bar/", full=True) == "foo/bar"
+    assert _filename_from_url("https://example.com/", full=True) == ""
+
+    # Relative href
+    assert _filename_from_url("foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("/foo/bar.txt") == "bar.txt"
+    assert _filename_from_url("foo/bar.txt", full=True) == "foo/bar.txt"
+    assert _filename_from_url("/foo/bar.txt", full=True) == "foo/bar.txt"
+
+
+@pytest.mark.parametrize(
+    ["url", "full", "expected"],
+    [
+        # Base cases
+        ("https://example.com/foo/bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/bar.txt", True, "foo/bar.txt"),
+        # Period usage
+        ("https://example.com/foo/./bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/./bar.txt", True, ValueError(r"Invalid file/folder name '\.'")),
+        ("https://example.com/foo/%2E/bar.txt", True, ValueError(r"Invalid file/folder name '\.'")),
+        ("https://example.com/foo/.", False, ValueError(r"Invalid file/folder name '\.'")),
+        # Double period usage
+        ("https://example.com/foo/../bar.txt", False, "bar.txt"),
+        ("https://example.com/foo/../bar.txt", True, ValueError(r"Invalid file/folder name '\.\.'")),
+        ("https://example.com/foo/%2E%2E/bar.txt", True, ValueError(r"Invalid file/folder name '\.\.'")),
+        ("https://example.com/foo/..", False, ValueError(r"Invalid file/folder name '\.\.'")),
+        # Empty path parts
+        ("https://example.com/foo/bar/", False, "bar"),
+        ("https://example.com/foo/bar/", True, "foo/bar"),
+        ("https://example.com/foo//bar.txt", False, "bar.txt"),
+        ("https://example.com/foo//bar.txt", True, "foo/bar.txt"),
+    ],
+)
+def test_test_filename_from_url_invalid_parts(url, full, expected):
+    if isinstance(expected, Exception):
+        with pytest.raises(type(expected), match=str(expected)):
+            _filename_from_url(url, full=full)
+    else:
+        assert _filename_from_url(url, full=full) == expected
+
+
+class TestJobResultDownloader:
+
+    @pytest.fixture
+    def result_mocker(self, con100, requests_mock) -> JobResultCollectionMocker:
+        return JobResultCollectionMocker(requests_mock=requests_mock, connection=con100)
+
+    @staticmethod
+    def check_expected_downloads(downloaded: List[Path], expected: Dict[str, Any], tmp_path: Path):
+        expected_paths = set(tmp_path / k for k in expected.keys())
+        assert set(downloaded) == expected_paths
+        assert set(p for p in tmp_path.glob("**/*") if p.is_file()) == expected_paths
+
+        for path, expected_value in expected.items():
+            actual = tmp_path / path
+            if actual.suffix == ".json":
+                assert load_json(actual) == expected_value
+            elif actual.suffix in {".tif", ".tiff"}:
+                assert actual.read_bytes() == expected_value
+            else:
+                raise ValueError(f"Unsupported {path=} {expected_value=}")
+
+    def test_basic(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"asset1": {"path": "asset1.tiff"}}},
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_one_item_multiple_assets(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "assets": {
+                        "asset1": {"path": "asset1.tiff"},
+                        "asset2": {"path": "asset2.tiff"},
+                        "asset3": {"path": "asset3.tiff"},
+                    }
+                }
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(href="asset1.tiff"),
+                        "asset2": dirty_equals.IsPartialDict(href="asset2.tiff"),
+                        "asset3": dirty_equals.IsPartialDict(href="asset3.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "item1/asset2.tiff": b"TIFF-DUMMY-DATA",
+            "item1/asset3.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_multiple_items(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "assets": {
+                        "asset1": {"path": "asset1.tiff"},
+                    },
+                },
+                "item2": {
+                    "assets": {
+                        "asset2": {"path": "asset2.tiff"},
+                        "asset3": {"path": "asset3.tiff"},
+                    }
+                },
+            }
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection()
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "links": [
+                        {"rel": "item", "href": "item1/item1.json"},
+                        {"rel": "item", "href": "item2/item2.json"},
+                    ],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {"asset1": dirty_equals.IsPartialDict(href="asset1.tiff")},
+                }
+            ),
+            "item2/item2.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item2",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset2": dirty_equals.IsPartialDict(href="asset2.tiff"),
+                        "asset3": dirty_equals.IsPartialDict(href="asset3.tiff"),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "item2/asset2.tiff": b"TIFF-DUMMY-DATA",
+            "item2/asset3.tiff": b"TIFF-DUMMY-DATA",
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    @pytest.mark.parametrize(
+        ["on_download_failure", "items_setup", "expected"],
+        [
+            (
+                "warn",
+                {
+                    "item1": {
+                        "assets": {"asset1": {"path": "asset1.tiff", "error": {"message": "Nope no asset1 for you"}}},
+                    }
+                },
+                "Failed to download item asset..*Nope no asset1 for you",
+            ),
+            (
+                "error",
+                {
+                    "item1": {
+                        "assets": {"asset1": {"path": "asset1.tiff", "error": {"message": "Nope no asset1 for you"}}},
+                    }
+                },
+                "Failed to download item asset.*Nope no asset1 for you",
+            ),
+            (
+                "warn",
+                {"item1": {"error": {"message": "Nope no item1 for you"}}},
+                "Failed to download item.*Nope no item1 for you",
+            ),
+            (
+                "error",
+                {"item1": {"error": {"message": "Nope no item1 for you"}}},
+                "Failed to download item.*Nope no item1 for you",
+            ),
+        ],
+    )
+    def test_warn_or_error_on_download_fail(
+        self, result_mocker, tmp_path, caplog, on_download_failure, items_setup, expected
+    ):
+        job = result_mocker.setup_job_results(items=items_setup)
+
+        expected = re.compile(expected)
+        if on_download_failure == "error":
+            context = pytest.raises(JobResultDownloadException, match=expected)
+        else:
+            context = contextlib.nullcontext()
+
+        downloader = _JobResultDownloader(job=job, target=tmp_path, on_download_failure=on_download_failure)
+        with context:
+            downloader.download_collection()
+
+        if on_download_failure == "warn":
+            assert expected.search(caplog.text)
+
+    @pytest.mark.parametrize(
+        [
+            "download_derived_from",
+            "expected_links",
+            "expected_downloads_extra",
+        ],
+        [
+            (
+                False,
+                [
+                    {"rel": "item", "href": "item1/item1.json"},
+                    {"rel": "derived_from", "href": "https://oeo.test/j/job-123/r/d/derived_from.json"},
+                ],
+                {},
+            ),
+            (
+                True,
+                [
+                    {"rel": "item", "href": "item1/item1.json"},
+                    {"rel": "derived_from", "href": "derived_from.json"},
+                ],
+                {
+                    "derived_from.json": {"hello": "world"},
+                },
+            ),
+        ],
+    )
+    def test_download_derived_from_link(
+        self, result_mocker, tmp_path, download_derived_from, expected_links, expected_downloads_extra
+    ):
+        job = result_mocker.setup_job_results(
+            items={"item1": {}},
+            linked_docs=[
+                {"rel": "derived_from", "path": "derived_from.json", "json": {"hello": "world"}},
+            ],
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path)
+        downloaded = downloader.download_collection(download_derived_from=download_derived_from)
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "type": "Collection",
+                    "links": expected_links,
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict({"id": "item1", "type": "Feature"}),
+            **expected_downloads_extra,
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    @pytest.mark.parametrize(
+        ["path_templates", "expected"],
+        [
+            (
+                # Flat structure
+                {
+                    "collection": "CO_{job_id}.json",
+                    "item": "IT_{item_id}.json",
+                    "asset": "AS_{item_id}-{asset_key}-{asset_filename}",
+                    "collection-asset": "CA_{asset_key}",
+                    "generic-link": "GL_{filename}",
+                },
+                {
+                    "CO_job-123.json": dirty_equals.IsPartialDict(
+                        {
+                            "links": [
+                                {"rel": "item", "href": "IT_item1.json"},
+                                {"rel": "derived_from", "href": "GL_derived_from.json"},
+                            ]
+                        }
+                    ),
+                    "IT_item1.json": dirty_equals.IsPartialDict(
+                        {"assets": {"a1": dirty_equals.IsPartialDict(href="AS_item1-a1-asset1.tiff")}}
+                    ),
+                    "AS_item1-a1-asset1.tiff": b"TIFF-DUMMY-DATA",
+                    "GL_derived_from.json": {"hello": "world"},
+                },
+            ),
+            (
+                # folder organisation per type
+                {
+                    "collection": "collections/{job_id}.json",
+                    "item": "items/{job_id}-{item_id}/item.json",
+                    "asset": "assets/{job_id}-{item_id}-{asset_key}/{asset_filename}",
+                    "collection-asset": "assets/{job_id}-{asset_key}/{asset_filename}",
+                    "generic-link": "docs/{job_id}/{filename}",
+                },
+                {
+                    "collections/job-123.json": dirty_equals.IsPartialDict(
+                        {
+                            "links": [
+                                {"rel": "item", "href": "../items/job-123-item1/item.json"},
+                                {"rel": "derived_from", "href": "../docs/job-123/derived_from.json"},
+                            ]
+                        }
+                    ),
+                    "items/job-123-item1/item.json": dirty_equals.IsPartialDict(
+                        {"assets": {"a1": dirty_equals.IsPartialDict(href="../../assets/job-123-item1-a1/asset1.tiff")}}
+                    ),
+                    "assets/job-123-item1-a1/asset1.tiff": b"TIFF-DUMMY-DATA",
+                    "docs/job-123/derived_from.json": {"hello": "world"},
+                },
+            ),
+        ],
+    )
+    def test_custom_file_tree_structure(self, result_mocker, tmp_path, path_templates, expected):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a1": {"path": "asset1.tiff"}}},
+            },
+            linked_docs=[
+                {"rel": "derived_from", "path": "derived_from.json", "json": {"hello": "world"}},
+            ],
+        )
+        downloader = _JobResultDownloader(
+            job=job,
+            target=tmp_path,
+            path_templates=path_templates,
+        )
+        downloaded = downloader.download_collection(download_derived_from=True)
+
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_download_collision_default(self, result_mocker, tmp_path, caplog):
+        """Download collisions are logged as warning by default (on_download_failure="warn")"""
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a": {"full_path": "data/item1/asset.tiff"}}},
+                "item2": {"assets": {"a": {"full_path": "data/item2/asset.tiff"}}},
+            },
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path, path_templates={"asset": "assets/{asset_filename}"})
+        downloader.download_collection()
+        assert caplog.text == dirty_equals.IsStr(
+            regex=r".*Download collision, already downloaded.*asset\.tiff.*", regex_flags=re.DOTALL
+        )
+
+    def test_download_collision_with_raise(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {"assets": {"a": {"full_path": "data/item1/asset.tiff"}}},
+                "item2": {"assets": {"a": {"full_path": "data/item2/asset.tiff"}}},
+            },
+        )
+        downloader = _JobResultDownloader(
+            job=job, target=tmp_path, path_templates={"asset": "assets/{asset_filename}"}, on_download_failure="raise"
+        )
+        with pytest.raises(JobResultDownloadException, match=r"Download collision, already downloaded.*asset\.tiff"):
+            downloader.download_collection()
