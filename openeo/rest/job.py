@@ -11,7 +11,7 @@ import time
 import typing
 import urllib.parse
 from pathlib import Path
-from typing import Container, Dict, List, Literal, Optional, Union
+from typing import Callable, Container, Dict, List, Literal, Optional, Union
 
 import requests
 
@@ -37,6 +37,7 @@ from openeo.utils.http import (
     HTTP_502_BAD_GATEWAY,
     HTTP_503_SERVICE_UNAVAILABLE,
 )
+from openeo.utils.logging import get_url_query_param_stripper
 
 if typing.TYPE_CHECKING:
     # Imports for type checking only (circular import issue at runtime).
@@ -498,6 +499,8 @@ class ResultAsset:
         *,
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+        # TODO: original default here is no URL redacting, but reconsider  that?
+        redact_url_logging: Union[bool, Callable] = False,
     ) -> Path:
         """
         Download asset to given location
@@ -508,12 +511,15 @@ class ResultAsset:
             in best-effort fashion, based on available metadata)
             By default, the working directory will be used.
         :param chunk_size: chunk size for streaming response.
+        :param range_size: range size for ranged download.
+        :param redact_url_logging: whether to redact (possibly sensitive) query parameters in the logged URL.
         """
         target = Path(target or Path.cwd())
         if target.is_dir():
             target = target / self._make_filename()
         ensure_dir(target.parent)
-        logger.info(f"Downloading job result asset {self.key!r} from {self.href!s} to {target!s}")
+        redact = get_url_query_param_stripper(redact_url_logging)
+        logger.info(f"Downloading job result asset {self.key!r} from {redact(self.href)!s} to {target!s}")
         self.job.connection.download_url(url=self.href, target=target, chunk_size=chunk_size, range_size=range_size)
         return target
 
@@ -684,6 +690,7 @@ class JobResults:
         json_dumping: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
+        redact_url_logging: bool = True,
     ) -> List[Path]:
         """
         Download the job results as a self-contained STAC collection:
@@ -705,6 +712,7 @@ class JobResults:
         :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files.
         :param on_download_failure: how to handle download failures, one of "warn" or "raise".
         :param path_templates: optional template overrides for download paths.
+        :param redact_url_logging: whether to redact (possibly sensitive) query parameters from URLs in logging,
 
         .. versionadded:: 0.52.0
         """
@@ -715,6 +723,7 @@ class JobResults:
             json_dumping=json_dumping,
             on_download_failure=on_download_failure,
             path_templates=path_templates,
+            redact_url_logging=redact_url_logging,
         )
         return downloader.download_collection(
             download_derived_from=download_derived_from,
@@ -782,6 +791,7 @@ class _JobResultDownloader:
         json_dumping: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
+        redact_url_logging: bool = True,
     ):
         self._job = job
         self._connection = job.connection
@@ -794,6 +804,7 @@ class _JobResultDownloader:
         self._download_tracker = _DownloadTracker()
         self._on_download_failure = on_download_failure
         self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
+        self._redact = get_url_query_param_stripper(redact_url_logging)
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
@@ -878,6 +889,7 @@ class _JobResultDownloader:
         result_metadata_path = self.build_path_collection(collection_id=result_metadata.get("id"))
         self._download_tracker.assert_new(result_metadata_path)
         # Initial write of metadata, will possibly be updated later if rewrite_references is True
+        logger.info(f"Initial write of STAC Collection metadata of {self._job.job_id!r} to {result_metadata_path}")
         self._write_json_file(data=result_metadata, path=result_metadata_path)
 
         extra_rels = ["derived_from"] if download_derived_from else []
@@ -886,16 +898,21 @@ class _JobResultDownloader:
                 with self._download_attempt_context(name=f"item {link=}"):
                     path = self._download_item(href=link["href"])
                     if self._rewrite_references:
-                        link["href"] = self._relative_to(target=path, doc=result_metadata_path)
+                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
+                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
+                        link["href"] = rel_path
 
             elif link["rel"] in extra_rels:
                 with self._download_attempt_context(name=f"link {link=}"):
                     path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
                     self._download_tracker.assert_new(path)
                     self._connection.download_url(url=link["href"], target=path)
+                    logger.debug(f"Downloaded link {self._redact(link)=} to {path=}")
                     self._download_tracker.register(path)
                     if self._rewrite_references:
-                        link["href"] = self._relative_to(target=path, doc=result_metadata_path)
+                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
+                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
+                        link["href"] = rel_path
 
         if download_collection_assets:
             for asset_key, asset in result_metadata.get("assets", {}).items():
@@ -904,10 +921,13 @@ class _JobResultDownloader:
                         asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
                     )
                     if self._rewrite_references:
-                        asset["href"] = self._relative_to(target=path, doc=result_metadata_path)
+                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
+                        logger.debug(f"Rewriting STAC Collection asset {asset_key=} href to local {rel_path=}")
+                        asset["href"] = rel_path
 
         if self._rewrite_references:
             # Rewrite the root collection metadata with updated references
+            logger.info(f"Update write of STAC Collection metadata of {self._job.job_id!r} to {result_metadata_path}")
             self._write_json_file(data=result_metadata, path=result_metadata_path)
 
         self._download_tracker.register(result_metadata_path)
@@ -916,19 +936,24 @@ class _JobResultDownloader:
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
-        metadata_path = self.build_path_item(item_id=item["id"])
+        item_id = item["id"]
+        metadata_path = self.build_path_item(item_id=item_id)
         self._download_tracker.assert_new(metadata_path)
+        logger.info(f"Initial write of STAC Item {item_id!r} metadata to {metadata_path}")
         self._write_json_file(data=item, path=metadata_path)
 
         for asset_key, asset in item.get("assets", {}).items():
             with self._download_attempt_context(name=f"item asset {asset_key=} {asset=}"):
                 asset_path = self._download_asset(
-                    asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item["id"]
+                    asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_id
                 )
                 if self._rewrite_references:
-                    asset["href"] = self._relative_to(target=asset_path, doc=metadata_path)
+                    rel_path = self._relative_to(target=asset_path, doc=metadata_path)
+                    logger.debug(f"Rewriting asset {asset_key=} ({item_id=}) href to local {rel_path=}")
+                    asset["href"] = rel_path
 
         if self._rewrite_references:
+            logger.info(f"Update write of STAC Item {item_id!r} metadata to {metadata_path}")
             self._write_json_file(data=item, path=metadata_path)
 
         self._download_tracker.register(metadata_path)
@@ -941,7 +966,8 @@ class _JobResultDownloader:
         asset = ResultAsset(job=self._job, key=asset_key, href=asset_href, metadata=asset_metadata)
         path = self.build_path_asset(asset_key=asset_key, asset_href=asset_href, item_id=item_id)
         self._download_tracker.assert_new(path)
-        asset.download(target=path)
+        logger.info(f"Downloading STAC asset {asset_key=} ({item_id=}) to {path}")
+        asset.download(target=path, redact_url_logging=self._redact)
         self._download_tracker.register(path)
         return path
 
