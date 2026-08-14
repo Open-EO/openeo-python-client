@@ -238,18 +238,23 @@ def test_provider_info_default_client_invalid_grants(requests_mock, caplog):
 
 
 @pytest.mark.parametrize(
-    ["scopes_supported", "expected"], [
-        (["openid", "email"], "openid"),
-        (["openid", "email", "offline_access"], "offline_access openid"),
+    "scopes_supported",
+    [
+        ["openid", "email"],
+        ["openid", "email", "offline_access"],
     ])
-def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported, expected):
+def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported):
+    """
+    "offline_access" should be requested when a refresh token is desired,
+    regardless of whether the provider's `scopes_supported` discovery field lists it.
+    """
     requests_mock.get(
         "https://authit.test/.well-known/openid-configuration",
         json={"scopes_supported": scopes_supported}
     )
     p = OidcProviderInfo(issuer="https://authit.test")
     assert p.get_scopes_string() == "openid"
-    assert p.get_scopes_string(request_refresh_token=True) == expected
+    assert p.get_scopes_string(request_refresh_token=True) == "offline_access openid"
     assert p.get_scopes_string() == "openid"
 
 
