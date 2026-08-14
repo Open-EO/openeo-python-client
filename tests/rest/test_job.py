@@ -1125,6 +1125,49 @@ class TestJobResults:
 
         TestJobResultDownloader.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
 
+    @pytest.mark.parametrize(
+        ["redact_url_logging"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
+    def test_download_as_collection_redact_url_logging(
+        self, result_collection_mocker, tmp_path, redact_url_logging, caplog
+    ):
+        caplog.set_level(logging.DEBUG, logger="openeo.rest.job")
+
+        job = result_collection_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "full_path": "items/item1.json?token=secret123",
+                    "assets": {"asset1": {"full_path": "assets/asset1.tiff?token=secret456"}},
+                }
+            }
+        )
+        downloaded = job.get_results().download_as_collection(target=tmp_path, redact_url_logging=redact_url_logging)
+
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "type": "Collection",
+                    "links": [{"rel": "item", "href": "item1/item1.json"}],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "assets": {"asset1": dirty_equals.IsPartialDict(href="asset1.tiff")},
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+        }
+        TestJobResultDownloader.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+        assert ("secret123" in caplog.text) == (not redact_url_logging)
+        assert ("secret456" in caplog.text) == (not redact_url_logging)
+
 
 class TestResultAsset:
     @pytest.fixture
