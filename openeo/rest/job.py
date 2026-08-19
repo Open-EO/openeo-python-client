@@ -483,9 +483,7 @@ class ResultAsset:
 
         # Build filename from key, href's path (if any)
         # and guess extension from media type if necessary
-        sanitized_key = _sanitize_filename(self.key)
-        href_basename = _filename_from_url(self.href, full=False)
-        filename = f"{sanitized_key}-{href_basename}"
+        filename = _filename_from_url(self.href, full=False)
 
         if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
             # Extension seems missing, do media type based guess (best effort)
