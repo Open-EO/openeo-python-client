@@ -988,7 +988,7 @@ def test_authenticate_oidc_authorization_code_100_multiple_success(requests_mock
     [
         (False, ["openid", "email"], "openid"),
         (False, ["openid", "email", "offline_access"], "openid"),
-        (True, ["openid", "email"], "openid"),
+        (True, ["openid", "email"], "offline_access openid"),
         (True, ["openid", "email", "offline_access"], "offline_access openid"),
     ]
 )
@@ -1364,7 +1364,7 @@ def test_authenticate_oidc_resource_owner_password_credentials_client_from_confi
     [
         (False, ["openid", "email"], "openid"),
         (False, ["openid", "email", "offline_access"], "openid"),
-        (True, ["openid", "email"], "openid"),
+        (True, ["openid", "email"], "offline_access openid"),
         (True, ["openid", "email", "offline_access"], "offline_access openid"),
     ]
 )
@@ -1774,9 +1774,7 @@ def test_authenticate_oidc_device_flow_pkce_store_refresh_token(requests_mock, o
         ]
     })
 
-    expected_fields = {
-        "scope": "openid", "code_verifier": True, "code_challenge": True
-    }
+    expected_fields = {"scope": "offline_access openid", "code_verifier": True, "code_challenge": True}
     oidc_issuer = "https://auth.test"
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
@@ -1971,7 +1969,7 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(
         oidc_issuer=issuer,
         expected_fields={
             "refresh_token": "unkn0wn",
-            "scope": "openid",
+            "scope": "offline_access openid",
             "code_verifier": True if expect_pkce else ABSENT,
             "code_challenge": True if expect_pkce else ABSENT,
         }
@@ -2016,7 +2014,7 @@ def test_authenticate_oidc_auto_expired_refresh_token(
         oidc_issuer=issuer,
         expected_fields={
             "refresh_token": "unkn0wn",
-            "scope": "openid",
+            "scope": "offline_access openid",
             "code_verifier": True if expect_pkce else ABSENT,
             "code_challenge": True if expect_pkce else ABSENT,
         }
@@ -2225,7 +2223,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_initial_device_code(
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={
-            "scope": "openid",
+            "scope": "offline_access openid",
             "code_verifier": True,
             "code_challenge": True,
         },
@@ -2323,7 +2321,7 @@ def test_authenticate_oidc_auto_renew_expired_access_token_invalid_refresh_token
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={
-            "scope": "openid",
+            "scope": "offline_access openid",
             "code_verifier": True,
             "code_challenge": True,
         },
@@ -2664,7 +2662,7 @@ def test_try_access_token_refresh_initial_device_code(
         expected_client_id=client_id,
         oidc_issuer=oidc_issuer,
         expected_fields={
-            "scope": "openid",
+            "scope": "offline_access openid",
             "code_verifier": True,
             "code_challenge": True,
         },
@@ -4931,11 +4929,7 @@ def test_connect_auto_auth_from_config_oidc_device_code(
             },
         )
 
-    expected_fields = {
-        "scope": "openid",
-        "code_verifier": True,
-        "code_challenge": True
-    }
+    expected_fields = {"scope": "offline_access openid", "code_verifier": True, "code_challenge": True}
     oidc_mock = OidcMock(
         requests_mock=requests_mock,
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",

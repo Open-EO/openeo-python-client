@@ -279,10 +279,12 @@ class OidcProviderInfo:
         except Exception as e:
             raise OidcException(f"Failed to obtain OIDC discovery document from {self.discovery_url!r}: {e!r}") from e
         self.issuer = issuer or self.config["issuer"]
-        # Minimal set of scopes to request
-        self._supported_scopes = self.config.get("scopes_supported", ["openid"])
-        self._scopes = {"openid"}.union(scopes or []).intersection(self._supported_scopes)
-        log.debug(f"Scopes: provider supported {self._supported_scopes} & backend desired {scopes} -> {self._scopes}")
+        # Note: we don't filter requested scopes against the discovery document's
+        # `scopes_supported`: it's only a RECOMMENDED discovery field (RFC 8414 section 2),
+        # and some providers (e.g. Microsoft Entra ID) report a fixed, incomplete list there
+        # regardless of which scopes they actually accept.
+        self._scopes = {"openid"}.union(scopes or [])
+        log.debug(f"Scopes: backend desired {scopes} -> {self._scopes}")
         self.default_clients = default_clients
         self.authorization_parameters = authorization_parameters or {}
 
@@ -301,12 +303,12 @@ class OidcProviderInfo:
         """
         Build "scope" string for authentication request.
 
-        :param request_refresh_token: include "offline_access" scope (if supported),
+        :param request_refresh_token: include "offline_access" scope,
             which some OIDC providers require in order to return refresh token
         :return: space separated scope listing as single string
         """
         scopes = self._scopes
-        if request_refresh_token and "offline_access" in self._supported_scopes:
+        if request_refresh_token:
             scopes = scopes | {"offline_access"}
         log.debug("Using scopes: {s}".format(s=scopes))
         return " ".join(sorted(scopes))

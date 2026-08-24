@@ -362,7 +362,7 @@ def test_oidc_auth_device_flow(auth_config, refresh_token_store, requests_mock, 
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=client_id,
         oidc_issuer="https://authit.test",
-        expected_fields={"scope": "openid", "client_secret": client_secret},
+        expected_fields={"scope": "offline_access openid", "client_secret": client_secret},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"],
     )
@@ -421,7 +421,7 @@ def test_oidc_auth_device_flow_default_client(
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
         oidc_issuer="https://authit.test",
-        expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
+        expected_fields={"scope": "offline_access openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"],
     )
@@ -479,7 +479,7 @@ def test_oidc_auth_device_flow_no_config_all_defaults(
         expected_grant_type="urn:ietf:params:oauth:grant-type:device_code",
         expected_client_id=default_client_id,
         oidc_issuer="https://authit.test",
-        expected_fields={"scope": "openid", "code_verifier": True, "code_challenge": True},
+        expected_fields={"scope": "offline_access openid", "code_verifier": True, "code_challenge": True},
         state={"device_code_callback_timeline": ["authorization_pending", "great success"]},
         scopes_supported=["openid"],
     )
@@ -529,7 +529,7 @@ def test_oidc_auth_auth_code_flow(auth_config, refresh_token_store, requests_moc
         requests_mock=requests_mock,
         expected_grant_type="authorization_code",
         expected_client_id=client_id,
-        expected_fields={"scope": "openid"},
+        expected_fields={"scope": "offline_access openid"},
         oidc_issuer="https://authit.test",
         scopes_supported=["openid"],
     )
