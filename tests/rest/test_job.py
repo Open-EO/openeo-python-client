@@ -20,6 +20,7 @@ from openeo.rest.job import (
     BatchJob,
     JobResultDownloadException,
     ResultAsset,
+    _filename_extension_from_url,
     _filename_from_url,
     _JobResultDownloader,
     _sanitize_filename,
@@ -1359,12 +1360,28 @@ def test_filename_from_url():
         ("https://example.com/foo//bar.txt", True, "foo/bar.txt"),
     ],
 )
-def test_test_filename_from_url_invalid_parts(url, full, expected):
+def test_filename_from_url_invalid_parts(url, full, expected):
     if isinstance(expected, Exception):
         with pytest.raises(type(expected), match=str(expected)):
             _filename_from_url(url, full=full)
     else:
         assert _filename_from_url(url, full=full) == expected
+
+
+def test_filename_extension_from_url():
+    assert _filename_extension_from_url("https://example.com/foo/bar.txt") == ".txt"
+    assert _filename_extension_from_url("foo/bar.txt") == ".txt"
+    assert _filename_extension_from_url("/foo/bar.txt") == ".txt"
+    assert _filename_extension_from_url("https://example.com/foo/bar.tiff") == ".tiff"
+    assert _filename_extension_from_url("https://example.com/foo/bar.tar.gz") == ".tar.gz"
+    assert _filename_extension_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag") == ".txt"
+    assert _filename_extension_from_url("https://example.com/foo/ba%CF%83.%CF%84x%CF%84") == ".τxτ"
+    assert _filename_extension_from_url("https://example.com/foo/bar") == ""
+    assert _filename_extension_from_url("https://example.com/foo/bar/") == ""
+    assert _filename_extension_from_url("https://example.com/") == ""
+
+    assert _filename_extension_from_url("https://example.com/foo/bar", fallback=".data") == ".data"
+    assert _filename_extension_from_url("https://example.com/foo/bar.txt", fallback=".data") == ".txt"
 
 
 class TestJobResultDownloader:
@@ -1685,6 +1702,76 @@ class TestJobResultDownloader:
             path_templates=path_templates,
         )
         downloaded = downloader.download_collection(download_derived_from=True)
+
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_custom_file_tree_structure_auto_increment(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item11": {
+                    "assets": {
+                        "a11-1": {"path": "asset11-1.tiff", "content": b"DATA:11-1"},
+                        "a11-2": {"path": "asset11-2.tiff", "content": b"DATA:11-2"},
+                    }
+                },
+                "item22": {
+                    "assets": {
+                        "a22-1": {"path": "asset22-1.tiff", "content": b"DATA:22-1"},
+                    }
+                },
+            },
+            linked_docs=[
+                {"rel": "derived_from", "path": "derived_from8.json", "json": {"hello": "eight"}},
+                {"rel": "derived_from", "path": "derived_from9.json", "json": {"hello": "nine"}},
+            ],
+        )
+        path_templates = {
+            "collection": "collection-{auto_increment}{extension}",
+            "item": "item-{auto_increment:02d}{extension}",
+            "asset": "asset-{auto_increment:03d}{extension}",
+            "collection-asset": "collection-asset-{auto_increment}{extension}",
+            "generic-link": "generic-{auto_increment}{extension}",
+        }
+
+        downloader = _JobResultDownloader(
+            job=job,
+            target=tmp_path,
+            path_templates=path_templates,
+        )
+        downloaded = downloader.download_collection(download_derived_from=True)
+
+        expected = {
+            "collection-1.json": dirty_equals.IsPartialDict(
+                {
+                    "links": [
+                        {"rel": "item", "href": "item-01.json"},
+                        {"rel": "item", "href": "item-02.json"},
+                        {"rel": "derived_from", "href": "generic-1.json"},
+                        {"rel": "derived_from", "href": "generic-2.json"},
+                    ]
+                }
+            ),
+            "item-01.json": dirty_equals.IsPartialDict(
+                {
+                    "assets": {
+                        "a11-1": dirty_equals.IsPartialDict(href="asset-001.tiff"),
+                        "a11-2": dirty_equals.IsPartialDict(href="asset-002.tiff"),
+                    },
+                }
+            ),
+            "item-02.json": dirty_equals.IsPartialDict(
+                {
+                    "assets": {
+                        "a22-1": dirty_equals.IsPartialDict(href="asset-003.tiff"),
+                    }
+                }
+            ),
+            "asset-001.tiff": b"DATA:11-1",
+            "asset-002.tiff": b"DATA:11-2",
+            "asset-003.tiff": b"DATA:22-1",
+            "generic-1.json": {"hello": "eight"},
+            "generic-2.json": {"hello": "nine"},
+        }
 
         self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
 

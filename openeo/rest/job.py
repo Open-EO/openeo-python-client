@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import contextlib
 import copy
 import datetime
@@ -418,6 +419,11 @@ def _filename_from_url(url: str, *, full: bool = False) -> str:
     return "/".join(parts)
 
 
+def _filename_extension_from_url(url: str, *, fallback: str = "") -> str:
+    filename = _filename_from_url(url)
+    return "".join(Path(filename).suffixes) or fallback
+
+
 _MEDIA_TYPE_EXTENSION_MAP = {
     "image/tiff": ".tiff",
     "image/tiff; application=geotiff": ".tiff",
@@ -758,8 +764,10 @@ class _DownloadTracker:
 
 class _JobResultDownloader:
     """
-    Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
-    recursively walking through items, assets and additional linked metadata.
+    Helper class to download batch job results
+    as a local, self-contained STAC collection (openEO API 1.1 style):
+    recursively walking through items, assets, additional linked metadata, etc.,
+    and rewriting the related links accordingly.
 
     .. warning:: this is an experimental API, subject to change.
 
@@ -805,6 +813,7 @@ class _JobResultDownloader:
         self._on_download_failure = on_download_failure
         self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
         self._redact = get_url_query_param_stripper(redact_url_logging)
+        self._auto_increment_counters: Dict[str, int] = collections.defaultdict(int)
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
@@ -833,6 +842,8 @@ class _JobResultDownloader:
         vars = {
             "job_id": _sanitize_filename(self._job.job_id),
             "collection_id": _sanitize_filename(collection_id),
+            "auto_increment": self._auto_increment_id("collection"),
+            "extension": ".json",
         }
         return self._root_dir / self._path_templates["collection"].format(**vars)
 
@@ -841,6 +852,8 @@ class _JobResultDownloader:
         vars = {
             "job_id": _sanitize_filename(self._job.job_id),
             "item_id": _sanitize_filename(item_id),
+            "auto_increment": self._auto_increment_id("item"),
+            "extension": ".json",
         }
         return self._root_dir / self._path_templates["item"].format(**vars)
 
@@ -850,6 +863,10 @@ class _JobResultDownloader:
             "job_id": _sanitize_filename(self._job.job_id),
             "asset_key": _sanitize_filename(asset_key),
             "asset_filename": _filename_from_url(asset_href, full=False),
+            # TODO: separate pool for item- and collection-assets?
+            "auto_increment": self._auto_increment_id("asset"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(asset_href),
         }
         if item_id:
             vars["item_id"] = _sanitize_filename(item_id)
@@ -862,8 +879,16 @@ class _JobResultDownloader:
             "job_id": _sanitize_filename(self._job.job_id),
             "rel": _sanitize_filename(rel),
             "filename": _filename_from_url(href, full=False),
+            "auto_increment": self._auto_increment_id("generic"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(href),
         }
         return self._root_dir / self._path_templates["generic-link"].format(**vars)
+
+    def _auto_increment_id(self, pool: str) -> int:
+        """Generate auto-incrementing ID within a given pool of entity types."""
+        self._auto_increment_counters[pool] += 1
+        return self._auto_increment_counters[pool]
 
     def _relative_to(self, target: Path, doc: Path) -> str:
         """Get relative reference to target to be used from given document"""
