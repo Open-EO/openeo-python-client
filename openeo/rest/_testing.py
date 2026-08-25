@@ -537,7 +537,7 @@ class JobResultCollectionMocker:
                 collection_assets[f"{item_id}-{asset_key}"] = asset
 
             item_href = self.setup_item(job_id=job_id, item_id=item_id, item_data=item_data, assets=assets)
-            collection_links.append({"rel": "item", "href": item_href})
+            collection_links.append({"rel": "item", "href": item_href, **item_data.get("link_extra", {})})
 
         for doc in linked_docs:
             collection_links.append(self.setup_linked_document(job_id=job_id, doc=doc))
@@ -586,8 +586,7 @@ class JobResultCollectionMocker:
             self.requests_mock.head(href, headers={"Content-Length": f"{len(content)}"})
             self.requests_mock.get(href, content=content)
         return StacDummyBuilder.asset(
-            href=href,
-            type=asset_data.get("type", "image/tiff; application=geotiff"),
+            href=href, type=asset_data.get("type", "image/tiff; application=geotiff"), **asset_data.get("extra", {})
         )
 
     def setup_linked_document(self, *, job_id: str, doc: dict):
@@ -599,4 +598,4 @@ class JobResultCollectionMocker:
             text = doc.get("text", "hello world")
         self.requests_mock.head(href, headers={"Content-Length": f"{len(text)}"})
         self.requests_mock.get(href, text=text)
-        return {"rel": doc.get("rel", "doc"), "href": href}
+        return {"rel": doc.get("rel", "doc"), "href": href, **doc.get("link_extra", {})}

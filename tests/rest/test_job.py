@@ -1801,3 +1801,131 @@ class TestJobResultDownloader:
         )
         with pytest.raises(JobResultDownloadException, match=r"Download collision, already downloaded.*asset\.tiff"):
             downloader.download_collection()
+
+    def test_add_original_hrefs(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "full_path": "original/path/to/item1.json",
+                    "assets": {"asset1": {"full_path": "original/path/to/asset1.tiff"}},
+                },
+            },
+            linked_docs=[
+                {"rel": "derived_from", "full_path": "original/path/to/derived_from.json", "json": {"hello": "world"}},
+            ],
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path, add_original_hrefs=True)
+        downloaded = downloader.download_collection(download_derived_from=True)
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [
+                        {
+                            "rel": "item",
+                            "href": "item1/item1.json",
+                            "alternate": {"original": {"href": "https://oeo.test/original/path/to/item1.json"}},
+                        },
+                        {
+                            "rel": "derived_from",
+                            "href": "derived_from.json",
+                            "alternate": {"original": {"href": "https://oeo.test/original/path/to/derived_from.json"}},
+                        },
+                    ],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(
+                            {
+                                "href": "asset1.tiff",
+                                "alternate": {"original": {"href": "https://oeo.test/original/path/to/asset1.tiff"}},
+                            }
+                        ),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "derived_from.json": {"hello": "world"},
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)
+
+    def test_add_original_hrefs_preserve_existing_originals(self, result_mocker, tmp_path):
+        job = result_mocker.setup_job_results(
+            items={
+                "item1": {
+                    "full_path": "original/path/to/item1.json",
+                    "assets": {
+                        "asset1": {
+                            "full_path": "original/path/to/asset1.tiff",
+                            "extra": {"alternate": {"original": {"href": "https://example.com/asset.tiff"}}},
+                        }
+                    },
+                    "link_extra": {"alternate": {"original": {"href": "https://example.com/item.json"}}},
+                },
+            },
+            linked_docs=[
+                {
+                    "rel": "derived_from",
+                    "full_path": "original/path/to/derived_from.json",
+                    "json": {"hello": "world"},
+                    "link_extra": {"alternate": {"original": {"href": "https://example.com/df.json"}}},
+                },
+            ],
+        )
+        downloader = _JobResultDownloader(job=job, target=tmp_path, add_original_hrefs=True)
+        downloaded = downloader.download_collection(download_derived_from=True)
+        expected = {
+            "job-results.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "job-123-results",
+                    "type": "Collection",
+                    "stac_version": "1.1.0",
+                    "links": [
+                        {
+                            "rel": "item",
+                            "href": "item1/item1.json",
+                            "alternate": {
+                                "original": {"href": "https://example.com/item.json"},
+                                "original-1": {"href": "https://oeo.test/original/path/to/item1.json"},
+                            },
+                        },
+                        {
+                            "rel": "derived_from",
+                            "href": "derived_from.json",
+                            "alternate": {
+                                "original": {"href": "https://example.com/df.json"},
+                                "original-1": {"href": "https://oeo.test/original/path/to/derived_from.json"},
+                            },
+                        },
+                    ],
+                }
+            ),
+            "item1/item1.json": dirty_equals.IsPartialDict(
+                {
+                    "id": "item1",
+                    "type": "Feature",
+                    "stac_version": "1.1.0",
+                    "assets": {
+                        "asset1": dirty_equals.IsPartialDict(
+                            {
+                                "href": "asset1.tiff",
+                                "alternate": {
+                                    "original": {"href": "https://example.com/asset.tiff"},
+                                    "original-1": {"href": "https://oeo.test/original/path/to/asset1.tiff"},
+                                },
+                            }
+                        ),
+                    },
+                }
+            ),
+            "item1/asset1.tiff": b"TIFF-DUMMY-DATA",
+            "derived_from.json": {"hello": "world"},
+        }
+        self.check_expected_downloads(downloaded=downloaded, expected=expected, tmp_path=tmp_path)

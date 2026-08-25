@@ -33,6 +33,7 @@ from openeo.rest import (
 from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import log_level_name
 from openeo.util import ensure_dir, ensure_parent_dir_for
+from openeo.utils.datastructure import make_new_key
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_502_BAD_GATEWAY,
@@ -691,6 +692,7 @@ class JobResults:
         target: Union[Path, str, None] = None,
         *,
         rewrite_references: bool = True,
+        add_original_hrefs: bool = False,
         download_derived_from: bool = False,
         download_collection_assets: bool = False,
         json_dump: Optional[dict] = None,
@@ -711,6 +713,7 @@ class JobResults:
         :param rewrite_references: whether to rewrite (item/asset/...) HREFs
             in the downloaded STAC documents to point to the local files
             instead of the original URLs.
+        :param add_original_hrefs: whether to add the original HREF URLs as "alternate" HREFs in the metadata
         :param download_derived_from: whether to download
             additional "derived_from" documents linked from the STAC collection.
         :param download_collection_assets: whether to download
@@ -726,6 +729,7 @@ class JobResults:
             job=self._job,
             target=target,
             rewrite_references=rewrite_references,
+            add_original_hrefs=add_original_hrefs,
             json_dump=json_dump,
             on_download_failure=on_download_failure,
             path_templates=path_templates,
@@ -796,6 +800,7 @@ class _JobResultDownloader:
         job: BatchJob,
         target: Union[Path, str, None] = None,
         rewrite_references: bool = True,
+        add_original_hrefs: bool = False,
         json_dump: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
@@ -807,6 +812,7 @@ class _JobResultDownloader:
         if self._root_dir.exists() and not self._root_dir.is_dir():
             raise OpenEoClientException(f"Download target {self._root_dir} exists but isn't a folder.")
         self._rewrite_references = rewrite_references
+        self._add_original_hrefs = add_original_hrefs
         # TODO: also support passing a `json.dump`-style callable to customize json dumping
         self._json_dump = {"ensure_ascii": False, **(json_dump or {})}
         self._download_tracker = _DownloadTracker()
@@ -923,10 +929,7 @@ class _JobResultDownloader:
                 with self._download_attempt_context(name=f"item {link=}"):
                     path = self._download_item(href=link["href"])
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
-                        link["href"] = rel_path
-
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
             elif link["rel"] in extra_rels:
                 with self._download_attempt_context(name=f"link {link=}"):
                     path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
@@ -935,9 +938,7 @@ class _JobResultDownloader:
                     logger.debug(f"Downloaded link {self._redact(link)=} to {path=}")
                     self._download_tracker.register(path)
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
-                        link["href"] = rel_path
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
 
         if download_collection_assets:
             for asset_key, asset in result_metadata.get("assets", {}).items():
@@ -946,9 +947,7 @@ class _JobResultDownloader:
                         asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
                     )
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting STAC Collection asset {asset_key=} href to local {rel_path=}")
-                        asset["href"] = rel_path
+                        self._rewrite_href(obj=asset, path=path, relative_to=result_metadata_path)
 
         if self._rewrite_references:
             # Rewrite the root collection metadata with updated references
@@ -958,6 +957,16 @@ class _JobResultDownloader:
         self._download_tracker.register(result_metadata_path)
 
         return self._download_tracker.paths
+
+    def _rewrite_href(self, obj: dict, path: Path, relative_to: Path):
+        """Rewrite (in-place) href of given object."""
+        original = obj["href"]
+        rel_path = self._relative_to(target=path, doc=relative_to)
+        logger.debug(f"Rewriting href {rel_path=} (in {self._redact(obj)})")
+        obj["href"] = rel_path
+        if self._add_original_hrefs:
+            alternate = obj.setdefault("alternate", {})
+            alternate[make_new_key(alternate, "original")] = {"href": original}
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
@@ -973,9 +982,7 @@ class _JobResultDownloader:
                     asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_id
                 )
                 if self._rewrite_references:
-                    rel_path = self._relative_to(target=asset_path, doc=metadata_path)
-                    logger.debug(f"Rewriting asset {asset_key=} ({item_id=}) href to local {rel_path=}")
-                    asset["href"] = rel_path
+                    self._rewrite_href(obj=asset, path=asset_path, relative_to=metadata_path)
 
         if self._rewrite_references:
             logger.info(f"Update write of STAC Item {item_id!r} metadata to {metadata_path}")
