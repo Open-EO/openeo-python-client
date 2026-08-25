@@ -693,7 +693,7 @@ class JobResults:
         rewrite_references: bool = True,
         download_derived_from: bool = False,
         download_collection_assets: bool = False,
-        json_dumping: Optional[dict] = None,
+        json_dump: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
         redact_url_logging: bool = True,
@@ -715,9 +715,9 @@ class JobResults:
             additional "derived_from" documents linked from the STAC collection.
         :param download_collection_assets: whether to download
             the STAC Collection level assets in addition to assets from linked STAC Items.
-        :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files.
+        :param json_dump: kwargs to finetune json.dump when writing STAC metadata files.
         :param on_download_failure: how to handle download failures, one of "warn" or "raise".
-        :param path_templates: optional template overrides for download paths.
+        :param path_templates: optional dictionary of template overrides for download paths.
         :param redact_url_logging: whether to redact (possibly sensitive) query parameters from URLs in logging,
 
         .. versionadded:: 0.52.0
@@ -726,7 +726,7 @@ class JobResults:
             job=self._job,
             target=target,
             rewrite_references=rewrite_references,
-            json_dumping=json_dumping,
+            json_dump=json_dump,
             on_download_failure=on_download_failure,
             path_templates=path_templates,
             redact_url_logging=redact_url_logging,
@@ -796,7 +796,7 @@ class _JobResultDownloader:
         job: BatchJob,
         target: Union[Path, str, None] = None,
         rewrite_references: bool = True,
-        json_dumping: Optional[dict] = None,
+        json_dump: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
         redact_url_logging: bool = True,
@@ -808,7 +808,7 @@ class _JobResultDownloader:
             raise OpenEoClientException(f"Download target {self._root_dir} exists but isn't a folder.")
         self._rewrite_references = rewrite_references
         # TODO: also support passing a `json.dump`-style callable to customize json dumping
-        self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
+        self._json_dump = {"ensure_ascii": False, **(json_dump or {})}
         self._download_tracker = _DownloadTracker()
         self._on_download_failure = on_download_failure
         self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
@@ -819,7 +819,7 @@ class _JobResultDownloader:
         path = Path(path)
         ensure_parent_dir_for(path)
         with open(path, mode="w", encoding="utf-8") as f:
-            json.dump(obj=data, fp=f, **self._json_dumping)
+            json.dump(obj=data, fp=f, **self._json_dump)
         return path
 
     @contextlib.contextmanager
