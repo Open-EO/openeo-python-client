@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import contextlib
 import copy
 import datetime
@@ -32,6 +33,7 @@ from openeo.rest import (
 from openeo.rest.models.general import LogsResponse
 from openeo.rest.models.logs import log_level_name
 from openeo.util import ensure_dir, ensure_parent_dir_for
+from openeo.utils.datastructure import make_new_key
 from openeo.utils.events import EVENTS
 from openeo.utils.http import (
     HTTP_502_BAD_GATEWAY,
@@ -418,6 +420,14 @@ def _filename_from_url(url: str, *, full: bool = False) -> str:
     return "/".join(parts)
 
 
+def _filename_extension_from_url(url: str, *, fallback: str = "", all: bool = False) -> str:
+    filename = _filename_from_url(url)
+    if all:
+        return "".join(Path(filename).suffixes) or fallback
+    else:
+        return Path(filename).suffix or fallback
+
+
 _MEDIA_TYPE_EXTENSION_MAP = {
     "image/tiff": ".tiff",
     "image/tiff; application=geotiff": ".tiff",
@@ -685,9 +695,10 @@ class JobResults:
         target: Union[Path, str, None] = None,
         *,
         rewrite_references: bool = True,
+        add_original_hrefs: bool = False,
         download_derived_from: bool = False,
         download_collection_assets: bool = False,
-        json_dumping: Optional[dict] = None,
+        json_dump: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
         redact_url_logging: bool = True,
@@ -705,13 +716,14 @@ class JobResults:
         :param rewrite_references: whether to rewrite (item/asset/...) HREFs
             in the downloaded STAC documents to point to the local files
             instead of the original URLs.
+        :param add_original_hrefs: whether to add the original HREF URLs as "alternate" HREFs in the metadata
         :param download_derived_from: whether to download
             additional "derived_from" documents linked from the STAC collection.
         :param download_collection_assets: whether to download
             the STAC Collection level assets in addition to assets from linked STAC Items.
-        :param json_dumping: kwargs to finetune json.dump when writing STAC metadata files.
+        :param json_dump: kwargs to finetune json.dump when writing STAC metadata files.
         :param on_download_failure: how to handle download failures, one of "warn" or "raise".
-        :param path_templates: optional template overrides for download paths.
+        :param path_templates: optional dictionary of template overrides for download paths.
         :param redact_url_logging: whether to redact (possibly sensitive) query parameters from URLs in logging,
 
         .. versionadded:: 0.52.0
@@ -720,7 +732,8 @@ class JobResults:
             job=self._job,
             target=target,
             rewrite_references=rewrite_references,
-            json_dumping=json_dumping,
+            add_original_hrefs=add_original_hrefs,
+            json_dump=json_dump,
             on_download_failure=on_download_failure,
             path_templates=path_templates,
             redact_url_logging=redact_url_logging,
@@ -758,8 +771,10 @@ class _DownloadTracker:
 
 class _JobResultDownloader:
     """
-    Helper class to download batch job results as a STAC collection (openEO API 1.1 style):
-    recursively walking through items, assets and additional linked metadata.
+    Helper class to download batch job results
+    as a local, self-contained STAC collection (openEO API 1.1 style):
+    recursively walking through items, assets, additional linked metadata, etc.,
+    and rewriting the related links accordingly.
 
     .. warning:: this is an experimental API, subject to change.
 
@@ -788,7 +803,8 @@ class _JobResultDownloader:
         job: BatchJob,
         target: Union[Path, str, None] = None,
         rewrite_references: bool = True,
-        json_dumping: Optional[dict] = None,
+        add_original_hrefs: bool = False,
+        json_dump: Optional[dict] = None,
         on_download_failure: Literal["warn", "raise"] = "warn",
         path_templates: Optional[dict] = None,
         redact_url_logging: bool = True,
@@ -799,18 +815,20 @@ class _JobResultDownloader:
         if self._root_dir.exists() and not self._root_dir.is_dir():
             raise OpenEoClientException(f"Download target {self._root_dir} exists but isn't a folder.")
         self._rewrite_references = rewrite_references
+        self._add_original_hrefs = add_original_hrefs
         # TODO: also support passing a `json.dump`-style callable to customize json dumping
-        self._json_dumping = {"ensure_ascii": False, **(json_dumping or {})}
+        self._json_dump = {"ensure_ascii": False, **(json_dump or {})}
         self._download_tracker = _DownloadTracker()
         self._on_download_failure = on_download_failure
         self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
         self._redact = get_url_query_param_stripper(redact_url_logging)
+        self._auto_increment_counters: Dict[str, int] = collections.defaultdict(int)
 
     def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
         path = Path(path)
         ensure_parent_dir_for(path)
         with open(path, mode="w", encoding="utf-8") as f:
-            json.dump(obj=data, fp=f, **self._json_dumping)
+            json.dump(obj=data, fp=f, **self._json_dump)
         return path
 
     @contextlib.contextmanager
@@ -833,6 +851,8 @@ class _JobResultDownloader:
         vars = {
             "job_id": _sanitize_filename(self._job.job_id),
             "collection_id": _sanitize_filename(collection_id),
+            "auto_increment": self._auto_increment_id("collection"),
+            "extension": ".json",
         }
         return self._root_dir / self._path_templates["collection"].format(**vars)
 
@@ -841,6 +861,8 @@ class _JobResultDownloader:
         vars = {
             "job_id": _sanitize_filename(self._job.job_id),
             "item_id": _sanitize_filename(item_id),
+            "auto_increment": self._auto_increment_id("item"),
+            "extension": ".json",
         }
         return self._root_dir / self._path_templates["item"].format(**vars)
 
@@ -850,6 +872,10 @@ class _JobResultDownloader:
             "job_id": _sanitize_filename(self._job.job_id),
             "asset_key": _sanitize_filename(asset_key),
             "asset_filename": _filename_from_url(asset_href, full=False),
+            # TODO: separate pool for item- and collection-assets?
+            "auto_increment": self._auto_increment_id("asset"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(asset_href),
         }
         if item_id:
             vars["item_id"] = _sanitize_filename(item_id)
@@ -862,8 +888,16 @@ class _JobResultDownloader:
             "job_id": _sanitize_filename(self._job.job_id),
             "rel": _sanitize_filename(rel),
             "filename": _filename_from_url(href, full=False),
+            "auto_increment": self._auto_increment_id("generic"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(href),
         }
         return self._root_dir / self._path_templates["generic-link"].format(**vars)
+
+    def _auto_increment_id(self, pool: str) -> int:
+        """Generate auto-incrementing ID within a given pool of entity types."""
+        self._auto_increment_counters[pool] += 1
+        return self._auto_increment_counters[pool]
 
     def _relative_to(self, target: Path, doc: Path) -> str:
         """Get relative reference to target to be used from given document"""
@@ -898,10 +932,7 @@ class _JobResultDownloader:
                 with self._download_attempt_context(name=f"item {link=}"):
                     path = self._download_item(href=link["href"])
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
-                        link["href"] = rel_path
-
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
             elif link["rel"] in extra_rels:
                 with self._download_attempt_context(name=f"link {link=}"):
                     path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
@@ -910,9 +941,7 @@ class _JobResultDownloader:
                     logger.debug(f"Downloaded link {self._redact(link)=} to {path=}")
                     self._download_tracker.register(path)
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting link {self._redact(link)=} href to local {rel_path=}")
-                        link["href"] = rel_path
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
 
         if download_collection_assets:
             for asset_key, asset in result_metadata.get("assets", {}).items():
@@ -921,9 +950,7 @@ class _JobResultDownloader:
                         asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
                     )
                     if self._rewrite_references:
-                        rel_path = self._relative_to(target=path, doc=result_metadata_path)
-                        logger.debug(f"Rewriting STAC Collection asset {asset_key=} href to local {rel_path=}")
-                        asset["href"] = rel_path
+                        self._rewrite_href(obj=asset, path=path, relative_to=result_metadata_path)
 
         if self._rewrite_references:
             # Rewrite the root collection metadata with updated references
@@ -933,6 +960,19 @@ class _JobResultDownloader:
         self._download_tracker.register(result_metadata_path)
 
         return self._download_tracker.paths
+
+    def _rewrite_href(self, obj: dict, path: Path, relative_to: Path):
+        """Rewrite (in-place) href of given object."""
+        original = obj["href"]
+        rel_path = self._relative_to(target=path, doc=relative_to)
+        logger.debug(f"Rewriting href {rel_path=} (in {self._redact(obj)})")
+        obj["href"] = rel_path
+        if self._add_original_hrefs:
+            alternate = obj.setdefault("alternate", {})
+            if isinstance(alternate, dict):
+                alternate[make_new_key(alternate, "original")] = {"href": original}
+            else:
+                logger.warning(f"Failed to add original href to {self._redact(obj)} with non-dict 'alternate' field")
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
@@ -948,9 +988,7 @@ class _JobResultDownloader:
                     asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_id
                 )
                 if self._rewrite_references:
-                    rel_path = self._relative_to(target=asset_path, doc=metadata_path)
-                    logger.debug(f"Rewriting asset {asset_key=} ({item_id=}) href to local {rel_path=}")
-                    asset["href"] = rel_path
+                    self._rewrite_href(obj=asset, path=asset_path, relative_to=metadata_path)
 
         if self._rewrite_references:
             logger.info(f"Update write of STAC Item {item_id!r} metadata to {metadata_path}")

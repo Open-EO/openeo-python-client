@@ -169,3 +169,59 @@ class TestJobResultCollectionMocker:
         )
         with pytest.raises(OpenEoRestError, match=re.escape("[500] Nope!")):
             con120.get("https://oeo.test/j/job-456/r/a/asset-678.tif")
+
+    def test_link_extra(self, requests_mock, con120):
+        result_mocker = JobResultCollectionMocker(requests_mock=requests_mock, connection=con120)
+        result_mocker.setup_job_results(
+            job_id="job-456",
+            items={
+                "item-567": {
+                    "assets": {
+                        "asset-678": {
+                            "path": "asset-678.tif",
+                            "extra": {"alternate": {"upstream": {"href": "https://example.com/upstream.tiff"}}},
+                        }
+                    },
+                    "link_extra": {"alternate": {"upstream": {"href": "https://example.com/upstream.json"}}},
+                }
+            },
+        )
+
+        job = con120.job("job-456")
+        assert job.get_results().get_metadata() == dirty_equals.IsPartialDict(
+            {
+                "type": "Collection",
+                "stac_version": "1.1.0",
+                "id": "job-456-results",
+                "links": [
+                    {
+                        "rel": "item",
+                        "href": "https://oeo.test/j/job-456/r/i/item-567.json",
+                        "alternate": {"upstream": {"href": "https://example.com/upstream.json"}},
+                    }
+                ],
+                "assets": {
+                    "item-567-asset-678": {
+                        "href": "https://oeo.test/j/job-456/r/a/asset-678.tif",
+                        "roles": ["data"],
+                        "type": "image/tiff; application=geotiff",
+                        "alternate": {"upstream": {"href": "https://example.com/upstream.tiff"}},
+                    }
+                },
+            }
+        )
+        assert con120.get("https://oeo.test/j/job-456/r/i/item-567.json").json() == dirty_equals.IsPartialDict(
+            {
+                "type": "Feature",
+                "stac_version": "1.1.0",
+                "id": "item-567",
+                "assets": {
+                    "asset-678": {
+                        "href": "https://oeo.test/j/job-456/r/a/asset-678.tif",
+                        "roles": ["data"],
+                        "type": "image/tiff; application=geotiff",
+                        "alternate": {"upstream": {"href": "https://example.com/upstream.tiff"}},
+                    }
+                },
+            }
+        )
