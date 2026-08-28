@@ -1373,12 +1373,14 @@ def test_filename_extension_from_url():
     assert _filename_extension_from_url("foo/bar.txt") == ".txt"
     assert _filename_extension_from_url("/foo/bar.txt") == ".txt"
     assert _filename_extension_from_url("https://example.com/foo/bar.tiff") == ".tiff"
-    assert _filename_extension_from_url("https://example.com/foo/bar.tar.gz") == ".tar.gz"
     assert _filename_extension_from_url("https://example.com/foo/bar.txt?q=1&r=2#frag") == ".txt"
     assert _filename_extension_from_url("https://example.com/foo/ba%CF%83.%CF%84x%CF%84") == ".τxτ"
     assert _filename_extension_from_url("https://example.com/foo/bar") == ""
     assert _filename_extension_from_url("https://example.com/foo/bar/") == ""
     assert _filename_extension_from_url("https://example.com/") == ""
+
+    assert _filename_extension_from_url("https://example.com/foo/bar.tar.gz") == ".gz"
+    assert _filename_extension_from_url("https://example.com/foo/bar.tar.gz", all=True) == ".tar.gz"
 
     assert _filename_extension_from_url("https://example.com/foo/bar", fallback=".data") == ".data"
     assert _filename_extension_from_url("https://example.com/foo/bar.txt", fallback=".data") == ".txt"

@@ -420,9 +420,12 @@ def _filename_from_url(url: str, *, full: bool = False) -> str:
     return "/".join(parts)
 
 
-def _filename_extension_from_url(url: str, *, fallback: str = "") -> str:
+def _filename_extension_from_url(url: str, *, fallback: str = "", all: bool = False) -> str:
     filename = _filename_from_url(url)
-    return "".join(Path(filename).suffixes) or fallback
+    if all:
+        return "".join(Path(filename).suffixes) or fallback
+    else:
+        return Path(filename).suffix or fallback
 
 
 _MEDIA_TYPE_EXTENSION_MAP = {
@@ -966,7 +969,10 @@ class _JobResultDownloader:
         obj["href"] = rel_path
         if self._add_original_hrefs:
             alternate = obj.setdefault("alternate", {})
-            alternate[make_new_key(alternate, "original")] = {"href": original}
+            if isinstance(alternate, dict):
+                alternate[make_new_key(alternate, "original")] = {"href": original}
+            else:
+                logger.warning(f"Failed to add original href to {self._redact(obj)} with non-dict 'alternate' field")
 
     def _download_item(self, href: str) -> Path:
         item: dict = self._connection.get(href, expected_status=200).json()
