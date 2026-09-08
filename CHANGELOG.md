@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.52.0] - 2026-09-08
+
+### Added
+
 - Added `AGENTS.md` with guidance for AI coding agents contributing to this project, including a request to disclose AI assistance in PRs ([#923](https://github.com/Open-EO/openeo-python-client/issues/923))
 - Add a `py.typed` to indicate to type checkers that the package contains type annotations.
 - Support document based "derived_from" links in `openeo.testing.results` ([#928](https://github.com/Open-EO/openeo-python-client/issues/928))
@@ -18,12 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Lookup collection queryables only when property filtering is actually used in `load_collection` ([#926](https://github.com/Open-EO/openeo-python-client/issues/926))
 
-### Removed
-
 ### Fixed
 
 - Clarify UDF documentation on required function type annotations. ([#757](https://github.com/Open-EO/openeo-python-client/issues/757))
 - `OidcProviderInfo` no longer drops requested OIDC scopes (including the "offline_access" scope used for refresh tokens) that are not listed in the provider's `scopes_supported` discovery field, which made it impossible to authenticate against such providers. ([#930](https://github.com/Open-EO/openeo-python-client/issues/930))
+
 
 ## [0.51.0] - 2026-07-16
 
