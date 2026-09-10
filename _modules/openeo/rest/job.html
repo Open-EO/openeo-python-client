@@ -1,0 +1,1575 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.rest.job &#8212; openEO Python Client 0.53.0a1 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=cb8930eaaf36d9849b67" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=cb8930eaaf36d9849b67" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../_static/scripts/fontawesome.js?digest=cb8930eaaf36d9849b67"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=cb8930eaaf36d9849b67" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=cb8930eaaf36d9849b67" />
+
+    <script src="../../../_static/documentation_options.js?v=ba55c9f8"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/openeo/rest/job';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.53" />
+    <meta name="docbuild:last-update" content="2026/09/10"/>
+  
+    
+    <script src="../../../_static/searchtools.js"></script>
+    <script src="../../../_static/language_data.js"></script>
+    <script src="../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.53.0a1</code></div>
+  <div>Last updated: 2026/09/10</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">openeo.rest.job</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for openeo.rest.job</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">collections</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os.path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">typing</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.parse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Container</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.documentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">openeo_endpoint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.jupyter</span><span class="w"> </span><span class="kn">import</span> <span class="n">VisualDict</span><span class="p">,</span> <span class="n">render_component</span><span class="p">,</span> <span class="n">render_error</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.internal.warnings</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span><span class="p">,</span> <span class="n">legacy_alias</span><span class="p">,</span> <span class="n">user_deprecation_warning</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span>
+    <span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+    <span class="n">DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX</span><span class="p">,</span>
+    <span class="n">JobFailedException</span><span class="p">,</span>
+    <span class="n">OpenEoApiError</span><span class="p">,</span>
+    <span class="n">OpenEoApiPlainError</span><span class="p">,</span>
+    <span class="n">OpenEoClientException</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.general</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogsResponse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.models.logs</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_level_name</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_dir</span><span class="p">,</span> <span class="n">ensure_parent_dir_for</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.datastructure</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_new_key</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.events</span><span class="w"> </span><span class="kn">import</span> <span class="n">EVENTS</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.http</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HTTP_502_BAD_GATEWAY</span><span class="p">,</span>
+    <span class="n">HTTP_503_SERVICE_UNAVAILABLE</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_url_query_param_stripper</span>
+
+<span class="k">if</span> <span class="n">typing</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># Imports for type checking only (circular import issue at runtime).</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.rest.connection</span><span class="w"> </span><span class="kn">import</span> <span class="n">Connection</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">DEFAULT_JOB_RESULTS_FILENAME</span> <span class="o">=</span> <span class="s2">"job-results.json"</span>
+
+
+<div class="viewcode-block" id="BatchJob">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BatchJob</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.</span>
+
+<span class="sd">    .. versionadded:: 0.11.0</span>
+<span class="sd">        This class originally had the more cryptic name :py:class:`RESTJob`,</span>
+<span class="sd">        which is still available as legacy alias,</span>
+<span class="sd">        but :py:class:`BatchJob` is recommended since version 0.11.0.</span>
+
+<span class="sd">    """</span>
+
+    <span class="c1"># TODO #425 method to bootstrap `load_stac` directly from a BatchJob object</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="n">Connection</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+<span class="w">        </span><span class="sd">"""Unique identifier of the batch job (string)."""</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"&lt;</span><span class="si">{c}</span><span class="s2"> job_id=</span><span class="si">{i!r}</span><span class="s2">&gt;"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+        <span class="n">capabilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span>
+            <span class="s2">"job"</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+            <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">"currency"</span><span class="p">:</span> <span class="n">capabilities</span><span class="o">.</span><span class="n">currency</span><span class="p">(),</span>
+                <span class="s2">"federation"</span><span class="p">:</span> <span class="n">capabilities</span><span class="o">.</span><span class="n">ext_federation_backend_details</span><span class="p">(),</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.describe">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.describe">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">"GET /jobs/</span><span class="si">{job_id}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get detailed metadata about a submitted batch job</span>
+<span class="sd">        (title, process graph, status, progress, ...).</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`describe_job`.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+    <span class="n">describe_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">describe</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"describe_job"</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">"0.20.0"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"soft"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.status">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get the status of the batch job</span>
+
+<span class="sd">        :return: batch job status, one of "created", "queued", "running", "canceled", "finished" or "error".</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">,</span> <span class="s2">"N/A"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.delete">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.delete">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">"DELETE /jobs/</span><span class="si">{job_id}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Delete this batch job.</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`delete_job`.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span></div>
+
+
+    <span class="n">delete_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">delete</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"delete_job"</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">"0.20.0"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"soft"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.estimate">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.estimate">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">"GET /jobs/</span><span class="si">{job_id}</span><span class="s2">/estimate"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">estimate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Calculate time/cost estimate for a job."""</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/estimate"</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">currency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">capabilities</span><span class="p">()</span><span class="o">.</span><span class="n">currency</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">VisualDict</span><span class="p">(</span><span class="s2">"job-estimate"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">"currency"</span><span class="p">:</span> <span class="n">currency</span><span class="p">})</span></div>
+
+
+    <span class="n">estimate_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">estimate</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"estimate_job"</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">"0.20.0"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"soft"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.start">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.start">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">"POST /jobs/</span><span class="si">{job_id}</span><span class="s2">/results"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Start this batch job.</span>
+
+<span class="sd">        :return: Started batch job</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`start_job`.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results"</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">202</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">EVENTS</span><span class="o">.</span><span class="n">JOB_STARTED</span><span class="p">,</span> <span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="n">start_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"start_job"</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">"0.20.0"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"soft"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.stop">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.stop">[docs]</a>
+    <span class="nd">@openeo_endpoint</span><span class="p">(</span><span class="s2">"DELETE /jobs/</span><span class="si">{job_id}</span><span class="s2">/results"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Stop this batch job.</span>
+
+<span class="sd">        .. versionadded:: 0.20.0</span>
+<span class="sd">            This method was previously called :py:meth:`stop_job`.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results"</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">204</span><span class="p">)</span></div>
+
+
+    <span class="n">stop_job</span> <span class="o">=</span> <span class="n">legacy_alias</span><span class="p">(</span><span class="n">stop</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"stop_job"</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="s2">"0.20.0"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"soft"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BatchJob.get_results_metadata_url">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_results_metadata_url">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_results_metadata_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get results metadata URL"""</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/results"</span>
+        <span class="k">if</span> <span class="n">full</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">build_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">url</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.list_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.list_results">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">"Use :py:meth:`~BatchJob.get_results` instead."</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"0.4.10"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get batch job results metadata."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.download_result">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.download_result">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download single job result to the target file path or into folder (current working dir by default).</span>
+
+<span class="sd">        Fails if there are multiple result files.</span>
+
+<span class="sd">        :param target: String or path where the file should be downloaded to.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.download_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.download_results">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span>
+        <span class="s2">"Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`"</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">"0.4.10"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download all job result files into given folder (current working dir by default).</span>
+
+<span class="sd">        The names of the files are taken directly from the backend.</span>
+
+<span class="sd">        :param target: String/path, folder where to put the result files.</span>
+<span class="sd">        :return: file_list: Dict containing the downloaded file path as value and asset metadata</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_result</span><span class="p">()</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="n">target</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.get_result">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_result">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">"Use :py:meth:`BatchJob.get_results` instead."</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"0.4.10"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_result</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_Result</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.get_results">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.get_results">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JobResults</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get handle to batch job results for result metadata inspection or downloading resulting assets.</span>
+
+<span class="sd">        .. versionadded:: 0.4.10</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">JobResults</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.logs">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.logs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LogsResponse</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retrieve job logs.</span>
+
+<span class="sd">        :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.</span>
+
+<span class="sd">            If provided, the back-ends only sends the entries that occurred after the specified identifier.</span>
+<span class="sd">            If not provided or empty, start with the first entry.</span>
+
+<span class="sd">            Defaults to None.</span>
+
+<span class="sd">        :param level: Minimum log level to retrieve.</span>
+
+<span class="sd">            You can use either constants from Python's standard module ``logging``</span>
+<span class="sd">            or their names (case-insensitive).</span>
+
+<span class="sd">            For example:</span>
+<span class="sd">                ``logging.INFO``, ``"info"`` or ``"INFO"`` can all be used to show the messages</span>
+<span class="sd">                for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and</span>
+<span class="sd">                ``logging.ERROR`` will be included.</span>
+
+<span class="sd">            Default is to show all log levels, in other words ``logging.DEBUG``.</span>
+<span class="sd">            This is also the result when you explicitly pass log_level=None or log_level="".</span>
+
+<span class="sd">        :return: A list containing the log entries for the batch job.</span>
+<span class="sd">        """</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"/jobs/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs"</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">offset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">"offset"</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">"level"</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_level_name</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">LogsResponse</span><span class="p">(</span><span class="n">response_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.run_synchronous">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.run_synchronous">[docs]</a>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="s2">"Use start_and_wait instead"</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"0.39.0"</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_synchronous</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outputfile</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+        <span class="n">max_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+        <span class="n">connection_retry_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+        <span class="n">show_error_logs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Start the job, wait for it to finish and download result</span>
+
+<span class="sd">        :param outputfile: (optional) output path to download to.</span>
+<span class="sd">        :param print: print/logging function to show progress/status</span>
+<span class="sd">        :param max_poll_interval: maximum number of seconds to sleep between job status polls</span>
+<span class="sd">        :param connection_retry_interval: how long to wait when status poll failed due to connection issue</span>
+<span class="sd">        :param show_error_logs: whether to automatically print error logs when the batch job failed.</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``show_error_logs``.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">(</span>
+            <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+            <span class="n">max_poll_interval</span><span class="o">=</span><span class="n">max_poll_interval</span><span class="p">,</span>
+            <span class="n">connection_retry_interval</span><span class="o">=</span><span class="n">connection_retry_interval</span><span class="p">,</span>
+            <span class="n">show_error_logs</span><span class="o">=</span><span class="n">show_error_logs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># TODO #135 support multi file result sets too?</span>
+        <span class="k">if</span> <span class="n">outputfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">download_result</span><span class="p">(</span><span class="n">outputfile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="BatchJob.start_and_wait">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.BatchJob.start_and_wait">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">start_and_wait</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="nb">print</span><span class="o">=</span><span class="nb">print</span><span class="p">,</span>
+        <span class="n">max_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX</span><span class="p">,</span>
+        <span class="n">connection_retry_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL</span><span class="p">,</span>
+        <span class="n">soft_error_max</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX</span><span class="p">,</span>
+        <span class="n">show_error_logs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">require_success</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchJob</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Start the batch job, poll its status and wait till it finishes (or fails)</span>
+
+<span class="sd">        :param print: print/logging function to show progress/status</span>
+<span class="sd">        :param max_poll_interval: maximum number of seconds to sleep between job status polls</span>
+<span class="sd">        :param connection_retry_interval: how long to wait when status poll failed due to connection issue</span>
+<span class="sd">        :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow</span>
+<span class="sd">        :param show_error_logs: whether to automatically print error logs when the batch job failed.</span>
+<span class="sd">        :param require_success: whether to raise an exception if the job did not finish successfully.</span>
+
+<span class="sd">        :return: Handle to the job created at the backend.</span>
+
+<span class="sd">        .. versionchanged:: 0.37.0</span>
+<span class="sd">            Added argument ``show_error_logs``.</span>
+
+<span class="sd">        .. versionchanged:: 0.42.0</span>
+<span class="sd">            All arguments must be specified as keyword arguments,</span>
+<span class="sd">            to eliminate the risk of positional mix-ups between heterogeneous arguments and flags.</span>
+
+<span class="sd">        .. versionchanged:: 0.42.0</span>
+<span class="sd">            Added argument ``require_success``.</span>
+<span class="sd">        """</span>
+        <span class="c1"># TODO rename `connection_retry_interval` to something more generic?</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">elapsed</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">))</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"."</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">print_status</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="si">{t}</span><span class="s2"> Job </span><span class="si">{i!r}</span><span class="s2">: </span><span class="si">{m}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="o">=</span><span class="n">elapsed</span><span class="p">(),</span> <span class="n">i</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="c1"># TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?</span>
+        <span class="n">print_status</span><span class="p">(</span><span class="s2">"send 'start'"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+        <span class="c1"># TODO: also add  `wait` method so you can track a job that already has started explicitly</span>
+        <span class="c1">#   or just rename this method to `wait` and automatically do start if not started yet?</span>
+
+        <span class="c1"># Start with fast polling.</span>
+        <span class="n">poll_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">_soft_error_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">soft_error</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">"""Non breaking error (unless we had too much of them)"""</span>
+            <span class="k">nonlocal</span> <span class="n">_soft_error_count</span>
+            <span class="n">_soft_error_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">_soft_error_count</span> <span class="o">&gt;</span> <span class="n">soft_error_max</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">"Excessive soft errors"</span><span class="p">)</span>
+            <span class="n">print_status</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">connection_retry_interval</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># TODO: also allow a hard time limit on this infinite poll loop?</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">soft_error</span><span class="p">(</span><span class="s2">"Connection error while polling job status: </span><span class="si">{e}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="k">except</span> <span class="n">OpenEoApiPlainError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">http_status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="n">HTTP_502_BAD_GATEWAY</span><span class="p">,</span> <span class="n">HTTP_503_SERVICE_UNAVAILABLE</span><span class="p">]:</span>
+                    <span class="n">soft_error</span><span class="p">(</span><span class="s2">"Service availability error while polling job status: </span><span class="si">{e}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="n">job_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">,</span> <span class="s2">"N/A"</span><span class="p">)</span>
+
+            <span class="n">progress</span> <span class="o">=</span> <span class="n">job_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"progress"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">progress</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">%"</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">progress</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%"</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="s2">"N/A"</span>
+            <span class="n">print_status</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> (progress </span><span class="si">{</span><span class="n">progress</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"submitted"</span><span class="p">,</span> <span class="s2">"created"</span><span class="p">,</span> <span class="s2">"queued"</span><span class="p">,</span> <span class="s2">"running"</span><span class="p">):</span>
+                <span class="k">break</span>
+
+            <span class="c1"># Sleep for next poll (and adaptively make polling less frequent)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">poll_interval</span><span class="p">)</span>
+            <span class="n">poll_interval</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.25</span> <span class="o">*</span> <span class="n">poll_interval</span><span class="p">,</span> <span class="n">max_poll_interval</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">require_success</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">!=</span> <span class="s2">"finished"</span><span class="p">:</span>
+            <span class="c1"># TODO: render logs jupyter-aware in a notebook context?</span>
+            <span class="k">if</span> <span class="n">show_error_logs</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Your batch job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> failed. Error logs:"</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">))</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Full logs can be inspected in an openEO (web) editor or with `connection.job(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2">).logs()`."</span>
+                <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">JobFailedException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Batch job </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> didn't finish successfully. Status: </span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s2"> (after </span><span class="si">{</span><span class="n">elapsed</span><span class="p">()</span><span class="si">}</span><span class="s2">)."</span><span class="p">,</span>
+                <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="RESTJob">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.RESTJob">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">"Use :py:class:`BatchJob` instead"</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"0.11.0"</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RESTJob</span><span class="p">(</span><span class="n">BatchJob</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Legacy alias for :py:class:`BatchJob`.</span>
+<span class="sd">    """</span></div>
+
+
+
+<span class="n">FILENAME_UNSAFE_REGEX</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[^\w_.-]+"</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_sanitize_filename</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">replacement</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span> <span class="n">invalid</span><span class="p">:</span> <span class="n">Container</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">((</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"."</span><span class="p">,</span> <span class="s2">".."</span><span class="p">))</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Sanitize a string (strip/replace risky characters)</span>
+<span class="sd">    so that it can be safely used as file or folder name.</span>
+<span class="sd">    """</span>
+    <span class="n">sanitized</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">sanitized</span> <span class="o">=</span> <span class="n">FILENAME_UNSAFE_REGEX</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">replacement</span><span class="p">,</span> <span class="n">sanitized</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sanitized</span> <span class="ow">in</span> <span class="n">invalid</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid file/folder name </span><span class="si">{</span><span class="n">sanitized</span><span class="si">!r}</span><span class="s2"> (sanitized from </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">)"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sanitized</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filename_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Try to extract a filename from a URL (based on the path),</span>
+<span class="sd">    with sanitization of risky characters,</span>
+<span class="sd">    and option to only get the final part (basename) or the full path.</span>
+<span class="sd">    """</span>
+    <span class="n">parsed</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">unquote</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">full</span><span class="p">:</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span> <span class="k">if</span> <span class="n">p</span><span class="p">]</span>
+    <span class="k">return</span> <span class="s2">"/"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_filename_extension_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fallback</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span> <span class="nb">all</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">_filename_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">suffixes</span><span class="p">)</span> <span class="ow">or</span> <span class="n">fallback</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span> <span class="ow">or</span> <span class="n">fallback</span>
+
+
+<span class="n">_MEDIA_TYPE_EXTENSION_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"image/tiff"</span><span class="p">:</span> <span class="s2">".tiff"</span><span class="p">,</span>
+    <span class="s2">"image/tiff; application=geotiff"</span><span class="p">:</span> <span class="s2">".tiff"</span><span class="p">,</span>
+    <span class="s2">"image/tiff; application=geotiff; profile=cloud-optimized"</span><span class="p">:</span> <span class="s2">".tiff"</span><span class="p">,</span>
+    <span class="s2">"application/x-netcdf"</span><span class="p">:</span> <span class="s2">".nc"</span><span class="p">,</span>
+    <span class="s2">"image/png"</span><span class="p">:</span> <span class="s2">".png"</span><span class="p">,</span>
+    <span class="s2">"application/json"</span><span class="p">:</span> <span class="s2">".json"</span><span class="p">,</span>
+    <span class="s2">"application/geo+json"</span><span class="p">:</span> <span class="s2">".json"</span><span class="p">,</span>
+    <span class="s2">"text/csv"</span><span class="p">:</span> <span class="s2">".csv"</span><span class="p">,</span>
+    <span class="s2">"x-gis/x-shapefile"</span><span class="p">:</span> <span class="s2">".shp"</span><span class="p">,</span>
+    <span class="s2">"application/geopackage+sqlite3"</span><span class="p">:</span> <span class="s2">".gpkg"</span><span class="p">,</span>
+    <span class="s2">"application/parquet; profile=geo"</span><span class="p">:</span> <span class="s2">".parquet"</span><span class="p">,</span>
+    <span class="s2">"application/zip+zarr"</span><span class="p">:</span> <span class="s2">".zarr"</span><span class="p">,</span>
+    <span class="s2">"application/zip"</span><span class="p">:</span> <span class="s2">".zip"</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="ResultAsset">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ResultAsset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Result asset of a batch job (e.g. a GeoTIFF or JSON file)</span>
+
+<span class="sd">    .. versionadded:: 0.4.10</span>
+
+<span class="sd">    .. versionchanged:: 0.51.0</span>
+<span class="sd">        Renamed argument ``name`` to ``key``</span>
+<span class="sd">    """</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"job"</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">,</span> <span class="s2">"href"</span><span class="p">,</span> <span class="s2">"media_type"</span><span class="p">,</span> <span class="s2">"metadata"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">href</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="c1"># TODO: the owning job is actually only used to obtain a Connection for downloading. Eliminate BatchJob as requirement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+
+        <span class="c1"># URL to the downloadable asset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">href</span> <span class="o">=</span> <span class="n">href</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"type"</span><span class="p">)</span>
+
+        <span class="c1"># Asset metadata provided by the backend, possibly containing keys "roles", "title", "description".</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"&lt;ResultAsset </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2"> (media type </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">media_type</span><span class="si">}</span><span class="s2">) at </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="si">!r}</span><span class="s2">&gt;"</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># TODO: remove this once users got enough time to migrate</span>
+        <span class="n">user_deprecation_warning</span><span class="p">(</span><span class="s2">"`ResultAsset.name` is deprecated and will be removed, use `ResultAsset.key` instead"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_make_filename</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Produce a filename for downloading the asset to</span>
+<span class="sd">        as fallback when user did not provide something,</span>
+<span class="sd">        based on: asset key (which is not guaranteed to consist of filename-safe characters)</span>
+<span class="sd">        and filename in href (if any)</span>
+<span class="sd">        """</span>
+
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">):</span>
+            <span class="c1"># Legacy mode: asset key already looks like a filename</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span>
+
+        <span class="c1"># Build filename from key, href's path (if any)</span>
+        <span class="c1"># and guess extension from media type if necessary</span>
+        <span class="n">sanitized_key</span> <span class="o">=</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">href_basename</span> <span class="o">=</span> <span class="n">_filename_from_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">sanitized_key</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">href_basename</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">".*\.[a-zA-Z0-9]{1,10}$"</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+            <span class="c1"># Extension seems missing, do media type based guess (best effort)</span>
+            <span class="k">if</span> <span class="n">extension</span> <span class="o">:=</span> <span class="n">_MEDIA_TYPE_EXTENSION_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">media_type</span><span class="p">):</span>
+                <span class="n">filename</span> <span class="o">+=</span> <span class="n">extension</span>
+        <span class="k">return</span> <span class="n">filename</span>
+
+<div class="viewcode-block" id="ResultAsset.download">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.download">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span>
+        <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">,</span>
+        <span class="c1"># TODO: original default here is no URL redacting, but reconsider  that?</span>
+        <span class="n">redact_url_logging</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download asset to given location</span>
+
+<span class="sd">        :param target: target path to download to.</span>
+<span class="sd">            Can be a path to file, or to an existing folder</span>
+<span class="sd">            (in which case the filename will be constructed</span>
+<span class="sd">            in best-effort fashion, based on available metadata)</span>
+<span class="sd">            By default, the working directory will be used.</span>
+<span class="sd">        :param chunk_size: chunk size for streaming response.</span>
+<span class="sd">        :param range_size: range size for ranged download.</span>
+<span class="sd">        :param redact_url_logging: whether to redact (possibly sensitive) query parameters in the logged URL.</span>
+<span class="sd">        """</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">target</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_filename</span><span class="p">()</span>
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">redact</span> <span class="o">=</span> <span class="n">get_url_query_param_stripper</span><span class="p">(</span><span class="n">redact_url_logging</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Downloading job result asset </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="si">!r}</span><span class="s2"> from </span><span class="si">{</span><span class="n">redact</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">)</span><span class="si">!s}</span><span class="s2"> to </span><span class="si">{</span><span class="n">target</span><span class="si">!s}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">download_url</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">range_size</span><span class="o">=</span><span class="n">range_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">target</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">href</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ResultAsset.load_json">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.load_json">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Load asset in memory and parse as JSON."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"application/json"</span><span class="p">,</span> <span class="s2">"application/geo+json"</span><span class="p">}:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Asset might not be JSON"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_response</span><span class="p">()</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ResultAsset.load_bytes">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.ResultAsset.load_bytes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Load asset in memory as raw bytes."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_response</span><span class="p">()</span><span class="o">.</span><span class="n">content</span></div>
+</div>
+
+
+    <span class="c1"># TODO: more `load` methods e.g.: load GTiff asset directly as numpy array</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MultipleAssetException</span><span class="p">(</span><span class="n">OpenEoClientException</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="JobResults">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobResults</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Results of a batch job: listing of one or more output files (assets)</span>
+<span class="sd">    and some metadata.</span>
+
+<span class="sd">    .. versionadded:: 0.4.10</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"&lt;JobResults for job </span><span class="si">{j!r}</span><span class="s2">&gt;"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">render_component</span><span class="p">(</span><span class="s2">"batch-job-result"</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">OpenEoApiError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render_error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+
+<div class="viewcode-block" id="JobResults.get_metadata">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_metadata">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get batch job results metadata (parsed JSON)"""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">force</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">get_results_metadata_url</span><span class="p">(),</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span></div>
+
+
+    <span class="c1"># TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?</span>
+
+<div class="viewcode-block" id="JobResults.get_assets">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_assets">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_assets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ResultAsset</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get all assets from the job results.</span>
+<span class="sd">        """</span>
+        <span class="c1"># TODO: add arguments to filter on metadata, e.g. to only get assets of type "image/tiff"</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+        <span class="c1"># API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)</span>
+        <span class="n">assets</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"assets"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">assets</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"No assets found in job result metadata."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">ResultAsset</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">href</span><span class="o">=</span><span class="n">asset</span><span class="p">[</span><span class="s2">"href"</span><span class="p">],</span> <span class="n">metadata</span><span class="o">=</span><span class="n">asset</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="JobResults.get_asset">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.get_asset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_asset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ResultAsset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get single asset by asset key or without key if there is only one.</span>
+<span class="sd">        """</span>
+        <span class="c1"># TODO: also support getting a single asset by type or role?</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="c1"># TODO: remove this legacy `name` support when users got enough time to migrate</span>
+            <span class="n">user_deprecation_warning</span><span class="p">(</span><span class="s2">"Argument `name` is deprecated and will be removed, use `key` instead."</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">name</span>
+            <span class="k">del</span> <span class="n">name</span>
+
+        <span class="n">assets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">assets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">"No assets in result."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">assets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">assets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">MultipleAssetException</span><span class="p">(</span>
+                    <span class="s2">"Multiple result assets for job </span><span class="si">{j}</span><span class="s2">: </span><span class="si">{a}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">key</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span><span class="p">])</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span> <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="s2">"No asset </span><span class="si">{k!r}</span><span class="s2"> in: </span><span class="si">{a}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">key</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">assets</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="JobResults.download_file">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.download_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span>
+        <span class="n">range_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_DOWNLOAD_RANGE_SIZE</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download single asset. Can be used when there is only one asset in the</span>
+<span class="sd">        :py:class:`JobResults`, or when the desired asset key is given explicitly.</span>
+
+<span class="sd">        :param target: target path to download to.</span>
+<span class="sd">            Can be a path to file, or to an existing folder</span>
+<span class="sd">            (in which case the filename will be constructed</span>
+<span class="sd">            in best-effort fashion, based on available metadata)</span>
+<span class="sd">            By default, the working directory will be used.</span>
+<span class="sd">        :param key: asset key to download (not required when there is only one asset)</span>
+<span class="sd">        :return: path of downloaded asset</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="c1"># TODO: remove this legacy `name` support when users got enough time to migrate</span>
+            <span class="n">user_deprecation_warning</span><span class="p">(</span><span class="s2">"Argument `name` is deprecated and will be removed, use `key` instead."</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">name</span>
+            <span class="k">del</span> <span class="n">name</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_asset</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">range_size</span><span class="o">=</span><span class="n">range_size</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">MultipleAssetException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span>
+                <span class="s2">"Can not use `download_file` with multiple assets. Use `download_files` instead."</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="JobResults.download_files">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.download_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_stac_metadata</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="o">=</span><span class="n">DEFAULT_DOWNLOAD_CHUNK_SIZE</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download all assets to given folder.</span>
+
+<span class="sd">        :param target: path to folder to download to (must be a folder if it already exists)</span>
+<span class="sd">        :param include_stac_metadata: whether to download the job result metadata as a STAC (JSON) file.</span>
+<span class="sd">        :return: list of paths to the downloaded assets.</span>
+<span class="sd">        """</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Target argument </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> exists but isn't a folder."</span><span class="p">)</span>
+        <span class="n">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+        <span class="n">downloaded</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()]</span>
+
+        <span class="k">if</span> <span class="n">include_stac_metadata</span><span class="p">:</span>
+            <span class="c1"># TODO #184: convention for metadata file name?</span>
+            <span class="n">metadata_file</span> <span class="o">=</span> <span class="n">target</span> <span class="o">/</span> <span class="n">DEFAULT_JOB_RESULTS_FILENAME</span>
+            <span class="c1"># TODO #184: rewrite references to locally downloaded assets?</span>
+            <span class="n">metadata_file</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()))</span>
+            <span class="n">downloaded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">downloaded</span></div>
+
+
+<div class="viewcode-block" id="JobResults.download_as_collection">
+<a class="viewcode-back" href="../../../api.html#openeo.rest.job.JobResults.download_as_collection">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_as_collection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">rewrite_references</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">add_original_hrefs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">download_derived_from</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">download_collection_assets</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">json_dump</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_download_failure</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"warn"</span><span class="p">,</span> <span class="s2">"raise"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"warn"</span><span class="p">,</span>
+        <span class="n">path_templates</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">redact_url_logging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download the job results as a self-contained STAC collection:</span>
+
+<span class="sd">        - job result metadata (the root STAC collection)</span>
+<span class="sd">        - linked STAC items: metadata and the result assets</span>
+<span class="sd">        - additionally linked metadata (e.g. "derived_from" documents)</span>
+
+<span class="sd">        .. warning:: this is an experimental API, subject to change.</span>
+
+<span class="sd">        :param target: folder path to download to</span>
+<span class="sd">        :param rewrite_references: whether to rewrite (item/asset/...) HREFs</span>
+<span class="sd">            in the downloaded STAC documents to point to the local files</span>
+<span class="sd">            instead of the original URLs.</span>
+<span class="sd">        :param add_original_hrefs: whether to add the original HREF URLs as "alternate" HREFs in the metadata</span>
+<span class="sd">        :param download_derived_from: whether to download</span>
+<span class="sd">            additional "derived_from" documents linked from the STAC collection.</span>
+<span class="sd">        :param download_collection_assets: whether to download</span>
+<span class="sd">            the STAC Collection level assets in addition to assets from linked STAC Items.</span>
+<span class="sd">        :param json_dump: kwargs to finetune json.dump when writing STAC metadata files.</span>
+<span class="sd">        :param on_download_failure: how to handle download failures, one of "warn" or "raise".</span>
+<span class="sd">        :param path_templates: optional dictionary of template overrides for download paths.</span>
+<span class="sd">        :param redact_url_logging: whether to redact (possibly sensitive) query parameters from URLs in logging,</span>
+
+<span class="sd">        .. versionadded:: 0.52.0</span>
+<span class="sd">        """</span>
+        <span class="n">downloader</span> <span class="o">=</span> <span class="n">_JobResultDownloader</span><span class="p">(</span>
+            <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="p">,</span>
+            <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+            <span class="n">rewrite_references</span><span class="o">=</span><span class="n">rewrite_references</span><span class="p">,</span>
+            <span class="n">add_original_hrefs</span><span class="o">=</span><span class="n">add_original_hrefs</span><span class="p">,</span>
+            <span class="n">json_dump</span><span class="o">=</span><span class="n">json_dump</span><span class="p">,</span>
+            <span class="n">on_download_failure</span><span class="o">=</span><span class="n">on_download_failure</span><span class="p">,</span>
+            <span class="n">path_templates</span><span class="o">=</span><span class="n">path_templates</span><span class="p">,</span>
+            <span class="n">redact_url_logging</span><span class="o">=</span><span class="n">redact_url_logging</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">downloader</span><span class="o">.</span><span class="n">download_collection</span><span class="p">(</span>
+            <span class="n">download_derived_from</span><span class="o">=</span><span class="n">download_derived_from</span><span class="p">,</span>
+            <span class="n">download_collection_assets</span><span class="o">=</span><span class="n">download_collection_assets</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">JobResultDownloadException</span><span class="p">(</span><span class="n">OpenEoClientException</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_DownloadTracker</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Simple tracker of download paths to avoid unintended collisions or double downloads."""</span>
+
+    <span class="c1"># TODO: also track the origin of a download for better error reporting?</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"paths"</span><span class="p">,)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">assert_new</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Check that download path is not known already, to avoid download collisions."""</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobResultDownloadException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Download collision, already downloaded </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Register a path as downloaded."""</span>
+        <span class="c1"># TODO: add verification if path actually exists?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_JobResultDownloader</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Helper class to download batch job results</span>
+<span class="sd">    as a local, self-contained STAC collection (openEO API 1.1 style):</span>
+<span class="sd">    recursively walking through items, assets, additional linked metadata, etc.,</span>
+<span class="sd">    and rewriting the related links accordingly.</span>
+
+<span class="sd">    .. warning:: this is an experimental API, subject to change.</span>
+
+<span class="sd">    .. versionadded:: 0.52.0</span>
+<span class="sd">    """</span>
+
+    <span class="c1"># TODO: make this a public API that users can implement for custom download behavior (e.g. download to S3, ...)</span>
+    <span class="c1"># TODO: API to warn about or skip existing/previously downloaded files?</span>
+    <span class="c1"># TODO: dedicated request session (with appropriate retry strategy) for downloading?</span>
+    <span class="c1"># TODO: expose chunk_size/range_size from ResultAsset.download</span>
+    <span class="c1"># TODO: verbose mode to log/print each downloaded file to allow showing progress on large result sets</span>
+    <span class="c1"># TODO: download STAC documents (root collection, items) to file before parsing, instead of parsing in memory an re-json-encode them to file</span>
+    <span class="c1"># TODO: give STAC collection/item docs an ".inprogress" suffix on initial write, before rewriting is done</span>
+
+    <span class="n">DEFAULT_PATH_TEMPLATES</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"collection"</span><span class="p">:</span> <span class="s2">"job-results.json"</span><span class="p">,</span>
+        <span class="s2">"item"</span><span class="p">:</span> <span class="s2">"</span><span class="si">{item_id}</span><span class="s2">/</span><span class="si">{item_id}</span><span class="s2">.json"</span><span class="p">,</span>
+        <span class="s2">"asset"</span><span class="p">:</span> <span class="s2">"</span><span class="si">{item_id}</span><span class="s2">/</span><span class="si">{asset_filename}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"collection-asset"</span><span class="p">:</span> <span class="s2">"</span><span class="si">{asset_filename}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"generic-link"</span><span class="p">:</span> <span class="s2">"</span><span class="si">{filename}</span><span class="s2">"</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">job</span><span class="p">:</span> <span class="n">BatchJob</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rewrite_references</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">add_original_hrefs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">json_dump</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_download_failure</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"warn"</span><span class="p">,</span> <span class="s2">"raise"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"warn"</span><span class="p">,</span>
+        <span class="n">path_templates</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">redact_url_logging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">job</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Download target </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span><span class="si">}</span><span class="s2"> exists but isn't a folder."</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span> <span class="o">=</span> <span class="n">rewrite_references</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_add_original_hrefs</span> <span class="o">=</span> <span class="n">add_original_hrefs</span>
+        <span class="c1"># TODO: also support passing a `json.dump`-style callable to customize json dumping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_json_dump</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"ensure_ascii"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="p">(</span><span class="n">json_dump</span> <span class="ow">or</span> <span class="p">{})}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span> <span class="o">=</span> <span class="n">_DownloadTracker</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_download_failure</span> <span class="o">=</span> <span class="n">on_download_failure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_PATH_TEMPLATES</span><span class="p">,</span> <span class="o">**</span><span class="p">(</span><span class="n">path_templates</span> <span class="ow">or</span> <span class="p">{})}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_redact</span> <span class="o">=</span> <span class="n">get_url_query_param_stripper</span><span class="p">(</span><span class="n">redact_url_logging</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_counters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_json_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">ensure_parent_dir_for</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">fp</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_dump</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_attempt_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Failed to download </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">e</span><span class="si">=}</span><span class="s2">)"</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_download_failure</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"warn"</span><span class="p">}:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># TODO: other handling strategies?</span>
+                <span class="c1">#       e.g. collect all failures and raise a single exception at the end,</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_download_failure</span> <span class="o">!=</span> <span class="s2">"raise"</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown on_download_failure strategy </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_on_download_failure</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">JobResultDownloadException</span><span class="p">(</span><span class="n">message</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">collection_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build path for the root STAC collection metadata file (job results metadata)"""</span>
+        <span class="nb">vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span>
+            <span class="s2">"collection_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">collection_id</span><span class="p">),</span>
+            <span class="s2">"auto_increment"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_id</span><span class="p">(</span><span class="s2">"collection"</span><span class="p">),</span>
+            <span class="s2">"extension"</span><span class="p">:</span> <span class="s2">".json"</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span><span class="p">[</span><span class="s2">"collection"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build path for a STAC item metadata file (job result item)"""</span>
+        <span class="nb">vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span>
+            <span class="s2">"item_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">item_id</span><span class="p">),</span>
+            <span class="s2">"auto_increment"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_id</span><span class="p">(</span><span class="s2">"item"</span><span class="p">),</span>
+            <span class="s2">"extension"</span><span class="p">:</span> <span class="s2">".json"</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span><span class="p">[</span><span class="s2">"item"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_asset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">asset_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">asset_href</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build path for a STAC asset file (job result asset)"""</span>
+        <span class="nb">vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span>
+            <span class="s2">"asset_key"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">asset_key</span><span class="p">),</span>
+            <span class="s2">"asset_filename"</span><span class="p">:</span> <span class="n">_filename_from_url</span><span class="p">(</span><span class="n">asset_href</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="c1"># TODO: separate pool for item- and collection-assets?</span>
+            <span class="s2">"auto_increment"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_id</span><span class="p">(</span><span class="s2">"asset"</span><span class="p">),</span>
+            <span class="c1"># TODO: also leverage media type to determine extension?</span>
+            <span class="s2">"extension"</span><span class="p">:</span> <span class="n">_filename_extension_from_url</span><span class="p">(</span><span class="n">asset_href</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">item_id</span><span class="p">:</span>
+            <span class="nb">vars</span><span class="p">[</span><span class="s2">"item_id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">item_id</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span><span class="p">[</span><span class="s2">"asset"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span><span class="p">[</span><span class="s2">"collection-asset"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_path_generic_link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rel</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">href</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="nb">vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span>
+            <span class="s2">"rel"</span><span class="p">:</span> <span class="n">_sanitize_filename</span><span class="p">(</span><span class="n">rel</span><span class="p">),</span>
+            <span class="s2">"filename"</span><span class="p">:</span> <span class="n">_filename_from_url</span><span class="p">(</span><span class="n">href</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="s2">"auto_increment"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_id</span><span class="p">(</span><span class="s2">"generic"</span><span class="p">),</span>
+            <span class="c1"># TODO: also leverage media type to determine extension?</span>
+            <span class="s2">"extension"</span><span class="p">:</span> <span class="n">_filename_extension_from_url</span><span class="p">(</span><span class="n">href</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_dir</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_templates</span><span class="p">[</span><span class="s2">"generic-link"</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_auto_increment_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pool</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Generate auto-incrementing ID within a given pool of entity types."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_counters</span><span class="p">[</span><span class="n">pool</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_increment_counters</span><span class="p">[</span><span class="n">pool</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_relative_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">doc</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get relative reference to target to be used from given document"""</span>
+        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">doc</span><span class="o">.</span><span class="n">parent</span><span class="p">))</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_collection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">download_derived_from</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">download_collection_assets</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Download the job results as a self-contained STAC collection.</span>
+<span class="sd">        """</span>
+        <span class="n">result_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">get_results_metadata_url</span><span class="p">(),</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">result_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"type"</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">"Collection"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Result metadata is not a STAC Collection (openEO API 1.1 style), but </span><span class="si">{</span><span class="n">result_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'type'</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="c1"># Make a copy of the metadata, as we will rewrite references</span>
+        <span class="n">result_metadata</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">result_metadata</span><span class="p">)</span>
+
+        <span class="n">result_metadata_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_path_collection</span><span class="p">(</span><span class="n">collection_id</span><span class="o">=</span><span class="n">result_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"id"</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">assert_new</span><span class="p">(</span><span class="n">result_metadata_path</span><span class="p">)</span>
+        <span class="c1"># Initial write of metadata, will possibly be updated later if rewrite_references is True</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Initial write of STAC Collection metadata of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> to </span><span class="si">{</span><span class="n">result_metadata_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_json_file</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">result_metadata</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">result_metadata_path</span><span class="p">)</span>
+
+        <span class="n">extra_rels</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"derived_from"</span><span class="p">]</span> <span class="k">if</span> <span class="n">download_derived_from</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">result_metadata</span><span class="p">[</span><span class="s2">"links"</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">link</span><span class="p">[</span><span class="s2">"rel"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"item"</span><span class="p">:</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_attempt_context</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"item </span><span class="si">{</span><span class="n">link</span><span class="si">=}</span><span class="s2">"</span><span class="p">):</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_item</span><span class="p">(</span><span class="n">href</span><span class="o">=</span><span class="n">link</span><span class="p">[</span><span class="s2">"href"</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_href</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">link</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">relative_to</span><span class="o">=</span><span class="n">result_metadata_path</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">link</span><span class="p">[</span><span class="s2">"rel"</span><span class="p">]</span> <span class="ow">in</span> <span class="n">extra_rels</span><span class="p">:</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_attempt_context</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"link </span><span class="si">{</span><span class="n">link</span><span class="si">=}</span><span class="s2">"</span><span class="p">):</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_path_generic_link</span><span class="p">(</span><span class="n">rel</span><span class="o">=</span><span class="n">link</span><span class="p">[</span><span class="s2">"rel"</span><span class="p">],</span> <span class="n">href</span><span class="o">=</span><span class="n">link</span><span class="p">[</span><span class="s2">"href"</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">assert_new</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">download_url</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">link</span><span class="p">[</span><span class="s2">"href"</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Downloaded link </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_redact</span><span class="p">(</span><span class="n">link</span><span class="p">)</span><span class="si">=}</span><span class="s2"> to </span><span class="si">{</span><span class="n">path</span><span class="si">=}</span><span class="s2">"</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_href</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">link</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">relative_to</span><span class="o">=</span><span class="n">result_metadata_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">download_collection_assets</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">asset_key</span><span class="p">,</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">result_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"assets"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_attempt_context</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"collection asset </span><span class="si">{</span><span class="n">asset_key</span><span class="si">=}</span><span class="s2"> </span><span class="si">{</span><span class="n">asset</span><span class="si">=}</span><span class="s2">"</span><span class="p">):</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_asset</span><span class="p">(</span>
+                        <span class="n">asset_key</span><span class="o">=</span><span class="n">asset_key</span><span class="p">,</span> <span class="n">asset_href</span><span class="o">=</span><span class="n">asset</span><span class="p">[</span><span class="s2">"href"</span><span class="p">],</span> <span class="n">asset_metadata</span><span class="o">=</span><span class="n">asset</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="kc">None</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_href</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">asset</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">relative_to</span><span class="o">=</span><span class="n">result_metadata_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+            <span class="c1"># Rewrite the root collection metadata with updated references</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Update write of STAC Collection metadata of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="si">!r}</span><span class="s2"> to </span><span class="si">{</span><span class="n">result_metadata_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_json_file</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">result_metadata</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">result_metadata_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">result_metadata_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">paths</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rewrite_href</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">relative_to</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Rewrite (in-place) href of given object."""</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">"href"</span><span class="p">]</span>
+        <span class="n">rel_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relative_to</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="n">relative_to</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Rewriting href </span><span class="si">{</span><span class="n">rel_path</span><span class="si">=}</span><span class="s2"> (in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_redact</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+        <span class="n">obj</span><span class="p">[</span><span class="s2">"href"</span><span class="p">]</span> <span class="o">=</span> <span class="n">rel_path</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_original_hrefs</span><span class="p">:</span>
+            <span class="n">alternate</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"alternate"</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">alternate</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">alternate</span><span class="p">[</span><span class="n">make_new_key</span><span class="p">(</span><span class="n">alternate</span><span class="p">,</span> <span class="s2">"original"</span><span class="p">)]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"href"</span><span class="p">:</span> <span class="n">original</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to add original href to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_redact</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="si">}</span><span class="s2"> with non-dict 'alternate' field"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">href</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">href</span><span class="p">,</span> <span class="n">expected_status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">item_id</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span>
+        <span class="n">metadata_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_path_item</span><span class="p">(</span><span class="n">item_id</span><span class="o">=</span><span class="n">item_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">assert_new</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Initial write of STAC Item </span><span class="si">{</span><span class="n">item_id</span><span class="si">!r}</span><span class="s2"> metadata to </span><span class="si">{</span><span class="n">metadata_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_json_file</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">item</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">metadata_path</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">asset_key</span><span class="p">,</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"assets"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_attempt_context</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"item asset </span><span class="si">{</span><span class="n">asset_key</span><span class="si">=}</span><span class="s2"> </span><span class="si">{</span><span class="n">asset</span><span class="si">=}</span><span class="s2">"</span><span class="p">):</span>
+                <span class="n">asset_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download_asset</span><span class="p">(</span>
+                    <span class="n">asset_key</span><span class="o">=</span><span class="n">asset_key</span><span class="p">,</span> <span class="n">asset_href</span><span class="o">=</span><span class="n">asset</span><span class="p">[</span><span class="s2">"href"</span><span class="p">],</span> <span class="n">asset_metadata</span><span class="o">=</span><span class="n">asset</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="n">item_id</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_href</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">asset</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">asset_path</span><span class="p">,</span> <span class="n">relative_to</span><span class="o">=</span><span class="n">metadata_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rewrite_references</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Update write of STAC Item </span><span class="si">{</span><span class="n">item_id</span><span class="si">!r}</span><span class="s2"> metadata to </span><span class="si">{</span><span class="n">metadata_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_json_file</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">item</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">metadata_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">metadata_path</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_asset</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">asset_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">asset_href</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">asset_metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">item_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="n">asset</span> <span class="o">=</span> <span class="n">ResultAsset</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">asset_key</span><span class="p">,</span> <span class="n">href</span><span class="o">=</span><span class="n">asset_href</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">asset_metadata</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_path_asset</span><span class="p">(</span><span class="n">asset_key</span><span class="o">=</span><span class="n">asset_key</span><span class="p">,</span> <span class="n">asset_href</span><span class="o">=</span><span class="n">asset_href</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="n">item_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">assert_new</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Downloading STAC asset </span><span class="si">{</span><span class="n">asset_key</span><span class="si">=}</span><span class="s2"> (</span><span class="si">{</span><span class="n">item_id</span><span class="si">=}</span><span class="s2">) to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">asset</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">redact_url_logging</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_redact</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_download_tracker</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+
+<span class="nd">@deprecated</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">"Use :py:class:`JobResults` instead"</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"0.4.10"</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_Result</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Wrapper around `JobResults` to adapt old deprecated "Result" API.</span>
+
+<span class="sd">    .. deprecated:: 0.4.10</span>
+<span class="sd">    """</span>
+
+    <span class="c1"># TODO: deprecated: remove this</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="n">JobResults</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">download_file</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">download_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span> <span class="ow">or</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">target</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpenEoClientException</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Target argument </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> exists but isn't a folder."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">a</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">target</span><span class="p">):</span> <span class="n">a</span><span class="o">.</span><span class="n">metadata</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_assets</span><span class="p">()}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_asset</span><span class="p">()</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get_asset</span><span class="p">()</span><span class="o">.</span><span class="n">load_bytes</span><span class="p">()</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=cb8930eaaf36d9849b67"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=cb8930eaaf36d9849b67"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
