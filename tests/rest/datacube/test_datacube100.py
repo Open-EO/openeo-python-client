@@ -1185,6 +1185,32 @@ def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_re
     assert s4_f_m_s3_f.metadata.band_names == ["B6", "B5", "B8"]
 
 
+def test_merge_cubes_band_metadata_one_sided(con100):
+    bands = con100.load_collection("S2")
+    no_bands = bands.ndvi()
+
+    assert bands.metadata.has_band_dimension()
+    assert not no_bands.metadata.has_band_dimension()
+    assert bands.merge_cubes(no_bands).metadata.band_names == ["B02", "B03", "B04", "B08"]
+    assert no_bands.merge_cubes(bands).metadata.band_names == ["B02", "B03", "B04", "B08"]
+
+
+def test_merge_cubes_metadata_without_band_dimensions(con100):
+    no_bands = con100.load_collection("S2").ndvi()
+    merged = no_bands.merge_cubes(no_bands)
+
+    assert merged.metadata is no_bands.metadata
+    assert not merged.metadata.has_band_dimension()
+
+
+def test_merge_cubes_missing_metadata(con100):
+    with_metadata = con100.load_collection("S2")
+    without_metadata = con100.load_collection("S2", fetch_metadata=False)
+
+    assert with_metadata.merge_cubes(without_metadata).metadata is None
+    assert without_metadata.merge_cubes(with_metadata).metadata is None
+
+
 def test_resample_cube_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
