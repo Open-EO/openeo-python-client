@@ -3,13 +3,11 @@ name: Unit tests
 on:
   push:
     paths:
-      - 'setup.py'
       - 'pyproject.toml'
       - 'openeo/**'
       - 'tests/**'
   pull_request:
     paths:
-      - 'setup.py'
       - 'pyproject.toml'
       - 'openeo/**'
       - 'tests/**'
