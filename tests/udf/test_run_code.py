@@ -9,7 +9,8 @@ import pytest
 import xarray
 
 from openeo import UDF
-from openeo.udf import UdfData, XarrayDataCube
+
+from openeo.udf import UdfData, XarrayDataCube, OpenEoUdfException
 from openeo.udf._compat import FlimsyTomlParser
 from openeo.udf.run_code import (
     _annotation_is_pandas_series,
@@ -19,6 +20,7 @@ from openeo.udf.run_code import (
     execute_local_udf,
     extract_udf_dependencies,
     run_udf_code,
+    discover_udf,
 )
 
 from .test_xarraydatacube import _build_xdc
@@ -335,6 +337,98 @@ def test_run_local_udf_from_file_netcdf_with_context(tmp_path):
 def _is_package_available(name: str) -> bool:
     # TODO: move this to a more general test utility module.
     return importlib.util.find_spec(name) is not None
+
+class TestsDiscoverUdf:
+
+    def test_discover_udf_empty_code(self):
+        """Test: Code with no functions at all."""
+        udf_code = textwrap.dedent("""
+            # Just comments
+            x = 42
+            y = "no functions here"
+        """)
+        
+        with pytest.raises(OpenEoUdfException) as exc_info:
+            discover_udf(udf_code)
+        
+        error_msg = str(exc_info.value)
+        assert "No function (apply_datacube, apply_timeseries, apply_vectorcube) found" in error_msg
+        assert "Expected signatures:" in error_msg
+        # Verify it lists all expected signatures
+        assert "apply_timeseries(series, context)" in error_msg
+        assert "apply_datacube(cube, context)" in error_msg
+        assert "apply_hypercube(cube, context)" in error_msg
+        assert "apply_vectorcube(geometries, cube, context)" in error_msg
+
+
+    def test_discover_udf_wrong_function_name(self):
+        """Test: Functions exist but with wrong names."""
+        udf_code = textwrap.dedent("""
+            def process_data(cube, context):
+                return cube
+                
+            def my_custom_func(series, context):
+                return series
+                
+            def transform_vector(geometries, cube, context):
+                return geometries, cube
+        """)
+        
+        with pytest.raises(OpenEoUdfException) as exc_info:
+            discover_udf(udf_code)
+        
+        error_msg = str(exc_info.value)
+        # Should show what we expected vs what we got
+        assert "Expected signatures:" in error_msg
+
+
+
+    def test_discover_udf_missing_required_param_timeseries(self):
+        """Test: apply_timeseries missing 'series' parameter."""
+        udf_code = textwrap.dedent("""
+            import pandas as pd
+            
+            def apply_timeseries(context: dict) -> pd.Series:  # Missing 'series'
+                return pd.Series()
+        """)
+        
+        with pytest.raises(OpenEoUdfException) as exc_info:
+            discover_udf(udf_code)
+        
+        error_msg = str(exc_info.value)
+        assert "Function 'apply_timeseries' failed validation" in error_msg
+        assert "Missing required parameter: 'series'" in error_msg
+
+
+    def test_discover_udf_missing_required_param_datacube(self):
+        """Test: apply_datacube missing 'context' parameter."""
+        udf_code = textwrap.dedent("""
+            def apply_datacube(cube):  # Missing 'context'
+                return cube
+        """)
+        
+        with pytest.raises(OpenEoUdfException) as exc_info:
+            discover_udf(udf_code)
+        
+        error_msg = str(exc_info.value)
+        assert "Function 'apply_datacube' failed validation" in error_msg
+        assert "Missing required parameter: 'context'" in error_msg
+
+
+    def test_discover_udf_missing_required_param_vectorcube(self):
+        """Test: apply_vectorcube missing 'geometries' parameter."""
+        udf_code = textwrap.dedent("""
+            def apply_vectorcube(cube, context):  # Missing 'geometries'
+                return cube
+        """)
+        
+        with pytest.raises(OpenEoUdfException) as exc_info:
+            discover_udf(udf_code)
+        
+        error_msg = str(exc_info.value)
+        assert "Function 'apply_vectorcube' failed validation" in error_msg
+        assert "Missing required parameter: 'geometries'" in error_msg
+
 
 
 class TestExtractUdfDependencies:

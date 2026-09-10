@@ -3,13 +3,15 @@
 Note: this module was initially developed under the ``openeo-udf`` project (https://github.com/Open-EO/openeo-udf)
 """
 
+#%%
+
 import functools
 import inspect
 import logging
 import math
 import pathlib
 import re
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Tuple
 
 import numpy
 import pandas
@@ -27,6 +29,22 @@ from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
 
 _log = logging.getLogger(__name__)
+
+# UDF specifications
+UDF_CATEGORIES = {
+    "timeseries": {
+        "function_names": ["apply_timeseries"],
+        "required_params": ["series", "context"],
+    },
+    "datacube": {
+        "function_names": ["apply_datacube", "apply_hypercube"],
+        "required_params": ["cube", "context"],
+    },
+    "vectorcube": {
+        "function_names": ["apply_vectorcube"],
+        "required_params": ["geometries", "cube", "context"],
+    }
+}
 
 
 def _build_default_execution_context():
@@ -146,9 +164,118 @@ def apply_timeseries_generic(
     udf_data.set_datacube_list(datacubes)
     return udf_data
 
+def _build_expected_signatures_message() -> str:
+    """Build the 'expected signatures' part of error messages."""
+    message = "\nExpected signatures:\n"
+    for cat_name, cat_info in UDF_CATEGORIES.items():
+        for func_name in cat_info["function_names"]:
+            params = ", ".join(cat_info["required_params"])
+            message += f"  - {func_name}({params})\n"
+    message += "  - Or a single-parameter function for generic UDF"
+    return message
+
+
+def validate_udf_signature(func: Callable, category: str) -> List[str]:
+    """
+    Returns a list of error messages. If empty, the signature is valid.
+    """
+    errors = []
+    try:
+        sig = inspect.signature(func)
+        params = sig.parameters
+    except Exception:
+        return ["Could not read function signature."]
+
+    # Check required parameters
+    required_params = UDF_CATEGORIES[category]["required_params"]
+    for param_name in required_params:
+        if param_name not in params:
+            errors.append(f"Missing required parameter: '{param_name}'")
+    
+    return errors
+
+
+def discover_udf(code: str) -> Tuple[Callable, str]:
+    """
+    Analyzes code and provides specific error feedback.
+    Returns (function, category)
+    """
+    module = load_module_from_string(code)
+    signature_errors = []
+    
+    # Collect valid UDF candidate functions
+    functions = {}
+    for name, obj in module.items():
+        if not callable(obj):
+            continue
+        # Exclude classes (e.g., XarrayDataCube)
+        if inspect.isclass(obj):
+            continue
+        # Exclude built-in functions, keep only user-defined functions
+        if not inspect.isfunction(obj):
+            continue
+        
+        functions[name] = obj
+    
+    # Helper for building error messages
+    expected_sigs = _build_expected_signatures_message()
+    
+    if not functions:
+        # No functions found at all
+        error_msg = "No function (apply_datacube, apply_timeseries, apply_vectorcube) found in UDF code."
+        error_msg += expected_sigs
+        raise OpenEoUdfException(error_msg)
+    
+    # Check each function
+    for func_name, func in functions.items():
+        # Determine category based on function name
+        category = None
+        for cat_name, cat_info in UDF_CATEGORIES.items():
+            if func_name in cat_info["function_names"]:
+                category = cat_name
+                break
+        
+        if category:
+            # Validate signature for specific UDF type
+            errors = validate_udf_signature(func, category)
+            if not errors:
+                _log.info(f"Found UDF '{func_name}' (category: {category})")
+                return func, category
+            else:
+                signature_errors.append(f"Function '{func_name}' failed validation: {', '.join(errors)}")
+        
+        # Check for generic UDF (single parameter)
+        elif len(inspect.signature(func).parameters) == 1:
+            _log.info(f"Found generic UDF '{func_name}'")
+            return func, "generic"
+    
+    # Functions were found, but none were valid
+    error_msg = "No valid UDF found.\n"
+    
+    if signature_errors:
+        error_msg += "\nSignature errors:\n" + "\n".join(f"  - {e}" for e in signature_errors)
+        error_msg += "\n"
+    
+    # Optional: List the functions that were found but rejected
+    found_names = list(functions.keys())
+    if found_names:
+        error_msg += f"\nFound functions (none valid): {', '.join(found_names)}\n"
+    
+    error_msg += expected_sigs
+    
+    raise OpenEoUdfException(error_msg)
+
 
 def run_udf_code(code: str, data: UdfData) -> UdfData:
     # TODO: current implementation uses first match directly, first check for multiple matches?
+    try:
+        # This will give us better error messages if no UDF is found
+        discover_udf(code)
+    except OpenEoUdfException as e:
+        # Re-raise with the better error message
+        raise e
+    
+    # SECOND: Run the original logic unchanged
     module = load_module_from_string(code)
     functions = ((k, v) for (k, v) in module.items() if callable(v))
 
@@ -179,7 +306,6 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                 raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
                     c=len(data.get_datacube_list())
                 ))
-            # TODO: also support calls without user context?
             result_cube = func(cube=data.get_datacube_list()[0], context=data.user_context)
             data.set_datacube_list([result_cube])
             return data
@@ -194,7 +320,6 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                 raise ValueError("The provided UDF expects exactly one datacube, but {c} were provided.".format(
                     c=len(data.get_datacube_list())
                 ))
-            # TODO: also support calls without user context?
             result_cube: xarray.DataArray = func(cube=data.get_datacube_list()[0].get_array(), context=data.user_context)
             data.set_datacube_list([XarrayDataCube(result_cube)])
             return data
@@ -223,7 +348,6 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
                         c=len(data.get_datacube_list())
                     )
                 )
-            # TODO: geopandas is optional dependency.
             input_geoms = data.get_feature_collection_list()[0].data
             input_cube = data.get_datacube_list()[0].get_array()
             result_geoms, result_cube = func(geometries=input_geoms, cube=input_cube, context=data.user_context)
@@ -235,6 +359,7 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             func(data)
             return data
 
+    # This should rarely be reached since discover_udf should have caught it
     raise OpenEoUdfException("No UDF found.")
 
 
@@ -331,3 +456,6 @@ def extract_udf_dependencies(udf: Union[str, UDF]) -> Union[List[str], None]:
     )
 
     return tomllib.loads(content).get("dependencies")
+
+
+
