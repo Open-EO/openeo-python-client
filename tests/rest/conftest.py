@@ -88,6 +88,11 @@ def dummy_backend(requests_mock, con120) -> DummyBackend:
     dummy_backend.setup_collection("S2")
     dummy_backend.setup_file_format("GTiff")
     dummy_backend.setup_file_format("netCDF")
+    dummy_backend.setup_file_format(
+        "GeoJSON",
+        gis_data_types=("vector",),
+        parameters={"precision": {"type": "integer"}},
+    )
     return dummy_backend
 
 
@@ -100,6 +105,11 @@ def another_dummy_backend(requests_mock) -> DummyBackend:
     another_dummy_backend.setup_collection("S2")
     another_dummy_backend.setup_file_format("GTiff")
     another_dummy_backend.setup_file_format("netCDF")
+    another_dummy_backend.setup_file_format(
+        "GeoJSON",
+        gis_data_types=("vector",),
+        parameters={"precision": {"type": "integer"}},
+    )
     return another_dummy_backend
 
 

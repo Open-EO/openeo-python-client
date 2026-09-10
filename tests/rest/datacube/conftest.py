@@ -48,6 +48,10 @@ def _setup_connection(api_version, requests_mock, build_capabilities_kwargs: Opt
                 "GTiff": {"gis_data_types": ["raster"]},
                 "netCDF": {"gis_data_types": ["raster"]},
                 "csv": {"gis_data_types": ["table"]},
+                "GeoJSON": {
+                    "gis_data_types": ["vector"],
+                    "parameters": {"precision": {"type": "integer"}},
+                },
             }
         },
     )
