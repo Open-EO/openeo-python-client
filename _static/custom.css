@@ -1,0 +1,66 @@
+/*
+ * Minimal overrides on top of pydata-sphinx-theme.
+ * Keep the theme's default colors and code styling.
+ */
+
+.bd-header .navbar-header-items {
+    flex: 1 1 auto;
+}
+
+.bd-header .navbar-brand {
+    font-weight: 700;
+}
+
+.bd-header .navbar-header-items__end,
+.bd-header .navbar-persistent--container {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.sidebar-tree .sidebar-header-items__title {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.sidebar-tree ul {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.sidebar-tree ul ul {
+    padding-left: 1rem;
+}
+
+.sidebar-tree li {
+    list-style: none;
+}
+
+.sidebar-tree a {
+    text-decoration: none;
+}
+
+.sidebar-meta {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pst-color-border);
+    font-size: 0.95rem;
+}
+
+.sidebar-meta h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.sidebar-meta div {
+    margin-bottom: 0.1rem;
+    line-height: 1.25;
+}
+
+.bd-content .document p {
+    margin-bottom: 1rem;
+}
+
+.bd-content .document dt {
+    scroll-margin-top: 5rem;
+}
