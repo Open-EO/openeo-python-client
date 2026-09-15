@@ -26,5 +26,4 @@ def inspect(data=None, message: str = "", code: str = "User", level: str = "info
     .. seealso:: :ref:`udf_logging_with_inspect`
     """
     extra = {"data": data, "code": code}
-    kwargs = {"stacklevel": 2} if sys.version_info >= (3, 8) else {}
-    _user_log.log(level=logging.getLevelName(level.upper()), msg=message, extra=extra, **kwargs)
+    _user_log.log(level=logging.getLevelName(level.upper()), msg=message, extra=extra, stacklevel=2)
