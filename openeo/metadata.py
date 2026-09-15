@@ -711,7 +711,7 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     return metadata
 
 # Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)
-# TODO: remove this once support for Python 3.7 and 3.8 is dropped
+# TODO: remove this once support for Python 3.7 and 3.8 is dropped #717
 _PYSTAC_1_9_EXTENSION_INTERFACE = hasattr(pystac.Item, "ext")
 
 # Sniff for PySTAC support for Collection.item_assets (in STAC core since 1.1)

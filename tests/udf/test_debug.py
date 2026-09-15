@@ -19,7 +19,6 @@ def test_inspect_basic(caplog):
     assert record.__dict__["code"] == "User"
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="Requires python 3.8 or higher (logging `stacklevel`)")
 def test_inspect_filename(caplog):
     caplog.set_level("INFO")
     inspect(data=[1, 2, 3], message="hello")

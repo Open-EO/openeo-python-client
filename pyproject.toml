@@ -1,5 +1,4 @@
 [build-system]
-# Setuptools 75 is the latest version that works with Python 3.8.
 requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
@@ -9,14 +8,13 @@ dynamic = ["version"]
 description = "Client API for openEO"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     { name = "Jeroen Dries", email = "jeroen.dries@vito.be" },
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -26,15 +24,11 @@ classifiers = [
 ]
 dependencies = [
     "deprecated>=1.2.12",
-    # TODO #717 Simplify geopandas constraints when Python 3.8 support is dropped
-    "geopandas",  # Best-effort geopandas dependency for Python 3.8
-    "geopandas>=0.14; python_version>='3.9'",
-    "importlib_resources; python_version<'3.9'",
+    "geopandas>=0.14",
     "numpy>=1.17.0",
     "oschmod>=0.3.12; sys_platform == \"win32\"",
     "pandas>0.20.0,<3.0.0",  # TODO pandas 3 compatibility https://github.com/Open-EO/openeo-python-client/issues/856
-    # TODO #578: pystac 1.5.0 is highest version available for lowest Python
-    # version we still support (3.7).
+    # TODO #578: pystac 1.5.0 is highest version available for lowest Python version we still support (3.7).
     "pystac>=1.5.0",
     "requests>=2.26.0",
     "shapely>=1.6.4",
@@ -49,15 +43,12 @@ artifacts = [
 ]
 dev = [
     "boto3",
-    "boto3~=1.37.38; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "botocore",
-    "botocore~=1.37.38; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "dirty_equals>=0.8.0",
     "flake8>=5.0.0",
     "httpretty>=1.1.4",
     "mock",
     "moto>=5.0.0",
-    "moto~=5.0.28; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "myst-parser",
     "netCDF4>=1.7.0",
     "pyarrow>=10.0.1",
@@ -100,16 +91,12 @@ oschmod = [
 ]
 tests = [
     "boto3",
-    "boto3~=1.37.38; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "botocore",
-    "botocore~=1.37.38; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "dirty_equals>=0.8.0",
     "flake8>=5.0.0",
     "httpretty>=1.1.4",
     "mock",
     "moto>=5.0.0",
-    # Some pins to speed up slow dependency resolution in Python 3.8 venvs
-    "moto~=5.0.28; python_version<'3.9'", # Pin to speed up slow dependency resolution on Python 3.8.
     "netCDF4>=1.7.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
     "pyproj>=3.2.0",
@@ -140,7 +127,7 @@ version = {attr = "openeo._version.__version__"}
 include = ["openeo*"]
 
 [tool.uv]
-# Version constraints for optionals aren't solvable with older Python versions.
+# Version constraints for some optional dependencies aren't solvable with older Python versions.
 environments = ["python_version >= '3.10'"]
 
 [tool.black]
