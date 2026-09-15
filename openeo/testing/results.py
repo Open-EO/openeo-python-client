@@ -540,10 +540,15 @@ class _DerivedFrom:
             return [_ProductRef(item_id=self._normalize_legacy_derived_from(href))]
 
     def _from_url(self, url: str) -> Iterable[_ProductRef]:
-        resp = self._request_session.get(url)
-        resp.raise_for_status()
-        doc = resp.json()
-        return self._from_json_document(doc=doc, doc_ref=url)
+        try:
+            resp = self._request_session.get(url)
+            resp.raise_for_status()
+            doc = resp.json()
+            return self._from_json_document(doc=doc, doc_ref=url)
+        except Exception as e:
+            _log.warning(f"Failed to get/parse 'derived_from' document {url=}: {e=}")
+            # Handle URL as id
+            return [_ProductRef(item_id=url)]
 
     def _from_path(self, path: Union[str, Path]) -> Iterable[_ProductRef]:
         with open(path) as f:

@@ -788,6 +788,41 @@ class TestDerivedFrom:
             _ProductRef(item_id="NDVI300_20250927_V3"),
         }
 
+    def test_from_links_legacy_unresolvable_url(self, requests_mock, caplog):
+        """
+        Legacy derived_from link: href is an URL, but not expected to be resolvable
+        (e.g. it is internal or requires auth)
+        """
+        href = "https://internal.test/item"
+        requests_mock.get(href, status_code=401)
+        links = [
+            {"rel": "derived_from", "href": href},
+        ]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="https://internal.test/item"),
+        }
+        assert caplog.messages == [
+            dirty_equals.IsStr(regex=".*Failed to.*parse.*HTTPError.*401 Client Error.*"),
+        ]
+
+    def test_from_links_legacy_no_json_doc(self, requests_mock, caplog):
+        """
+        Legacy derived_from link: href is an URL, but not a JSON document
+        """
+        href = "https://internal.test/item"
+        requests_mock.get(href, text="look ma no JSON!")
+        links = [
+            {"rel": "derived_from", "href": href},
+        ]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="https://internal.test/item"),
+        }
+        assert caplog.messages == [
+            dirty_equals.IsStr(regex=".*Failed to.*parse.*JSONDecodeError.*"),
+        ]
+
     @pytest.fixture()
     def item_collection_doc(self):
         return {
