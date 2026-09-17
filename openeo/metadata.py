@@ -815,7 +815,8 @@ class _StacMetadataParser:
         cube_dimensions = self._cube_dimensions_dict(stac_object)
         return isinstance(cube_dimensions, dict) and len(cube_dimensions) > 0
 
-    def _cube_dimensions_dict(self, stac_object: pystac.STACObject) -> Dict[str, dict]:
+    @staticmethod
+    def _cube_dimensions_dict(stac_object: pystac.STACObject) -> Dict[str, dict]:
         """
         Return raw cube:dimensions dict from a Collection/Item, or {}.
         """
@@ -826,15 +827,12 @@ class _StacMetadataParser:
         return {}
 
     @staticmethod
-    def _safe_extent_from_pystac_cube_dim(dim) -> list:
+    def _safe_extent_from_pystac_cube_dim(dim: pystac.extensions.datacube.Dimension) -> List[Any]:
         """
         PySTAC cube dimension wrapper may raise if 'extent' is missing.
         Also, depending on serialization/version, extent might live in extra_fields.
         """
-        try:
-            ext = dim.extent
-        except Exception:
-            ext = None
+        ext = getattr(dim, "extent", None)
 
         if not ext:
             extra = getattr(dim, "extra_fields", {}) or {}
@@ -880,7 +878,7 @@ class _StacMetadataParser:
     def _parse_cube_dimensions_from_raw_dict(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
         """
         Parse dimensions from raw cube:dimensions dict.
-        Supports 'spatial', 'temporal', and ('bands' or 'spectral' as an alias).
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
         """
         dimensions = []
         cube_dimensions = self._cube_dimensions_dict(stac_object)
