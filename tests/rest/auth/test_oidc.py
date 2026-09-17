@@ -148,6 +148,23 @@ def test_provider_info_scopes(requests_mock):
     ).get_scopes_string()
 
 
+def test_provider_info_scopes_not_in_scopes_supported(requests_mock):
+    """
+    Requested scopes should be preserved even when the provider's `scopes_supported`
+    discovery field does not list them (e.g. Microsoft Entra ID, which reports a fixed
+    tenant-wide list there regardless of which custom scopes it actually accepts).
+    https://github.com/Open-EO/openeo-python-client/issues/930
+    """
+    requests_mock.get(
+        "https://authit.test/.well-known/openid-configuration",
+        json={"scopes_supported": ["openid", "profile", "email", "offline_access"]},
+    )
+    provider = OidcProviderInfo(
+        issuer="https://authit.test", scopes=["openid", "profile", "email", "api://client-id/openeo"]
+    )
+    assert provider.get_scopes_string() == "api://client-id/openeo email openid profile"
+
+
 def test_provider_info_default_client_none(requests_mock):
     requests_mock.get("https://authit.test/.well-known/openid-configuration", json={})
     info = OidcProviderInfo(issuer="https://authit.test")
@@ -221,18 +238,23 @@ def test_provider_info_default_client_invalid_grants(requests_mock, caplog):
 
 
 @pytest.mark.parametrize(
-    ["scopes_supported", "expected"], [
-        (["openid", "email"], "openid"),
-        (["openid", "email", "offline_access"], "offline_access openid"),
+    "scopes_supported",
+    [
+        ["openid", "email"],
+        ["openid", "email", "offline_access"],
     ])
-def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported, expected):
+def test_provider_info_get_scopes_string_refresh_token_offline_access(requests_mock, scopes_supported):
+    """
+    "offline_access" should be requested when a refresh token is desired,
+    regardless of whether the provider's `scopes_supported` discovery field lists it.
+    """
     requests_mock.get(
         "https://authit.test/.well-known/openid-configuration",
         json={"scopes_supported": scopes_supported}
     )
     p = OidcProviderInfo(issuer="https://authit.test")
     assert p.get_scopes_string() == "openid"
-    assert p.get_scopes_string(request_refresh_token=True) == expected
+    assert p.get_scopes_string(request_refresh_token=True) == "offline_access openid"
     assert p.get_scopes_string() == "openid"
 
 

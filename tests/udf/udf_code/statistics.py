@@ -21,7 +21,7 @@ def rct_stats(udf_data: UdfData):
             sum=float(cube.array.sum()),
             mean=float(cube.array.mean()),
             min=float(cube.array.min()),
-            max=float(cube.array.max())
+            max=float(cube.array.max()),
         )
     # Create the structured data object
     sd = StructuredData(
@@ -31,4 +31,8 @@ def rct_stats(udf_data: UdfData):
     )
     # Remove all collections and set the StructuredData list
     udf_data.set_datacube_list(None)
-    udf_data.set_structured_data_list([sd, ])
+    udf_data.set_structured_data_list(
+        [
+            sd,
+        ]
+    )

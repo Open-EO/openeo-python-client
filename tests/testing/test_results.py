@@ -12,10 +12,13 @@ import xarray
 from openeo.rest.job import DEFAULT_JOB_RESULTS_FILENAME
 from openeo.testing.results import (
     _compare_xarray_dataarray,
+    _DerivedFrom,
+    _ProductRef,
     assert_job_results_allclose,
     assert_xarray_dataarray_allclose,
     assert_xarray_dataset_allclose,
 )
+from openeo.testing.stac import StacDummyBuilder
 from openeo.utils.version import ComparableVersion
 
 
@@ -25,7 +28,6 @@ class TestCompareXarray:
         actual = xarray.DataArray([1, 2, 3])
         issues = _compare_xarray_dataarray(actual, expected)
         assert issues == []
-
 
     @pytest.mark.parametrize(
         ["actual", "expected_issues"],
@@ -202,7 +204,6 @@ class TestCompareXarray:
             )
             == expected_issues
         )
-
 
     def test_nan_handling(self):
         expected = xarray.DataArray([1, 2, numpy.nan, 4, float("nan")])
@@ -617,7 +618,13 @@ class TestAssertJobResults:
             metadata["links"] = links
         path.write_text(json.dumps(metadata))
 
-    def test_assert_job_results_allclose_derived_from_match(self, tmp_path, actual_dir, expected_dir):
+    def _create_derived_from_item_collection(self, item_ids: List[str], collection_id="C123") -> dict:
+        return {
+            "type": "FeatureCollection",
+            "features": [StacDummyBuilder.item(id=item_id, collection=collection_id) for item_id in item_ids],
+        }
+
+    def test_assert_job_results_allclose_matching_derived_from_legacy(self, tmp_path, actual_dir, expected_dir):
         self._create_metadata_json_file(
             path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
             links=[
@@ -634,7 +641,37 @@ class TestAssertJobResults:
         )
         assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
-    def test_assert_job_results_allclose_derived_from_mismatch(self, tmp_path, actual_dir, expected_dir):
+    def test_assert_job_results_allclose_matching_derived_from_doc_url(
+        self, tmp_path, actual_dir, expected_dir, requests_mock
+    ):
+        actual_derived_from_href = "http://actual.test/item-collection.json"
+        requests_mock.get(
+            actual_derived_from_href,
+            json=self._create_derived_from_item_collection(["S2B_blabla_1", "S2B_blabla_2"]),
+        )
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": actual_derived_from_href},
+                {"rel": "about", "href": "https://actual.test/about"},
+            ],
+        )
+        expected_derived_from_href = "http://expected.test/item-collection.json"
+        requests_mock.get(
+            expected_derived_from_href,
+            json=self._create_derived_from_item_collection(["S2B_blabla_1", "S2B_blabla_2"]),
+        )
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[
+                {"rel": "derived_from", "href": expected_derived_from_href},
+                {"rel": "about", "href": "https://expected.test/about"},
+            ],
+        )
+
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_assert_job_results_allclose_mismatching_derived_from_legacy(self, tmp_path, actual_dir, expected_dir):
         self._create_metadata_json_file(
             path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
             links=[
@@ -650,6 +687,58 @@ class TestAssertJobResults:
                 {"rel": "derived_from", "href": "/path/to/S2B_blabla_3.SAFE"},
             ],
         )
+        with raises_assertion_error_or_not(
+            message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_assert_job_results_allclose_mismatching_derived_from_doc_url(
+        self, tmp_path, actual_dir, expected_dir, requests_mock
+    ):
+        actual_derived_from_doc = self._create_derived_from_item_collection(["S2B_blabla_1", "S2B_blabla_666"])
+        actual_derived_from_href = "http://actual.test/item-collection.json"
+        requests_mock.get(actual_derived_from_href, json=actual_derived_from_doc)
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[{"rel": "derived_from", "href": actual_derived_from_href}],
+        )
+
+        expected_derived_from_doc = self._create_derived_from_item_collection(
+            ["S2B_blabla_1", "S2B_blabla_2", "S2B_blabla_3"]
+        )
+        expected_derived_from_href = "http://expected.test/item-collection.json"
+        requests_mock.get(expected_derived_from_href, json=expected_derived_from_doc)
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[{"rel": "derived_from", "href": expected_derived_from_href}],
+        )
+
+        with raises_assertion_error_or_not(
+            message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_assert_job_results_allclose_mismatching_derived_from_doc_local(self, tmp_path, actual_dir, expected_dir):
+        local_derived_from_href = "item-collection.json"
+
+        actual_derived_from_doc = self._create_derived_from_item_collection(["S2B_blabla_1", "S2B_blabla_666"])
+        with (actual_dir / local_derived_from_href).open("w") as f:
+            json.dump(actual_derived_from_doc, fp=f)
+        self._create_metadata_json_file(
+            path=actual_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[{"rel": "derived_from", "href": local_derived_from_href}],
+        )
+
+        expected_derived_from_doc = self._create_derived_from_item_collection(
+            ["S2B_blabla_1", "S2B_blabla_2", "S2B_blabla_3"]
+        )
+        with (expected_dir / local_derived_from_href).open("w") as f:
+            json.dump(expected_derived_from_doc, fp=f)
+        self._create_metadata_json_file(
+            path=expected_dir / DEFAULT_JOB_RESULTS_FILENAME,
+            links=[{"rel": "derived_from", "href": local_derived_from_href}],
+        )
+
         with raises_assertion_error_or_not(
             message="Differing 'derived_from' links.*1 common, 1 only in actual, 2 only in expected.*only in actual.*bla_666.*only in expected.*bla_3"
         ):
@@ -685,3 +774,118 @@ class TestAssertJobResults:
         actual.write_text("Wello Horld")
         with pytest.raises(ValueError, match="Expected a directory"):
             assert_job_results_allclose(actual=actual, expected=expected, tmp_path=tmp_path)
+
+
+class TestDerivedFrom:
+    def test_from_links_legacy(self):
+        links = [
+            {"rel": "derived_from", "href": "NDVI300_20250921_V3"},
+            {"rel": "derived_from", "href": "NDVI300_20250927_V3"},
+        ]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="NDVI300_20250921_V3"),
+            _ProductRef(item_id="NDVI300_20250927_V3"),
+        }
+
+    def test_from_links_legacy_unresolvable_url(self, requests_mock, caplog):
+        """
+        Legacy derived_from link: href is an URL, but not expected to be resolvable
+        (e.g. it is internal or requires auth)
+        """
+        href = "https://internal.test/item"
+        requests_mock.get(href, status_code=401)
+        links = [
+            {"rel": "derived_from", "href": href},
+        ]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="https://internal.test/item"),
+        }
+        assert caplog.messages == [
+            dirty_equals.IsStr(regex=".*Failed to.*parse.*HTTPError.*401 Client Error.*"),
+        ]
+
+    def test_from_links_legacy_no_json_doc(self, requests_mock, caplog):
+        """
+        Legacy derived_from link: href is an URL, but not a JSON document
+        """
+        href = "https://internal.test/item"
+        requests_mock.get(href, text="look ma no JSON!")
+        links = [
+            {"rel": "derived_from", "href": href},
+        ]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="https://internal.test/item"),
+        }
+        assert caplog.messages == [
+            dirty_equals.IsStr(regex=".*Failed to.*parse.*JSONDecodeError.*"),
+        ]
+
+    @pytest.fixture()
+    def item_collection_doc(self):
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                StacDummyBuilder.item(id="NDVI300_20250921_V3", collection="NDVI300"),
+                StacDummyBuilder.item(id="NDVI300_20250927_V3", collection="NDVI300"),
+            ],
+        }
+
+    def test_from_links_stac_item_collection(self, requests_mock, item_collection_doc):
+        href = "http://stac.test/item-collection.json"
+        requests_mock.get(href, json=item_collection_doc)
+        links = [{"rel": "derived_from", "href": href, "type": "application/geo+json"}]
+        derived_from = set(_DerivedFrom().from_links(links))
+        assert derived_from == {
+            _ProductRef(item_id="NDVI300_20250921_V3", collection_id="NDVI300"),
+            _ProductRef(item_id="NDVI300_20250927_V3", collection_id="NDVI300"),
+        }
+
+    @pytest.mark.parametrize(
+        ["local_href"],
+        [
+            ("item-collection.json",),
+            ("item-collection.geojson",),
+            ("aux/item-collection.json",),
+            ("./items.col",),
+            # ("items.col",),  # TODO: support this too once support for legacy derived_from can be dropped
+        ],
+    )
+    def test_from_links_local_files(self, tmp_path, item_collection_doc, local_href):
+        item_collection_path = tmp_path / local_href
+        item_collection_path.parent.mkdir(parents=True, exist_ok=True)
+        with item_collection_path.open("w") as f:
+            json.dump(item_collection_doc, fp=f)
+
+        job_metadata_doc = {"links": [{"rel": "derived_from", "href": local_href}]}
+        job_metadata_path = tmp_path / "job-result-metadata.json"
+        with job_metadata_path.open("w") as f:
+            json.dump(job_metadata_doc, fp=f)
+
+        links = job_metadata_doc["links"]
+        derived_from = set(_DerivedFrom().from_links(links, base=job_metadata_path))
+        assert derived_from == {
+            _ProductRef(item_id="NDVI300_20250921_V3", collection_id="NDVI300"),
+            _ProductRef(item_id="NDVI300_20250927_V3", collection_id="NDVI300"),
+        }
+
+    @pytest.mark.parametrize(
+        ["item_collection_href", "mock_url"],
+        [
+            ("item-collection.json", "http://stac.test/item-collection.json"),
+            ("item-collection.geojson", "http://stac.test/item-collection.geojson"),
+            ("aux/item-collection.json", "http://stac.test/aux/item-collection.json"),
+            ("./items.col", "http://stac.test/items.col"),
+        ],
+    )
+    def test_from_links_relative_url(self, requests_mock, item_collection_doc, item_collection_href, mock_url):
+        metadata_url = "http://stac.test/job-result-metadata.json"
+        requests_mock.get(mock_url, json=item_collection_doc)
+        links = [{"rel": "derived_from", "href": item_collection_href}]
+        derived_from = set(_DerivedFrom().from_links(links, base=metadata_url))
+        assert derived_from == {
+            _ProductRef(item_id="NDVI300_20250921_V3", collection_id="NDVI300"),
+            _ProductRef(item_id="NDVI300_20250927_V3", collection_id="NDVI300"),
+        }

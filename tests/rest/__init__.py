@@ -15,7 +15,7 @@ def get_download_graph(cube: DataCube, *, drop_save_result: bool = False, drop_l
     :param drop_load_collection: whether to drop the load_collection node
     :return:
     """
-    with mock.patch.object(cube.connection, 'download') as download:
+    with mock.patch.object(cube.connection, "download") as download:
         cube.download("out.geotiff", format="GTIFF")
         download.assert_called_once()
         args, kwargs = download.call_args
@@ -36,7 +36,7 @@ def get_execute_graph(cube: DataCube) -> dict:
     :param connection: connection object
     :return:
     """
-    with mock.patch.object(cube.connection, 'execute') as execute:
+    with mock.patch.object(cube.connection, "execute") as execute:
         cube.execute()
         execute.assert_called_once()
         args, kwargs = execute.call_args

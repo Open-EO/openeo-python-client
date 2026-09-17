@@ -247,9 +247,13 @@ class DataCube(_ProcessGraphAbstraction):
                 metadata = metadata.filter_bands(bands)
             arguments['bands'] = bands
 
+        if isinstance(collection_id, str) and connection:
+            queryables = lambda: _Queryables.from_openeo_collection(collection_id=collection_id, connection=connection)
+        else:
+            queryables = None
         properties = cls._build_load_properties_argument(
             properties=properties,
-            queryables=_Queryables.build(collection_id=collection_id, connection=connection),
+            queryables=queryables,
             max_cloud_cover=max_cloud_cover,
         )
         if properties is not None:
@@ -275,7 +279,7 @@ class DataCube(_ProcessGraphAbstraction):
             None,
         ],
         *,
-        queryables: Optional[_Queryables] = None,
+        queryables: Union[None, _Queryables, Callable[[], _Queryables]] = None,
         max_cloud_cover: Optional[float] = None,
     ) -> Union[Dict[str, PGNode], None]:
         """
@@ -296,6 +300,9 @@ class DataCube(_ProcessGraphAbstraction):
             properties["eo:cloud_cover"] = lambda v: v <= max_cloud_cover
 
         if isinstance(properties, dict):
+            if callable(queryables):
+                # Lazy discovery of queryables
+                queryables = queryables()
             if queryables and not queryables.additional:
                 unsupported_properties = set(properties.keys()).difference(queryables.properties)
                 if unsupported_properties:
@@ -3253,7 +3260,10 @@ class _Queryables:
         self.additional = bool(additional)
 
     @classmethod
-    def build(cls, *, collection_id: str, connection: Optional[Connection]) -> Union[_Queryables, None]:
+    def from_openeo_collection(
+        cls, *, collection_id: str, connection: Optional[Connection]
+    ) -> Union[_Queryables, None]:
+        """Build ``_Queryables`` from openEO collection metadata"""
         if connection and connection.capabilities().supports_endpoint("/collections/{collection_id}/queryables"):
             path = f"/collections/{collection_id}/queryables"
             try:

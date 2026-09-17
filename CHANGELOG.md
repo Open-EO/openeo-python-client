@@ -9,15 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+- Convert setup.py to pyproject.toml ([#920](https://github.com/Open-EO/openeo-python-client/issues/920))
+- Make `_DerivedFrom._from_url` more resilient against unresolvable/unparsable `derived_from` links ([#928](https://github.com/Open-EO/openeo-python-client/issues/928), eu-cdse/openeo-cdse-infra#1338)
+
+### Removed
+
+### Fixed
+
+
+## [0.52.0] - 2026-09-08
+
+### Added
+
+- Added `AGENTS.md` with guidance for AI coding agents contributing to this project, including a request to disclose AI assistance in PRs ([#923](https://github.com/Open-EO/openeo-python-client/issues/923))
+- Add a `py.typed` to indicate to type checkers that the package contains type annotations.
+- Support document based "derived_from" links in `openeo.testing.results` ([#928](https://github.com/Open-EO/openeo-python-client/issues/928))
+- Add `JobResults.download_as_collection()` (experimental) to download job results as a self-contained STAC collection with rewritten hrefs, including a template system to fine-tune file names and paths ([#931](https://github.com/Open-EO/openeo-python-client/issues/931))
+
+### Changed
+
+- Lookup collection queryables only when property filtering is actually used in `load_collection` ([#926](https://github.com/Open-EO/openeo-python-client/issues/926))
+
+### Fixed
+
+- Clarify UDF documentation on required function type annotations. ([#757](https://github.com/Open-EO/openeo-python-client/issues/757))
+- `OidcProviderInfo` no longer drops requested OIDC scopes (including the "offline_access" scope used for refresh tokens) that are not listed in the provider's `scopes_supported` discovery field, which made it impossible to authenticate against such providers. ([#930](https://github.com/Open-EO/openeo-python-client/issues/930))
+
+
+## [0.51.0] - 2026-07-16
+
+### Added
+
 - `DataCube.resample_spatial()` now supports parameterized `resolution` and `projection` arguments.  ([#897](https://github.com/Open-EO/openeo-python-client/issues/897))
 - Sanitize asset download filenames (e.g. strip slashes, (semi)colon, hash, ...), instead of blindly using the asset key as filename. ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
 - Support parameters in `DataCube` apply- and band-math operations ([#903](https://github.com/Open-EO/openeo-python-client/issues/903))
+- Introduction of simple (experimental) event system at `Connection.events` to allow hooking into various events of the API and internals ([#922](https://github.com/Open-EO/openeo-python-client/issues/922))
+- Initial implementation of pytest plugin `auto_list_job_ids` to automatically list created jobs and sync processing requests ([#922](https://github.com/Open-EO/openeo-python-client/issues/922))
 
 ### Changed
 
 - `ResultAsset.__init__()`: renamed `name` argument to `key` for clarity and consistency with the spec ([#820](https://github.com/Open-EO/openeo-python-client/issues/820))
-
-### Removed
 
 ### Fixed
 

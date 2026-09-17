@@ -3,7 +3,6 @@ from openeo.utils.version import ComparableVersion
 
 
 class TestOpenEoCapabilities:
-
     def test_api_version(self):
         capabilities = OpenEoCapabilities(
             {

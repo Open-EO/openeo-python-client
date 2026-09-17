@@ -65,7 +65,7 @@ def test_apply_udf():
                             "arguments": {
                                 "data": {"from_parameter": "x"},
                                 "runtime": "Python",
-                                "udf": "def " "foo(): " "pass",
+                                "udf": "def foo(): pass",
                             },
                             "process_id": "run_udf",
                             "result": True,

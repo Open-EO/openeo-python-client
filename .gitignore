@@ -129,3 +129,11 @@ pytest-tmp
 
 # direnv's .envrc
 .envrc
+
+# Ignore common dependency lock files:
+# this is a library project with as wide a dependency version range as possible,
+# not a reproducible application project with pinned down dependencies.
+uv.lock
+poetry.lock
+Pipfile.lock
+pdm.lock

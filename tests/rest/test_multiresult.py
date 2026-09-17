@@ -1,4 +1,3 @@
-
 from openeo import BatchJob
 from openeo.rest.multiresult import MultiResult
 

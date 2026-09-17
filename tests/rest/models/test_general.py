@@ -117,7 +117,6 @@ class TestProcessListingResponse:
         processes = ProcessListingResponse(data)
         assert processes.ext_federation_missing() == expected
 
-
     def test_repr_html_basic(self):
         data = {"processes": [{"id": "ndvi"}, {"id": "s2mask"}]}
         processes = ProcessListingResponse(data)

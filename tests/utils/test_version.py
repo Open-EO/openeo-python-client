@@ -4,7 +4,6 @@ from openeo.utils.version import ApiVersionException, ComparableVersion
 
 
 class TestComparableVersion:
-
     def test_from_str(self):
         assert ComparableVersion("1.2.3").parts == (1, 2, 3)
         assert ComparableVersion("1.b.3").parts == (1, "b", 3)
