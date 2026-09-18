@@ -26,34 +26,13 @@ from openeo.util import (
     str_truncate,
     url_join,
 )
-from openeo.utils.http import (
-    HTTP_408_REQUEST_TIMEOUT,
-    HTTP_429_TOO_MANY_REQUESTS,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-    HTTP_501_NOT_IMPLEMENTED,
-    HTTP_502_BAD_GATEWAY,
-    HTTP_503_SERVICE_UNAVAILABLE,
-    HTTP_504_GATEWAY_TIMEOUT,
-    session_with_retries,
-)
+from openeo.utils.http import HTTP_502_BAD_GATEWAY, session_with_retries
 
 _log = logging.getLogger(__name__)
 
 # Default timeouts for requests
 # TODO: get default_timeout from config?
 DEFAULT_TIMEOUT = 20 * 60
-
-MAX_DOWNLOAD_RETRIES_PER_RANGE = 3
-
-RETRIABLE_DOWNLOAD_STATUSCODES = [
-    HTTP_408_REQUEST_TIMEOUT,
-    HTTP_429_TOO_MANY_REQUESTS,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-    HTTP_501_NOT_IMPLEMENTED,
-    HTTP_502_BAD_GATEWAY,
-    HTTP_503_SERVICE_UNAVAILABLE,
-    HTTP_504_GATEWAY_TIMEOUT,
-]
 
 
 class RestApiConnection:
@@ -331,25 +310,15 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
+        # Retries on transient failures (429/502/503/504) are handled by the
+        # urllib3 Retry mounted on this connection's session (see
+        # session_with_retries), so no per-range retry loop is needed here.
         ensure_parent_dir_for(target)
         with target.open("wb") as f:
             for from_byte_index in range(0, file_size, range_size):
                 to_byte_index = min(from_byte_index + range_size - 1, file_size - 1)
-                tries_left = MAX_DOWNLOAD_RETRIES_PER_RANGE
-                while tries_left > 0:
-                    try:
-                        range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
-                        with self.get(path=url, headers=range_headers, stream=True) as r:
-                            r.raise_for_status()
-                            for block in r.iter_content(chunk_size=chunk_size):
-                                f.write(block)
-                        break
-                    except OpenEoApiPlainError as error:
-                        tries_left -= 1
-                        if tries_left > 0 and error.http_status_code in RETRIABLE_DOWNLOAD_STATUSCODES:
-                            _log.warning(
-                                f"Failed to retrieve chunk {from_byte_index}-{to_byte_index} from {url} (status {error.http_status_code}) - retrying"
-                            )
-                            continue
-                        else:
-                            raise error
+                range_headers = {"Range": f"bytes={from_byte_index}-{to_byte_index}"}
+                with self.get(path=url, headers=range_headers, stream=True) as r:
+                    r.raise_for_status()
+                    for block in r.iter_content(chunk_size=chunk_size):
+                        f.write(block)
