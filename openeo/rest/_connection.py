@@ -108,7 +108,7 @@ class RestApiConnection:
     def build_url(self, path: str):
         return url_join(self._root_url, path)
 
-    def _merged_headers(self, headers: dict) -> dict:
+    def _merged_headers(self, headers: Union[dict, None]) -> dict:
         """Merge default headers with given headers"""
         result = self.default_headers.copy()
         if headers:
