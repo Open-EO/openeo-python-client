@@ -734,8 +734,13 @@ def job_with_chunked_asset_using_head(con100, requests_mock, tmp_path) -> BatchJ
         assert search
         from_bytes = int(search.group(1))
         to_bytes = int(search.group(2))
-        assert from_bytes < to_bytes
-        return TIFF_CONTENT[from_bytes : to_bytes + 1]
+        assert from_bytes <= to_bytes
+        sliced_content = TIFF_CONTENT[from_bytes : to_bytes + 1]
+        context.status_code = 206
+        context.headers["Accept-Ranges"] = "bytes"
+        context.headers["Content-Range"] = f"bytes {from_bytes}-{to_bytes}/{len(TIFF_CONTENT)}"
+        context.headers["Content-Length"] = str(len(sliced_content))
+        return sliced_content
 
     requests_mock.get(
         API_URL + "/jobs/jj1/results",

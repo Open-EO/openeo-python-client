@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Convert setup.py to pyproject.toml ([#920](https://github.com/Open-EO/openeo-python-client/issues/920))
 - Make `_DerivedFrom._from_url` more resilient against unresolvable/unparsable `derived_from` links ([#928](https://github.com/Open-EO/openeo-python-client/issues/928), eu-cdse/openeo-cdse-infra#1338)
+- Use GET with a 0-0 range request instead of HEAD when downloading ([#939](https://github.com/Open-EO/openeo-python-client/issues/939))
 
 ### Removed
 

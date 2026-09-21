@@ -305,9 +305,13 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
-        head = self.head(url, stream=True)
-        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
-            file_size = int(head.headers["Content-Length"])
+        # URL might be pre-signed S3 URL, so use a GET with a 0-0 range request
+        # to figure out if the server supports range requests.
+        # Trying to GET a 0-byte file will give a 416-response, so accept that
+        # since the download will succeed.
+        head = self.get(url, headers={"Range": "bytes=0-0"}, expected_status=[200, 206, 416], stream=True)
+        if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Range" in head.headers:
+            file_size = int(head.headers["Content-Range"].split("/")[1])
             self._download_ranged(
                 url=url, target=target, file_size=file_size, chunk_size=chunk_size, range_size=range_size
             )
