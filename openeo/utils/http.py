@@ -2,7 +2,7 @@
 openEO-oriented HTTP utilities
 """
 
-from typing import Collection, Union
+from typing import Collection, Literal, Union
 
 import requests
 import requests.adapters
@@ -81,7 +81,7 @@ def retry_configuration(
     return retry
 
 
-def _to_retry(retry: Union[Retry, dict, None]) -> Retry:
+def _to_retry(retry: Union[Retry, dict, Literal[True], None]) -> Retry:
     """
     Convert a retry specification to a :py:class:`urllib3.util.retry.Retry` object.
     """
@@ -96,7 +96,7 @@ def _to_retry(retry: Union[Retry, dict, None]) -> Retry:
     return retry
 
 
-def session_with_retries(retry: Union[Retry, dict, None] = None) -> requests.Session:
+def session_with_retries(retry: Union[Retry, dict, Literal[True], None] = None) -> requests.Session:
     """
     Factory for a requests session with openEO-oriented retry settings.
 

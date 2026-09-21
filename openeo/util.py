@@ -15,7 +15,7 @@ import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import requests
@@ -251,7 +251,7 @@ def ensure_parent_dir_for(path: Union[str, Path]) -> Path:
     return ensure_dir(Path(path).parent)
 
 
-def ensure_list(x):
+def ensure_list(x) -> List:
     """Convert given data structure to a list."""
     try:
         return list(x)
