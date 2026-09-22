@@ -17,6 +17,7 @@ from openeo.metadata import (
     CubeMetadata,
     Dimension,
     DimensionAlreadyExistsException,
+    GeometryDimension,
     MetadataException,
     SpatialDimension,
     TemporalDimension,
@@ -1160,6 +1161,27 @@ def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
     assert metadata.band_names == expected
 
 
+def test_metadata_from_stac_stac_1_1_common_bands_without_datacube_extension(tmp_path):
+    stac_dict = StacDummyBuilder.collection(
+        stac_version="1.1.0",
+        bands=[
+            {"name": "red", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+            {"name": "nir", "eo:common_name": "nir", "eo:center_wavelength": 0.842},
+        ],
+    )
+    assert "stac_extensions" not in stac_dict
+    assert "cube:dimensions" not in stac_dict
+
+    path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+
+    assert metadata.dimension_names() == ["x", "y", "bands", "t"]
+    assert metadata.band_names == ["red", "nir"]
+    assert metadata.band_dimension.bands[0].common_name == "red"
+    assert metadata.band_dimension.bands[1].wavelength_um == 0.842
+
 
 @pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
 @pytest.mark.parametrize(
@@ -1211,7 +1233,17 @@ def test_metadata_from_stac_collection_bands_from_item_assets(
     [
         (
             StacDummyBuilder.item(),
-            None,
+            ("t", ["2024-03-08", "2024-03-08"]),
+        ),
+        (
+            StacDummyBuilder.item(
+                properties={
+                    "datetime": "2024-03-08T00:00:00Z",
+                    "start_datetime": "2024-04-04T00:00:00Z",
+                    "end_datetime": "2024-06-06T00:00:00Z",
+                }
+            ),
+            ("t", ["2024-04-04T00:00:00Z", "2024-06-06T00:00:00Z"]),
         ),
         (
             StacDummyBuilder.item(cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}),
@@ -1255,6 +1287,93 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
         assert (dim.name, dim.extent) == expected
     else:
         assert not metadata.has_temporal_dimension()
+
+
+
+@pytest.mark.parametrize(
+    ["stac_dict", "expected_dims"],
+    [
+        (
+            # No cube:dimensions -> fall back to openEO default naming convention
+            StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}]}),
+            {"t", "bands", "y", "x"},
+        ),
+        (
+            # No cube:dimensions (item) -> fall back to openEO default naming convention
+            StacDummyBuilder.item(
+                properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "B01"}]}
+            ),
+            {"t", "bands", "y", "x"},
+        ),
+        (
+            # cube:dimensions present -> use the dimension names as suggested by cube:dimensions keys
+            StacDummyBuilder.collection(
+                cube_dimensions={
+                    "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+                    "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
+                    "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
+                    "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+                }
+            ),
+            {"time", "band", "y", "x"},
+        ),
+        (
+            # cube:dimensions present without band dimension -> don't inject an openEO "bands" dimension
+            StacDummyBuilder.collection(
+                summaries={"eo:bands": [{"name": "B01"}]},
+                cube_dimensions={
+                    "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+                    "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
+                    "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+                },
+            ),
+            {"time", "y", "x"},
+        ),
+    ],
+)
+def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path, stac_dict, expected_dims):
+    # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
+    path = tmp_path / "stac.json"
+    # TODO #738 real request mocking of STAC resources compatible with pystac?
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+
+    got = tuple(metadata.dimension_names() or ())
+
+    # Order-insensitive check: names only
+    assert set(got) == expected_dims
+
+    # Ensure the policy logic is exercised correctly:
+    # cube:dimensions can be located at root (collection) or in properties (item)
+    cube_dims = stac_dict.get("cube:dimensions") or (stac_dict.get("properties") or {}).get("cube:dimensions")
+    if cube_dims is None:
+        assert set(got) == {"t", "bands", "y", "x"}
+    else:
+        assert set(got) == set(cube_dims.keys())
+
+
+def test_metadata_from_stac_cube_dimensions_geometries_not_treated_as_band_dimension(tmp_path):
+    """
+    A "geometries" typed cube:dimensions entry (vector cube dimension) should not be
+    silently converted into a BandDimension, even when the STAC datacube extension
+    is declared (which routes parsing through pystac's extension API).
+    """
+    stac_dict = StacDummyBuilder.collection(
+        cube_dimensions={
+            "geom": {"type": "geometries"},
+            "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+            "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
+        }
+    )
+    assert stac_dict["stac_extensions"] == [StacDummyBuilder._EXT_DATACUBE]
+
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+
+    assert metadata.dimension_names() == ["geom", "time", "band"]
+    assert metadata.has_geometry_dimension()
+    assert isinstance(metadata.geometry_dimension, GeometryDimension)
 
 
 @pytest.mark.parametrize(
