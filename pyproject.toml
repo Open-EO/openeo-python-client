@@ -52,7 +52,7 @@ dev = [
     "netCDF4>=1.7.0",
     "pyarrow>=10.0.1",
     "pydata_sphinx_theme",
-    "pyproj>=3.2.0",  # Pyproj is an optional, best-effort runtime dependency
+    "pyproj>=3.3.0",  # Pyproj is an optional, best-effort runtime dependency
     "pystac-client>=0.7.5",
     "pytest>=4.5.0",
     "python-dateutil>=2.7.0",
@@ -98,7 +98,7 @@ tests = [
     "moto>=5.0.0",
     "netCDF4>=1.7.0",
     "pyarrow>=10.0.1",  # For Parquet read/write support in pandas
-    "pyproj>=3.2.0",
+    "pyproj>=3.3.0",
     "pystac-client>=0.7.5",
     "pytest>=4.5.0",
     "python-dateutil>=2.7.0",
