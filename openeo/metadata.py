@@ -857,21 +857,26 @@ class _StacMetadataParser:
         self, stac_object: pystac.STACObject, bands: _BandList
     ) -> List[Dimension]:
         """
-        Parse dimensions from PySTAC's cube extension wrapper (when present).
-        Important: PySTAC DimensionType only has SPATIAL + TEMPORAL.
-        Everything else is treated as band-like.
+        Parse dimensions from PySTAC's cube extension wrapper (assumed to be present).
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_raw_dict``
         """
         dimensions = []
         for name, dim in stac_object.ext.cube.dimensions.items():
-            dim_type = getattr(dim, "dim_type", None)
+            dim_type = dim.dim_type
             extent = self._safe_extent_from_pystac_cube_dim(dim)
 
             if dim_type == pystac.extensions.datacube.DimensionType.SPATIAL:
                 dimensions.append(SpatialDimension(name=name, extent=extent))
             elif dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL:
                 dimensions.append(TemporalDimension(name=name, extent=extent))
-            else:
+            elif dim_type in ("bands", "spectral"):
                 dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == pystac.extensions.datacube.DimensionType.GEOMETRIES:
+                dimensions.append(GeometryDimension(name=name))
+            else:
+                self._warn(f"Unhandled cube:dimensions type {dim_type!r} for dimension {name!r}")
+                dimensions.append(Dimension(name=name, type=dim_type))
 
         return dimensions
 
@@ -879,6 +884,7 @@ class _StacMetadataParser:
         """
         Parse dimensions from raw cube:dimensions dict.
         Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_pystac_extension``
         """
         dimensions = []
         cube_dimensions = self._cube_dimensions_dict(stac_object)
@@ -896,6 +902,8 @@ class _StacMetadataParser:
                 dimensions.append(TemporalDimension(name=name, extent=extent))
             elif dim_type in ("bands", "spectral"):
                 dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == "geometries":
+                dimensions.append(GeometryDimension(name=name))
             else:
                 dimensions.append(Dimension(name=name, type=dim_type))
 

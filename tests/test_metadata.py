@@ -17,6 +17,7 @@ from openeo.metadata import (
     CubeMetadata,
     Dimension,
     DimensionAlreadyExistsException,
+    GeometryDimension,
     MetadataException,
     SpatialDimension,
     TemporalDimension,
@@ -1289,7 +1290,6 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
 
 
 
-# Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
 @pytest.mark.parametrize(
     ["stac_dict", "expected_dims"],
     [
@@ -1332,6 +1332,7 @@ def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
     ],
 )
 def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path, stac_dict, expected_dims):
+    # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
     path = tmp_path / "stac.json"
     # TODO #738 real request mocking of STAC resources compatible with pystac?
     path.write_text(json.dumps(stac_dict))
@@ -1349,6 +1350,30 @@ def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path
         assert set(got) == {"t", "bands", "y", "x"}
     else:
         assert set(got) == set(cube_dims.keys())
+
+
+def test_metadata_from_stac_cube_dimensions_geometries_not_treated_as_band_dimension(tmp_path):
+    """
+    A "geometries" typed cube:dimensions entry (vector cube dimension) should not be
+    silently converted into a BandDimension, even when the STAC datacube extension
+    is declared (which routes parsing through pystac's extension API).
+    """
+    stac_dict = StacDummyBuilder.collection(
+        cube_dimensions={
+            "geom": {"type": "geometries"},
+            "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+            "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
+        }
+    )
+    assert stac_dict["stac_extensions"] == [StacDummyBuilder._EXT_DATACUBE]
+
+    path = tmp_path / "stac.json"
+    path.write_text(json.dumps(stac_dict))
+    metadata = metadata_from_stac(str(path))
+
+    assert metadata.dimension_names() == ["geom", "time", "band"]
+    assert metadata.has_geometry_dimension()
+    assert isinstance(metadata.geometry_dimension, GeometryDimension)
 
 
 @pytest.mark.parametrize(
