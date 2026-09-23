@@ -305,7 +305,7 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
-        head = self.head(url, stream=True)
+        head = self.head(url, stream=True, check_error=False)
         if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
             file_size = int(head.headers["Content-Length"])
             self._download_ranged(
