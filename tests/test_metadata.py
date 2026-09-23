@@ -10,7 +10,6 @@ import pytest
 
 from openeo.api.process import Parameter
 from openeo.metadata import (
-    _PYSTAC_1_9_EXTENSION_INTERFACE,
     Band,
     BandDimension,
     CollectionMetadata,
@@ -1183,7 +1182,6 @@ def test_metadata_from_stac_stac_1_1_common_bands_without_datacube_extension(tmp
     assert metadata.band_dimension.bands[1].wavelength_um == 0.842
 
 
-@pytest.mark.skipif(not _PYSTAC_1_9_EXTENSION_INTERFACE, reason="Requires PySTAC 1.9+ extension interface")
 @pytest.mark.parametrize(
     ["eo_extension_is_declared", "expected_warnings"],
     [
@@ -1224,10 +1222,6 @@ def test_metadata_from_stac_collection_bands_from_item_assets(
     assert caplog.messages == expected_warnings
 
 
-@pytest.mark.skipif(
-    not _PYSTAC_1_9_EXTENSION_INTERFACE,
-    reason="No backport of implementation/test below PySTAC 1.9 extension interface",
-)
 @pytest.mark.parametrize(
     ["stac_dict", "expected"],
     [
@@ -1688,9 +1682,7 @@ class TestStacMetadataParser:
     def test_bands_from_stac_catalog(self, data, expected, expected_warnings, caplog):
         catalog = pystac.Catalog.from_dict(data)
         assert _StacMetadataParser().bands_from_stac_catalog(catalog=catalog) == expected
-
-        if _PYSTAC_1_9_EXTENSION_INTERFACE:
-            assert caplog.messages == expected_warnings
+        assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
         ["data", "expected", "expected_warnings"],
@@ -1776,9 +1768,7 @@ class TestStacMetadataParser:
     def test_bands_from_stac_collection(self, data, expected, caplog, expected_warnings):
         collection = pystac.Collection.from_dict(data)
         assert _StacMetadataParser().bands_from_stac_collection(collection=collection) == expected
-
-        if _PYSTAC_1_9_EXTENSION_INTERFACE:
-            assert caplog.messages == expected_warnings
+        assert caplog.messages == expected_warnings
 
     @pytest.mark.parametrize(
         ["entities", "kwargs", "expected", "expected_warnings"],
@@ -2371,9 +2361,7 @@ class TestStacMetadataParser:
     ):
         collection = pystac.Collection.from_dict(stac_data)
         assert _StacMetadataParser().bands_from_stac_collection(collection).band_names() == expected_bands
-
-        if _PYSTAC_1_9_EXTENSION_INTERFACE:
-            assert caplog.messages == expected_warnings
+        assert caplog.messages == expected_warnings
 
     def test_bands_from_stac_collection_with_item_assets_extension_but_no_item_assets(self, caplog):
         """

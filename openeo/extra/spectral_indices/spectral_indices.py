@@ -1,4 +1,5 @@
 import functools
+import importlib.resources
 import json
 import re
 from typing import Dict, List, Optional, Set
@@ -7,11 +8,6 @@ from openeo import BaseOpenEoException
 from openeo.metadata import CollectionMetadata
 from openeo.processes import ProcessBuilder, array_create, array_modify
 from openeo.rest.datacube import DataCube
-
-try:
-    import importlib_resources
-except ImportError:
-    import importlib.resources as importlib_resources
 
 
 @functools.lru_cache(maxsize=1)
@@ -26,7 +22,7 @@ def load_indices() -> Dict[str, dict]:
         #      and provide an alternative mechanism to work with custom indices
         "resources/extra-indices-dict.json",
     ]:
-        resource = importlib_resources.files("openeo.extra.spectral_indices") / path
+        resource = importlib.resources.files("openeo.extra.spectral_indices") / path
         data = json.loads(resource.read_text(encoding="utf8"))
         overwrites = set(specs.keys()).intersection(data["SpectralIndices"].keys())
         if overwrites:
@@ -41,7 +37,7 @@ def load_constants() -> Dict[str, float]:
     """Load constants defined by Awesome Spectral Indices."""
     # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
     resource = (
-        importlib_resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/constants.json"
+        importlib.resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/constants.json"
     )
     data = json.loads(resource.read_text(encoding="utf8"))
 
@@ -53,7 +49,7 @@ def _load_bands() -> Dict[str, dict]:
     """Load band name mapping defined by Awesome Spectral Indices."""
     # TODO: encapsulate all this json loading in a single Awesome Spectral Indices registry class?
     resource = (
-        importlib_resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/bands.json"
+        importlib.resources.files("openeo.extra.spectral_indices") / "resources/awesome-spectral-indices/bands.json"
     )
     data = json.loads(resource.read_text(encoding="utf8"))
     return data

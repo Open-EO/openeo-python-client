@@ -23,7 +23,6 @@ from openeo import BatchJob
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import FlatGraphableMixin, PGNode
 from openeo.metadata import (
-    _PYSTAC_1_9_EXTENSION_INTERFACE,
     Band,
     BandDimension,
     CubeMetadata,
@@ -3372,10 +3371,6 @@ class TestLoadStac:
             },
         }
 
-    @pytest.mark.skipif(
-        not _PYSTAC_1_9_EXTENSION_INTERFACE,
-        reason="No backport of implementation/test below PySTAC 1.9 extension interface",
-    )
     @pytest.mark.parametrize(
         ["collection_extent", "dim_extent"],
         [

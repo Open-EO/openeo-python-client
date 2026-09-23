@@ -693,9 +693,6 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     parser = _StacMetadataParser()
     return parser.metadata_from_stac_object(stac_object)
 
-# Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)
-# TODO: remove this once support for Python 3.7 and 3.8 is dropped
-_PYSTAC_1_9_EXTENSION_INTERFACE = hasattr(pystac.Item, "ext")
 
 # Sniff for PySTAC support for Collection.item_assets (in STAC core since 1.1)
 # (supported since PySTAC 1.12.0, which requires Python>=3.10)
@@ -845,8 +842,7 @@ class _StacMetadataParser:
         Parse dimensions declared through cube:dimensions.
         """
         if (
-            _PYSTAC_1_9_EXTENSION_INTERFACE
-            and getattr(stac_object, "ext", None) is not None
+            getattr(stac_object, "ext", None) is not None
             and stac_object.ext.has("cube")
             and hasattr(stac_object.ext, "cube")
         ):
@@ -960,7 +956,7 @@ class _StacMetadataParser:
         summaries = catalog.extra_fields.get("summaries", {})
         self._warn(f"bands_from_stac_catalog with {summaries.keys()=} (which is non-standard)")
         if "eo:bands" in summaries:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and not catalog.ext.has("eo"):
+            if not catalog.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in summaries["eo:bands"])
         elif "bands" in summaries:
@@ -985,7 +981,7 @@ class _StacMetadataParser:
         self._log(f"bands_from_stac_collection with {collection.summaries.lists.keys()=}")
         # Look for band metadata in collection summaries
         if "eo:bands" in collection.summaries.lists:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and not collection.ext.has("eo"):
+            if not collection.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in collection.summaries.lists["eo:bands"])
         elif "bands" in collection.summaries.lists:
@@ -998,8 +994,7 @@ class _StacMetadataParser:
         elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
             return self._bands_from_item_assets(collection.item_assets)
         elif (
-            _PYSTAC_1_9_EXTENSION_INTERFACE
-            and collection.ext.has("item_assets")
+             collection.ext.has("item_assets")
             and collection.extra_fields.get("item-assets")
             and collection.ext.item_assets
         ):
@@ -1068,10 +1063,10 @@ class _StacMetadataParser:
         """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         # TODO: filter on asset roles?
-        if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
+        if asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.ext.eo.bands)
         elif "eo:bands" in asset.extra_fields:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+            if asset.owner and not asset.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.extra_fields["eo:bands"])
         elif "bands" in asset.extra_fields:
@@ -1095,7 +1090,7 @@ class _StacMetadataParser:
         """
         if isinstance(asset, pystac.extensions.item_assets.AssetDefinition):
             if "eo:bands" in asset.properties:
-                if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+                if asset.owner and not asset.ext.has("eo"):
                     self._warn_undeclared_metadata(field="eo:bands", ext="eo")
                 return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
             elif "bands" in asset.properties:
@@ -1104,7 +1099,7 @@ class _StacMetadataParser:
             if "bands" in asset.properties:
                 return _BandList(self._band_from_common_bands_metadata(b) for b in asset.properties["bands"])
             elif "eo:bands" in asset.properties:
-                if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+                if asset.owner and not asset.ext.has("eo"):
                     self._warn_undeclared_metadata(field="eo:bands", ext="eo")
                 return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
         else:
