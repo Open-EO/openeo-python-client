@@ -87,7 +87,7 @@ class RestApiConnection:
     def build_url(self, path: str):
         return url_join(self._root_url, path)
 
-    def _merged_headers(self, headers: dict) -> dict:
+    def _merged_headers(self, headers: Union[dict, None]) -> dict:
         """Merge default headers with given headers"""
         result = self.default_headers.copy()
         if headers:
@@ -284,7 +284,7 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
-        head = self.head(url, stream=True)
+        head = self.head(url, stream=True, check_error=False)
         if head.ok and head.headers.get("Accept-Ranges") == "bytes" and "Content-Length" in head.headers:
             file_size = int(head.headers["Content-Length"])
             self._download_ranged(

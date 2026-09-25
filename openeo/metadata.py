@@ -36,8 +36,6 @@ class DimensionAlreadyExistsException(MetadataException):
 
 
 # TODO: make these dimension classes immutable data classes
-# TODO: align better with STAC datacube extension
-# TODO: align/adapt/integrate with pystac's datacube extension implementation?
 class Dimension:
     """Base class for dimensions."""
 
@@ -72,7 +70,6 @@ class Dimension:
 
 class SpatialDimension(Dimension):
     # TODO: align better with STAC datacube extension: e.g. support "axis" (x or y)
-
     DEFAULT_CRS = 4326
 
     def __init__(
@@ -685,34 +682,17 @@ def metadata_from_stac(url: str) -> CubeMetadata:
     """
     Reads the band metadata a static STAC catalog or a STAC API Collection and returns it as a :py:class:`CubeMetadata`
 
+    Policy:
+      - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
+      - Otherwise: apply openEO-style defaults (x, y, t) and (for Collection/Item) keep bands dimension even if empty.
+
     :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection
     :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
     """
     stac_object = pystac.read_file(href=url)
-    bands = _StacMetadataParser().bands_from_stac_object(stac_object)
+    parser = _StacMetadataParser()
+    return parser.metadata_from_stac_object(stac_object)
 
-    # At least assume there are spatial dimensions
-    # TODO #743: are there conditions in which we even should not assume the presence of spatial dimensions?
-    dimensions = [
-        SpatialDimension(name="x", extent=[None, None]),
-        SpatialDimension(name="y", extent=[None, None]),
-    ]
-
-    # TODO #743: conditionally include band dimension when there was actual indication of band metadata?
-    band_dimension = BandDimension(name="bands", bands=bands)
-    dimensions.append(band_dimension)
-
-    # TODO: is it possible to derive the actual name of temporal dimension that the backend will use?
-    temporal_dimension = _StacMetadataParser().get_temporal_dimension(stac_object)
-    if temporal_dimension:
-        dimensions.append(temporal_dimension)
-
-    metadata = CubeMetadata(dimensions=dimensions)
-    return metadata
-
-# Sniff for PySTAC extension API since version 1.9.0 (which is not available below Python 3.9)
-# TODO: remove this once support for Python 3.7 and 3.8 is dropped
-_PYSTAC_1_9_EXTENSION_INTERFACE = hasattr(pystac.Item, "ext")
 
 # Sniff for PySTAC support for Collection.item_assets (in STAC core since 1.1)
 # (supported since PySTAC 1.12.0, which requires Python>=3.10)
@@ -766,39 +746,164 @@ class _StacMetadataParser:
             # Use caching trick to avoid duplicate warnings
             self._warn = functools.lru_cache(maxsize=1000)(self._warn)
 
+    def metadata_from_stac_object(self, stac_object: pystac.STACObject) -> CubeMetadata:
+        """
+        Build cube metadata from a STAC object.
+        """
+        dimensions = self.dimensions_from_stac_object(stac_object=stac_object)
+        return CubeMetadata(dimensions=dimensions)
+
+    def dimensions_from_stac_object(self, stac_object: pystac.STACObject) -> List[Dimension]:
+        """
+        Build dimension metadata from a STAC object.
+
+        Philosophy:
+          - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
+          - Otherwise: apply openEO-style defaults (x, y, bands, optional t).
+        """
+        bands = self.bands_from_stac_object(stac_object)
+        if self._has_cube_dimensions(stac_object):
+            return self._parse_declared_dimensions(stac_object=stac_object, bands=bands)
+
+        dimensions: List[Dimension] = [
+            SpatialDimension(name="x", extent=[None, None]),
+            SpatialDimension(name="y", extent=[None, None]),
+            BandDimension(name="bands", bands=list(bands)),
+        ]
+        temporal_dimension = self.get_temporal_dimension(stac_object)
+        if temporal_dimension:
+            dimensions.append(temporal_dimension)
+        return dimensions
+
     def get_temporal_dimension(self, stac_obj: pystac.STACObject) -> Union[TemporalDimension, None]:
         """
         Extract the temporal dimension from a STAC Collection/Item (if any)
         """
-        # TODO: also extract temporal dimension from assets?
-        if _PYSTAC_1_9_EXTENSION_INTERFACE:
-            if stac_obj.ext.has("cube") and hasattr(stac_obj.ext, "cube"):
-                temporal_dims = [
-                    (n, d.extent or [None, None])
-                    for (n, d) in stac_obj.ext.cube.dimensions.items()
-                    if d.dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL
-                ]
-                if len(temporal_dims) == 1:
-                    name, extent = temporal_dims[0]
-                    return TemporalDimension(name=name, extent=extent)
-            elif isinstance(stac_obj, pystac.Collection) and stac_obj.extent.temporal:
-                # No explicit "cube:dimensions": build fallback from "extent.temporal",
-                # with dimension name "t" (openEO API recommendation).
-                extent = [Rfc3339(propagate_none=True).normalize(d) for d in stac_obj.extent.temporal.intervals[0]]
-                return TemporalDimension(name="t", extent=extent)
-        else:
-            if isinstance(stac_obj, pystac.Item):
-                cube_dimensions = stac_obj.properties.get("cube:dimensions", {})
-            elif isinstance(stac_obj, pystac.Collection):
-                cube_dimensions = stac_obj.extra_fields.get("cube:dimensions", {})
-            else:
-                cube_dimensions = {}
-            temporal_dims = [
-                (n, d.get("extent", [None, None])) for (n, d) in cube_dimensions.items() if d.get("type") == "temporal"
+        if self._has_cube_dimensions(stac_obj):
+            temporal_dimensions = [
+                d
+                for d in self._parse_declared_dimensions(stac_object=stac_obj, bands=_BandList([]))
+                if isinstance(d, TemporalDimension)
             ]
-            if len(temporal_dims) == 1:
-                name, extent = temporal_dims[0]
-                return TemporalDimension(name=name, extent=extent)
+            if len(temporal_dimensions) == 1:
+                return temporal_dimensions[0]
+
+        if isinstance(stac_obj, pystac.Collection) and stac_obj.extent and stac_obj.extent.temporal:
+            extent = [Rfc3339(propagate_none=True).normalize(d) for d in stac_obj.extent.temporal.intervals[0]]
+            return TemporalDimension(name="t", extent=extent)
+
+        if isinstance(stac_obj, pystac.Item):
+            props = stac_obj.properties
+            start = props.get("start_datetime")
+            end = props.get("end_datetime")
+            if start or end:
+                extent = [
+                    Rfc3339(propagate_none=True).normalize(start),
+                    Rfc3339(propagate_none=True).normalize(end),
+                ]
+                return TemporalDimension(name="t", extent=extent)
+
+            dt = props.get("datetime")
+            if dt:
+                norm = Rfc3339(propagate_none=True).normalize(dt)
+                return TemporalDimension(name="t", extent=[norm, norm])
+
+    def _has_cube_dimensions(self, stac_object: pystac.STACObject) -> bool:
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
+        return isinstance(cube_dimensions, dict) and len(cube_dimensions) > 0
+
+    @staticmethod
+    def _cube_dimensions_dict(stac_object: pystac.STACObject) -> Dict[str, dict]:
+        """
+        Return raw cube:dimensions dict from a Collection/Item, or {}.
+        """
+        if isinstance(stac_object, pystac.Item):
+            return stac_object.properties.get("cube:dimensions", {}) or {}
+        if isinstance(stac_object, pystac.Collection):
+            return stac_object.extra_fields.get("cube:dimensions", {}) or {}
+        return {}
+
+    @staticmethod
+    def _safe_extent_from_pystac_cube_dim(dim: pystac.extensions.datacube.Dimension) -> List[Any]:
+        """
+        PySTAC cube dimension wrapper may raise if 'extent' is missing.
+        Also, depending on serialization/version, extent might live in extra_fields.
+        """
+        ext = getattr(dim, "extent", None)
+
+        if not ext:
+            extra = getattr(dim, "extra_fields", {}) or {}
+            ext = extra.get("extent")
+
+        return ext or [None, None]
+
+    def _parse_declared_dimensions(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+        """
+        Parse dimensions declared through cube:dimensions.
+        """
+        if (
+            getattr(stac_object, "ext", None) is not None
+            and stac_object.ext.has("cube")
+            and hasattr(stac_object.ext, "cube")
+        ):
+            return self._parse_cube_dimensions_from_pystac_extension(stac_object=stac_object, bands=bands)
+        return self._parse_cube_dimensions_from_raw_dict(stac_object=stac_object, bands=bands)
+
+    def _parse_cube_dimensions_from_pystac_extension(
+        self, stac_object: pystac.STACObject, bands: _BandList
+    ) -> List[Dimension]:
+        """
+        Parse dimensions from PySTAC's cube extension wrapper (assumed to be present).
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_raw_dict``
+        """
+        dimensions = []
+        for name, dim in stac_object.ext.cube.dimensions.items():
+            dim_type = dim.dim_type
+            extent = self._safe_extent_from_pystac_cube_dim(dim)
+
+            if dim_type == pystac.extensions.datacube.DimensionType.SPATIAL:
+                dimensions.append(SpatialDimension(name=name, extent=extent))
+            elif dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL:
+                dimensions.append(TemporalDimension(name=name, extent=extent))
+            elif dim_type in ("bands", "spectral"):
+                dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == pystac.extensions.datacube.DimensionType.GEOMETRIES:
+                dimensions.append(GeometryDimension(name=name))
+            else:
+                self._warn(f"Unhandled cube:dimensions type {dim_type!r} for dimension {name!r}")
+                dimensions.append(Dimension(name=name, type=dim_type))
+
+        return dimensions
+
+    def _parse_cube_dimensions_from_raw_dict(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+        """
+        Parse dimensions from raw cube:dimensions dict.
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_pystac_extension``
+        """
+        dimensions = []
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
+
+        for name, dim in cube_dimensions.items():
+            if not isinstance(dim, dict):
+                continue
+
+            dim_type = dim.get("type")
+            extent = dim.get("extent", [None, None])
+
+            if dim_type == "spatial":
+                dimensions.append(SpatialDimension(name=name, extent=extent))
+            elif dim_type == "temporal":
+                dimensions.append(TemporalDimension(name=name, extent=extent))
+            elif dim_type in ("bands", "spectral"):
+                dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == "geometries":
+                dimensions.append(GeometryDimension(name=name))
+            else:
+                dimensions.append(Dimension(name=name, type=dim_type))
+
+        return dimensions
 
     def _band_from_eo_bands_metadata(self, band: Union[dict, pystac.extensions.eo.Band]) -> Band:
         """Construct band from metadata in eo v1.1 style"""
@@ -851,7 +956,7 @@ class _StacMetadataParser:
         summaries = catalog.extra_fields.get("summaries", {})
         self._warn(f"bands_from_stac_catalog with {summaries.keys()=} (which is non-standard)")
         if "eo:bands" in summaries:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and not catalog.ext.has("eo"):
+            if not catalog.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in summaries["eo:bands"])
         elif "bands" in summaries:
@@ -876,7 +981,7 @@ class _StacMetadataParser:
         self._log(f"bands_from_stac_collection with {collection.summaries.lists.keys()=}")
         # Look for band metadata in collection summaries
         if "eo:bands" in collection.summaries.lists:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and not collection.ext.has("eo"):
+            if not collection.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in collection.summaries.lists["eo:bands"])
         elif "bands" in collection.summaries.lists:
@@ -889,8 +994,7 @@ class _StacMetadataParser:
         elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
             return self._bands_from_item_assets(collection.item_assets)
         elif (
-            _PYSTAC_1_9_EXTENSION_INTERFACE
-            and collection.ext.has("item_assets")
+             collection.ext.has("item_assets")
             and collection.extra_fields.get("item-assets")
             and collection.ext.item_assets
         ):
@@ -959,10 +1063,10 @@ class _StacMetadataParser:
         """
         # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
         # TODO: filter on asset roles?
-        if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
+        if asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.ext.eo.bands)
         elif "eo:bands" in asset.extra_fields:
-            if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+            if asset.owner and not asset.ext.has("eo"):
                 self._warn_undeclared_metadata(field="eo:bands", ext="eo")
             return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.extra_fields["eo:bands"])
         elif "bands" in asset.extra_fields:
@@ -986,7 +1090,7 @@ class _StacMetadataParser:
         """
         if isinstance(asset, pystac.extensions.item_assets.AssetDefinition):
             if "eo:bands" in asset.properties:
-                if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+                if asset.owner and not asset.ext.has("eo"):
                     self._warn_undeclared_metadata(field="eo:bands", ext="eo")
                 return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
             elif "bands" in asset.properties:
@@ -995,7 +1099,7 @@ class _StacMetadataParser:
             if "bands" in asset.properties:
                 return _BandList(self._band_from_common_bands_metadata(b) for b in asset.properties["bands"])
             elif "eo:bands" in asset.properties:
-                if _PYSTAC_1_9_EXTENSION_INTERFACE and asset.owner and not asset.ext.has("eo"):
+                if asset.owner and not asset.ext.has("eo"):
                     self._warn_undeclared_metadata(field="eo:bands", ext="eo")
                 return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
         else:

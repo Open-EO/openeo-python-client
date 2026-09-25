@@ -268,10 +268,6 @@ class TestCsvJobDatabase:
         )
         assert set(db.read()["some_number"]) == {1, 2, 3}
 
-    @pytest.mark.skipif(
-        ComparableVersion(geopandas.__version__) < "0.14",
-        reason="This issue has no workaround with geopandas < 0.14 (highest available version on Python 3.8 is 0.13.2)",
-    )
     def test_read_with_crs_column(self, tmp_path):
         """
         Having a column named "crs" can cause obscure error messages when creating a GeoPandas dataframe
