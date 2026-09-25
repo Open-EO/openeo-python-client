@@ -829,51 +829,41 @@ def test_get_results_download_file_ranged(job_with_chunked_asset_using_head: Bat
 def test_download_url_ranged_retries_transient_503(tmp_path):
     """#934: transient failures during ranged download are retried by the
     standard urllib3 Retry of the connection's session, not a custom loop."""
-    content = b"R4ng3d-D4t4" * 32  # 352 bytes -> one full and one partial 256-byte range
-    assert len(set(content[i : i + 256] for i in range(0, len(content), 256))) == 2
+    content = b"A" * 200 + b"B" * 100  # 300 bytes -> two 200-byte ranges
 
-    # HEAD body is ignored, but httpretty validates registered Content-Length against it.
+    # httpretty requires the registered HEAD body to match Content-Length;
+    # the body itself is never read back for a HEAD request.
     httpretty.register_uri(
         httpretty.HEAD,
         uri=API_URL + "/dl/ranged.bin",
-        body=content.decode("latin-1"),
-        adding_headers={"Content-Length": f"{len(content)}", "Accept-Ranges": "bytes"},
+        body="X" * 300,
+        adding_headers={"Content-Length": "300", "Accept-Ranges": "bytes"},
     )
     httpretty.register_uri(
         httpretty.GET,
         uri=API_URL + "/dl/ranged.bin",
         responses=[
-            # First attempt on range 0-255: transient failure.
+            # First attempt on range 0-199: transient failure.
             httpretty.Response(status=503, body="Service Unavailable"),
-            # Retry of range 0-255 succeeds.
-            httpretty.Response(
-                status=206,
-                body=content[0:256].decode("latin-1"),
-                adding_headers={"Content-Range": f"bytes 0-255/{len(content)}"},
-            ),
-            # Range 256-351 succeeds on the first attempt.
-            httpretty.Response(
-                status=206,
-                body=content[256:].decode("latin-1"),
-                adding_headers={"Content-Range": f"bytes 256-351/{len(content)}"},
-            ),
+            # Retry of range 0-199 succeeds.
+            httpretty.Response(status=206, body="A" * 200, adding_headers={"Content-Range": "bytes 0-199/300"}),
+            # Range 200-299 succeeds on the first attempt.
+            httpretty.Response(status=206, body="B" * 100, adding_headers={"Content-Range": "bytes 200-299/300"}),
         ],
     )
-
-    httpretty.register_uri(
-        httpretty.GET,
-        uri=API_URL + "/.well-known/openeo",
-        body=json.dumps({"api_version": "1.0.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}),
-    )
+    # /.well-known/openeo is intentionally not mocked: the version discovery
+    # request fails leniently and falls back to the given url, so no fake
+    # discovery document is needed. GET / however is the capabilities request
+    # the connection itself makes, so it needs a minimal valid document.
     httpretty.register_uri(
         httpretty.GET,
         uri=API_URL + "/",
-        body=json.dumps({"api_version": "1.0.0", "endpoints": [{"path": "/credentials/basic", "methods": ["GET"]}]}),
+        body=json.dumps({"api_version": "1.0.0", "endpoints": []}),
     )
 
     con = openeo.connect(API_URL)
     with mock.patch("time.sleep"):
-        con.download_url(API_URL + "/dl/ranged.bin", tmp_path / "ranged.bin", range_size=256)
+        con.download_url(API_URL + "/dl/ranged.bin", tmp_path / "ranged.bin", range_size=200)
 
     assert (tmp_path / "ranged.bin").read_bytes() == content
 

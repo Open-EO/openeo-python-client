@@ -310,9 +310,9 @@ class RestApiConnection:
         chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
         range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
     ) -> None:
-        # Retries on transient failures (429/502/503/504) are handled by the
-        # urllib3 Retry mounted on this connection's session (see
-        # session_with_retries), so no per-range retry loop is needed here.
+        # No per-range retry loop here: the connection's session is expected
+        # to have urllib3 Retry mounted (as done by default in
+        # openeo.connect), so transient failures are retried there.
         ensure_parent_dir_for(target)
         with target.open("wb") as f:
             for from_byte_index in range(0, file_size, range_size):
