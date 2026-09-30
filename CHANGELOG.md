@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Convert setup.py to pyproject.toml ([#920](https://github.com/Open-EO/openeo-python-client/issues/920))
 - Make `_DerivedFrom._from_url` more resilient against unresolvable/unparsable `derived_from` links ([#928](https://github.com/Open-EO/openeo-python-client/issues/928), eu-cdse/openeo-cdse-infra#1338)
 - `download_url()`: favor explicit HEAD status check over unhelpful auto-check ([#939](https://github.com/Open-EO/openeo-python-client/issues/939))
+- `_download_ranged` no longer implements its own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))
 
 ### Removed
 
