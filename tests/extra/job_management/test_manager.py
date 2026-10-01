@@ -281,6 +281,28 @@ class TestMultiBackendJobManager:
         assert set(result.network) == {"1000 b"}
         assert "Skipping usage field 'status'" in caplog.text
 
+    def test_usage_fields_legacy_job_db(self, tmp_path, job_manager, sleep_mock, recwarn):
+        """
+        Resuming from a legacy job db that still has (empty) predefined usage columns
+        (e.g. "cpu", "memory", "duration") should work without warnings/errors.
+        """
+        job_db_path = tmp_path / "jobs.csv"
+        job_db_path.write_text(
+            "year,id,backend_name,status,start_time,running_start_time,cpu,memory,duration,costs\n"
+            "2021,,,not_started,,,,,,\n"
+            "2022,,,not_started,,,,,,\n"
+        )
+
+        job_db = CsvJobDatabase(job_db_path)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"start_job call": 2, "job finished": 2})
+
+        result = pd.read_csv(job_db_path)
+        assert set(result.status) == {"finished"}
+        assert set(result.cpu) == {"1234.5 cpu-seconds"}
+
+        assert [(w.category, w.message, str(w)) for w in recwarn.list] == []
+
     @pytest.mark.parametrize(
         ["filename", "expected_db_class"],
         [

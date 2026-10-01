@@ -913,6 +913,9 @@ class MultiBackendJobManager:
                     if key not in active.columns:
                         # Initialize new column with None (instead of NaN) to keep it JSON-serializable
                         active[key] = None
+                    elif active[key].dtype != object:
+                        # Legacy job dbs may have empty usage columns loaded as float64, which can't hold strings
+                        active[key] = active[key].astype(object)
                     active.loc[i, key] = _format_usage_stat(job_metadata, key)
                 if "costs" in job_metadata.keys():
                     active.loc[i, "costs"] = job_metadata.get("costs")
