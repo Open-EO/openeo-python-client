@@ -684,7 +684,7 @@ class TestMultiBackendJobManager:
 
         assert job_db_path.exists()
         # Simple check for empty columns in the CSV file
-        assert ",,,,," in job_db_path.read_text()
+        assert "2021,,,not_started,,,\n" in job_db_path.read_text()
 
         # Start over with existing file
         job_db = CsvJobDatabase(job_db_path)
