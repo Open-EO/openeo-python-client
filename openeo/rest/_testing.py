@@ -53,7 +53,7 @@ class DummyBackend:
         "job_status_updater",
         "job_id_generator",
         "extra_job_metadata_fields",
-        "batch_job_usage",
+        "next_batch_job_usage",
     )
 
     # Default result (can serve both as JSON or binary data)
@@ -78,11 +78,9 @@ class DummyBackend:
         self._forced_job_status: Dict[str, str] = {}
         self._fail_on_job_start = {}
 
-        # "usage" metadata to report on finished batch jobs (some realistic values for a small job)
-        self.batch_job_usage: dict = {
+        # "usage" metadata to report on finished batch jobs
+        self.next_batch_job_usage: dict = {
             "cpu": {"unit": "cpu-seconds", "value": 1234.5},
-            "memory": {"unit": "mb-seconds", "value": 34567.89},
-            "duration": {"unit": "seconds", "value": 2345},
         }
 
         # Job status update hook:
@@ -305,7 +303,7 @@ class DummyBackend:
         }
         if self.batch_jobs[job_id]["status"] == "finished":  # HACK some realistic values for a small job
             result["costs"] = 123
-            result["usage"] = self.batch_job_usage
+            result["usage"] = self.next_batch_job_usage
         return result
 
     def _handle_get_job_results(self, request, context):

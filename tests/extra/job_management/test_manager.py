@@ -178,14 +178,14 @@ class TestMultiBackendJobManager:
         )
 
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            (r.id, r.status, r.backend_name, r.cpu, r.costs)
             for r in pd.read_csv(job_db_path).itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -219,8 +219,6 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
         assert set(result.cpu) == {"1234.5 cpu-seconds"}
-        assert set(result.memory) == {"34567.89 mb-seconds"}
-        assert set(result.duration) == {"2345 seconds"}
         assert set(result.costs) == {123}
 
     @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
@@ -238,8 +236,8 @@ class TestMultiBackendJobManager:
             "network": {"unit": "b", "value": 1000},
             "sentinelhub": {"unit": "sentinelhub_processing_unit", "value": 7.5},
         }
-        dummy_backend_foo.batch_job_usage = usage
-        dummy_backend_bar.batch_job_usage = usage
+        dummy_backend_foo.next_batch_job_usage = usage
+        dummy_backend_bar.next_batch_job_usage = usage
 
         df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
         output_file = tmp_path / "jobs.db"
@@ -268,8 +266,8 @@ class TestMultiBackendJobManager:
             "status": {"unit": "sneaky", "value": 666},
             "network": {"unit": "b", "value": 1000},
         }
-        dummy_backend_foo.batch_job_usage = usage
-        dummy_backend_bar.batch_job_usage = usage
+        dummy_backend_foo.next_batch_job_usage = usage
+        dummy_backend_bar.next_batch_job_usage = usage
 
         df = pd.DataFrame({"year": [2018, 2019]})
         output_file = tmp_path / "jobs.csv"
@@ -334,14 +332,14 @@ class TestMultiBackendJobManager:
         assert sleep_mock.call_count > 10
 
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            (r.id, r.status, r.backend_name, r.cpu, r.costs)
             for r in pd.read_csv(job_db_path).itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -415,13 +413,13 @@ class TestMultiBackendJobManager:
         # Also check that we got sensible end results in the job db.
         results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs) for r in results.itertuples()
+            (r.id, r.status, r.backend_name, r.cpu, r.costs) for r in results.itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "error", "foo", None, None, None, None),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "error", "foo", None, None),
         ]
 
         # Check downloaded results and metadata.
