@@ -223,6 +223,66 @@ class TestMultiBackendJobManager:
         assert set(result.duration) == {"2345 seconds"}
         assert set(result.costs) == {123}
 
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_usage_fields_dynamic_columns(
+        self, tmp_path, job_manager, dummy_backend_foo, dummy_backend_bar, sleep_mock, db_class
+    ):
+        """
+        All fields reported under "usage" in the job metadata
+        should dynamically be included as columns in the job db.
+        """
+        usage = {
+            "cpu": {"unit": "cpu-seconds", "value": 1234.5},
+            "memory": {"unit": "mb-seconds", "value": 34567.89},
+            "duration": {"unit": "seconds", "value": 2345},
+            "network": {"unit": "b", "value": 1000},
+            "sentinelhub": {"unit": "sentinelhub_processing_unit", "value": 7.5},
+        }
+        dummy_backend_foo.batch_job_usage = usage
+        dummy_backend_bar.batch_job_usage = usage
+
+        df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
+        output_file = tmp_path / "jobs.db"
+        job_db = db_class(output_file).initialize_from_df(df)
+
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"job finished": 5})
+
+        result = db_class(output_file).read()
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.cpu) == {"1234.5 cpu-seconds"}
+        assert set(result.memory) == {"34567.89 mb-seconds"}
+        assert set(result.duration) == {"2345 seconds"}
+        assert set(result.network) == {"1000 b"}
+        assert set(result.sentinelhub) == {"7.5 sentinelhub_processing_unit"}
+
+    def test_usage_fields_reserved_column_collision(
+        self, tmp_path, job_manager, dummy_backend_foo, dummy_backend_bar, sleep_mock, caplog
+    ):
+        """
+        Usage fields that collide with reserved job db columns (e.g. "status")
+        should be skipped instead of overwriting the column.
+        """
+        usage = {
+            "status": {"unit": "sneaky", "value": 666},
+            "network": {"unit": "b", "value": 1000},
+        }
+        dummy_backend_foo.batch_job_usage = usage
+        dummy_backend_bar.batch_job_usage = usage
+
+        df = pd.DataFrame({"year": [2018, 2019]})
+        output_file = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(output_file).initialize_from_df(df)
+
+        with caplog.at_level(logging.WARNING):
+            job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+
+        result = CsvJobDatabase(output_file).read()
+        assert set(result.status) == {"finished"}
+        assert set(result.network) == {"1000 b"}
+        assert "Skipping usage field 'status'" in caplog.text
+
     @pytest.mark.parametrize(
         ["filename", "expected_db_class"],
         [
@@ -301,9 +361,6 @@ class TestMultiBackendJobManager:
                 "id",
                 "start_time",
                 "running_start_time",
-                "cpu",
-                "memory",
-                "duration",
                 "backend_name",
                 "costs",
             ]

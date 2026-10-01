@@ -52,9 +52,6 @@ class TestFullDataFrameJobDatabase:
             "id",
             "start_time",
             "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
             "backend_name",
             "costs",
         }
@@ -89,6 +86,21 @@ class TestFullDataFrameJobDatabase:
             on_exists="skip",
         )
         assert set(db.read()["some_number"]) == {1, 2, 3}
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_persist_with_new_columns(self, tmp_path, db_class):
+        """Persisting an update with new columns (e.g. dynamically added usage columns) should preserve them."""
+        path = tmp_path / "jobs.db"
+        db = db_class(path).initialize_from_df(pd.DataFrame({"some_number": [3, 2, 1]}))
+
+        update = db.df.iloc[[0, 1]].copy()
+        update["cpu"] = ["123 cpu-seconds", "456 cpu-seconds"]
+        db.persist(update)
+
+        result = db_class(path).read()
+        assert "cpu" in result.columns
+        assert list(result["cpu"].fillna("")) == ["123 cpu-seconds", "456 cpu-seconds", ""]
+        assert list(result["some_number"]) == [3, 2, 1]
 
     @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
     def test_count_by_status(self, tmp_path, db_class):
@@ -231,9 +243,6 @@ class TestCsvJobDatabase:
             "id",
             "start_time",
             "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
             "backend_name",
             "costs",
         }
@@ -329,9 +338,6 @@ class TestParquetJobDatabase:
             "id",
             "start_time",
             "running_start_time",
-            "cpu",
-            "memory",
-            "duration",
             "backend_name",
             "costs",
         }
