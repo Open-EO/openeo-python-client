@@ -87,6 +87,16 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
             unknown_indices = set(df.index).difference(df.index)
             if unknown_indices:
                 _log.warning(f"Merging DataFrame with {unknown_indices=} which will be lost.")
+            # `DataFrame.update` ignores columns that don't exist yet in `self._df`, so add them first
+            # (e.g. dynamically added columns for job usage metadata).
+            new_columns = [c for c in df.columns if c not in self._df.columns]
+            for column in new_columns:
+                self._df[column] = None
+            # Align dtypes to avoid incompatible-dtype warnings/errors on update
+            # (e.g. empty legacy columns loaded as float64, updated with strings).
+            for column in df.columns.intersection(self._df.columns):
+                if df[column].dtype == object and self._df[column].dtype != object:
+                    self._df[column] = self._df[column].astype(object)
             self._df.update(df, overwrite=True)
         else:
             self._df = df
