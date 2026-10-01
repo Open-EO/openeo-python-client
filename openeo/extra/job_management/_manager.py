@@ -910,6 +910,9 @@ class MultiBackendJobManager:
                             f"Skipping usage field {key!r} of job {job_id!r}: collides with existing job db column"
                         )
                         continue
+                    if key not in active.columns:
+                        # Initialize new column with None (instead of NaN) to keep it JSON-serializable
+                        active[key] = None
                     active.loc[i, key] = _format_usage_stat(job_metadata, key)
                 if "costs" in job_metadata.keys():
                     active.loc[i, "costs"] = job_metadata.get("costs")
