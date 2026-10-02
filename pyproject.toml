@@ -32,7 +32,7 @@ dependencies = [
     "requests>=2.26.0",
     "shapely>=1.6.4",
     "urllib3>=1.9.0",
-    "xarray>=0.12.3,<2025.01.2",  # TODO #721 xarray non-nanosecond support
+    "xarray>=2024.7.0",
 ]
 
 [project.optional-dependencies]

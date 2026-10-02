@@ -374,10 +374,6 @@ class TestAssertXarray:
         with raises_assertion_error_or_not(message=assertion_error):
             assert_xarray_dataset_allclose(actual=actual, expected=expected, **kwargs)
 
-    @pytest.mark.skipif(
-        ComparableVersion(xarray.__version__) < "2024.07.0" and ComparableVersion(numpy.__version__) >= "2.0.0",
-        reason="This test doesn't work due to numpy 2 compatibility issue in xarray below 2024.7.0",
-    )
     def test_assert_xarray_dataset_allclose_empty_coords_handling(self):
         expected = xarray.Dataset(
             {
