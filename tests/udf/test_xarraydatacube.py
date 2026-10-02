@@ -76,6 +76,9 @@ def _build_xdc(
     """
     Build multi-dimensional XarrayDataCube containing given dimensions/coordinates
     """
+    if isinstance(ts, list) and all(isinstance(t, numpy.datetime64) for t in ts):
+        # Normalize to "ns" resolution (best compatibility with defaults across old/new versions of xarray/netCDF)
+        ts = [numpy.datetime64(t, "ns") for t in ts]
     dims = []
     coords = {}
     value = numpy.zeros(shape=())
