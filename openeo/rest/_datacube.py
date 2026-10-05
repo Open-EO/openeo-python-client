@@ -120,7 +120,8 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
             "explicit-zoom": True,
             "height": "400px",
         }
-        return render_component("model-builder", data=process, parameters=parameters)
+        graph_html = render_component("model-builder", data=process, parameters=parameters)
+        return graph_html
 
 
 class UDF:

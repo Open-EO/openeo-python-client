@@ -310,6 +310,15 @@ class CubeMetadata:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
         return f"CubeMetadata({bands} - {self.dimension_names()})"
 
+    def _repr_html_(self) -> str:
+        # Local import to avoid circular import issues and dependency overload
+        import openeo.metadata._jupyter
+
+        if self._dimensions:
+            return openeo.metadata._jupyter.repr_html_dimensions(self._dimensions)
+        else:
+            return "<p>No cube (dimension) metadata</p>"
+
     def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
         cls = type(self)

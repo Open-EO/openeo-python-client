@@ -8,6 +8,7 @@ General cube method tests against both
 import contextlib
 import json
 import pathlib
+import re
 from datetime import date, datetime
 from unittest import mock
 
@@ -348,6 +349,32 @@ class TestDataCube:
                 "result": True,
             },
         }
+
+    def test_repr_html_no_metadata(self):
+        cube = DataCube.load_collection("T3")
+        html = cube._repr_html_()
+        assert "openeo-model-builder" in html
+        assert "etadata" not in html
+
+    def test_repr_html_with_metadata(self, s2cube):
+        assert s2cube.metadata
+        html = s2cube._repr_html_()
+        assert html == dirty_equals.IsStr(
+            regex=r"""
+                .*<details\ open><summary>Metadata</summary>
+                    .*<table>
+                    .*<thead>.*Dimension.*Type.*Size.*</thead>
+                    .*<tbody>
+                        .*<tr><td>x</td><td>spatial</td>.*</tr>
+                        .*<tr><td>y</td><td>spatial</td>.*</tr>
+                        .*<tr><td>t</td><td>temporal</td>.*</tr>
+                        .*<tr><td>bands</td><td>bands</td><td>4</td><td>bands:\sB02,\sB03,\sB04,\sB08</td></tr>
+               .*</details>
+               .*<details><summary>Process\ Graph</summary>
+               .*<openeo-model-builder>
+               .*""",
+            regex_flags=re.DOTALL | re.VERBOSE,
+        )
 
 
 def test_filter_temporal_basic_positional_args(s2cube):
