@@ -114,6 +114,19 @@ class DataCube(_ProcessGraphAbstraction):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata: Optional[CubeMetadata] = metadata
 
+    def _repr_html_(self) -> str:
+        # Assumption: upstream _repr_html_ gives process graph representation
+        html = graph_html = super()._repr_html_()
+
+        if isinstance(self.metadata, CubeMetadata):
+            metadata_html = self.metadata._repr_html_()
+            html = f"""
+                <details open><summary>Metadata</summary>{metadata_html}</details>
+                <details><summary>Process Graph</summary>{graph_html}</details>
+            """
+
+        return html
+
     def process(
         self,
         process_id: str,
