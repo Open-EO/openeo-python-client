@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make `_DerivedFrom._from_url` more resilient against unresolvable/unparsable `derived_from` links ([#928](https://github.com/Open-EO/openeo-python-client/issues/928), eu-cdse/openeo-cdse-infra#1338)
 - `download_url()`: favor explicit HEAD status check over unhelpful auto-check ([#939](https://github.com/Open-EO/openeo-python-client/issues/939))
 - Modernize Xarray version support: remove `<2025.0.2` upper limit but require at least `2024.07.0` ([#721](https://github.com/Open-EO/openeo-python-client/issues/721))
+- `MultiBackendJobManager`: all fields reported under "usage" in the job metadata are now dynamically included as columns in the job database, instead of only the hardcoded "cpu", "memory" and "duration" fields (which are no longer predefined columns)
 
 ### Removed
 

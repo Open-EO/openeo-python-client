@@ -178,14 +178,14 @@ class TestMultiBackendJobManager:
         )
 
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            (r.id, r.status, r.backend_name, r.cpu, r.costs)
             for r in pd.read_csv(job_db_path).itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -219,9 +219,89 @@ class TestMultiBackendJobManager:
         assert set(result.status) == {"finished"}
         assert set(result.backend_name) == {"foo", "bar"}
         assert set(result.cpu) == {"1234.5 cpu-seconds"}
+        assert set(result.costs) == {123}
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    def test_usage_fields_dynamic_columns(
+        self, tmp_path, job_manager, dummy_backend_foo, dummy_backend_bar, sleep_mock, db_class
+    ):
+        """
+        All fields reported under "usage" in the job metadata
+        should dynamically be included as columns in the job db.
+        """
+        usage = {
+            "cpu": {"unit": "cpu-seconds", "value": 1234.5},
+            "memory": {"unit": "mb-seconds", "value": 34567.89},
+            "duration": {"unit": "seconds", "value": 2345},
+            "network": {"unit": "b", "value": 1000},
+            "sentinelhub": {"unit": "sentinelhub_processing_unit", "value": 7.5},
+        }
+        dummy_backend_foo.next_batch_job_usage = usage
+        dummy_backend_bar.next_batch_job_usage = usage
+
+        df = pd.DataFrame({"year": [2018, 2019, 2020, 2021, 2022]})
+        output_file = tmp_path / "jobs.db"
+        job_db = db_class(output_file).initialize_from_df(df)
+
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"job finished": 5})
+
+        result = db_class(output_file).read()
+        assert len(result) == 5
+        assert set(result.status) == {"finished"}
+        assert set(result.cpu) == {"1234.5 cpu-seconds"}
         assert set(result.memory) == {"34567.89 mb-seconds"}
         assert set(result.duration) == {"2345 seconds"}
-        assert set(result.costs) == {123}
+        assert set(result.network) == {"1000 b"}
+        assert set(result.sentinelhub) == {"7.5 sentinelhub_processing_unit"}
+
+    def test_usage_fields_reserved_column_collision(
+        self, tmp_path, job_manager, dummy_backend_foo, dummy_backend_bar, sleep_mock, caplog
+    ):
+        """
+        Usage fields that collide with reserved job db columns (e.g. "status")
+        should be skipped instead of overwriting the column.
+        """
+        usage = {
+            "status": {"unit": "sneaky", "value": 666},
+            "network": {"unit": "b", "value": 1000},
+        }
+        dummy_backend_foo.next_batch_job_usage = usage
+        dummy_backend_bar.next_batch_job_usage = usage
+
+        df = pd.DataFrame({"year": [2018, 2019]})
+        output_file = tmp_path / "jobs.csv"
+        job_db = CsvJobDatabase(output_file).initialize_from_df(df)
+
+        with caplog.at_level(logging.WARNING):
+            job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+
+        result = CsvJobDatabase(output_file).read()
+        assert set(result.status) == {"finished"}
+        assert set(result.network) == {"1000 b"}
+        assert "Skipping usage field 'status'" in caplog.text
+
+    def test_usage_fields_legacy_job_db(self, tmp_path, job_manager, sleep_mock, recwarn):
+        """
+        Resuming from a legacy job db that still has (empty) predefined usage columns
+        (e.g. "cpu", "memory", "duration") should work without warnings/errors.
+        """
+        job_db_path = tmp_path / "jobs.csv"
+        job_db_path.write_text(
+            "year,id,backend_name,status,start_time,running_start_time,cpu,memory,duration,costs\n"
+            "2021,,,not_started,,,,,,\n"
+            "2022,,,not_started,,,,,,\n"
+        )
+
+        job_db = CsvJobDatabase(job_db_path)
+        run_stats = job_manager.run_jobs(job_db=job_db, start_job=self._create_year_job)
+        assert run_stats == dirty_equals.IsPartialDict({"start_job call": 2, "job finished": 2})
+
+        result = pd.read_csv(job_db_path)
+        assert set(result.status) == {"finished"}
+        assert set(result.cpu) == {"1234.5 cpu-seconds"}
+
+        assert [(w.category, w.message, str(w)) for w in recwarn.list] == []
 
     @pytest.mark.parametrize(
         ["filename", "expected_db_class"],
@@ -274,14 +354,14 @@ class TestMultiBackendJobManager:
         assert sleep_mock.call_count > 10
 
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs)
+            (r.id, r.status, r.backend_name, r.cpu, r.costs)
             for r in pd.read_csv(job_db_path).itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "finished", "foo", "1234.5 cpu-seconds", 123),
         ]
 
         # Check downloaded results and metadata.
@@ -301,9 +381,6 @@ class TestMultiBackendJobManager:
                 "id",
                 "start_time",
                 "running_start_time",
-                "cpu",
-                "memory",
-                "duration",
                 "backend_name",
                 "costs",
             ]
@@ -358,13 +435,13 @@ class TestMultiBackendJobManager:
         # Also check that we got sensible end results in the job db.
         results = pd.read_csv(job_db_path).replace({np.nan: None})  # np.nan's are replaced by None for easy comparison
         assert [
-            (r.id, r.status, r.backend_name, r.cpu, r.memory, r.duration, r.costs) for r in results.itertuples()
+            (r.id, r.status, r.backend_name, r.cpu, r.costs) for r in results.itertuples()
         ] == [
-            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", "34567.89 mb-seconds", "2345 seconds", 123),
-            ("job-2022", "error", "foo", None, None, None, None),
+            ("job-2018", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2019", "finished", "foo", "1234.5 cpu-seconds", 123),
+            ("job-2020", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2021", "finished", "bar", "1234.5 cpu-seconds", 123),
+            ("job-2022", "error", "foo", None, None),
         ]
 
         # Check downloaded results and metadata.
@@ -627,7 +704,7 @@ class TestMultiBackendJobManager:
 
         assert job_db_path.exists()
         # Simple check for empty columns in the CSV file
-        assert ",,,,," in job_db_path.read_text()
+        assert "2021,,,not_started,,,\n" in job_db_path.read_text()
 
         # Start over with existing file
         job_db = CsvJobDatabase(job_db_path)

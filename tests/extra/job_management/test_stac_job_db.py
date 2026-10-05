@@ -64,9 +64,6 @@ def _common_normalized_df_data(rows: int = 1) -> dict:
         "status": ["not_started"] * rows,
         "start_time": None,
         "running_start_time": None,
-        "cpu": None,
-        "memory": None,
-        "duration": None,
         "costs": None,
     }
 
