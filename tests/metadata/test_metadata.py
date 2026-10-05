@@ -1541,6 +1541,28 @@ def test_cube_metadata_repr_no_bands():
     assert repr(metadata) == "CubeMetadata(dimension_names=['x', 't'])"
 
 
+def test_cube_metadata_repr_html_empty():
+    metadata = CubeMetadata()
+    html = metadata._repr_html_()
+    assert "No cube (dimension) metadata" in html
+
+
+def test_cube_metadata_repr_html_with_dimensions():
+    html = CUBE_METADATA_XYTB._repr_html_()
+    assert html == dirty_equals.IsStr(
+        regex=r"""
+            .*<table>
+            .*<thead>.*Dimension.*Type.*Size.*</thead>
+            .*<tbody>
+                .*<tr><td>x</td><td>spatial</td>.*</tr>
+                .*<tr><td>y</td><td>spatial</td>.*</tr>
+                .*<tr><td>t</td><td>temporal</td>.*</tr>
+                .*<tr><td>bands</td><td>bands</td><td>2</td><td>bands:\sB2,\sB3</td></tr>
+                .*""",
+        regex_flags=re.DOTALL | re.VERBOSE,
+    )
+
+
 class TestStacMetadataParser:
     def test_band_from_eo_bands_metadata_basic(self):
         assert _StacMetadataParser()._band_from_eo_bands_metadata(
