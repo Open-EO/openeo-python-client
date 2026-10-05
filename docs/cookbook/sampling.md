@@ -49,7 +49,7 @@ s2_bands = auth_connection.load_collection(
     temporal_extent=["2020-05-01", "2020-06-01"],
 )
 s2_bands = s2_bands.filter_spatial(
-    "https://artifactory.vgt.vito.be/testdata-public/parcels/test_10.geojson",
+    "https://auxdata.terrascope.be/openeo/testdata/parcels/test_10.geojson",
 )
 job = s2_bands.create_job(
     title="Sentinel2",
