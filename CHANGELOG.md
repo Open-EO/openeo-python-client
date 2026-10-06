@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `download_url()`: favor explicit HEAD status check over unhelpful auto-check ([#939](https://github.com/Open-EO/openeo-python-client/issues/939))
 - Modernize Xarray version support: remove `<2025.0.2` upper limit but require at least `2024.07.0` ([#721](https://github.com/Open-EO/openeo-python-client/issues/721))
 - `MultiBackendJobManager`: all fields reported under "usage" in the job metadata are now dynamically included as columns in the job database, instead of only the hardcoded "cpu", "memory" and "duration" fields (which are no longer predefined columns)
+- Ranged downloads (e.g. of batch job results) no longer implement their own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))
 
 ### Removed
 
