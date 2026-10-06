@@ -88,7 +88,7 @@ class _ProcessGraphAbstraction(_FromNodeMixin, FlatGraphableMixin):
         process_id: str,
         arguments: Optional[dict] = None,
         namespace: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> PGNode:
         """
         Helper to build a PGNode from given argument dict and/or kwargs,
@@ -213,9 +213,7 @@ class UDF:
         """
         path = pathlib.Path(path)
         code = path.read_text(encoding="utf-8")
-        return cls(
-            code=code, runtime=runtime, version=version, context=context, _source=path
-        )
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=path)
 
     @classmethod
     def from_url(
@@ -239,9 +237,7 @@ class UDF:
         resp = requests.get(url)
         resp.raise_for_status()
         code = resp.text
-        return cls(
-            code=code, runtime=runtime, version=version, context=context, _source=url
-        )
+        return cls(code=code, runtime=runtime, version=version, context=context, _source=url)
 
     def _guess_runtime(self, connection: Optional[Connection] = None) -> str:
         """Guess UDF runtime from UDF source (path) or source code."""
@@ -250,9 +246,7 @@ class UDF:
         if isinstance(self._source, pathlib.Path):
             language = self._guess_runtime_from_suffix(self._source.suffix)
         elif isinstance(self._source, str):
-            url_match = re.match(
-                r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source
-            )
+            url_match = re.match(r"https?://.*?(?P<suffix>\.\w+)([&#].*)?$", self._source)
             if url_match:
                 language = self._guess_runtime_from_suffix(url_match.group("suffix"))
         if not language:
@@ -316,6 +310,7 @@ def build_child_callback(
         # Assume given reducer is a simple predefined reduce process_id
         # TODO: avoid local import (workaround for circular import issue)
         import openeo.processes
+
         if process in openeo.processes.__dict__:
             process_params = get_parameter_names(openeo.processes.__dict__[process])
             # TODO: switch to "Callable" handling here

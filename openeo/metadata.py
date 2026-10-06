@@ -46,7 +46,7 @@ class Dimension:
     def __repr__(self):
         return "{c}({f})".format(
             c=self.__class__.__name__,
-            f=", ".join("{k!s}={v!r}".format(k=k, v=v) for (k, v) in self.__dict__.items())
+            f=", ".join("{k!s}={v!r}".format(k=k, v=v) for (k, v) in self.__dict__.items()),
         )
 
     def __eq__(self, other):
@@ -201,7 +201,7 @@ class BandDimension(Dimension):
         """
         return BandDimension(
             name=self.name,
-            bands=[self.bands[self.band_index(b)] for b in bands]
+            bands=[self.bands[self.band_index(b)] for b in bands],
         )
 
     def append_band(self, band: Union[Band, str]) -> BandDimension:
@@ -213,7 +213,7 @@ class BandDimension(Dimension):
 
         return BandDimension(
             name=self.name,
-            bands=self.bands + [band]
+            bands=self.bands + [band],
         )
 
     def rename_labels(self, target, source) -> Dimension:
@@ -994,7 +994,7 @@ class _StacMetadataParser:
         elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
             return self._bands_from_item_assets(collection.item_assets)
         elif (
-             collection.ext.has("item_assets")
+            collection.ext.has("item_assets")
             and collection.extra_fields.get("item-assets")
             and collection.ext.item_assets
         ):
