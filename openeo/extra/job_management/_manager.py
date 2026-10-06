@@ -85,6 +85,9 @@ class _ColumnRequirements:
     def __init__(self, requirements: Mapping[str, _ColumnProperties]):
         self._requirements = dict(requirements)
 
+    def __contains__(self, column: str) -> bool:
+        return column in self._requirements
+
     def normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Normalize given pandas dataframe (creating a new one):
@@ -190,12 +193,9 @@ class MultiBackendJobManager:
             # TODO: use proper date/time dtype instead of legacy str for start times?
             "start_time": _ColumnProperties(dtype="str"),
             "running_start_time": _ColumnProperties(dtype="str"),
-            # TODO: these columns "cpu", "memory", "duration" are not referenced explicitly from MultiBackendJobManager,
-            #       but are indirectly coupled through handling of VITO-specific "usage" metadata in `_track_statuses`.
-            #       Since bfd99e34 they are not really required to be present anymore, can we make that more explicit?
-            "cpu": _ColumnProperties(dtype="str"),
-            "memory": _ColumnProperties(dtype="str"),
-            "duration": _ColumnProperties(dtype="str"),
+            # Note: columns for job usage metadata (e.g. "cpu", "memory", "duration", ...)
+            # are not predefined here, but are added dynamically in `_track_statuses`
+            # based on the "usage" fields reported by the backend in the job metadata.
             "costs": _ColumnProperties(dtype="float64"),
         }
     )
@@ -903,10 +903,20 @@ class MultiBackendJobManager:
 
                 active.loc[i, "status"] = new_status
 
-                # TODO: there is well hidden coupling here with "cpu", "memory" and "duration" from `_normalize_df`
+                # Dynamically add all "usage" metadata fields as columns.
                 for key in job_metadata.get("usage", {}).keys():
-                    if key in active.columns:
-                        active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    if key in self._column_requirements:
+                        _log.warning(
+                            f"Skipping usage field {key!r} of job {job_id!r}: collides with existing job db column"
+                        )
+                        continue
+                    if key not in active.columns:
+                        # Initialize new column with None (instead of NaN) to keep it JSON-serializable
+                        active[key] = None
+                    elif active[key].dtype != object:
+                        # Legacy job dbs may have empty usage columns loaded as float64, which can't hold strings
+                        active[key] = active[key].astype(object)
+                    active.loc[i, key] = _format_usage_stat(job_metadata, key)
                 if "costs" in job_metadata.keys():
                     active.loc[i, "costs"] = job_metadata.get("costs")
 
