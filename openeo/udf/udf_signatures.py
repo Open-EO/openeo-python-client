@@ -10,7 +10,7 @@ import xarray
 from deprecated import deprecated
 from pandas import Series
 
-from openeo.metadata import CollectionMetadata
+from openeo.metadata import CubeMetadata
 from openeo.udf.udf_data import UdfData
 from openeo.udf.xarraydatacube import XarrayDataCube
 
@@ -79,7 +79,7 @@ def apply_udf_data(data: UdfData):
     pass
 
 
-def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMetadata:
+def apply_metadata(metadata: CubeMetadata, context: dict) -> CubeMetadata:
     """
     .. warning::
         This signature is not yet fully standardized and subject to change.
@@ -93,7 +93,7 @@ def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMet
     This function does not need to be provided when using the UDF in combination with processes that by design have a clear
     effect on cube metadata, such as :py:meth:`~openeo.rest.datacube.DataCube.reduce_dimension()`
 
-    :param metadata: the collection metadata of the input data cube
+    :param metadata: the metadata of the input data cube
     :param context: A dictionary containing user context.
 
     :return: output metadata: the expected metadata of the cube, after applying the udf
@@ -103,7 +103,7 @@ def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMet
 
     An example for a UDF that is applied on the 'bands' dimension, and returns a new set of bands with different labels.
 
-    >>> def apply_metadata(metadata: CollectionMetadata, context: dict) -> CollectionMetadata:
+    >>> def apply_metadata(metadata: CubeMetadata, context: dict) -> CubeMetadata:
     ...     return metadata.rename_labels(
     ...         dimension="bands",
     ...         target=["computed_band_1", "computed_band_2"]

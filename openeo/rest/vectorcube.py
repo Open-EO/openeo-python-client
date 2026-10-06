@@ -13,7 +13,7 @@ from openeo.api.process import Parameter
 from openeo.internal.documentation import openeo_process
 from openeo.internal.graph_building import PGNode
 from openeo.internal.warnings import legacy_alias
-from openeo.metadata import CollectionMetadata, CubeMetadata, Dimension
+from openeo.metadata import CubeMetadata, Dimension
 from openeo.rest import (
     DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
     DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
@@ -53,20 +53,19 @@ class VectorCube(_ProcessGraphAbstraction):
         self.metadata = metadata
 
     @classmethod
-    def _build_metadata(cls, add_properties: bool = False) -> CollectionMetadata:
-        """Helper to build a (minimal) `CollectionMetadata` object."""
+    def _build_metadata(cls, add_properties: bool = False) -> CubeMetadata:
+        """Helper to build a (minimal) `CubeMetadata` object."""
         # Vector cubes have at least a "geometry" dimension
         dimensions = [Dimension(name="geometry", type="geometry")]
         if add_properties:
             dimensions.append(Dimension(name="properties", type="other"))
-        # TODO #464: use a more generic metadata container than "collection" metadata
-        return CollectionMetadata(metadata={}, dimensions=dimensions)
+        return CubeMetadata(dimensions=dimensions)
 
     def process(
         self,
         process_id: str,
         arguments: dict = None,
-        metadata: Optional[CollectionMetadata] = None,
+        metadata: Optional[CubeMetadata] = None,
         namespace: Optional[str] = None,
         **kwargs,
     ) -> VectorCube:

@@ -544,8 +544,14 @@ class CollectionMetadata(CubeMetadata):
     Metadata is expected to follow format defined by
     https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection
     (with partial support for older versions)
-
     """
+
+    # TODO #949 Fully decouple CollectionMetadata from CubeMetadata.
+    #       In the beginning, there was only CollectionMetadata, and later CubeMetadata was inserted as quickfix.
+    #       Superficially there are similarities, but this coupled design is becoming counterproductive.
+    #       CollectionMetadata generally describes an external, immutable (STAC) resource,
+    #       while CubeMetadata is for keeping track of important dimension/metadata aspects during cube manipulations.
+    #       Problem: openeo-geopyspark-driver still heavily depends on CollectionMetadata acting as cube metadata.
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
         self._orig_metadata = metadata
@@ -572,6 +578,7 @@ class CollectionMetadata(CubeMetadata):
         :return list: list of `Dimension` objects
 
         """
+        # TODO: can this whole parse logic be replaced with _StacMetadataParser/metadata_from_stac logic?
 
         # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
         cube_dimensions = (
@@ -654,6 +661,10 @@ class CollectionMetadata(CubeMetadata):
 
         This overrides the method in `CubeMetadata` to keep the original metadata.
         """
+        # TODO #949 there are multiple (indications of) design errors here:
+        #       - the signature is not compatible with base interface
+        #       - at client side, collection metadata is an external resource and immutable client side
+        #         supporting a transform to a new "CollectionMetadata" object makes little sense
         cls = type(self)
         if metadata is None:
             metadata = self._orig_metadata

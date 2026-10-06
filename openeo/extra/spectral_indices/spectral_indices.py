@@ -2,10 +2,9 @@ import functools
 import importlib.resources
 import json
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 from openeo import BaseOpenEoException
-from openeo.metadata import CollectionMetadata
 from openeo.processes import ProcessBuilder, array_create, array_modify
 from openeo.rest.datacube import DataCube
 
@@ -211,6 +210,14 @@ def _callback(
         return array_create(data=index_values)
 
 
+def _extract_collection_ids(cube: DataCube) -> Iterable[str]:
+    """Determine the collection ids used in load_collection nodes in the process graph."""
+    for node in cube.result_node().walk_nodes():
+        if node.process_id == "load_collection" and isinstance(node.arguments.get("id"), str):
+            yield node.arguments["id"]
+        # TODO: Possible to determing/guess collection id or name from `load_stac` url (without requesting it)?
+
+
 def compute_and_rescale_indices(
     datacube: DataCube,
     index_dict: dict,
@@ -270,10 +277,14 @@ def compute_and_rescale_indices(
         # Automatic band mapping
         band_mapping = _BandMapping()
         if platform is None:
-            if isinstance(datacube.metadata, CollectionMetadata) and datacube.metadata.get("id"):
-                platform = band_mapping.guess_platform(name=datacube.metadata.get("id"))
+            collection_ids = set(_extract_collection_ids(cube=datacube))
+            platform_guesses = set(band_mapping.guess_platform(name=cid) for cid in collection_ids)
+            if len(platform_guesses) == 1:
+                [platform] = platform_guesses
             else:
-                raise BandMappingException("Unable to determine satellite platform from data cube metadata")
+                raise BandMappingException(
+                    f"Unable to guess satellite platform from {collection_ids=} ({platform_guesses=})"
+                )
         band_to_var = band_mapping.actual_band_name_to_variable_map(
             platform=platform, band_names=datacube.metadata.band_names
         )

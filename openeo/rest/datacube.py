@@ -48,7 +48,6 @@ from openeo.internal.processes.parse import Process
 from openeo.internal.warnings import UserDeprecationWarning, deprecated, legacy_alias
 from openeo.metadata import (
     Band,
-    CollectionMetadata,
     CubeMetadata,
     metadata_from_stac,
 )
@@ -106,10 +105,14 @@ class DataCube(_ProcessGraphAbstraction):
     _DEFAULT_RASTER_FORMAT = "GTiff"
 
     def __init__(
-        self, graph: PGNode, connection: Optional[Connection] = None, metadata: Optional[CollectionMetadata] = None
+        self,
+        graph: PGNode,
+        *,
+        connection: Optional[Connection] = None,
+        metadata: Optional[CubeMetadata] = None,
     ):
         super().__init__(pgnode=graph, connection=connection)
-        self.metadata: Optional[CollectionMetadata] = metadata
+        self.metadata: Optional[CubeMetadata] = metadata
 
     def process(
         self,
@@ -137,7 +140,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     graph_add_node = legacy_alias(process, "graph_add_node", since="0.1.1")
 
-    def process_with_node(self, pg: PGNode, metadata: Optional[CollectionMetadata] = None) -> DataCube:
+    def process_with_node(self, pg: PGNode, metadata: Optional[CubeMetadata] = None) -> DataCube:
         """
         Generic helper to create a new DataCube by applying a process (given as process graph node)
 
@@ -234,8 +237,11 @@ class DataCube(_ProcessGraphAbstraction):
         }
         if isinstance(collection_id, Parameter):
             fetch_metadata = False
-        metadata: Optional[CollectionMetadata] = (
-            connection.collection_metadata(collection_id) if connection and fetch_metadata else None
+        metadata: Optional[CubeMetadata] = (
+            # TODO: eliminate `.collection_metadata()._dimensions` hack and directly parse metadata like load_stac?
+            CubeMetadata(dimensions=connection.collection_metadata(collection_id)._dimensions)
+            if (connection and fetch_metadata)
+            else None
         )
         if bands is not None:
             bands = cls._get_bands(bands, process_id="load_collection")

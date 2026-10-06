@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Ranged downloads (e.g. of batch job results) no longer implement their own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))
+- Replaced improper `CollectionMetadata` usage with `CubeMetadata`. `CollectionMetadata` describes the metadata of a whole openEO/STAC collection, while `CubeMetadata` describes the specific dimension metadata of a concrete cube being processed. (Related to [464](https://github.com/Open-EO/openeo-python-client/issues/464), [#949](https://github.com/Open-EO/openeo-python-client/issues/949), [#827](https://github.com/Open-EO/openeo-python-client/issues/827).)
+  - The `metadata` attribute of `DataCube`/`VectorCube` is now a `CubeMetadata` object instead of misleading `CollectionMetadata`.
+  - The `apply_metadata()` UDF signature changed to use `CubeMetadata` as input and output type annotation.
 
 ### Removed
 
