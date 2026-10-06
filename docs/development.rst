@@ -193,7 +193,6 @@ and depended on by other projects.
 The releases will end up on:
 
 - PyPi: `https://pypi.org/project/openeo <https://pypi.org/project/openeo/>`_
-- VITO Artifactory: `https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple/openeo/ <https://artifactory.vgt.vito.be/api/pypi/python-openeo/simple/openeo/>`_
 - GitHub: `https://github.com/Open-EO/openeo-python-client/releases <https://github.com/Open-EO/openeo-python-client/releases>`_
 
 Prerequisites
@@ -334,9 +333,8 @@ we will use a concrete version ``0.8.0`` in the examples below.
     (typically in `recipe/meta.yaml <https://github.com/conda-forge/openeo-feedstock/blob/main/recipe/meta.yaml>`_)
     and merge.
 
-#.  Optionally: make a post about the new release
-    on the `openEO Platform Forum <https://discuss.eodc.eu/c/openeo-platform/clients/18>`_
-    or the `CDSE Forum <https://forum.dataspace.copernicus.eu/c/openeo/28>`_.
+#.  Optionally: make a news/forum post about the new release in the appropriate channels.
+
 
 Verification
 """""""""""""
