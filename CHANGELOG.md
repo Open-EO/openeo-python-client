@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Removed
+
+### Fixed
+
+
+## [0.53.0] - 2026-10-06
+
+### Changed
+
 - Convert setup.py to pyproject.toml ([#920](https://github.com/Open-EO/openeo-python-client/issues/920))
 - Make `_DerivedFrom._from_url` more resilient against unresolvable/unparsable `derived_from` links ([#928](https://github.com/Open-EO/openeo-python-client/issues/928), eu-cdse/openeo-cdse-infra#1338)
 - `download_url()`: favor explicit HEAD status check over unhelpful auto-check ([#939](https://github.com/Open-EO/openeo-python-client/issues/939))
@@ -19,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Require at least Python 3.9 (drop support for Python 3.8, [#717](https://github.com/Open-EO/openeo-python-client/issues/717))
+- Drop support for Python 3.8 (require at least Python 3.9, [#717](https://github.com/Open-EO/openeo-python-client/issues/717))
 
 ### Fixed
 
