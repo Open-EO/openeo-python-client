@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `openeo.testing.results`: pixels that are nodata (NaN) in `actual` or `expected`, but not both, are now detected,
+  reported as a separate "Nodata (NaN) mismatch" issue, and taken into account by `pixel_tolerance` checks.
+
 
 ## [0.53.0] - 2026-10-06
 

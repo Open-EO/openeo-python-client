@@ -214,6 +214,21 @@ class TestCompareXarray:
             dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
         ]
 
+    def test_nan_mismatch_one_sided(self):
+        """One-sided NaN (nodata) mismatch should be detected and reported as a separate issue."""
+        expected = xarray.DataArray([1, 2, 3, numpy.nan, 5])
+        actual = xarray.DataArray([1, 2, 3, 4, numpy.nan])
+
+        issues = _compare_xarray_dataarray(actual, expected, rtol=0, atol=0)
+        assert issues == [
+            "Nodata (NaN) mismatch: 2/5 pixels (40% > 0.0%): 1 NaN only in actual, 1 NaN only in expected",
+            dirty_equals.IsStr(regex=r"Left and right DataArray objects are not close.*", regex_flags=re.DOTALL),
+        ]
+
+        # With enough pixel tolerance, the nodata mismatch (and the corresponding value mismatch) is ignored.
+        assert _compare_xarray_dataarray(actual, expected, rtol=0, atol=0, pixel_tolerance=50) == []
+
+
 
 @contextlib.contextmanager
 def raises_assertion_error_or_not(message: Union[None, str, re.Pattern]):

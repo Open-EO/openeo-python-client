@@ -161,13 +161,26 @@ def _compare_xarray_dataarray_xy(
         total_pixel_count = expected_as_float.sel(indexers).count().item()
         diff_pixel_count = diff_data.count().item()
 
+        key = name + ": " if name else ""
+        key += ",".join([f"{k} {str(v1)}" for k, v1 in indexers.items()])
+
+        # Detect and report pixels that are NaN (nodata) in actual or expected, but not both.
+        actual_slice = actual_as_float.sel(indexers=indexers)
+        expected_slice = expected_as_float.sel(indexers=indexers)
+        nodata_mismatch = actual_slice.isnull() != expected_slice.isnull()
+        nodata_mismatch_count = int(nodata_mismatch.sum().item())
+        if nodata_mismatch_count > 0:
+            total_size = expected_slice.size
+            nodata_mismatch_percentage = round(nodata_mismatch_count * 100 / total_size, 1)
+            issues.append(
+                f"{key}: nodata (NaN) mismatch: {nodata_mismatch_count}/{total_size} pixels ({nodata_mismatch_percentage}%)"
+            )
+
         if diff_pixel_count > 0:
             diff_pixel_percentage = round(diff_pixel_count * 100 / total_pixel_count, 1)
             diff_mean = round(diff_data.mean().item(), 2)
             diff_var = round(diff_data.var().item(), 2)
 
-            key = name + ": " if name else ""
-            key += ",".join([f"{k} {str(v1)}" for k, v1 in indexers.items()])
             issues.append(
                 f"{key}: value difference exceeds tolerance (rtol {rtol}, atol {atol}), min:{diff_data.min().data}, max: {diff_data.max().data}, mean: {diff_mean}, var: {diff_var}"
             )
@@ -210,6 +223,9 @@ def _compare_xarray_dataarray(
     - (optional) Check fraction of mismatching pixels (difference exceeding some tolerance).
       If fraction is below a given threshold, ignore these mismatches in subsequent comparisons.
       If fraction is above the threshold, report this issue.
+    - Check fraction of pixels that are nodata (NaN) in actual or expected, but not both.
+      If fraction is below the ``pixel_tolerance`` threshold, ignore these mismatches in subsequent comparisons.
+      If fraction is above the threshold, report this issue.
     - Compare actual and expected data with `xarray.testing.assert_allclose` and specified tolerances.
 
     :return: list of issues (empty if no issues)
@@ -243,10 +259,35 @@ def _compare_xarray_dataarray(
         issues.append(f"Shape mismatch: {actual.shape} != {expected.shape}")
     compatible = len(issues) == 0
     is_numerical_data = numpy.issubdtype(actual.dtype, numpy.number) and numpy.issubdtype(expected.dtype, numpy.number)
+
+    # Detect pixels that are NaN (nodata) in actual or expected, but not both,
+    # and report this as a separate issue (before doing the overall value comparison).
+    nodata_mismatch = None
+    if compatible and is_numerical_data:
+        actual_isnull = actual.isnull()
+        expected_isnull = expected.isnull()
+        nodata_mismatch = actual_isnull != expected_isnull
+        nodata_mismatch_count = int(nodata_mismatch.sum().item())
+        if nodata_mismatch_count > 0:
+            total_pixel_count = nodata_mismatch.size
+            nodata_mismatch_percentage = nodata_mismatch_count * 100 / total_pixel_count
+            if nodata_mismatch_percentage > pixel_tolerance:
+                only_actual = int((actual_isnull & ~expected_isnull).sum().item())
+                only_expected = int((expected_isnull & ~actual_isnull).sum().item())
+                key = f"{name}: " if name else ""
+                issues.append(
+                    f"{key}Nodata (NaN) mismatch: {nodata_mismatch_count}/{total_pixel_count} pixels"
+                    f" ({nodata_mismatch_percentage:.4g}% > {pixel_tolerance}%):"
+                    f" {only_actual} NaN only in actual, {only_expected} NaN only in expected"
+                )
+
     try:
         if pixel_tolerance and compatible and is_numerical_data:
             threshold = abs(expected * rtol) + atol
-            bad_pixels = abs(actual * 1.0 - expected * 1.0) > threshold
+            value_mismatch = abs(actual * 1.0 - expected * 1.0) > threshold
+            # Nodata (NaN) mismatches are not picked up by the `value_mismatch` comparison above
+            # (as NaN comparisons are always `False`), so include them explicitly here.
+            bad_pixels = value_mismatch | nodata_mismatch
             percentage_bad_pixels = bad_pixels.mean().item() * 100
             assert (
                 percentage_bad_pixels <= pixel_tolerance
