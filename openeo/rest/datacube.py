@@ -482,7 +482,9 @@ class DataCube(_ProcessGraphAbstraction):
                     )
 
         except Exception as e:
-            log.warning(f"Failed to extract cube metadata from STAC URL {url}", exc_info=True)
+            log.warning(
+                f"Failed to extract cube metadata from STAC URL {url!r}. Falling back on no-metadata mode. Exception: {e!r}"
+            )
             metadata = None
         return cls(graph=graph, connection=connection, metadata=metadata)
 
