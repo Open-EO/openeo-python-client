@@ -211,11 +211,15 @@ class VectorCube(_ProcessGraphAbstraction):
             returns a :py:class:`~openeo.rest.result.SaveResult` instance instead
             of another :py:class:`~openeo.rest.vectorcube.VectorCube` instance.
         """
+        format = format or "GeoJSON"
+        if self._connection and options:
+            self._connection._check_output_format(format=format, options=options)
+
         pg = self._build_pgnode(
             process_id="save_result",
             arguments={
                 "data": self,
-                "format": format or "GeoJSON",
+                "format": format,
                 # TODO: leave out options if unset?
                 "options": options or {},
             },
