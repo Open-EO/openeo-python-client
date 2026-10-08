@@ -21,6 +21,7 @@ from openeo.metadata import (
     Band,
     BandDimension,
     CollectionMetadata,
+    CubeMetadata,
     SpatialDimension,
     TemporalDimension,
 )
@@ -233,13 +234,7 @@ class LocalConnection():
         if temporal_extent is not None:
             arguments["temporal_extent"] = TemporalInterval.parse_obj(temporal_extent)
         xarray_cube = load_stac(**arguments)
-        attrs = xarray_cube.attrs
-        for at in attrs:
-            # allowed types: str, Number, ndarray, number, list, tuple
-            if not isinstance(attrs[at], (int, float, str, np.ndarray, list, tuple)):
-                attrs[at] = str(attrs[at])
-        metadata = CollectionMetadata(
-            attrs,
+        metadata = CubeMetadata(
             dimensions=[
                 SpatialDimension(name=xarray_cube.openeo.x_dim, extent=[]),
                 SpatialDimension(name=xarray_cube.openeo.y_dim, extent=[]),
