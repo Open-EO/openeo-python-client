@@ -2,6 +2,8 @@ import datetime
 import logging
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
+import os
+
 
 import numpy as np
 import xarray as xr
@@ -270,6 +272,7 @@ class LocalConnection():
         *,
         validate: Optional[bool] = None,
         auto_decode: bool = True,
+        return_provenance: bool = False,
     ) -> xr.DataArray:
         """
         Execute locally the process graph and return the result as an xarray.DataArray.
@@ -282,4 +285,16 @@ class LocalConnection():
         if auto_decode is not True:
             raise ValueError("LocalConnection requires auto_decode=True")
         process_graph = as_flat_graph(process_graph)
-        return OpenEOProcessGraph(process_graph).to_callable(PROCESS_REGISTRY)()
+        pg = OpenEOProcessGraph(process_graph)
+
+        # Return the result and get the workflow provinance (yprov4wfs)
+        result = pg.to_callable(PROCESS_REGISTRY)()
+        workflow = pg.workflow
+
+        # To save the provenance file in the specific path use:
+        # workflow.prov_to_json(directory_path=save_path)
+
+        if return_provenance:
+            return result, workflow
+        else:
+            return result
