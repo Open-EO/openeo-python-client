@@ -478,7 +478,8 @@ class TestSplitPoints:
             crs="EPSG:4326",
         )
         points = [shapely.geometry.Point(0.1 * i, 0.5) for i in range(5)]  # tile A
-        points += [shapely.geometry.Point(1 + 0.1 * i, 0.5) for i in range(5)]  # tile B
+        # Start at x=1.1 to avoid the x=1.0 shared-edge ambiguity.
+        points += [shapely.geometry.Point(1.1 + 0.1 * i, 0.5) for i in range(5)]  # tile B
         gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
 
         result = split_points(gdf, max_points=100, tile_grid=tile_grid)
