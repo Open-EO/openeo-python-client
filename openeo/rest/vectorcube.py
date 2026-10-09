@@ -52,6 +52,19 @@ class VectorCube(_ProcessGraphAbstraction):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata = metadata
 
+    def _repr_html_(self) -> str:
+        # Assumption: upstream _repr_html_ gives process graph representation
+        html = graph_html = super()._repr_html_()
+
+        if isinstance(self.metadata, CubeMetadata):
+            metadata_html = self.metadata._repr_html_()
+            html = f"""
+                <details open><summary>Metadata</summary>{metadata_html}</details>
+                <details><summary>Process Graph</summary>{graph_html}</details>
+            """
+
+        return html
+
     @classmethod
     def _build_metadata(cls, add_properties: bool = False) -> CubeMetadata:
         """Helper to build a (minimal) `CubeMetadata` object."""

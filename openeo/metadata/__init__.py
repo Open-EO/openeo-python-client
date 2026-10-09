@@ -21,7 +21,9 @@ import pystac.extensions.item_assets
 
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
+from openeo.metadata._extents import _EmptyExtent, _NonConcreteExtent
 from openeo.util import Rfc3339, deep_get
+from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
 _log = logging.getLogger(__name__)
@@ -96,8 +98,11 @@ class SpatialDimension(Dimension):
 
 
 class TemporalDimension(Dimension):
-    def __init__(self, name: str, extent: Union[Tuple[str, str], List[str]]):
+    def __init__(
+        self, name: str, extent: Tuple[str | None, str | None] | List[str | None] | _NonConcreteExtent | _EmptyExtent
+    ):
         super().__init__(type="temporal", name=name)
+        # TODO: ideally we do some validation/normalization of the extent, but this is an existing public API with not much wiggle room
         self.extent = extent
 
     def rename(self, name) -> Dimension:
@@ -106,6 +111,23 @@ class TemporalDimension(Dimension):
     def rename_labels(self, target, source) -> Dimension:
         # TODO should we check if the extent has changed with the new labels?
         return TemporalDimension(name=self.name, extent=self.extent)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> TemporalDimension:
+        """
+        Create new TemporalDimension with subset of temporal extent,
+        based on given temporal extent (start, end)
+        """
+        if (interval1 := DateTimeInterval.try_from(self.extent)) and (interval2 := DateTimeInterval.try_from(extent)):
+            intersection = interval1.intersection(interval2)
+            if intersection:
+                intersection = intersection.as_rfc3339()
+            else:
+                intersection = _EmptyExtent()
+        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            intersection = _EmptyExtent()
+        else:
+            intersection = _NonConcreteExtent()
+        return TemporalDimension(name=self.name, extent=intersection)
 
 
 class Band(NamedTuple):
@@ -272,7 +294,6 @@ class CubeMetadata:
     """
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
-        # Original collection metadata (actual cube metadata might be altered through processes)
         # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
         #       but most usage actually assumes it is a list that can be iterated over.
         #       Can we handle this more consistently and less error-prone?
@@ -309,6 +330,15 @@ class CubeMetadata:
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
         return f"CubeMetadata({bands} - {self.dimension_names()})"
+
+    def _repr_html_(self) -> str:
+        # Local import to avoid circular import issues and dependency overload
+        import openeo.metadata._jupyter
+
+        if self._dimensions:
+            return openeo.metadata._jupyter.repr_html_dimensions(self._dimensions)
+        else:
+            return "<p>No cube (dimension) metadata</p>"
 
     def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
@@ -380,6 +410,14 @@ class CubeMetadata:
     def get_band_index(self, band: Union[int, str]) -> int:
         # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> CubeMetadata:
+        assert self.has_temporal_dimension()
+        return self._clone_and_update(
+            dimensions=[
+                d.filter_temporal(extent=extent) if isinstance(d, TemporalDimension) else d for d in self._dimensions
+            ]
+        )
 
     def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
         """
@@ -554,6 +592,7 @@ class CollectionMetadata(CubeMetadata):
     #       Problem: openeo-geopyspark-driver still heavily depends on CollectionMetadata acting as cube metadata.
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
+        # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)

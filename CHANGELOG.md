@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+
 ### Changed
 
 - Ranged downloads (e.g. of batch job results) no longer implement their own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))
