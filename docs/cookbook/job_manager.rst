@@ -334,11 +334,6 @@ having to load multiple source products for a single extraction job:
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
     batches = split_points(points, max_points=500, tile_grid=tile_grid)
 
-.. tip::
-
-    See the `job splitting notebook <https://github.com/Open-EO/openeo-python-client/blob/master/docs/cookbook/examples/job_splitting.ipynb>`_
-    for a visual, hands-on walkthrough of ``split_area`` and ``split_points``.
-
 Customizing Job Handling
 ========================
 
