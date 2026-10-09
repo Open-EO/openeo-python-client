@@ -27,7 +27,7 @@ def repr_html_dimensions(dimensions: List[Dimension]) -> str:
     header = ["Dimension", "Type", "Size", "Labels / Extent"]
     rows = []
     for dim in dimensions:
-        row = [dim.name, dim.type]
+        row = [dim.name, str(dim.type)]
         if isinstance(dim, BandDimension):
             labels = ", ".join(str(name) if name else "?" for name in dim.band_names)
             row.extend([str(len(dim.bands)), "bands: " + labels])
