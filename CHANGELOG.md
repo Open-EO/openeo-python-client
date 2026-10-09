@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added basic HTML rendering of cube dimension metadata (names, types, sizes, labels/extent), shown in the Jupyter `_repr_html_` of `CubeMetadata` and `DataCube`/`VectorCube` ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+- Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
 
 ### Changed
 
