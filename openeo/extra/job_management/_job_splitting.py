@@ -493,7 +493,11 @@ def split_points(
         # A centroid on a shared tile edge can match multiple tiles: keep just the first match.
         joined = joined.loc[~joined.index.duplicated(keep="first")]
 
-        for _, idx in joined.groupby("index_right", dropna=False).groups.items():
+        # Group using an explicit key to avoid pandas categorical/NaN edge cases
+        # when unmatched centroids (index_right = NaN) are present.
+        joined["_tile_group_key"] = joined["index_right"].where(joined["index_right"].notna(), "__unmatched__")
+
+        for _, idx in joined.groupby("_tile_group_key").groups.items():
             _quadtree_split_indices(centroids, idx, max_points, index_groups)
 
     return [points.loc[idx].reset_index(drop=True) for idx in index_groups]
