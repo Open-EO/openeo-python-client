@@ -8,6 +8,7 @@ from openeo.extra.job_management._job_splitting import (
     _SizeBasedTileGrid,
     _TileGridInterface,
     split_area,
+    split_points,
 )
 from openeo.util import BBoxDict
 
@@ -386,3 +387,143 @@ class TestSplitArea:
         aoi = {"west": 18_000_000.0, "south": 0.0, "east": 19_000_000.0, "north": 1_000_000.0, "crs": "EPSG:3857"}
         result = split_area(aoi, projection="EPSG:3857", tile_size=1_000_000.0)
         assert len(result) >= 1
+
+
+class TestSplitPoints:
+    def _grid_points(self, n_side: int) -> gpd.GeoDataFrame:
+        points = [shapely.geometry.Point(x, y) for x in range(n_side) for y in range(n_side)]
+        return gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+
+    def test_single_group_when_under_limit(self):
+        gdf = self._grid_points(5)  # 25 points
+        result = split_points(gdf, max_points=100)
+        assert len(result) == 1
+        assert len(result[0]) == 25
+
+    def test_splits_into_groups_of_max_points(self):
+        gdf = self._grid_points(10)  # 100 points
+        result = split_points(gdf, max_points=30)
+        assert sum(len(g) for g in result) == 100
+        assert all(len(g) <= 30 for g in result)
+        assert len(result) > 1
+
+    def test_groups_are_spatially_clustered(self):
+        """Points on the left half and right half should end up in different groups."""
+        left = [shapely.geometry.Point(x, 0) for x in range(10)]
+        right = [shapely.geometry.Point(x + 100, 0) for x in range(10)]
+        gdf = gpd.GeoDataFrame(geometry=left + right, crs="EPSG:4326")
+        result = split_points(gdf, max_points=10)
+        assert len(result) == 2
+        for group in result:
+            xs = [geom.x for geom in group.geometry]
+            assert max(xs) - min(xs) < 50
+
+    def test_default_max_points(self):
+        gdf = self._grid_points(3)
+        result = split_points(gdf)
+        assert len(result) == 1
+
+    def test_empty_geodataframe(self):
+        gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+        assert split_points(gdf) == []
+
+    def test_coincident_points_fall_back_to_chunking(self):
+        """Points that all share the same location can't be split by quadtree; fall back to plain chunking."""
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0)] * 25, crs="EPSG:4326")
+        result = split_points(gdf, max_points=10)
+        assert sum(len(g) for g in result) == 25
+        assert all(len(g) <= 10 for g in result)
+
+    def test_missing_geometry_column_raises(self):
+        gdf = gpd.GeoDataFrame({"foo": [1, 2]})
+        with pytest.raises(JobSplittingFailure, match="geometry"):
+            split_points(gdf)
+
+    def test_missing_crs_raises(self):
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0)])
+        with pytest.raises(JobSplittingFailure, match="CRS"):
+            split_points(gdf)
+
+    def test_non_positive_max_points_raises(self):
+        gdf = self._grid_points(2)
+        with pytest.raises(JobSplittingFailure, match="max_points"):
+            split_points(gdf, max_points=0)
+
+    def test_preserves_extra_columns(self):
+        gdf = gpd.GeoDataFrame(
+            {"id": [1, 2, 3], "geometry": [shapely.geometry.Point(x, 0) for x in range(3)]},
+            crs="EPSG:4326",
+        )
+        result = split_points(gdf, max_points=10)
+        assert len(result) == 1
+        assert list(result[0]["id"]) == [1, 2, 3]
+
+    def test_multipoint_rows_treated_as_single_feature(self):
+        """A row with a MultiPoint geometry counts as one feature towards max_points, not one per coordinate."""
+        gdf = gpd.GeoDataFrame(
+            geometry=[
+                shapely.geometry.MultiPoint([(0, 0), (0.1, 0.1), (0.2, 0.2)]),  # 3 coordinates, 1 feature
+                shapely.geometry.Point(0.5, 0.5),
+            ],
+            crs="EPSG:4326",
+        )
+        result = split_points(gdf, max_points=10)
+        assert len(result) == 1
+        assert len(result[0]) == 2  # 2 rows/features, regardless of coordinate count
+
+    def test_tile_grid_groups_never_span_multiple_tiles(self):
+        tile_grid = gpd.GeoDataFrame(
+            {"tile": ["A", "B"]},
+            geometry=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(1, 0, 2, 1)],
+            crs="EPSG:4326",
+        )
+        points = [shapely.geometry.Point(0.1 * i, 0.5) for i in range(5)]  # tile A
+        points += [shapely.geometry.Point(1 + 0.1 * i, 0.5) for i in range(5)]  # tile B
+        gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+
+        result = split_points(gdf, max_points=100, tile_grid=tile_grid)
+        assert len(result) == 2
+        for group in result:
+            xs = [geom.x for geom in group.geometry]
+            assert (max(xs) < 1) or (min(xs) >= 1)
+
+    def test_tile_grid_oversized_tile_is_further_split(self):
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 10, 10)], crs="EPSG:4326")
+        points = [shapely.geometry.Point(x, y) for x in range(10) for y in range(10)]  # 100 points, 1 tile
+        gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+
+        result = split_points(gdf, max_points=30, tile_grid=tile_grid)
+        assert sum(len(g) for g in result) == 100
+        assert all(len(g) <= 30 for g in result)
+        assert len(result) > 1
+
+    def test_tile_grid_unmatched_points_grouped_separately(self):
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+        gdf = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.Point(0.5, 0.5), shapely.geometry.Point(50, 50)],
+            crs="EPSG:4326",
+        )
+        result = split_points(gdf, max_points=10, tile_grid=tile_grid)
+        assert len(result) == 2
+        assert sum(len(g) for g in result) == 2
+
+    def test_tile_grid_reprojects_when_crs_differs(self):
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(-111_320, -111_325, 111_320, 111_325)], crs="EPSG:3857"
+        )
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0.1, 0.1)], crs="EPSG:4326")
+        result = split_points(gdf, max_points=10, tile_grid=tile_grid)
+        assert len(result) == 1
+        assert len(result[0]) == 1
+
+    def test_tile_grid_missing_crs_raises(self):
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)])
+        gdf = self._grid_points(2)
+        with pytest.raises(JobSplittingFailure, match="tile_grid.*CRS"):
+            split_points(gdf, tile_grid=tile_grid)
+
+    def test_antimeridian_crossing_points_raises(self):
+        """Geographic points with longitude outside [-180, 180] are rejected to avoid antimeridian issues."""
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(190.0, 0.0)], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure, match="antimeridian"):
+            split_points(gdf, max_points=10)
