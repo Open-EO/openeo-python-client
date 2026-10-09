@@ -425,7 +425,7 @@ class CubeMetadata:
         :param band_names: list of band names/indices to keep
         :return:
         """
-        assert self.has_band_dimension()
+        assert self.band_dimension
         return self._clone_and_update(
             dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
         )
