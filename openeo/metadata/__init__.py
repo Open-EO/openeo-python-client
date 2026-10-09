@@ -21,7 +21,9 @@ import pystac.extensions.item_assets
 
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
+from openeo.metadata._extents import _EmptyExtent, _NonConcreteExtent
 from openeo.util import Rfc3339, deep_get
+from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
 _log = logging.getLogger(__name__)
@@ -96,9 +98,17 @@ class SpatialDimension(Dimension):
 
 
 class TemporalDimension(Dimension):
-    def __init__(self, name: str, extent: Union[Tuple[str, str], List[str]]):
+    def __init__(
+        self,
+        name: str,
+        *,
+        extent: Tuple[str | None, str | None] | List[str | None] | _NonConcreteExtent | _EmptyExtent | None,
+    ):
         super().__init__(type="temporal", name=name)
-        self.extent = extent
+        # TODO: ideally we do some validation/normalization of the extent,
+        #       but this is an existing public API (e.g. used from openeo-python-driver and openeo-geopyspark-driver)
+        #       currently with little wiggle room to change behavior or increase strictness.
+        self.extent = extent or (None, None)
 
     def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
@@ -106,6 +116,26 @@ class TemporalDimension(Dimension):
     def rename_labels(self, target, source) -> Dimension:
         # TODO should we check if the extent has changed with the new labels?
         return TemporalDimension(name=self.name, extent=self.extent)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> TemporalDimension:
+        """
+        Create new TemporalDimension with intersection current and given temporal extents.
+        """
+        if (interval1 := DateTimeInterval.try_from(self.extent)) and (interval2 := DateTimeInterval.try_from(extent)):
+            if intersection := interval1.intersection(interval2):
+                new_extent = intersection.as_rfc3339()
+            else:
+                new_extent = _EmptyExtent()
+        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            new_extent = _EmptyExtent()
+        elif extent is None:
+            new_extent = self.extent
+        elif self.extent is None:
+            new_extent = extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            new_extent = _NonConcreteExtent()
+        return TemporalDimension(name=self.name, extent=new_extent)
 
 
 class Band(NamedTuple):
@@ -272,7 +302,6 @@ class CubeMetadata:
     """
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
-        # Original collection metadata (actual cube metadata might be altered through processes)
         # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
         #       but most usage actually assumes it is a list that can be iterated over.
         #       Can we handle this more consistently and less error-prone?
@@ -389,6 +418,16 @@ class CubeMetadata:
     def get_band_index(self, band: Union[int, str]) -> int:
         # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> CubeMetadata:
+        if not self.has_temporal_dimension():
+            _log.warning("filter_temporal on cube metadata without temporal dimension. Returning unchanged metadata.")
+            return self
+        return self._clone_and_update(
+            dimensions=[
+                d.filter_temporal(extent=extent) if isinstance(d, TemporalDimension) else d for d in self._dimensions
+            ]
+        )
 
     def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
         """
@@ -563,6 +602,7 @@ class CollectionMetadata(CubeMetadata):
     #       Problem: openeo-geopyspark-driver still heavily depends on CollectionMetadata acting as cube metadata.
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
+        # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
