@@ -62,6 +62,9 @@ class Rfc3339:
 
     Also see https://tools.ietf.org/html/rfc3339#section-5.6
     """
+
+    # TODO #465 move this to openeo.util.datetime
+
     # TODO: currently we hard code timezone 'Z' for simplicity. Add real time zone support?
     _FMT_DATE = '%Y-%m-%d'
     _FMT_TIME = '%H:%M:%SZ'
@@ -206,6 +209,7 @@ class Rfc3339:
 
 
 # Default RFC3339 date-time formatter
+# TODO #465 move this to openeo.util.datetime
 rfc3339 = Rfc3339()
 
 

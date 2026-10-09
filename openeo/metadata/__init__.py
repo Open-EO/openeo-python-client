@@ -18,11 +18,12 @@ import pystac
 import pystac.extensions.datacube
 import pystac.extensions.eo
 import pystac.extensions.item_assets
-from metadata._extents import TemporalExtent, _EmptyExtent, _NonConcreteExtent
 
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
+from openeo.metadata._extents import _EmptyExtent, _NonConcreteExtent
 from openeo.util import Rfc3339, deep_get
+from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
 _log = logging.getLogger(__name__)
@@ -116,10 +117,12 @@ class TemporalDimension(Dimension):
         Create new TemporalDimension with subset of temporal extent,
         based on given temporal extent (start, end)
         """
-        if (te1 := TemporalExtent.try_from(self.extent)) and (te2 := TemporalExtent.try_from(extent)):
-            intersection = te1.intersection(te2)
-            if isinstance(intersection, TemporalExtent):
+        if (interval1 := DateTimeInterval.try_from(self.extent)) and (interval2 := DateTimeInterval.try_from(extent)):
+            intersection = interval1.intersection(interval2)
+            if intersection:
                 intersection = intersection.as_rfc3339()
+            else:
+                intersection = _EmptyExtent()
         elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
             intersection = _EmptyExtent()
         else:
