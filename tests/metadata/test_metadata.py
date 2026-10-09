@@ -8,6 +8,7 @@ import dirty_equals
 import pystac
 import pytest
 
+import openeo.api.process
 from openeo.api.process import Parameter
 from openeo.metadata import (
     Band,
@@ -20,6 +21,8 @@ from openeo.metadata import (
     MetadataException,
     SpatialDimension,
     TemporalDimension,
+    _EmptyExtent,
+    _NonConcreteExtent,
     _StacMetadataParser,
     metadata_from_stac,
 )
@@ -42,6 +45,56 @@ CUBE_METADATA_TBXY = CubeMetadata(
         SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.1),
     ]
 )
+
+
+class TestTemporalDimension:
+
+    def test_filter_temporal_basic(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-09-01", "2022-10-01"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-09-01T00:00:00Z", "2022-10-01T00:00:00Z")
+
+    def test_filter_temporal_empty_intersection(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2019-02-02", "2019-02-20"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert isinstance(tdim2.extent, _EmptyExtent)
+
+    def test_filter_temporal_none(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=None)
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2021-01-01", None)
+
+    def test_filter_temporal_start_from_none(self):
+        tdim1 = TemporalDimension(name="t", extent=None)
+        tdim2 = tdim1.filter_temporal(extent=("2019-02-02", "2019-02-20"))
+        assert tdim1.extent == (None, None)
+        assert tdim2.extent == ("2019-02-02T00:00:00Z", "2019-02-20T00:00:00Z")
+
+    def test_filter_temporal_multiple_empty_intersection(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-02-02", "2022-02-22"))
+        tdim3 = tdim2.filter_temporal(extent=("2023-03-03", "2023-03-23"))
+        tdim4 = tdim3.filter_temporal(extent=("2024-04-04", "2024-04-24"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-02-02T00:00:00Z", "2022-02-22T00:00:00Z")
+        assert isinstance(tdim3.extent, _EmptyExtent)
+        assert isinstance(tdim4.extent, _EmptyExtent)
+
+    def test_filter_temporal_half_open(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-09-01", None))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-09-01T00:00:00Z", None)
+
+    def test_filter_temporal_parameterized(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        extent = openeo.api.process.Parameter.temporal_interval(name="extent")
+        tdim2 = tdim1.filter_temporal(extent=extent)
+        assert tdim1.extent == ("2021-01-01", None)
+        assert isinstance(tdim2.extent, _NonConcreteExtent)
 
 
 class TestCollectionMetadata:

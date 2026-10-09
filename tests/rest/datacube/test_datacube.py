@@ -31,6 +31,7 @@ from openeo.rest.datacube import DataCube
 from openeo.rest.models.general import ValidationResponse
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import dict_no_none
+from openeo.utils.datetime import DateTimeInterval
 
 from .. import get_download_graph
 from .conftest import API_URL
@@ -376,143 +377,173 @@ class TestDataCube:
             regex_flags=re.DOTALL | re.VERBOSE,
         )
 
+    def test_load_collection_extent_repr_html(self, connection):
+        cube = connection.load_collection(
+            "S2",
+            spatial_extent={"west": 3.1, "south": 51.1, "east": 3.2, "north": 51.2},
+            temporal_extent=("2026-09-01", "2026-09-20"),
+            bands=["B03", "B04"],
+        )
+        assert cube.metadata
+        html = cube._repr_html_()
+        assert html == dirty_equals.IsStr(
+            regex=r"""
+                .*<details\ open><summary>Metadata</summary>
+                    .*<table>
+                    .*<thead>.*Dimension.*Type.*Size.*</thead>
+                    .*<tbody>
+                        .*<tr><td>x</td><td>spatial</td>.*</tr>
+                        .*<tr><td>y</td><td>spatial</td>.*</tr>
+                        .*<tr><td>t</td><td>temporal</td><td>\?</td><td>extent:.*2026-09-01.*2026-09-20.*</tr>
+                        .*<tr><td>bands</td><td>bands</td><td>2</td><td>bands:\sB03,\sB04</td></tr>
+               .*</details>
+               .*<details><summary>Process\ Graph</summary>
+               .*<openeo-model-builder>
+               .*""",
+            regex_flags=re.DOTALL | re.VERBOSE,
+        )
 
-def test_filter_temporal_basic_positional_args(s2cube):
-    im = s2cube.filter_temporal("2016-01-01", "2016-03-10")
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+    def test_filter_temporal_basic_positional_args(self, s2cube):
+        cube = s2cube.filter_temporal("2016-01-01", "2016-03-10")
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
+    def test_filter_temporal_basic_start_end(self, s2cube):
+        cube = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
-def test_filter_temporal_basic_start_end(s2cube):
-    im = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+    def test_filter_temporal_basic_extent(self, s2cube):
+        cube = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
-
-def test_filter_temporal_basic_extent(s2cube):
-    im = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
-
-
-@pytest.mark.parametrize(
-    "args,kwargs,extent",
-    [
-        ((), {}, [None, None]),
-        (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
-        ((("2016-01-01", "2016-03-10"),), {}, ["2016-01-01", "2016-03-10"]),
-        ((["2016-01-01", "2016-03-10"],), {}, ["2016-01-01", "2016-03-10"]),
-        ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
-        (
-            (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)),
-            {},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-        ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
-        ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
-        ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
-        ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
-        (
-            (),
-            {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-        ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
-        ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
-        ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
-        ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
-        (
-            (),
-            {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-    ],
-)
-def test_filter_temporal_generic(s2cube, args, kwargs, extent):
-    im = s2cube.filter_temporal(*args, **kwargs)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == extent
-
-
-@pytest.mark.parametrize(
-    ["extent", "expected"],
-    [
-        (["2016", None], ["2016-01-01", None]),
-        (["2016-03", None], ["2016-03-01", None]),
-        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
-        (["2016-03", "2016-04"], ["2016-03-01", "2016-04-01"]),
-        (["2016-03", "2018-12"], ["2016-03-01", "2018-12-01"]),
-        (["2016", "2016-01"], ["2016-01-01", "2016-01-01"]),
-        (["2016", "2016-04"], ["2016-01-01", "2016-04-01"]),
-        ([None, "2016-04"], [None, "2016-04-01"]),
-    ],
-)
-def test_filter_temporal_extent_tuple_with_shorthand_dates(s2cube: DataCube, extent, expected):
-    """Verify it supports shorthand dates that represent years or months."""
-    im = s2cube.filter_temporal(extent=extent)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == expected
-
-
-@pytest.mark.parametrize(
-    ["extent", "expected"],
-    [
-        ("2016", ["2016-01-01", "2017-01-01"]),
-        ("2016-01", ["2016-01-01", "2016-02-01"]),
-        ("2016-04", ["2016-04-01", "2016-05-01"]),
-        ("2016-12", ["2016-12-01", "2017-01-01"]),
-        ("2016-04-11", ["2016-12-01", "2017-01-01"]),
-    ],
-)
-def test_filter_temporal_extent_single_date_string(s2cube: DataCube, extent, expected):
-    """Verify it supports single string extent."""
-    im = s2cube.filter_temporal(extent=extent)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == expected
+    @pytest.mark.parametrize(
+        ["args", "kwargs", "extent"],
+        [
+            ((), {}, [None, None]),
+            (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
+            ((("2016-01-01", "2016-03-10"),), {}, ["2016-01-01", "2016-03-10"]),
+            ((["2016-01-01", "2016-03-10"],), {}, ["2016-01-01", "2016-03-10"]),
+            ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
+            (
+                (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)),
+                {},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+            ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
+            ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
+            ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
+            ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
+            (
+                (),
+                {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+            ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
+            ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
+            ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
+            ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
+            (
+                (),
+                {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+        ],
+    )
+    def test_filter_temporal_generic(self, s2cube, args, kwargs, extent):
+        cube = s2cube.filter_temporal(*args, **kwargs)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == extent
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*extent).as_rfc3339()
 
 
-@pytest.mark.parametrize(
-    "extent,expected",
-    [
-        (("2016-01-01", None), ["2016-01-01", None]),
-        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
-        ((None, "2016-03-10"), [None, "2016-03-10"]),
-        (["2016-01-01", None], ["2016-01-01", None]),
-    ],
-)
-def test_load_collection_filter_temporal(connection, api_version, extent, expected):
-    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
-    flat_graph = cube.flat_graph()
-    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            (["2016", None], ["2016-01-01", None]),
+            (["2016-03", None], ["2016-03-01", None]),
+            (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+            (["2016-03", "2016-04"], ["2016-03-01", "2016-04-01"]),
+            (["2016-03", "2018-12"], ["2016-03-01", "2018-12-01"]),
+            (["2016", "2016-01"], ["2016-01-01", "2016-01-01"]),
+            (["2016", "2016-04"], ["2016-01-01", "2016-04-01"]),
+            ([None, "2016-04"], [None, "2016-04-01"]),
+        ],
+    )
+    def test_filter_temporal_extent_tuple_with_shorthand_dates(self, s2cube: DataCube, extent, expected):
+        """Verify it supports shorthand dates that represent years or months."""
+        cube = s2cube.filter_temporal(extent=extent)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ("2016", ["2016-01-01", "2017-01-01"]),
+            ("2016-01", ["2016-01-01", "2016-02-01"]),
+            ("2016-04", ["2016-04-01", "2016-05-01"]),
+            ("2016-12", ["2016-12-01", "2017-01-01"]),
+            ("2016-04-11", ["2016-04-11", "2016-04-12"]),
+        ],
+    )
+    def test_filter_temporal_extent_single_date_string(self, s2cube: DataCube, extent, expected):
+        """Verify it supports single string extent."""
+        cube = s2cube.filter_temporal(extent=extent)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            (("2016-01-01", None), ["2016-01-01", None]),
+            (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+            ((None, "2016-03-10"), [None, "2016-03-10"]),
+            (["2016-01-01", None], ["2016-01-01", None]),
+        ],
+    )
+    def test_load_collection_filter_temporal(self, connection, api_version, extent, expected):
+        cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+        flat_graph = cube.flat_graph()
+        assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
 
 
-@pytest.mark.parametrize(
-    "extent,expected",
-    [
-        # Test that the simplest/shortest syntax works: temporal_extent="2016"
-        ("2016", ["2016-01-01", "2017-01-01"]),
-        ("2016-02", ["2016-02-01", "2016-03-01"]),
-        ("2016-02-03", ["2016-02-03", "2016-02-04"]),
-        # Test date abbreviations using tuples for the extent
-        (["2016", None], ["2016-01-01", None]),
-        (["2016-02", None], ["2016-02-01", None]),
-        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
-        (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
-        ([None, "2016"], [None, "2016-01-01"]),
-        ([None, "2016-02"], [None, "2016-02-01"]),
-    ],
-)
-def test_load_collection_temporal_extent_with_shorthand_date_strings(connection, api_version, extent, expected):
-    """Verify it supports abbreviated date strings."""
-    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
-    flat_graph = cube.flat_graph()
-    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            # Test that the simplest/shortest syntax works: temporal_extent="2016"
+            ("2016", ["2016-01-01", "2017-01-01"]),
+            ("2016-02", ["2016-02-01", "2016-03-01"]),
+            ("2016-02-03", ["2016-02-03", "2016-02-04"]),
+            # Test date abbreviations using tuples for the extent
+            (["2016", None], ["2016-01-01", None]),
+            (["2016-02", None], ["2016-02-01", None]),
+            (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+            (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
+            ([None, "2016"], [None, "2016-01-01"]),
+            ([None, "2016-02"], [None, "2016-02-01"]),
+        ],
+    )
+    def test_load_collection_temporal_extent_with_shorthand_date_strings(
+        self, connection, api_version, extent, expected
+    ):
+        """Verify it supports abbreviated date strings."""
+        cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+        flat_graph = cube.flat_graph()
+        assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
 
 
 def test_load_collection_bands_name(connection, api_version, test_data):
