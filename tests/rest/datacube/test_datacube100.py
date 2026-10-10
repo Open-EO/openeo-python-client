@@ -1139,6 +1139,32 @@ def test_merge_cubes_band_merging_with_overlap(con100, requests_mock, overlap_re
     assert s4_f_m_s3_f.metadata.band_names == ["B6", "B5", "B8"]
 
 
+def test_merge_cubes_band_merging_one_side_without_bands(con100, requests_mock):
+    setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["C4", "C6"])
+
+    s3 = con100.load_collection("S3")
+    s4 = con100.load_collection("S4").reduce_dimension(dimension="bands", reducer="mean")
+    assert s3.metadata.has_band_dimension()
+    assert s4.metadata is not None
+    assert not s4.metadata.has_band_dimension()
+
+    s3_m_s4 = s3.merge_cubes(s4, overlap_resolver="max")
+    s4_m_s3 = s4.merge_cubes(s3, overlap_resolver="max")
+    assert s3_m_s4.metadata.band_names == ["B2", "B3"]
+    assert s4_m_s3.metadata.band_names == ["B2", "B3"]
+    assert s4_m_s3.metadata.dimension_names() == s4.metadata.dimension_names() + ["bands"]
+
+
+def test_merge_cubes_band_merging_both_sides_without_bands(con100, requests_mock):
+    setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3"])
+    setup_collection_metadata(requests_mock=requests_mock, cid="S4", bands=["C4", "C6"])
+
+    s3 = con100.load_collection("S3").reduce_dimension(dimension="bands", reducer="mean")
+    s4 = con100.load_collection("S4").reduce_dimension(dimension="bands", reducer="mean")
+    assert s3.merge_cubes(s4, overlap_resolver="max").metadata is None
+
+
 def test_resample_cube_spatial(con100: Connection):
     data = con100.load_collection("S2")
     target = con100.load_collection("MASK")
