@@ -623,6 +623,57 @@ class TestAssertJobResults:
         ):
             assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
 
+    def _create_geojson_file(self, path: Path, *, coordinates: List[float], value: float, name: str = "a"):
+        geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": coordinates},
+                    "properties": {"name": name, "value": value},
+                }
+            ],
+        }
+        path.write_text(json.dumps(geojson))
+
+    def test_allclose_geojson_success(self, tmp_path, actual_dir, expected_dir, caplog):
+        self._create_geojson_file(expected_dir / "vectorcube.geojson", coordinates=[5.0, 51.0], value=1.0)
+        self._create_geojson_file(actual_dir / "vectorcube.geojson", coordinates=[5.0, 51.0000001], value=1.0000001)
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+        assert "Unhandled job result asset" not in caplog.text
+
+    def test_allclose_geojson_different(self, tmp_path, actual_dir, expected_dir):
+        self._create_geojson_file(expected_dir / "vectorcube.geojson", coordinates=[5.0, 51.0], value=1.0)
+        self._create_geojson_file(actual_dir / "vectorcube.geojson", coordinates=[5.0, 51.5], value=1.5, name="b")
+        with raises_assertion_error_or_not(
+            r"Issues for file 'vectorcube.geojson'"
+            r".*Value mismatch at '/features/0/geometry/coordinates/1': 51.5 != 51.0"
+            r".*Value mismatch at '/features/0/properties/name': 'b' != 'a'"
+            r".*Value mismatch at '/features/0/properties/value': 1.5 != 1.0"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
+    def test_allclose_geojson_tolerance(self, tmp_path, actual_dir, expected_dir):
+        self._create_geojson_file(expected_dir / "vectorcube.geojson", coordinates=[5.0, 51.0], value=1.0)
+        self._create_geojson_file(actual_dir / "vectorcube.geojson", coordinates=[5.0, 51.0], value=1.1)
+        with raises_assertion_error_or_not(r"Value mismatch at '/features/0/properties/value': 1.1 != 1.0"):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+        assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path, atol=0.2)
+
+    def test_allclose_geojson_structure_mismatch(self, tmp_path, actual_dir, expected_dir):
+        (expected_dir / "vectorcube.geojson").write_text(
+            json.dumps({"type": "FeatureCollection", "features": [{"type": "Feature"}, {"type": "Feature"}]})
+        )
+        (actual_dir / "vectorcube.geojson").write_text(
+            json.dumps({"type": "FeatureCollection", "features": [{"type": "Feature"}], "bbox": [1, 2, 3, 4]})
+        )
+        with raises_assertion_error_or_not(
+            r"Issues for file 'vectorcube.geojson'"
+            r".*Key mismatch at '': \['bbox', 'features', 'type'\] != \['features', 'type'\]"
+            r".*Length mismatch at '/features': 1 != 2"
+        ):
+            assert_job_results_allclose(actual=actual_dir, expected=expected_dir, tmp_path=tmp_path)
+
     def _create_metadata_json_file(self, path: Path, *, links: Optional[List[dict]] = None):
         metadata = {}
         if links:

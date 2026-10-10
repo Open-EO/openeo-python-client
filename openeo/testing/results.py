@@ -429,6 +429,59 @@ def assert_xarray_allclose(
         raise ValueError(f"Unsupported types: {type(actual)} and {type(expected)}")
 
 
+def _compare_json_values(actual, expected, *, rtol: float, atol: float, path: str = "") -> List[str]:
+    """
+    Recursively compare JSON-style data structures (e.g. a loaded GeoJSON document),
+    with tolerance on numeric values (e.g. coordinates or feature properties).
+
+    :return: list of issues (empty if no issues)
+    """
+
+    def is_number(x) -> bool:
+        return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+    if is_number(actual) and is_number(expected):
+        if not numpy.isclose(actual, expected, rtol=rtol, atol=atol, equal_nan=True):
+            return [f"Value mismatch at {path!r}: {actual!r} != {expected!r} (actual != expected)"]
+        return []
+    elif isinstance(actual, dict) and isinstance(expected, dict):
+        issues = []
+        if actual.keys() != expected.keys():
+            issues.append(
+                f"Key mismatch at {path!r}: {sorted(actual.keys())} != {sorted(expected.keys())} (actual != expected)"
+            )
+        for key in [k for k in expected.keys() if k in actual]:
+            issues.extend(_compare_json_values(actual[key], expected[key], rtol=rtol, atol=atol, path=f"{path}/{key}"))
+        return issues
+    elif isinstance(actual, list) and isinstance(expected, list):
+        if len(actual) != len(expected):
+            return [f"Length mismatch at {path!r}: {len(actual)} != {len(expected)} (actual != expected)"]
+        issues = []
+        for i, (a, e) in enumerate(zip(actual, expected)):
+            issues.extend(_compare_json_values(a, e, rtol=rtol, atol=atol, path=f"{path}/{i}"))
+        return issues
+    elif actual != expected:
+        return [
+            f"Value mismatch at {path!r}: {repr_truncate(actual)} != {repr_truncate(expected)} (actual != expected)"
+        ]
+    return []
+
+
+def _compare_geojson(
+    actual: Union[str, Path],
+    expected: Union[str, Path],
+    *,
+    rtol: float = _DEFAULT_RTOL,
+    atol: float = _DEFAULT_ATOL,
+) -> List[str]:
+    """
+    Compare two GeoJSON files (e.g. vector cube results), with tolerance on numeric values.
+
+    :return: list of issues (empty if no issues)
+    """
+    return _compare_json_values(_load_json(actual), _load_json(expected), rtol=rtol, atol=atol)
+
+
 def _as_job_results_download(
     job_results: Union[BatchJob, JobResults, str, Path], tmp_path: Optional[Path] = None
 ) -> Path:
@@ -500,6 +553,11 @@ def _compare_job_results(
             issues = _compare_xarray_dataarray(
                 actual=actual_path, expected=expected_path, rtol=rtol, atol=atol, pixel_tolerance=pixel_tolerance
             )
+            if issues:
+                all_issues.append(f"Issues for file {filename!r}:")
+                all_issues.extend(issues)
+        elif expected_path.suffix.lower() in {".geojson"}:
+            issues = _compare_geojson(actual=actual_path, expected=expected_path, rtol=rtol, atol=atol)
             if issues:
                 all_issues.append(f"Issues for file {filename!r}:")
                 all_issues.extend(issues)
