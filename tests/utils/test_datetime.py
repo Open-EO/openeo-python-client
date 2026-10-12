@@ -113,21 +113,42 @@ class TestDateTimeInterval:
         assert interval.end == datetime.datetime(2026, 11, 12, 23, 52, 22, tzinfo=datetime.timezone.utc)
 
     @pytest.mark.parametrize(
+        ["interval", "expected"],
+        [
+            (DateTimeInterval("2026-09-10", "2026-09-20"), True),
+            (DateTimeInterval("2026-09-10T00:00:00", "2026-09-20T00:00:00"), True),
+            (DateTimeInterval("2026-09-10T01:00:00+01:00", "2026-09-20T00:00:00"), True),
+            (DateTimeInterval("2026-09-10T01:00:00", "2026-09-20T00:00:00"), False),
+        ],
+    )
+    def test_equality(self, interval, expected):
+        ref = DateTimeInterval("2026-09-10", "2026-09-20")
+        assert (ref == interval) == expected
+        assert (interval == ref) == expected
+
+    def test_equality_end_inclusive(self):
+        d1 = "2026-09-10"
+        d2 = "2026-09-20"
+        assert DateTimeInterval(d1, d2) == DateTimeInterval(d1, d2, end_inclusive=True)
+        assert DateTimeInterval(d1, d2) != DateTimeInterval(d1, d2, end_inclusive=False)
+        assert DateTimeInterval(d1, d2, end_inclusive=False) == DateTimeInterval(d1, d2, end_inclusive=False)
+
+    @pytest.mark.parametrize(
         ["given", "expected"],
         [
-            (["2026-09-10", "2026-11-12"], DateTimeInterval("2026-09-10", "2026-11-12")),
             (("2026-09-10", "2026-11-12"), DateTimeInterval("2026-09-10", "2026-11-12")),
-            ({"start": "2026-09-10", "end": "2026-11-12"}, DateTimeInterval("2026-09-10", "2026-11-12")),
+            (("2026-09-10", None), DateTimeInterval("2026-09-10", None)),
+            (["2026-09-10", "2026-11-12"], DateTimeInterval("2026-09-10", "2026-11-12")),
+            (None, None),
             ("foobar", None),
             (["2026-09-10"], None),
             (["2026-09-10", "2026-11-12", "2026-12-01"], None),
-            ({"color": "green"}, None),
-            ({"start": "2026-09-10"}, None),
+            ([{"2026": "09-10"}, {"2026": "11-12"}], None),
+            ({"2026": "09-10"}, None),
         ],
     )
     def test_try_from(self, given, expected):
-        assert DateTimeInterval.try_from(given) == expected
-
+        assert DateTimeInterval.try_from_tuple(given) == expected
     def test_as_tuple(self):
         interval = DateTimeInterval("2026-09-10", "2026-11-12T11:22:33Z")
         assert interval.as_tuple() == (
@@ -172,5 +193,29 @@ class TestDateTimeInterval:
     def test_intersection(self, interval1, interval2, expected):
         interval1 = DateTimeInterval(*interval1)
         interval2 = DateTimeInterval(*interval2)
+        assert interval1.intersection(interval2) == expected
+        assert interval2.intersection(interval1) == expected
+
+    @pytest.mark.parametrize(
+        ["interval1", "interval2", "expected"],
+        [
+            (
+                DateTimeInterval("2026-08-20", "2026-09-01"),
+                DateTimeInterval("2026-09-01", "2026-09-30"),
+                DateTimeInterval("2026-09-01", "2026-09-01"),
+            ),
+            (
+                DateTimeInterval("2026-08-20", "2026-09-01", end_inclusive=False),
+                DateTimeInterval("2026-09-01", "2026-09-30"),
+                None,
+            ),
+            (
+                DateTimeInterval("2026-08-20", "2026-09-01", end_inclusive=False),
+                DateTimeInterval("2026-08-25", "2026-09-30"),
+                DateTimeInterval("2026-08-25", "2026-09-01", end_inclusive=False),
+            ),
+        ],
+    )
+    def test_intersection_end_inclusive(self, interval1, interval2, expected):
         assert interval1.intersection(interval2) == expected
         assert interval2.intersection(interval1) == expected

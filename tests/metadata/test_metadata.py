@@ -61,6 +61,16 @@ class TestTemporalDimension:
         assert tdim1.extent == ("2021-01-01", None)
         assert isinstance(tdim2.extent, _EmptyExtent)
 
+    def test_filter_temporal_end_inclusive(self):
+        """`filter_temporal` is end-exclusive"""
+        tdim1 = TemporalDimension(name="t", extent=("2026-03-01", "2026-04-01"))
+        # `filter_temporal` with extent just before: no match
+        tdim2 = tdim1.filter_temporal(extent=("2026-02-01", "2026-03-01"))
+        assert tdim2.extent == _EmptyExtent()
+        # `filter_temporal` with extent just after: single instant match
+        tdim3 = tdim1.filter_temporal(extent=("2026-04-01", "2026-05-01"))
+        assert tdim3.extent == ("2026-04-01T00:00:00Z", "2026-04-01T00:00:00Z")
+
     def test_filter_temporal_none(self):
         tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
         tdim2 = tdim1.filter_temporal(extent=None)
