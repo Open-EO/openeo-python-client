@@ -121,7 +121,17 @@ class TemporalDimension(Dimension):
         """
         Create new TemporalDimension with intersection current and given temporal extents.
         """
-        if (interval1 := DateTimeInterval.try_from(self.extent)) and (interval2 := DateTimeInterval.try_from(extent)):
+        if (interval1 := DateTimeInterval.try_from_tuple(self.extent)) and (
+            interval2 := DateTimeInterval.try_from_tuple(extent, end_inclusive=False)
+        ):
+            # Note on "end-inclusiveness" aspect in this intersection calculation:
+            # the current extent of the dimension is end-inclusive by definition (a data extent),
+            # while the `filter_temporal` extent is end-exclusive by definition (a filter extent).
+            # The inclusivity is taken into account while determining the intersection,
+            # but the end result is handled as (coerced into) an end-inclusive data extent regardless.
+            # While this might introduce a (sub-)second imprecision, it is typically
+            # multiple orders of magnitude smaller than the actual error (hours/days)
+            # of this best-effort, client-side approximation/simulation.
             if intersection := interval1.intersection(interval2):
                 new_extent = intersection.as_rfc3339()
             else:

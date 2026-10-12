@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import sys
 from typing import Any, Tuple, Union
 
 import dateutil.parser
@@ -46,16 +47,21 @@ class DateTimeInterval:
     Datetime interval, defined by a start and end datetime instant (UTC)
     each of which can be ``None`` to indicate being open-ended in that direction (no limit).
 
-    Note on including or excluding the end instant:
-    this is not a property of the extent itself, but is an aspect of what the extent describes or how it is used:
-    - when the extent describes the range of a certain data set, the end instant is inclusive
-    - when the extent is used as search window for a query, the end instant is typically handled as exclusive
+    Note on including or excluding the end instant (attribute ``end_inclusive``):
+    this aspect is usually linked to what the extent describes or how it is used:
+      - when the extent describes the known time range of a certain data set (e.g. a STAC collection),
+        the end instant is inclusive
+      - when the extent is used as search window for a query/filter operation,
+        some standards (e.g. openEO ``filter_temporal``) prescribe the end instant as exclusive,
+        as this simplifies some aspects of the query logic and specification.
+    The ``end_inclusive`` attribute can be toggled to indicate the intended semantics where this matters.
     """
 
     start: Union[datetime.datetime, None]
     end: Union[datetime.datetime, None]
+    end_inclusive: bool = dataclasses.field(default=True, **({"kw_only": True} if sys.version_info >= (3, 10) else {}))
 
-    def __init__(self, start: DateTimeLike | None, end: DateTimeLike | None):
+    def __init__(self, start: DateTimeLike | None, end: DateTimeLike | None, *, end_inclusive: bool = True):
         start = to_datetime_utc_unless_none(start)
         end = to_datetime_utc_unless_none(end)
         if start and end and end < start:
@@ -63,17 +69,16 @@ class DateTimeInterval:
 
         object.__setattr__(self, "start", start)
         object.__setattr__(self, "end", end)
+        object.__setattr__(self, "end_inclusive", end_inclusive)
 
     @classmethod
-    def try_from(cls, x: Any) -> DateTimeInterval | None:
-        """Try to build a TemporalExtent from the given object, or return None if not possible."""
-        try:
-            if isinstance(x, (list, tuple)) and len(x) == 2:
-                return DateTimeInterval(*x)
-            elif isinstance(x, dict):
-                return DateTimeInterval(**x)
-        except (ValueError, TypeError):
-            pass
+    def try_from_tuple(cls, x: Any, **kwargs: Any) -> DateTimeInterval | None:
+        """Try to build a TemporalExtent from the given tuple/list, or return None if not possible."""
+        if isinstance(x, (list, tuple)) and len(x) == 2:
+            try:
+                return DateTimeInterval(*x, **kwargs)
+            except (ValueError, TypeError):
+                pass
         return None
 
     def as_tuple(self) -> Tuple[datetime.datetime | None, datetime.datetime | None]:
@@ -110,14 +115,14 @@ class DateTimeInterval:
             start = max(self.start, other.start)
 
         if self.end is None:
-            end = other.end
+            end, end_inclusive = other.end, other.end_inclusive
         elif other.end is None:
-            end = self.end
+            end, end_inclusive = self.end, self.end_inclusive
         else:
-            end = min(self.end, other.end)
+            end, end_inclusive = min((self.end, self.end_inclusive), (other.end, other.end_inclusive))
 
         # Double check naive calculation on emptiness
-        if start is not None and end is not None and end < start:
+        if start is not None and end is not None and (end < start or (end == start and not end_inclusive)):
             return None
 
-        return DateTimeInterval(start, end)
+        return DateTimeInterval(start, end, end_inclusive=end_inclusive)
