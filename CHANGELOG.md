@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `Parameter.temporal_extent()` helper to create a nullable `temporal_extent` parameter, compatible with the argument of the same name of `load_collection` ([#679](https://github.com/Open-EO/openeo-python-client/issues/679))
+
 ### Changed
 
 - Ranged downloads (e.g. of batch job results) no longer implement their own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))

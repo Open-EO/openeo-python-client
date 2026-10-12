@@ -455,6 +455,68 @@ class Parameter:
         }
         return cls(name=name, description=description, schema=schema, **kwargs)
 
+    @classmethod
+    def temporal_extent(
+        cls,
+        name: str = "temporal_extent",
+        description: Optional[str] = None,
+        **kwargs,
+    ) -> Parameter:
+        """
+        Helper to easily create a 'temporal_extent' parameter, which is compatible with the ``load_collection``
+        argument of the same name: a temporal interval (two-element array with start and end date/date-time,
+        one of which can be null for an unbounded interval), or null to not filter temporally at all.
+        In contrast, :py:meth:`temporal_interval` does not allow the parameter itself to be null.
+
+        :param name: parameter name, which will be used to assign concrete values to.
+            It is recommended to stick to the convention of snake case naming (using lowercase with underscores).
+        :param description: human-readable description of the parameter.
+
+        See the generic :py:class:`Parameter` constructor for information on additional arguments (except ``schema``).
+
+        .. versionadded:: 0.54.0
+
+        .. seealso:: https://github.com/Open-EO/openeo-python-client/issues/679
+        """
+        if description is None:
+            description = textwrap.dedent(
+                """
+                Limits the data to process to the specified left-closed temporal interval.
+
+                The interval has to be specified as an array with exactly two elements:
+
+                1. The first element is the start of the temporal interval. The specified time instant is **included** in the interval.
+                2. The second element is the end of the temporal interval. The specified time instant is **excluded** from the interval.
+
+                Also supports unbounded intervals by setting one of the boundaries to `null`, but never both.
+
+                Set this parameter to `null` to set no limit for the temporal extent.
+                """
+            ).strip()
+
+        schema = [
+            {
+                "type": "array",
+                "subtype": "temporal-interval",
+                "uniqueItems": True,
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                    "anyOf": [
+                        {"type": "string", "subtype": "date-time", "format": "date-time"},
+                        {"type": "string", "subtype": "date", "format": "date"},
+                        {"type": "null"},
+                    ]
+                },
+            },
+            {
+                "title": "No filter",
+                "description": "Don't filter temporally. All data is included in the data cube.",
+                "type": "null",
+            },
+        ]
+        return cls(name=name, description=description, schema=schema, **kwargs)
+
 
 def schema_supports(schema: Union[dict, List[dict]], type: str, subtype: Optional[str] = None) -> bool:
     """Helper to check if parameter schema supports given type/subtype"""
