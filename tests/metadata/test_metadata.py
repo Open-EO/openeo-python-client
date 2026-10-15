@@ -107,6 +107,21 @@ class TestTemporalDimension:
         assert isinstance(tdim2.extent, _NonConcreteExtent)
 
 
+class TestSpatialDimension:
+    def test_legacy_without_axis(self):
+        dim = SpatialDimension(name="x", extent=[2, 6])
+        assert dim.name == "x"
+        assert dim.axis == "x"
+        assert dim.extent == [2, 6]
+        assert dim.crs == 4326
+
+    def test_basic(self):
+        dim = SpatialDimension(name="lon", axis="x", extent=[2, 6], crs=4326)
+        assert dim.name == "lon"
+        assert dim.axis == "x"
+        assert dim.extent == [2, 6]
+        assert dim.crs == 4326
+
 class TestCollectionMetadata:
 
     def test_repr_html_basic(self):
