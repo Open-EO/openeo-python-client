@@ -23,6 +23,9 @@ class _NonConcreteExtent:
     def __repr__(self) -> str:
         return "<_NonConcreteExtent>"
 
+    def __eq__(self, value: object, /) -> bool:
+        return False
+
 
 class _EmptyExtent:
     """

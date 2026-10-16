@@ -1,7 +1,17 @@
 import pytest
 
-from openeo.metadata import NumericalInterval, _EmptyExtent
+from openeo.metadata import NumericalInterval, _EmptyExtent, _NonConcreteExtent
 
+
+class TestNonConcreteExtent:
+
+    def test_equality(self):
+        assert _NonConcreteExtent() != _NonConcreteExtent()
+
+    def test_self_inequality(self):
+        """A non-concrete extent is even not equal to itself (because it is not concrete)"""
+        extent = _NonConcreteExtent()
+        assert extent != extent
 
 class TestEmptyExtent:
 
