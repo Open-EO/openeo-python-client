@@ -7,6 +7,8 @@ from typing import Any, Tuple, Union
 
 from openeo.util import rfc3339
 
+# TODO #465 move this to openeo.util.datetime?
+
 
 def get_temporal_extent(
     *args,

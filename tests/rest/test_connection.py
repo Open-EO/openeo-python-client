@@ -27,6 +27,7 @@ from openeo.metadata import (
     BandDimension,
     CubeMetadata,
     TemporalDimension,
+    _EmptyExtent,
 )
 from openeo.rest import (
     CapabilitiesException,
@@ -3878,6 +3879,23 @@ class TestLoadStac:
                 "result": True,
             },
         }
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            (["2026-02-01", "2026-02-20"], ("2026-02-01T00:00:00Z", "2026-02-20T00:00:00Z")),
+            (["2024-09-01", "2025-05-05"], ("2025-01-01T00:00:00Z", "2025-05-05T00:00:00Z")),
+            (["2020-01-01", "2020-01-10"], _EmptyExtent()),
+        ],
+    )
+    def test_load_stac_temporal_extent_metadata(self, dummy_backend, build_stac_ref, extent, expected):
+        stac_ref = build_stac_ref(
+            StacDummyBuilder.collection(
+                cube_dimensions={"t": {"type": "temporal", "extent": ["2025-01-01", "2026-06-06"]}}
+            )
+        )
+        cube = dummy_backend.connection.load_stac(stac_ref, temporal_extent=extent)
+        assert cube.metadata.temporal_dimension.extent == expected
 
 
 @pytest.mark.parametrize(
