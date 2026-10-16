@@ -67,7 +67,12 @@ def setup_collection_metadata(requests_mock, cid: str, bands: List[str]):
     requests_mock.get(
         API_URL + f"/collections/{cid}",
         json={
-            "cube:dimensions": {"bands": {"type": "bands", "values": bands}},
+            "cube:dimensions": {
+                "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "reference_system": 4326},
+                "y": {"type": "spatial", "axis": "y", "extent": [-90, 90], "reference_system": 4326},
+                "t": {"type": "temporal", "extent": ["2020-02-20T02:20:22Z", None]},
+                "bands": {"type": "bands", "values": bands},
+            },
             "summaries": {"eo:bands": [{"name": b} for b in bands]},
         },
     )
