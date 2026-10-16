@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing
+
 
 class _NonConcreteExtent:
     """
@@ -19,6 +21,14 @@ class _NonConcreteExtent:
 
     def __repr__(self) -> str:
         return "<_NonConcreteExtent>"
+
+    def __eq__(self, value: object, /) -> bool:
+        if isinstance(value, _NonConcreteExtent):
+            # Non-concrete extents are not equal to each other
+            # even not to themselves (because they are non-concrete).
+            return False
+        # Still let third-party equality tooling hook in (e.g. dirty_equals.IsInstance)
+        return NotImplemented
 
 
 class _EmptyExtent:
@@ -41,3 +51,44 @@ class _EmptyExtent:
         if isinstance(other, _EmptyExtent):
             return True
         return NotImplemented
+
+
+class NumericalInterval(typing.NamedTuple):
+    """
+    Simple numerical interval defined by a start and end point
+    each of type float/int;
+    or None to indicate being open-ended in that direction (no limit).
+    """
+
+    start: float | int | None
+    end: float | int | None
+
+    @classmethod
+    def try_from(cls, x: typing.Any) -> NumericalInterval | None:
+        if isinstance(x, (list, tuple)) and len(x) == 2 and all(isinstance(v, (int, float)) or v is None for v in x):
+            return cls(*x)
+        return None
+
+    def intersection(self, other: NumericalInterval) -> NumericalInterval | _EmptyExtent:
+        """
+        Compute the intersection of this interval with another interval.
+        If the intervals do not overlap, return an _EmptyExtent.
+        """
+        if self.start is None:
+            start = other.start
+        elif other.start is None:
+            start = self.start
+        else:
+            start = max(self.start, other.start)
+
+        if self.end is None:
+            end = other.end
+        elif other.end is None:
+            end = self.end
+        else:
+            end = min(self.end, other.end)
+
+        if start is not None and end is not None and end < start:
+            return _EmptyExtent()
+
+        return NumericalInterval(start, end)

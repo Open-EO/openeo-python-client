@@ -256,6 +256,8 @@ class DataCube(_ProcessGraphAbstraction):
             if (connection and fetch_metadata)
             else None
         )
+        if metadata and spatial_extent:
+            metadata = metadata.filter_bbox(extent=spatial_extent)
         if metadata and temporal_extent:
             metadata = metadata.filter_temporal(extent=temporal_extent)
         if bands is not None:
@@ -455,7 +457,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         arguments: dict = {"url": url}
         if spatial_extent:
-            arguments["spatial_extent"] = _get_geometry_argument(
+            spatial_extent = _get_geometry_argument(
                 argument=spatial_extent,
                 valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
                 connection=connection,
@@ -465,6 +467,7 @@ class DataCube(_ProcessGraphAbstraction):
                 argument_name="spatial_extent",
                 process_id="load_stac",
             )
+            arguments["spatial_extent"] = spatial_extent
 
         if temporal_extent:
             temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
@@ -510,6 +513,8 @@ class DataCube(_ProcessGraphAbstraction):
             )
             metadata = None
 
+        if metadata and spatial_extent:
+            metadata = metadata.filter_bbox(extent=spatial_extent)
         if metadata and temporal_extent:
             metadata = metadata.filter_temporal(extent=temporal_extent)
 
@@ -713,12 +718,14 @@ class DataCube(_ProcessGraphAbstraction):
             extent = {'west': west, 'east': east, 'north': north, 'south': south}
             extent.update(dict_no_none(crs=crs, base=base, height=height))
 
+        metadata = self.metadata.filter_bbox(extent=extent) if self.metadata else None
         return self.process(
-            process_id='filter_bbox',
+            process_id="filter_bbox",
             arguments={
-                'data': THIS,
-                'extent': extent
-            }
+                "data": THIS,
+                "extent": extent,
+            },
+            metadata=metadata,
         )
 
     @openeo_process
@@ -774,12 +781,14 @@ class DataCube(_ProcessGraphAbstraction):
             "FeatureCollection",
         ]
         geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
+        metadata = self.metadata.filter_bbox(extent=geometries) if self.metadata else None
         return self.process(
-            process_id='filter_spatial',
+            process_id="filter_spatial",
             arguments={
-                'data': THIS,
-                'geometries': geometries
-            }
+                "data": THIS,
+                "geometries": geometries,
+            },
+            metadata=metadata,
         )
 
     @openeo_process
