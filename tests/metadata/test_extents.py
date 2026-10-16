@@ -1,3 +1,4 @@
+import dirty_equals
 import pytest
 
 from openeo.metadata import NumericalInterval, _EmptyExtent, _NonConcreteExtent
@@ -8,9 +9,12 @@ class TestNonConcreteExtent:
         assert _NonConcreteExtent() != _NonConcreteExtent()
 
     def test_self_inequality(self):
-        """A non-concrete extent is even not equal to itself (because it is not concrete)"""
         extent = _NonConcreteExtent()
         assert extent != extent
+
+    def test_dirty_equals_isinstance(self):
+        extent = _NonConcreteExtent()
+        assert extent == dirty_equals.IsInstance(_NonConcreteExtent)
 
 
 class TestEmptyExtent:

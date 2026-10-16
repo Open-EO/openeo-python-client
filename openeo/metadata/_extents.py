@@ -24,7 +24,12 @@ class _NonConcreteExtent:
         return "<_NonConcreteExtent>"
 
     def __eq__(self, value: object, /) -> bool:
-        return False
+        if isinstance(value, _NonConcreteExtent):
+            # Plot twist: non-concrete extents are not equal to each other,
+            # even not to themselves (because they are non-concrete).
+            return False
+        # Still let third-party tooling hook in (e.g. dirty_equals.IsInstance)
+        return NotImplemented
 
 
 class _EmptyExtent:
