@@ -790,6 +790,22 @@ class TestBBoxDict:
         with pytest.raises(InvalidBBoxException, match=re.escape("Missing bbox fields ['north', 'south', 'west']")):
             to_bbox_dict({"east": 3})
 
+    def test_try_from_dict(self):
+        assert BBoxDict.try_from_dict({}) is None
+        assert BBoxDict.try_from_dict({"foo": "bar"}) is None
+        assert BBoxDict.try_from_dict([1, 2, 3, 4]) is None
+        assert BBoxDict.try_from_dict((1, 2, 3, 4)) is None
+        assert BBoxDict.try_from_dict("Belgium") is None
+        assert BBoxDict.try_from_dict(None) is None
+        assert BBoxDict.try_from_dict(object()) is None
+
+        assert BBoxDict.try_from_dict({"west": 1, "south": 2, "east": 3, "north": 4}) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+        }
+
     def test_to_bbox_dict_multiple_crs(self):
         with pytest.raises(InvalidBBoxException, match="Two CRS values specified: EPSG:32631 and 4326"):
             _ = to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}, crs="EPSG:32631")

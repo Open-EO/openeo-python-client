@@ -918,10 +918,10 @@ def test_resample_spatial(s2cube):
         }
     }
 
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
         SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
-    ]
+    )
 
 
 def test_resample_spatial_no_metadata(s2cube_without_metadata):
@@ -938,10 +938,10 @@ def test_resample_spatial_no_metadata(s2cube_without_metadata):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=[None, None], crs=4578, step=3.0),
         SpatialDimension(name="y", extent=[None, None], crs=4578, step=5.0),
-    ]
+    )
 
 
 def test_resample_spatial_parameter_resolution(s2cube):
@@ -960,10 +960,10 @@ def test_resample_spatial_parameter_resolution(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=None),
         SpatialDimension(name="y", extent=None, crs=32631, step=None),
-    ]
+    )
 
 
 def test_resample_spatial_parameter_resolution_no_projection(s2cube):
@@ -1000,10 +1000,10 @@ def test_resample_spatial_parameter_projection(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=None, step=10),
         SpatialDimension(name="y", extent=None, crs=None, step=10),
-    ]
+    )
 
 
 def test_resample_spatial_parameter_resolution_and_projection(s2cube):
@@ -1023,10 +1023,10 @@ def test_resample_spatial_parameter_resolution_and_projection(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=None, step=None),
         SpatialDimension(name="y", extent=None, crs=None, step=None),
-    ]
+    )
 
 
 def test_resample_cube_spatial(s2cube):
@@ -1064,10 +1064,10 @@ def test_resample_cube_spatial(s2cube):
             "process_id": "resample_cube_spatial",
         },
     }
-    assert cube12.metadata.spatial_dimensions == [
+    assert cube12.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=10),
         SpatialDimension(name="y", extent=None, crs=32631, step=10),
-    ]
+    )
 
     cube21 = cube2.resample_cube_spatial(target=cube1)
     assert get_download_graph(cube21, drop_load_collection=True, drop_save_result=True) == {
@@ -1100,10 +1100,10 @@ def test_resample_cube_spatial(s2cube):
             "process_id": "resample_cube_spatial",
         },
     }
-    assert cube21.metadata.spatial_dimensions == [
+    assert cube21.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
         SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
-    ]
+    )
 
 
 def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadata):
@@ -1113,10 +1113,10 @@ def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadat
     assert target.metadata is not None
 
     result = cube.resample_cube_spatial(target=target)
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=10),
         SpatialDimension(name="y", extent=None, crs=32631, step=10),
-    ]
+    )
 
 
 def test_resample_cube_spatial_preserve_non_spatial(s2cube):
@@ -1128,17 +1128,17 @@ def test_resample_cube_spatial_preserve_non_spatial(s2cube):
 
     result = cube_xyt.resample_cube_spatial(target=cube_xytb)
     assert result.metadata.dimension_names() == ["t", "x", "y"]
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=11),
         SpatialDimension(name="y", extent=None, crs=32631, step=11),
-    ]
+    )
 
     result = cube_xyb.resample_cube_spatial(target=cube_xyt)
     assert result.metadata.dimension_names() == ["bands", "x", "y"]
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=22),
         SpatialDimension(name="y", extent=None, crs=32631, step=22),
-    ]
+    )
 
 
 def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):

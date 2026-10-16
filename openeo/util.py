@@ -535,7 +535,15 @@ class BBoxDict(dict):
     .. versionadded:: 0.10.1
     """
 
-    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[Union[str, int]] = None):
+    def __init__(
+        self,
+        *,
+        west: float,
+        south: float,
+        east: float,
+        north: float,
+        crs: int | str | dict | None = None,
+    ):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
             self.update(crs=normalize_crs(crs))
@@ -559,6 +567,8 @@ class BBoxDict(dict):
     @classmethod
     def from_dict(cls, data: dict) -> BBoxDict:
         """Build from dictionary with at least keys "west", "south", "east", and "north"."""
+        if not isinstance(data, dict):
+            raise InvalidBBoxException(f"Expected dict, but got {type(data).__name__}.")
         expected_fields = {"west", "south", "east", "north"}
         # TODO: also support upper case fields?
         # TODO: optional support for parameterized bbox fields?
@@ -569,6 +579,14 @@ class BBoxDict(dict):
         if invalid:
             raise InvalidBBoxException(f"Non-numerical bbox fields {invalid}.")
         return cls(west=data["west"], south=data["south"], east=data["east"], north=data["north"], crs=data.get("crs"))
+
+    @classmethod
+    def try_from_dict(cls, data: dict | Any) -> BBoxDict | None:
+        """Try to build from dictionary with at least keys "west", "south", "east", and "north"."""
+        try:
+            return cls.from_dict(data)
+        except ValueError:
+            return None
 
     @classmethod
     def from_sequence(cls, seq: Union[list, tuple], crs: Optional[str] = None) -> BBoxDict:
