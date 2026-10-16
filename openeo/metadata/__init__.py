@@ -22,8 +22,8 @@ import pystac.extensions.item_assets
 
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
-from openeo.metadata._extents import _EmptyExtent, _NonConcreteExtent
-from openeo.util import Rfc3339, deep_get
+from openeo.metadata._extents import NumericalInterval, _EmptyExtent, _NonConcreteExtent
+from openeo.util import BBoxDict, Rfc3339, deep_get
 from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
@@ -88,7 +88,7 @@ class SpatialDimension(Dimension):
         *,
         # TODO: axis should be required (without None as default), but currently optional (with fallback guess) for backwards compatibility.
         axis: Literal["x", "y"] | None = None,
-        extent: Union[Tuple[float, float], List[float]],
+        extent: Tuple[float, float] | List[float] | NumericalInterval | _NonConcreteExtent | _EmptyExtent,
         crs: Union[str, int, dict] = DEFAULT_CRS,
         step=None,
     ):
@@ -96,7 +96,9 @@ class SpatialDimension(Dimension):
         @param name:
         @param axis: Axis of the spatial raster dimension ("x" or "y")
         @param extent:
-        @param crs:
+        @param crs: The spatial reference system for the data and datacube metadata (extent, values and step),
+            specified as numerical EPSG code, WKT2 (ISO 19162) string or PROJJSON object.
+            Defaults to EPSG code 4326.
         @param step: The space between the values. Use null for irregularly spaced steps.
         """
         super().__init__(type="spatial", name=name)
@@ -109,6 +111,64 @@ class SpatialDimension(Dimension):
 
     def rename(self, name) -> Dimension:
         return SpatialDimension(name=name, axis=self.axis, extent=self.extent, crs=self.crs, step=self.step)
+
+    def filter_extent(
+        self,
+        extent: (
+            Tuple[float | int, float | int]
+            | List[float | int]
+            | NumericalInterval
+            | _EmptyExtent
+            | _NonConcreteExtent
+            | None
+        ),
+    ):
+        if (this_extent := NumericalInterval.try_from(self.extent)) and (
+            other_extent := NumericalInterval.try_from(extent)
+        ):
+            extent = this_extent.intersection(other_extent)
+        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            extent = _EmptyExtent()
+        elif extent is None:
+            extent = self.extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent = _NonConcreteExtent()
+        return SpatialDimension(name=self.name, axis=self.axis, extent=extent, crs=self.crs, step=self.step)
+
+
+class SpatialDimensionsXY(NamedTuple):
+    """
+    Simple container class for a pair of spatial dimensions (x and y).
+    """
+
+    x: SpatialDimension
+    y: SpatialDimension
+
+    def filter_bbox(self, extent: Any) -> SpatialDimensionsXY:
+        # TODO: support more types and forms of the extent (geometries, etc.) ... e.g. using the BBoxDict factories?
+        if isinstance(extent, dict) and {"west", "east", "south", "north"}.issubset(extent):
+            bbox = BBoxDict.from_dict(extent)
+            bbox_crs = bbox.get("crs", SpatialDimension.DEFAULT_CRS)
+            if bbox_crs == self.x.crs and bbox_crs == self.y.crs:
+                # No reprojection needed
+                extent_x = bbox["west"], bbox["east"]
+                extent_y = bbox["south"], bbox["north"]
+            else:
+                # TODO: reproject
+                extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+        elif isinstance(extent, _EmptyExtent):
+            extent_x, extent_y = _EmptyExtent(), _EmptyExtent()
+        elif isinstance(extent, _NonConcreteExtent):
+            extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+
+        return SpatialDimensionsXY(
+            x=self.x.filter_extent(extent=extent_x),
+            y=self.y.filter_extent(extent=extent_y),
+        )
 
 
 class TemporalDimension(Dimension):
@@ -330,23 +390,24 @@ class CubeMetadata:
         #       but most usage actually assumes it is a list that can be iterated over.
         #       Can we handle this more consistently and less error-prone?
         self._dimensions: Union[List[Dimension], None] = dimensions
-        self._band_dimension = None
-        self._temporal_dimension = None
+        self._band_dimension: BandDimension | None = None
+        self._temporal_dimension: TemporalDimension | None = None
+        self._spatial_dimensions: SpatialDimensionsXY | None = None
 
         if dimensions is not None:
-            for dim in self._dimensions:
-                # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
-                # TODO: add spatial dimension handling?
-                if dim.type == "bands":
-                    if isinstance(dim, BandDimension):
-                        self._band_dimension = dim
-                    else:
-                        raise MetadataException("Invalid band dimension {d!r}".format(d=dim))
-                if dim.type == "temporal":
-                    if isinstance(dim, TemporalDimension):
-                        self._temporal_dimension = dim
-                    else:
-                        raise MetadataException("Invalid temporal dimension {d!r}".format(d=dim))
+            if band_dims := [d for d in dimensions if isinstance(d, BandDimension)]:
+                if len(band_dims) > 1:
+                    _log.warning(f"Multiple band dimensions, arbitrarily picking the first one: {band_dims=}")
+                self._band_dimension = band_dims[0]
+            if temporal_dims := [d for d in dimensions if isinstance(d, TemporalDimension)]:
+                if len(temporal_dims) > 1:
+                    _log.warning(f"Multiple temporal dimensions, arbitrarily picking the first one: {temporal_dims=}")
+                self._temporal_dimension = temporal_dims[0]
+            if spatial_dims := sorted((d for d in dimensions if isinstance(d, SpatialDimension)), key=lambda d: d.axis):
+                if [d.axis for d in spatial_dims] == ["x", "y"]:
+                    self._spatial_dimensions = SpatialDimensionsXY(x=spatial_dims[0], y=spatial_dims[1])
+                else:
+                    _log.warning(f"Failed to detect x and y spatial dimensions: {spatial_dims=}")
 
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
@@ -411,9 +472,14 @@ class CubeMetadata:
             raise MetadataException("No temporal dimension")
         return self._temporal_dimension
 
+    def has_spatial_dimensions(self) -> bool:
+        return isinstance(self._spatial_dimensions, SpatialDimensionsXY)
+
     @property
-    def spatial_dimensions(self) -> List[SpatialDimension]:
-        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
+    def spatial_dimensions(self) -> SpatialDimensionsXY:
+        if not self.has_spatial_dimensions():
+            raise MetadataException("No spatial dimensions")
+        return self._spatial_dimensions
 
     def has_geometry_dimension(self):
         return any(isinstance(d, GeometryDimension) for d in self._dimensions)
@@ -452,6 +518,17 @@ class CubeMetadata:
                 d.filter_temporal(extent=extent) if isinstance(d, TemporalDimension) else d for d in self._dimensions
             ]
         )
+
+    def filter_bbox(self, extent: Any) -> CubeMetadata:
+        if self._dimensions and isinstance(self._spatial_dimensions, SpatialDimensionsXY):
+            spatial_dimensions: SpatialDimensionsXY = self._spatial_dimensions.filter_bbox(extent=extent)
+            dimensions = [
+                getattr(spatial_dimensions, d.axis) if isinstance(d, SpatialDimension) else d for d in self._dimensions
+            ]
+            return self._clone_and_update(dimensions=dimensions)
+
+        _log.warning("filter_bbox on cube metadata without spatial dimension. Returning unchanged metadata.")
+        return self
 
     def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
         """

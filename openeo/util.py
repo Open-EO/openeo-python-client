@@ -535,7 +535,15 @@ class BBoxDict(dict):
     .. versionadded:: 0.10.1
     """
 
-    def __init__(self, *, west: float, south: float, east: float, north: float, crs: Optional[Union[str, int]] = None):
+    def __init__(
+        self,
+        *,
+        west: float,
+        south: float,
+        east: float,
+        north: float,
+        crs: int | str | dict | None = None,
+    ):
         super().__init__(west=west, south=south, east=east, north=north)
         if crs is not None:
             self.update(crs=normalize_crs(crs))

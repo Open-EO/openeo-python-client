@@ -19,7 +19,9 @@ from openeo.metadata import (
     DimensionAlreadyExistsException,
     GeometryDimension,
     MetadataException,
+    NumericalInterval,
     SpatialDimension,
+    SpatialDimensionsXY,
     TemporalDimension,
     _EmptyExtent,
     _NonConcreteExtent,
@@ -124,6 +126,136 @@ class TestSpatialDimension:
         assert dim.axis == "x"
         assert dim.extent == [2, 6]
         assert dim.crs == 4326
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ((1, 2), _EmptyExtent()),
+            ([3, 6], NumericalInterval(5, 6)),
+            ((3, 6), NumericalInterval(5, 6)),
+            (NumericalInterval(3, 6), NumericalInterval(5, 6)),
+            ((3, 16), NumericalInterval(5, 8)),
+            ((6, 12), NumericalInterval(6, 8)),
+            ((12, 15), _EmptyExtent()),
+            ((None, 6), NumericalInterval(5, 6)),
+        ],
+    )
+    def test_filter_extent_basic(self, extent, expected):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(5, 8), crs=4326)
+        dim2 = dim1.filter_extent(extent=extent)
+        assert dim1.extent == (5, 8)
+        assert dim2.name == "x"
+        assert dim2.axis == "x"
+        assert dim2.extent == expected
+        assert dim2.crs == 4326
+
+    @pytest.mark.parametrize(
+        ["interval1", "interval2", "expected"],
+        [
+            # Empty extent handling
+            ((5, 8), _EmptyExtent(), _EmptyExtent),
+            (_EmptyExtent(), (5, 8), _EmptyExtent),
+            (_EmptyExtent(), _EmptyExtent(), _EmptyExtent),
+            # Non-concrete extent handling
+            ((5, 8), _NonConcreteExtent(), _NonConcreteExtent),
+            (_NonConcreteExtent(), (5, 8), _NonConcreteExtent),
+            (_NonConcreteExtent(), _NonConcreteExtent(), _NonConcreteExtent),
+            # Mixed
+            (_EmptyExtent(), _NonConcreteExtent(), _EmptyExtent),
+            (_NonConcreteExtent(), _EmptyExtent(), _EmptyExtent),
+        ],
+    )
+    def test_filter_extent_empty_or_non_concrete(self, interval1, interval2, expected):
+        dim1 = SpatialDimension(name="x", axis="x", extent=interval1, crs=4326)
+        dim2 = dim1.filter_extent(extent=interval2)
+        assert isinstance(dim2.extent, expected)
+
+    def test_filter_extent_none(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(5, 8), crs=4326)
+        dim2 = dim1.filter_extent(extent=None)
+        assert dim2.extent == NumericalInterval(5, 8)
+
+    def test_filter_extent_multiple(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(-90, 90), crs=4326)
+        dim2 = dim1.filter_extent(extent=(-30, 60))
+        dim3 = dim2.filter_extent(extent=(-60, 30))
+        dim4 = dim3.filter_extent(extent=(10, 20))
+        dim5 = dim4.filter_extent(extent=(30, 40))
+        dim6 = dim5.filter_extent(extent=(50, 60))
+        assert dim1.extent == (-90, 90)
+        assert dim2.extent == (-30, 60)
+        assert dim3.extent == (-30, 30)
+        assert dim4.extent == (10, 20)
+        assert isinstance(dim5.extent, _EmptyExtent)
+        assert isinstance(dim6.extent, _EmptyExtent)
+
+    def test_filter_extent_parameterized(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(-90, 90), crs=4326)
+        extent = openeo.api.process.Parameter.array(name="extent", description="extent")
+        dim2 = dim1.filter_extent(extent=extent)
+        assert dim1.extent == (-90, 90)
+        assert isinstance(dim2.extent, _NonConcreteExtent)
+
+
+class TestSpatialDimensionsXY:
+    def test_basic(self):
+        dim_x = SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326)
+        dim_y = SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326)
+        dim_xy = SpatialDimensionsXY(dim_x, dim_y)
+        assert (dim_xy.x.name, dim_xy.x.axis, dim_xy.x.extent) == ("x", "x", (3, 6))
+        assert (dim_xy.y.name, dim_xy.y.axis, dim_xy.y.extent) == ("y", "y", (49, 52))
+
+    def test_eq_tuple(self):
+        dim_x = SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326)
+        dim_y = SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326)
+        dim_xy = SpatialDimensionsXY(dim_x, dim_y)
+        assert dim_xy == (
+            SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ({"west": 4, "south": 50, "east": 5, "north": 51, "crs": 4326}, ((4, 5), (50, 51))),
+            ({"west": 1, "south": 40, "east": 4, "north": 50, "crs": 4326}, ((2, 4), (49, 50))),
+            ({"west": 5, "south": 50, "east": 8, "north": 60, "crs": 4326}, ((5, 7), (50, 52))),
+        ],
+    )
+    def test_filter_bbox_simple(self, extent, expected):
+        """Simple case: all in same CRS (EPSG:4326)"""
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == expected
+
+    def test_filter_bbox_empty(self):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        extent = _EmptyExtent()
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert dim_xy_filtered.x.extent == _EmptyExtent()
+        assert dim_xy_filtered.y.extent == _EmptyExtent()
+
+    def test_filter_bbox_non_concrete(self):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        extent = openeo.api.process.Parameter.spatial_extent()
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert isinstance(dim_xy_filtered.x.extent, _NonConcreteExtent)
+        assert isinstance(dim_xy_filtered.y.extent, _NonConcreteExtent)
 
 
 class TestBand:
@@ -1156,10 +1288,10 @@ class TestCubeMetadata:
     def test_resample_spatial(self, cube_metadata, kwargs, expected_x, expected_y):
         metadata = cube_metadata.resample_spatial(**kwargs)
         assert isinstance(metadata, CubeMetadata)
-        assert metadata.spatial_dimensions == [
+        assert metadata.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], **expected_x),
             SpatialDimension(name="y", extent=[49, 52], **expected_y),
-        ]
+        )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
 
@@ -1170,10 +1302,10 @@ class TestCubeMetadata:
         metadata = cube_metadata.resample_spatial(resolution=param)
         assert isinstance(metadata, CubeMetadata)
         # step must be set to None after parametrized resample_spatial.
-        assert metadata.spatial_dimensions == [
+        assert metadata.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=4326, step=None),
             SpatialDimension(name="y", extent=[49, 52], crs=4326, step=None),
-        ]
+        )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
 
@@ -1183,10 +1315,10 @@ class TestCubeMetadata:
         param = Parameter.number("res", description="The spatial resolution.")
         metadata = cube_metadata.resample_spatial(resolution=param, projection=32631)
         assert isinstance(metadata, CubeMetadata)
-        assert metadata.spatial_dimensions == [
+        assert metadata.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=32631, step=None),
             SpatialDimension(name="y", extent=[49, 52], crs=32631, step=None),
-        ]
+        )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
 
@@ -1196,10 +1328,10 @@ class TestCubeMetadata:
         param = Parameter.integer("proj", description="The target projection.")
         metadata = cube_metadata.resample_spatial(resolution=10, projection=param)
         assert isinstance(metadata, CubeMetadata)
-        assert metadata.spatial_dimensions == [
+        assert metadata.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=None, step=10),
             SpatialDimension(name="y", extent=[49, 52], crs=None, step=10),
-        ]
+        )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
 
@@ -1210,10 +1342,10 @@ class TestCubeMetadata:
         proj_param = Parameter.integer("proj", description="The target projection.")
         metadata = cube_metadata.resample_spatial(resolution=res_param, projection=proj_param)
         assert isinstance(metadata, CubeMetadata)
-        assert metadata.spatial_dimensions == [
+        assert metadata.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=None, step=None),
             SpatialDimension(name="y", extent=[49, 52], crs=None, step=None),
-        ]
+        )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
 
@@ -1222,26 +1354,26 @@ class TestCubeMetadata:
         metadata1 = cube_metadata.resample_spatial(resolution=(11, 22), projection=32631)
         metadata2 = cube_metadata.resample_spatial(resolution=0.5)
 
-        assert metadata1.spatial_dimensions == [
+        assert metadata1.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
             SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
-        ]
-        assert metadata2.spatial_dimensions == [
+        )
+        assert metadata2.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
             SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
-        ]
+        )
 
         metadata12 = metadata1.resample_cube_spatial(target=metadata2)
-        assert metadata12.spatial_dimensions == [
+        assert metadata12.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
             SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
-        ]
+        )
 
         metadata21 = metadata2.resample_cube_spatial(target=metadata1)
-        assert metadata21.spatial_dimensions == [
+        assert metadata21.spatial_dimensions == (
             SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
             SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
-        ]
+        )
 
     def test_resample_cube_spatial_preserve_non_spatial(self):
         xy1 = [
@@ -1267,22 +1399,22 @@ class TestCubeMetadata:
         metadata3 = CubeMetadata(dimensions=xy3 + [b3])
 
         result12 = metadata1.resample_cube_spatial(target=metadata2)
-        assert result12.spatial_dimensions == xy2
+        assert result12.spatial_dimensions == SpatialDimensionsXY(*xy2)
         assert result12.band_dimension == b1
         assert result12.temporal_dimension == t1
 
         result21 = metadata2.resample_cube_spatial(target=metadata1)
-        assert result21.spatial_dimensions == xy1
+        assert result21.spatial_dimensions == SpatialDimensionsXY(*xy1)
         assert not result21.has_band_dimension()
         assert result21.temporal_dimension == t2
 
         result23 = metadata2.resample_cube_spatial(target=metadata3)
-        assert result23.spatial_dimensions == xy3
+        assert result23.spatial_dimensions == SpatialDimensionsXY(*xy3)
         assert not result23.has_band_dimension()
         assert result23.temporal_dimension == t2
 
         result31 = metadata3.resample_cube_spatial(target=metadata1)
-        assert result31.spatial_dimensions == xy1
+        assert result31.spatial_dimensions == SpatialDimensionsXY(*xy1)
         assert result31.band_dimension == b3
         assert not result31.has_temporal_dimension()
 
@@ -1323,6 +1455,58 @@ class TestCubeMetadata:
                     .*<tr><td>bands</td><td>bands</td><td>2</td><td>bands:\sB2,\sB3</td></tr>
                     .*""",
             regex_flags=re.DOTALL | re.VERBOSE,
+        )
+
+    @pytest.mark.parametrize(
+        ["spatial_extent", "expected"],
+        [
+            ({"west": 3, "east": 5, "south": 46, "north": 51}, ((3, 5), (49, 51))),
+            ({"west": 3, "east": 5, "south": 46, "north": 51, "crs": 4326}, ((3, 5), (49, 51))),
+            ({"west": 3, "east": 5, "south": 46, "north": 51, "crs": "EPSG:4326"}, ((3, 5), (49, 51))),
+        ],
+    )
+    def test_filter_bbox_basic(self, spatial_extent, expected):
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
+
+        assert metadata1.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326, step=None),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326, step=None),
+        )
+        expected_x, expected_y = expected
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=expected_x, crs=4326, step=None),
+            SpatialDimension(name="y", axis="y", extent=expected_y, crs=4326, step=None),
+        )
+
+    def test_filter_bbox_parameterized(self):
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        spatial_extent = openeo.api.process.Parameter.spatial_extent()
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
+
+        assert metadata1.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326, step=None),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326, step=None),
+        )
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(
+                name="x", axis="x", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326, step=None
+            ),
+            SpatialDimension(
+                name="y", axis="y", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326, step=None
+            ),
         )
 
 
