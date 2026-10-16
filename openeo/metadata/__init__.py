@@ -80,6 +80,7 @@ class SpatialDimension(Dimension):
     - axis: Axis of the spatial raster dimension ("x" or "y").
     - extent: lower and upper bounds of the dimension as two-element array.
     """
+
     DEFAULT_CRS = 4326
 
     def __init__(

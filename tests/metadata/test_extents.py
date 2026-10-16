@@ -4,7 +4,6 @@ from openeo.metadata import NumericalInterval, _EmptyExtent, _NonConcreteExtent
 
 
 class TestNonConcreteExtent:
-
     def test_equality(self):
         assert _NonConcreteExtent() != _NonConcreteExtent()
 
@@ -13,8 +12,8 @@ class TestNonConcreteExtent:
         extent = _NonConcreteExtent()
         assert extent != extent
 
-class TestEmptyExtent:
 
+class TestEmptyExtent:
     def test_equality(self):
         assert _EmptyExtent() == _EmptyExtent()
 
