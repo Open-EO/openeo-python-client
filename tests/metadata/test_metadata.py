@@ -270,6 +270,25 @@ class TestSpatialDimensionsXY:
         assert isinstance(dim_xy_filtered.x.extent, _NonConcreteExtent)
         assert isinstance(dim_xy_filtered.y.extent, _NonConcreteExtent)
 
+    @pytest.mark.parametrize(
+        ["extent"],
+        [
+            ({"west": 171, "south": 40, "east": -172, "north": 50, "crs": 4326},),
+        ],
+    )
+    def test_filter_bbox_antimeridian(self, extent):
+        # TODO: test proper detection and handling of antimeridian crossing
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(-180, 180), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(-70, 70), crs=4326),
+        )
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == (
+            dirty_equals.IsInstance(_NonConcreteExtent),
+            dirty_equals.IsInstance(_NonConcreteExtent),
+        )
+
 
 class TestBand:
     def test_band_minimal(self):
@@ -1518,7 +1537,27 @@ class TestCubeMetadata:
             SpatialDimension(name="y", axis="y", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
         )
 
+    @pytest.mark.parametrize(
+        ["spatial_extent"],
+        [
+            ({"west": 170, "south": 40, "east": -170, "north": 50},),
+        ],
+    )
+    def test_filter_bbox_antimeridian(self, spatial_extent):
+        # TODO: test proper detection and handling of antimeridian crossing
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(-180, 180), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(-70, 70), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
 
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+        )
 
 
 class TestStacMetadataParser:

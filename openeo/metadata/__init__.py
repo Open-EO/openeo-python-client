@@ -154,6 +154,10 @@ class SpatialDimensionsXY(NamedTuple):
                 # No reprojection needed
                 extent_x = bbox["west"], bbox["east"]
                 extent_y = bbox["south"], bbox["north"]
+
+                if bbox_crs == 4326 and bbox["west"] > bbox["east"]:
+                    # TODO: proper detection and handling of antimeridian crossing
+                    extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
             else:
                 # TODO: reproject
                 extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
