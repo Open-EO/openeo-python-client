@@ -23,7 +23,7 @@ import openeo.processes
 from openeo import collection_property
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
-from openeo.metadata import SpatialDimension
+from openeo.metadata import NumericalInterval, SpatialDimension, _NonConcreteExtent
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -209,6 +209,63 @@ class TestDataCube:
             "temporal_extent": None,
         }
 
+    @pytest.mark.parametrize(
+        ["source_extents", "spatial_extent", "expected_metadata"],
+        [
+            (
+                # Everything EPSG:4326: Source metadata, requested spatial extent, ...
+                {
+                    "x": {"extent": [-180, 180], "reference_system": 4326},
+                    "y": {"extent": [-70, 70], "reference_system": 4326},
+                },
+                {"west": 1, "south": 2, "east": 3, "north": 4},
+                {
+                    "x": {"extent": NumericalInterval(1, 3), "crs": 4326},
+                    "y": {"extent": NumericalInterval(2, 4), "crs": 4326},
+                },
+            ),
+            (
+                # Source in UTM (EPSG:32631), requested spatial extent in EPSG:4326
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 3, "south": 51, "east": 3.5, "north": 51.3, "crs": 4326},
+                {
+                    # TODO: handle spatial extent intersection with reprojection
+                    "x": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                    "y": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                },
+            ),
+            (
+                # Source and requested spatial extent in UTM (EPSG:32631)
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 500_000, "south": 5_649_820, "east": 535_080, "north": 5_683_300, "crs": 32631},
+                {
+                    "x": {"extent": NumericalInterval(500_000, 535_080), "crs": 32631},
+                    "y": {"extent": NumericalInterval(5_649_820, 5_683_300), "crs": 32631},
+                },
+            ),
+        ],
+    )
+    def test_load_collection_spatial_extent_cube_metadata(
+        self, dummy_backend, source_extents: dict, spatial_extent, expected_metadata
+    ):
+        dummy_backend.setup_collection(collection_id="S2", spatial_x=source_extents["x"], spatial_y=source_extents["y"])
+        cube = DataCube.load_collection("S2", spatial_extent=spatial_extent, connection=dummy_backend.connection)
+
+        assert cube.metadata.spatial_dimensions == (
+            SpatialDimension(
+                name="x", axis="x", extent=expected_metadata["x"]["extent"], crs=expected_metadata["x"].get("crs")
+            ),
+            SpatialDimension(
+                name="y", axis="y", extent=expected_metadata["y"]["extent"], crs=expected_metadata["y"].get("crs")
+            ),
+        )
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {
@@ -316,6 +373,86 @@ class TestDataCube:
             "url": "https://stac.test/data",
             "spatial_extent": {"from_parameter": "zpatial_extent"},
         }
+
+    @pytest.mark.parametrize(
+        ["source_extents", "spatial_extent", "expected_metadata"],
+        [
+            (
+                # Everything EPSG:4326: Source metadata, requested spatial extent, ...
+                {
+                    "x": {"extent": [-180, 180], "reference_system": 4326},
+                    "y": {"extent": [-70, 70], "reference_system": 4326},
+                },
+                {"west": 1, "south": 2, "east": 3, "north": 4},
+                {
+                    "x": {"extent": NumericalInterval(1, 3), "crs": 4326},
+                    "y": {"extent": NumericalInterval(2, 4), "crs": 4326},
+                },
+            ),
+            (
+                # Source in UTM (EPSG:32631), requested spatial extent in EPSG:4326
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 3, "south": 51, "east": 3.5, "north": 51.3, "crs": 4326},
+                {
+                    # TODO: handle spatial extent intersection with reprojection
+                    "x": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                    "y": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                },
+            ),
+            (
+                # Source and requested spatial extent in UTM (EPSG:32631)
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 500_000, "south": 5_649_820, "east": 535_080, "north": 5_683_300, "crs": 32631},
+                {
+                    "x": {"extent": NumericalInterval(500_000, 535_080), "crs": 32631},
+                    "y": {"extent": NumericalInterval(5_649_820, 5_683_300), "crs": 32631},
+                },
+            ),
+        ],
+    )
+    def test_load_stac_spatial_extent_cube_metadata(
+        self, dummy_backend, tmp_path, source_extents: dict, spatial_extent, expected_metadata
+    ):
+        stac_path = tmp_path / "stac.json"
+        stac_metadata = StacDummyBuilder.collection(
+            cube_dimensions={
+                "x": {
+                    "type": "spatial",
+                    "axis": "x",
+                    "extent": source_extents["x"].get("extent", [-180, 180]),
+                    "reference_system": source_extents["x"].get("reference_system", 4326),
+                },
+                "y": {
+                    "type": "spatial",
+                    "axis": "y",
+                    "extent": source_extents["y"].get("extent", [-70, 70]),
+                    "reference_system": source_extents["y"].get("reference_system", 4326),
+                },
+                "t": {"type": "temporal", "extent": ["2020-02-20T02:20:22Z", None]},
+                "bands": {"type": "bands", "values": ["B03", "B04"]},
+            }
+        )
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        stac_path.write_text(json.dumps(stac_metadata))
+
+        cube = DataCube.load_stac(
+            url=str(stac_path), spatial_extent=spatial_extent, connection=dummy_backend.connection
+        )
+
+        assert cube.metadata.spatial_dimensions == (
+            SpatialDimension(
+                name="x", axis="x", extent=expected_metadata["x"]["extent"], crs=expected_metadata["x"].get("crs")
+            ),
+            SpatialDimension(
+                name="y", axis="y", extent=expected_metadata["y"]["extent"], crs=expected_metadata["y"].get("crs")
+            ),
+        )
 
     @pytest.mark.parametrize(
         "stac_metadata",

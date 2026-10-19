@@ -105,6 +105,7 @@ class SpatialDimension(Dimension):
         super().__init__(type="spatial", name=name)
         # TODO: eliminate guessing of axis from name, and make axis a properly required argument (without None as default).
         self.axis: Literal["x", "y"] = axis or name
+        # TODO: normalize extent to NumericalInterval when appropriate?
         self.extent = extent
         # TODO Rename/proxy "crs" to "reference_system" to better align with STAC datacube extension terminology.
         self.crs = crs
@@ -677,6 +678,7 @@ class CubeMetadata:
             dimensions[i] = SpatialDimension(
                 name=dim.name,
                 axis=dim.axis,
+                # TODO #955 extent should be reprojected to new projection when necessary
                 extent=dim.extent,
                 crs=None if isinstance(projection, Parameter) else (projection or dim.crs),
                 step=r if r != 0.0 else dim.step,
@@ -687,7 +689,9 @@ class CubeMetadata:
     def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
         # Replace spatial dimensions with ones from target, but keep other dimensions
         dimensions = [d for d in (self._dimensions or []) if not isinstance(d, SpatialDimension)]
-        dimensions.extend(target.spatial_dimensions)
+        # TODO #955 the spatial extent of the original cube should be reprojected to target projection
+        if target.has_spatial_dimensions():
+            dimensions.extend(target.spatial_dimensions)
         return self._clone_and_update(dimensions=dimensions)
 
 
@@ -1033,7 +1037,7 @@ class _StacMetadataParser:
             extent = self._safe_extent_from_pystac_cube_dim(dim)
 
             if dim_type == pystac.extensions.datacube.DimensionType.SPATIAL:
-                dimensions.append(SpatialDimension(name=name, axis=dim.axis, extent=extent))
+                dimensions.append(SpatialDimension(name=name, axis=dim.axis, extent=extent, crs=dim.reference_system))
             elif dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL:
                 dimensions.append(TemporalDimension(name=name, extent=extent))
             elif dim_type in ("bands", "spectral"):
@@ -1062,7 +1066,12 @@ class _StacMetadataParser:
             dim_type = dim.get("type")
             if dim_type == "spatial":
                 dimensions.append(
-                    SpatialDimension(name=name, axis=dim.get("axis"), extent=dim.get("extent", [None, None]))
+                    SpatialDimension(
+                        name=name,
+                        axis=dim.get("axis"),
+                        extent=dim.get("extent", [None, None]),
+                        crs=dim.get("reference_system", SpatialDimension.DEFAULT_CRS),
+                    )
                 )
             elif dim_type == "temporal":
                 dimensions.append(TemporalDimension(name=name, extent=dim.get("extent", [None, None])))
