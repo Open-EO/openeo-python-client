@@ -1803,6 +1803,53 @@ class TestStacMetadataParser:
         assert metadata.has_geometry_dimension()
         assert isinstance(metadata.geometry_dimension, GeometryDimension)
 
+    @pytest.mark.parametrize(
+        ["stac_dict", "expected"],
+        [
+            (
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "reference_system": 4326},
+                        "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "reference_system": 4326},
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[-180, 180], crs=4326),
+                    SpatialDimension(name="y", axis="y", extent=[-70, 70], crs=4326),
+                ),
+            ),
+            (
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [100_000, 900_000], "reference_system": 32631},
+                        "y": {
+                            "type": "spatial",
+                            "axis": "y",
+                            "extent": [3_000_000, 7_000_000],
+                            "reference_system": 32631,
+                        },
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[100_000, 900_000], crs=32631),
+                    SpatialDimension(name="y", axis="y", extent=[3_000_000, 7_000_000], crs=32631),
+                ),
+            ),
+        ],
+    )
+    def test_metadata_from_stac_spatial_dimensions(self, tmp_path, stac_dict, expected):
+        # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(stac_dict))
+
+        metadata = metadata_from_stac(str(path))
+        assert metadata.spatial_dimensions == expected
+
     def test_band_from_eo_bands_metadata_basic(self):
         assert _StacMetadataParser()._band_from_eo_bands_metadata(
             {"name": "B04"},
