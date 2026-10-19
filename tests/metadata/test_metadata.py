@@ -1738,8 +1738,8 @@ class TestStacMetadataParser:
                 # cube:dimensions present -> use the dimension names as suggested by cube:dimensions keys
                 StacDummyBuilder.collection(
                     cube_dimensions={
-                        "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
-                        "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
+                        "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
                         "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
                         "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
                     }
@@ -1751,7 +1751,7 @@ class TestStacMetadataParser:
                 StacDummyBuilder.collection(
                     summaries={"eo:bands": [{"name": "B01"}]},
                     cube_dimensions={
-                        "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
+                        "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
                         "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
                         "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
                     },
@@ -1789,8 +1789,8 @@ class TestStacMetadataParser:
         stac_dict = StacDummyBuilder.collection(
             cube_dimensions={
                 "geom": {"type": "geometries"},
-                "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
-                "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
+                "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                "band": {"type": "bands", "values": ["B01"]},
             }
         )
         assert stac_dict["stac_extensions"] == [StacDummyBuilder._EXT_DATACUBE]
