@@ -38,6 +38,16 @@ class DimensionAlreadyExistsException(MetadataException):
     pass
 
 
+# Sentinel object to signal that a value is parameterized/abstract
+# at current time (e.g. client side build time)
+# only to become concrete in different context (e.g. server side run time).
+# Note that this different and more expressive alternative to using a generic `None`,
+# which might trigger fallback/default handling logic that would be undesired.
+# TODO: do this with a class instead of singleton object?
+# TODO: move up higher for wider reuse of this concept?
+_PARAMETERIZED_VALUE = object()
+
+
 # TODO: make these dimension classes immutable data classes
 class Dimension:
     """Base class for dimensions."""
@@ -90,7 +100,7 @@ class SpatialDimension(Dimension):
         # TODO: axis should be required (without None as default), but currently optional (with fallback guess) for backwards compatibility.
         axis: Literal["x", "y"] | None = None,
         extent: Tuple[float, float] | List[float] | NumericalInterval | _NonConcreteExtent | _EmptyExtent,
-        crs: Union[str, int, dict] = DEFAULT_CRS,
+        crs: str | int | dict | None = DEFAULT_CRS,
         step=None,
     ):
         """
@@ -108,7 +118,7 @@ class SpatialDimension(Dimension):
         # TODO: normalize extent to NumericalInterval when appropriate?
         self.extent = extent
         # TODO Rename/proxy "crs" to "reference_system" to better align with STAC datacube extension terminology.
-        self.crs = crs
+        self.crs = crs or self.DEFAULT_CRS
         self.step = step
 
     def rename(self, name) -> Dimension:
@@ -659,7 +669,7 @@ class CubeMetadata:
         projection: Union[int, str, Parameter, None] = None,
     ) -> CubeMetadata:
         if isinstance(resolution, Parameter):
-            normalized_resolution = None, None
+            normalized_resolution = _PARAMETERIZED_VALUE, _PARAMETERIZED_VALUE
         else:
             normalized_resolution = normalize_resample_resolution(resolution)
 
@@ -686,7 +696,7 @@ class CubeMetadata:
                 axis=dim.axis,
                 # TODO #955 extent should be reprojected to new projection when necessary
                 extent=dim.extent,
-                crs=None if isinstance(projection, Parameter) else (projection or dim.crs),
+                crs=_PARAMETERIZED_VALUE if isinstance(projection, Parameter) else (projection or dim.crs),
                 step=r if r != 0.0 else dim.step,
             )
 

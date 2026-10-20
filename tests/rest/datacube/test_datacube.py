@@ -23,7 +23,12 @@ import openeo.processes
 from openeo import collection_property
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
-from openeo.metadata import NumericalInterval, SpatialDimension, _NonConcreteExtent
+from openeo.metadata import (
+    _PARAMETERIZED_VALUE,
+    NumericalInterval,
+    SpatialDimension,
+    _NonConcreteExtent,
+)
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -1098,8 +1103,8 @@ def test_resample_spatial_parameter_resolution(s2cube):
         }
     }
     assert cube.metadata.spatial_dimensions == (
-        SpatialDimension(name="x", extent=None, crs=32631, step=None),
-        SpatialDimension(name="y", extent=None, crs=32631, step=None),
+        SpatialDimension(name="x", extent=None, crs=32631, step=_PARAMETERIZED_VALUE),
+        SpatialDimension(name="y", extent=None, crs=32631, step=_PARAMETERIZED_VALUE),
     )
 
 
@@ -1138,8 +1143,8 @@ def test_resample_spatial_parameter_projection(s2cube):
         }
     }
     assert cube.metadata.spatial_dimensions == (
-        SpatialDimension(name="x", extent=None, crs=None, step=10),
-        SpatialDimension(name="y", extent=None, crs=None, step=10),
+        SpatialDimension(name="x", extent=None, crs=_PARAMETERIZED_VALUE, step=10),
+        SpatialDimension(name="y", extent=None, crs=_PARAMETERIZED_VALUE, step=10),
     )
 
 
@@ -1161,8 +1166,8 @@ def test_resample_spatial_parameter_resolution_and_projection(s2cube):
         }
     }
     assert cube.metadata.spatial_dimensions == (
-        SpatialDimension(name="x", extent=None, crs=None, step=None),
-        SpatialDimension(name="y", extent=None, crs=None, step=None),
+        SpatialDimension(name="x", extent=None, crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+        SpatialDimension(name="y", extent=None, crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
     )
 
 

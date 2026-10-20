@@ -11,6 +11,7 @@ import pytest
 import openeo.api.process
 from openeo.api.process import Parameter
 from openeo.metadata import (
+    _PARAMETERIZED_VALUE,
     Band,
     BandDimension,
     CollectionMetadata,
@@ -126,6 +127,13 @@ class TestSpatialDimension:
         assert dim.axis == "x"
         assert dim.extent == [2, 6]
         assert dim.crs == 4326
+
+    def test_crs_default_handling(self):
+        n, a, e = "x", "x", [1, 2]
+        assert SpatialDimension(name=n, axis=a, extent=e).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=None).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=4326).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=32631).crs == 32631
 
     @pytest.mark.parametrize(
         ["extent", "expected"],
@@ -1335,8 +1343,8 @@ class TestCubeMetadata:
         assert isinstance(metadata, CubeMetadata)
         # step must be set to None after parametrized resample_spatial.
         assert metadata.spatial_dimensions == (
-            SpatialDimension(name="x", extent=[2, 7], crs=4326),
-            SpatialDimension(name="y", extent=[49, 52], crs=4326),
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=4326, step=_PARAMETERIZED_VALUE),
         )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
@@ -1348,8 +1356,8 @@ class TestCubeMetadata:
         metadata = cube_metadata.resample_spatial(resolution=param, projection=32631)
         assert isinstance(metadata, CubeMetadata)
         assert metadata.spatial_dimensions == (
-            SpatialDimension(name="x", extent=[2, 7], crs=32631),
-            SpatialDimension(name="y", extent=[49, 52], crs=32631),
+            SpatialDimension(name="x", extent=[2, 7], crs=32631, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=32631, step=_PARAMETERIZED_VALUE),
         )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
@@ -1361,8 +1369,8 @@ class TestCubeMetadata:
         metadata = cube_metadata.resample_spatial(resolution=10, projection=param)
         assert isinstance(metadata, CubeMetadata)
         assert metadata.spatial_dimensions == (
-            SpatialDimension(name="x", extent=[2, 7], crs=None, step=10),
-            SpatialDimension(name="y", extent=[49, 52], crs=None, step=10),
+            SpatialDimension(name="x", extent=[2, 7], crs=_PARAMETERIZED_VALUE, step=10),
+            SpatialDimension(name="y", extent=[49, 52], crs=_PARAMETERIZED_VALUE, step=10),
         )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
@@ -1375,8 +1383,8 @@ class TestCubeMetadata:
         metadata = cube_metadata.resample_spatial(resolution=res_param, projection=proj_param)
         assert isinstance(metadata, CubeMetadata)
         assert metadata.spatial_dimensions == (
-            SpatialDimension(name="x", extent=[2, 7], crs=None),
-            SpatialDimension(name="y", extent=[49, 52], crs=None),
+            SpatialDimension(name="x", extent=[2, 7], crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
         )
         assert metadata.temporal_dimension == cube_metadata.temporal_dimension
         assert metadata.band_dimension == cube_metadata.band_dimension
