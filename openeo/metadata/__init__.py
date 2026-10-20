@@ -531,7 +531,10 @@ class CubeMetadata:
         if self._dimensions and isinstance(self._spatial_dimensions, SpatialDimensionsXY):
             spatial_dimensions: SpatialDimensionsXY = self._spatial_dimensions.filter_bbox(extent=extent)
             dimensions = [
-                getattr(spatial_dimensions, d.axis) if isinstance(d, SpatialDimension) else d for d in self._dimensions
+                getattr(spatial_dimensions, d.axis)
+                if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}
+                else d
+                for d in self._dimensions
             ]
             return self._clone_and_update(dimensions=dimensions)
 
