@@ -1839,6 +1839,21 @@ class TestStacMetadataParser:
                     SpatialDimension(name="y", axis="y", extent=[3_000_000, 7_000_000], crs=32631),
                 ),
             ),
+            (
+                # Exotic use case with a vertical spatial "z" dimension
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "reference_system": 4326},
+                        "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "reference_system": 4326},
+                        "z": {"type": "spatial", "axis": "z", "extent": [0, 10], "reference_system": 4326},
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[-180, 180], crs=4326),
+                    SpatialDimension(name="y", axis="y", extent=[-70, 70], crs=4326),
+                ),
+            ),
         ],
     )
     def test_metadata_from_stac_spatial_dimensions(self, tmp_path, stac_dict, expected):
