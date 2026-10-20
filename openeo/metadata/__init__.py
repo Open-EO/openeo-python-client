@@ -408,7 +408,10 @@ class CubeMetadata:
                 if len(temporal_dims) > 1:
                     _log.warning(f"Multiple temporal dimensions, arbitrarily picking the first one: {temporal_dims=}")
                 self._temporal_dimension = temporal_dims[0]
-            if spatial_dims := sorted((d for d in dimensions if isinstance(d, SpatialDimension)), key=lambda d: d.axis):
+            if spatial_dims := sorted(
+                (d for d in dimensions if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}),
+                key=lambda d: d.axis,
+            ):
                 if [d.axis for d in spatial_dims] == ["x", "y"]:
                     self._spatial_dimensions = SpatialDimensionsXY(x=spatial_dims[0], y=spatial_dims[1])
                 else:
