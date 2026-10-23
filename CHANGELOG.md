@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add public `split_points` helper in `openeo.extra.job_management` for point-based job splitting, including optional tile-grid co-grouping.
+- Add public `split_points` helper in `openeo.extra.job_management` for point-based job splitting, including optional co-grouping by tile grid or by `tile_size` + `projection`.
 
 ### Changed
 

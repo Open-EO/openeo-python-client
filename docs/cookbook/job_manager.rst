@@ -308,10 +308,14 @@ Splitting point-based extractions
 When the work to split is a set of sample locations (points) rather than a
 single large area, e.g. for point-based extraction jobs,
 :py:func:`~openeo.extra.job_management._job_splitting.split_points` groups
-geometries into batches of at most ``max_points`` rows.
+geometries into batches, optionally of at most ``max_points`` rows.
 Each row is treated as a single feature to group, so a row can be a single
-``Point`` or a multi-part geometry (e.g. ``MultiPoint``) representing a
+``Point`` or a ``MultiPoint`` representing a
 cluster of locations that must stay together.
+Other geometry types are rejected.
+Besides a GeoDataFrame, a list of shapely points or a single ``MultiPoint``
+(one row per point) is accepted. Like with ``split_area``, points without
+CRS information are assumed to be in the CRS of the tile grid (if any).
 By default, groups are formed with a spatial quadtree split so that each
 batch stays geographically clustered:
 
@@ -333,6 +337,22 @@ having to load multiple source products for a single extraction job:
 
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
     batches = split_points(points, max_points=500, tile_grid=tile_grid)
+
+Alternatively, like with ``split_area``, a regular grid can be specified
+through ``tile_size`` and ``projection``:
+
+.. code-block:: python
+
+    # group points per 50x50 km tile in EPSG:3857
+    batches = split_points(points, max_points=500, tile_size=50_000, projection="EPSG:3857")
+
+Without ``max_points`` (default ``None``), there is no size limit and
+points are simply grouped per tile:
+
+.. code-block:: python
+
+    # one batch per tile
+    batches = split_points(points, tile_grid=tile_grid)
 
 Customizing Job Handling
 ========================

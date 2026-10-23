@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import geopandas as gpd
 import shapely
 import shapely.geometry.base
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 
 from openeo.util import BBoxDict, normalize_crs
 
@@ -379,7 +379,7 @@ def split_area(
 def _quadtree_split_indices(
     centroids: gpd.GeoSeries,
     idx,
-    max_points: int,
+    max_points: Optional[int],
     out: List,
 ) -> None:
     """
@@ -387,7 +387,7 @@ def _quadtree_split_indices(
     resulting group of index labels holds at most *max_points* entries.
     Appends the index-label groups (not the geometries themselves) to *out*.
     """
-    if len(idx) <= max_points:
+    if max_points is None or len(idx) <= max_points:
         out.append(idx)
         return
 
@@ -413,15 +413,16 @@ def _quadtree_split_indices(
 
 
 def split_points(
-    points: gpd.GeoDataFrame,
+    points: Union[gpd.GeoDataFrame, List[Union[Point, MultiPoint]], MultiPoint],
     *,
-    max_points: int = 500,
-    tile_grid: Optional[gpd.GeoDataFrame] = None,
+    max_points: Optional[int] = None,
+    projection: Optional[str] = None,
+    tile_size: Optional[float] = None,
+    tile_grid: Optional[Union[_TileGridInterface, gpd.GeoDataFrame]] = None,
 ) -> List[gpd.GeoDataFrame]:
     """
-    Split a GeoDataFrame of geometries (typically points, e.g. sample
-    locations for point-based extraction) into groups of at most
-    *max_points* each.
+    Split point geometries (e.g. sample locations for point-based extraction)
+    into groups of at most *max_points* each.
 
     Each row is treated as a single "feature" to group, regardless of whether
     its geometry is a single ``Point`` or a multi-part geometry (e.g.
@@ -442,38 +443,77 @@ def split_points(
     are first grouped by the tile their centroid falls in, so that a group
     never spans multiple tiles. This avoids batch jobs having to load
     multiple (possibly non-overlapping) source products for a single query.
+    Alternatively, *tile_size* and *projection* can be given to group
+    geometries in a regular grid of square tiles (anchored at the south-west
+    corner of the points' extent), analogous to :func:`split_area`.
+
     Tiles that end up with more than *max_points* geometries are further
     split with the quadtree approach described above. Geometries that don't
     fall inside any tile are grouped (and split) separately.
 
-    :param points: GeoDataFrame with a ``geometry`` column (any geometry type;
-        centroids are used for grouping) and a CRS set.
+    :param points: a GeoDataFrame with a ``geometry`` column of ``Point``
+        and/or ``MultiPoint`` geometries, a list of such shapely geometries,
+        or a single :class:`~shapely.geometry.MultiPoint`
+        (which is exploded into one row per point).
     :param max_points: maximum number of geometries per group.
-    :param tile_grid: optional GeoDataFrame of tile polygons (with CRS set)
-        to co-join geometries by before splitting, e.g. a satellite tiling
-        grid. When given, geometries are only grouped together if their
-        centroids fall in the same tile.
+        ``None`` (default) means no limit: geometries are then only grouped
+        per tile (or all in a single group when no tile grid is given).
+    :param projection: EPSG string (e.g. ``"EPSG:3857"``) of the regular grid
+        to group by. Must be combined with *tile_size*.
+    :param tile_size: tile edge length in the unit of *projection*.
+        Must be combined with *projection*.
+    :param tile_grid: optional :class:`_TileGridInterface` instance or
+        GeoDataFrame of tile polygons (with CRS set) to co-join geometries by
+        before splitting, e.g. a satellite tiling grid. When given, geometries
+        are only grouped together if their centroids fall in the same tile.
+        Mutually exclusive with *projection* / *tile_size*.
     :return: list of GeoDataFrames, each with at most *max_points* rows.
-    :raises JobSplittingFailure: if the GeoDataFrame has no geometry column
-        or CRS, or if *max_points* is not positive.
+    :raises JobSplittingFailure: on invalid input (e.g. non-point geometries,
+        non-positive *max_points*, contradictory grid arguments).
+
+    Like with :func:`split_area`, points without CRS information
+    (e.g. a list of shapely geometries) are assumed to be in the tile grid's CRS.
+    Without tile grid, no CRS is needed and the returned groups have no CRS either.
     """
+    if isinstance(points, MultiPoint):
+        points = list(points.geoms)
+    if isinstance(points, list):
+        if not all(isinstance(p, (Point, MultiPoint)) for p in points):
+            raise JobSplittingFailure("All geometries in 'points' must be Point or MultiPoint instances.")
+        points = gpd.GeoDataFrame(geometry=points)
+    elif not isinstance(points, gpd.GeoDataFrame):
+        raise JobSplittingFailure(
+            f"Expected a GeoDataFrame, list of points, or MultiPoint, got {type(points).__name__}."
+        )
+
     if "geometry" not in points.columns:
         raise JobSplittingFailure("The GeoDataFrame must contain a 'geometry' column.")
-    if points.crs is None:
-        raise JobSplittingFailure("The GeoDataFrame must have a CRS set.")
-    if max_points <= 0:
+    if not points.geom_type.isin(["Point", "MultiPoint"]).all():
+        raise JobSplittingFailure("All geometries must be of type Point or MultiPoint.")
+    if max_points is not None and max_points <= 0:
         raise JobSplittingFailure(f"'max_points' must be positive, got {max_points!r}.")
-    if tile_grid is not None and tile_grid.crs is None:
-        raise JobSplittingFailure("The 'tile_grid' GeoDataFrame must have a CRS set.")
-
-    points_epsg = points.crs.to_epsg()
-    if points_epsg is not None:
-        _TileGridInterface._check_antimeridian_crossing(points.total_bounds, points_epsg)
 
     if tile_grid is not None:
-        tile_epsg = tile_grid.crs.to_epsg()
-        if tile_epsg is not None:
-            _TileGridInterface._check_antimeridian_crossing(tile_grid.total_bounds, tile_epsg)
+        if projection is not None or tile_size is not None:
+            raise JobSplittingFailure(
+                "Cannot combine 'tile_grid' with 'projection' or 'tile_size'. "
+                "Either pass a tile_grid, or pass projection + tile_size."
+            )
+        if isinstance(tile_grid, gpd.GeoDataFrame):
+            tile_grid = _PredefinedTileGrid(tiles=tile_grid)
+    elif projection is not None or tile_size is not None:
+        if projection is None or tile_size is None:
+            raise JobSplittingFailure("'projection' and 'tile_size' must be provided together.")
+        tile_grid = _SizeBasedTileGrid.from_size_projection(size=tile_size, projection=projection)
+
+    if points.crs is None and tile_grid is not None:
+        _log.warning(
+            "Points have no CRS information; assuming they are already in the tile grid's CRS (EPSG:%d).",
+            tile_grid.crs,
+        )
+        points = points.set_crs(f"EPSG:{tile_grid.crs}")
+    if points.crs is not None and points.crs.to_epsg() is not None:
+        _TileGridInterface._check_antimeridian_crossing(points.total_bounds, points.crs.to_epsg())
 
     if points.empty:
         return []
@@ -484,20 +524,25 @@ def split_points(
     if tile_grid is None:
         _quadtree_split_indices(centroids, points.index, max_points, index_groups)
     else:
-        centroids_gdf = gpd.GeoDataFrame(geometry=centroids, crs=points.crs)
-        if centroids_gdf.crs != tile_grid.crs:
-            centroids_gdf = centroids_gdf.to_crs(tile_grid.crs)
-        joined = gpd.sjoin(
-            centroids_gdf, tile_grid[["geometry"]].reset_index(drop=True), how="left", predicate="intersects"
-        )
-        # A centroid on a shared tile edge can match multiple tiles: keep just the first match.
-        joined = joined.loc[~joined.index.duplicated(keep="first")]
-
-        # Group using an explicit key to avoid pandas categorical/NaN edge cases
-        # when unmatched centroids (index_right = NaN) are present.
-        joined["_tile_group_key"] = joined["index_right"].where(joined["index_right"].notna(), "__unmatched__")
-
-        for _, idx in joined.groupby("_tile_group_key").groups.items():
+        grid_centroids = centroids.to_crs(epsg=tile_grid.crs)
+        if isinstance(tile_grid, _SizeBasedTileGrid):
+            # Regular grid anchored at the south-west corner of the points' extent.
+            minx, miny, _, _ = grid_centroids.total_bounds
+            keys = [(grid_centroids.x - minx) // tile_grid.size, (grid_centroids.y - miny) // tile_grid.size]
+        elif isinstance(tile_grid, _PredefinedTileGrid):
+            joined = gpd.sjoin(
+                gpd.GeoDataFrame(geometry=grid_centroids),
+                tile_grid._gdf[["geometry"]].reset_index(drop=True),
+                how="left",
+                predicate="intersects",
+            )
+            # A centroid on a shared tile edge can match multiple tiles: keep just the first match.
+            joined = joined.loc[~joined.index.duplicated(keep="first")]
+            # Unmatched centroids (index_right = NaN) get their own group.
+            keys = joined["index_right"].fillna(-1)
+        else:
+            raise JobSplittingFailure(f"Unsupported tile grid type: {type(tile_grid).__name__}.")
+        for idx in points.index.to_series().groupby(keys).groups.values():
             _quadtree_split_indices(centroids, idx, max_points, index_groups)
 
     return [points.loc[idx].reset_index(drop=True) for idx in index_groups]
