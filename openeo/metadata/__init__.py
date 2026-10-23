@@ -23,7 +23,7 @@ import pystac.extensions.item_assets
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
 from openeo.metadata._extents import NumericalInterval, _EmptyExtent, _NonConcreteExtent
-from openeo.util import BBoxDict, Rfc3339, deep_get
+from openeo.util import BBoxDict, Rfc3339, deep_get, normalize_crs_or_passthrough
 from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
@@ -161,7 +161,9 @@ class SpatialDimensionsXY(NamedTuple):
         # TODO: support more types and forms of the extent (geometries, etc.) ... e.g. using the BBoxDict factories?
         if bbox := BBoxDict.try_from_dict(extent):
             bbox_crs = bbox.get("crs", SpatialDimension.DEFAULT_CRS)
-            if bbox_crs == self.x.crs and bbox_crs == self.y.crs:
+            if bbox_crs == normalize_crs_or_passthrough(self.x.crs) and bbox_crs == normalize_crs_or_passthrough(
+                self.y.crs
+            ):
                 # No reprojection needed
                 extent_x = bbox["west"], bbox["east"]
                 extent_y = bbox["south"], bbox["north"]

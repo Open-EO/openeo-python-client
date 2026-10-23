@@ -297,6 +297,29 @@ class TestSpatialDimensionsXY:
             dirty_equals.IsInstance(_NonConcreteExtent),
         )
 
+    @pytest.mark.parametrize(
+        ["dim_crs", "extent_crs", "match"],
+        [
+            (4326, 4326, True),
+            ("EPSG:4326", "EPSG:4326", True),
+            ("EPSG:4326", 4326, True),
+            (4326, "EPSG:4326", True),
+            ("EPSG:32631", "EPSG:4326", False),
+        ],
+    )
+    def test_filter_bbox_crs_normalisation(self, dim_crs, extent_crs, match):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=dim_crs),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=dim_crs),
+        )
+        extent = {"west": 4, "south": 50, "east": 5, "north": 51, "crs": extent_crs}
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == (
+            ((4, 5), (50, 51))
+            if match
+            else (dirty_equals.IsInstance(_NonConcreteExtent), dirty_equals.IsInstance(_NonConcreteExtent))
+        )
+
 
 class TestBand:
     def test_band_minimal(self):
