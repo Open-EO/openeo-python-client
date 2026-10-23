@@ -58,13 +58,13 @@ def retry_configuration(
     **kwargs,
 ) -> Retry:
     """
-    Factory for creating a :py:class:`urllib3.util.retry.Retry` configuration object with
+    Factory for creating a :py:class:`urllib3.util.Retry` configuration object with
     openEO-oriented retry settings.
 
     :param total: Total number of retries to allow
     :param backoff_factor: scaling factor for sleeps between retries
     :param status_forcelist: A set of integer HTTP status codes that we should force a retry on.
-    :param kwargs: additional kwargs to pass to :py:class:`urllib3.util.retry.Retry`
+    :param kwargs: additional kwargs to pass to :py:class:`urllib3.util.Retry`
     :return:
 
     Inspiration and references:
@@ -83,7 +83,7 @@ def retry_configuration(
 
 def _to_retry(retry: Union[Retry, dict, Literal[True], None]) -> Retry:
     """
-    Convert a retry specification to a :py:class:`urllib3.util.retry.Retry` object.
+    Convert a retry specification to a :py:class:`urllib3.util.Retry` object.
     """
     if isinstance(retry, Retry):
         pass
@@ -101,8 +101,8 @@ def session_with_retries(retry: Union[Retry, dict, Literal[True], None] = None) 
     Factory for a requests session with openEO-oriented retry settings.
 
     :param retry: The retry configuration, can be specified as:
-        - :py:class:`urllib3.util.retry.Retry`
-        - a dictionary with :py:class:`urllib3.util.retry.Retry` arguments,
+        - :py:class:`urllib3.util.Retry`
+        - a dictionary with :py:class:`urllib3.util.Retry` arguments,
           e.g. ``total``, ``backoff_factor``, ``status_forcelist``, ...
         - ``None`` for default openEO-oriented retry settings
     """
