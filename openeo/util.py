@@ -755,3 +755,10 @@ def normalize_crs(crs: Any, *, use_pyproj: bool = True) -> Union[None, int, str]
             raise ValueError(f"Can not normalize CRS data {type(crs)}")
 
     return crs
+
+
+def normalize_crs_or_passthrough(crs: Any, *, use_pyproj: bool = True) -> Any:
+    try:
+        return normalize_crs(crs, use_pyproj=use_pyproj)
+    except ValueError:
+        return crs

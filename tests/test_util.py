@@ -30,6 +30,7 @@ from openeo.util import (
     first_not_none,
     guess_format,
     normalize_crs,
+    normalize_crs_or_passthrough,
     repr_truncate,
     rfc3339,
     str_truncate,
@@ -1101,3 +1102,24 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_handles_incorrect_crs(self, epsg_input, use_pyproj):
         with pytest.raises(ValueError):
             normalize_crs(epsg_input, use_pyproj=use_pyproj)
+
+    @pytest.mark.parametrize("use_pyproj", [True, False])
+    @pytest.mark.parametrize(
+        ["crs", "expected"],
+        [
+            # Valid: normalized
+            ("EPSG:4326", 4326),
+            ("4326", 4326),
+            (4326, 4326),
+            (None, None),
+            ("", None),
+            # Invalid: passed through unchanged instead of raising
+            ("foo-bar", "foo-bar"),
+            (-123, -123),
+            (3.14, 3.14),
+            (["EPSG:4326"], ["EPSG:4326"]),
+            ({"EPSG": 4326}, {"EPSG": 4326}),
+        ],
+    )
+    def test_normalize_crs_or_passthrough(self, crs, expected, use_pyproj):
+        assert normalize_crs_or_passthrough(crs, use_pyproj=use_pyproj) == expected
