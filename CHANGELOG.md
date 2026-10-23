@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Allow `Connection.load_stac_from_job()` to require or avoid canonical result links. ([#634](https://github.com/Open-EO/openeo-python-client/issues/634))
+
 ### Changed
 
 - Ranged downloads (e.g. of batch job results) no longer implement their own retry loop; transient failures are retried by the standard urllib3 retry configuration of the connection's session ([#934](https://github.com/Open-EO/openeo-python-client/issues/934))
