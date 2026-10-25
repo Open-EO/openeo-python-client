@@ -542,7 +542,7 @@ building, storing, and finally executing the UDP.
     connection.save_user_defined_process(
         user_defined_process_id=process_id,
         process_graph=evi_aggregation,
-        parameters=[temporal_interval, geometry],
+        parameters=[temporal_extent, geometry],
     )
 
 When this UDP ``evi_timeseries`` is successfully stored on the back-end,
