@@ -41,6 +41,10 @@ from openeo.internal.graph_building import (
     _FromNodeMixin,
     as_flat_graph,
 )
+from openeo.internal.graph_unrolling import (
+    ProcessGraphUnroller,
+    ProcessGraphUnrollError,
+)
 from openeo.internal.jupyter import VisualDict, VisualList
 from openeo.internal.processes.builder import ProcessBuilderBase
 from openeo.internal.warnings import deprecated, legacy_alias
@@ -1031,6 +1035,81 @@ class Connection(RestApiConnection):
                 )
 
         raise OpenEoClientException("Process does not exist.")
+
+    def unroll_process_graph(
+        self,
+        process_graph: Union[dict, FlatGraphableMixin, str, Path, List[FlatGraphableMixin]],
+    ) -> Dict[str, dict]:
+        """
+        Inline user-defined and remote process definitions in a process graph.
+
+        The returned flat process graph only references processes advertised by the
+        backend. Registered user-defined processes are loaded from ``/process_graphs``;
+        process nodes with an HTTP(S) ``namespace`` are loaded as remote process
+        definitions. Nested definitions are expanded recursively and parameter
+        defaults are applied.
+
+        :param process_graph: process graph or graph-building object to unroll.
+        :return: a new flat process graph. The input is not modified.
+
+        .. versionadded:: 0.51.0
+        """
+        graph = as_flat_graph(process_graph)
+        if isinstance(graph.get("process"), dict) and isinstance(graph["process"].get("process_graph"), dict):
+            graph = graph["process"]["process_graph"]
+        elif isinstance(graph.get("process_graph"), dict):
+            graph = graph["process_graph"]
+
+        definition_cache: Dict[Tuple[str, Optional[str]], Optional[dict]] = {}
+        predefined_process_ids: Optional[Set[str]] = None
+
+        def extract_remote_definition(data: dict, *, process_id: str, namespace: str) -> dict:
+            if "process_graph" in data:
+                definition = data
+            elif isinstance(data.get("processes"), list):
+                matches = [process for process in data["processes"] if process.get("id") == process_id]
+                if len(matches) != 1:
+                    raise ProcessGraphUnrollError(
+                        f"Expected one definition for process {process_id!r} at {namespace!r}, found {len(matches)}"
+                    )
+                definition = matches[0]
+            else:
+                raise ProcessGraphUnrollError(f"No process definition found at {namespace!r}")
+
+            if definition.get("id") not in {None, process_id}:
+                raise ProcessGraphUnrollError(
+                    f"Expected process {process_id!r} at {namespace!r}, found {definition.get('id')!r}"
+                )
+            return definition
+
+        def resolve(node: Mapping) -> Optional[dict]:
+            nonlocal predefined_process_ids
+
+            process_id = node.get("process_id")
+            namespace = node.get("namespace")
+            if not isinstance(process_id, str):
+                return None
+            key = (process_id, namespace)
+            if key in definition_cache:
+                return definition_cache[key]
+
+            if isinstance(namespace, str) and urllib.parse.urlparse(namespace).scheme in {"http", "https"}:
+                response = requests.get(namespace)
+                response.raise_for_status()
+                definition = extract_remote_definition(response.json(), process_id=process_id, namespace=namespace)
+            elif namespace is not None:
+                definition = None
+            else:
+                if predefined_process_ids is None:
+                    predefined_process_ids = {process["id"] for process in self.list_processes()}
+                definition = (
+                    None if process_id in predefined_process_ids else self.user_defined_process(process_id).describe()
+                )
+
+            definition_cache[key] = definition
+            return definition
+
+        return ProcessGraphUnroller(resolve_process_definition=resolve).unroll(graph)
 
     def list_jobs(self, limit: Union[int, None] = 100) -> JobListingResponse:
         """
