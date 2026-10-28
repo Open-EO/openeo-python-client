@@ -4,10 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [0.54.0] - 2026-10-28
 
 ### Changed
 
@@ -15,8 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced improper `CollectionMetadata` usage with `CubeMetadata`. `CollectionMetadata` describes the metadata of a whole openEO/STAC collection, while `CubeMetadata` describes the specific dimension metadata of a concrete cube being processed. (Related to [464](https://github.com/Open-EO/openeo-python-client/issues/464), [#949](https://github.com/Open-EO/openeo-python-client/issues/949), [#827](https://github.com/Open-EO/openeo-python-client/issues/827).)
   - The `metadata` attribute of `DataCube`/`VectorCube` is now a `CubeMetadata` object instead of misleading `CollectionMetadata`.
   - The `apply_metadata()` UDF signature changed to use `CubeMetadata` as input and output type annotation.
-
-### Removed
 
 ### Fixed
 
