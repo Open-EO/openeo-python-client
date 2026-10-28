@@ -30,6 +30,7 @@ from openeo.processes import ProcessBuilder
 from openeo.rest import OpenEoClientException
 from openeo.rest.connection import Connection
 from openeo.rest.datacube import THIS, UDF, DataCube, _Queryables
+from openeo.util import auto_description
 from openeo.utils.version import ComparableVersion
 
 from .. import get_download_graph
@@ -4097,6 +4098,23 @@ class TestBatchJob:
         assert job.job_id == "job-000"
         assert job.status() == "finished"
         assert dummy_backend.get_batch_pg() == self._EXPECTED_SIMPLE_S2_PG
+
+    @pytest.mark.parametrize("with_description", [False, True])
+    def test_create_job_description(self, dummy_backend, tmp_path, with_description):
+        src = tmp_path / "analysis.py"
+        src.write_text("print('café')\n", encoding="utf-8")
+        description = auto_description(src, include_source=True)
+        cube = dummy_backend.connection.load_collection("S2")
+        kwargs = {"description": description} if with_description else {}
+        job = cube.create_job(out_format="GTiff", title="Analysis", **kwargs)
+        expected = {
+            "title": "Analysis",
+            "process": {"process_graph": self._EXPECTED_SIMPLE_S2_PG},
+        }
+        if with_description:
+            expected["description"] = description
+        assert dummy_backend.get_batch_post_data() == expected
+        assert job.status() == "created"
 
     def test_create_job_with_additional(self, dummy_backend):
         cube = dummy_backend.connection.load_collection("S2")
