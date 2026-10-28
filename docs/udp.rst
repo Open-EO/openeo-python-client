@@ -434,7 +434,7 @@ and dump it in JSON format to a file:
 
 This results in a JSON file like this:
 
-.. code-block:: json
+.. code-block::
 
     {
       "id": "fahrenheit_to_celsius",
