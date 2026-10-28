@@ -1,16 +1,14 @@
 import re
 
-import dirty_equals
 import pytest
 
 from openeo.metadata import (
     Band,
     BandDimension,
-    GeometryDimension,
     SpatialDimension,
     TemporalDimension,
 )
-from openeo.metadata._jupyter import repr_html_dimensions
+from openeo.metadata._jupyter import repr_html_dimensions, td, th
 
 
 def _strip_inter_tag_whitespace(html: str) -> str:
@@ -28,6 +26,46 @@ def test_strip_inter_tag_whitespace():
         _strip_inter_tag_whitespace("\n<div>  <span> hello world\n</span> \n\n </div> \n")
         == "<div><span>hello world</span></div>"
     )
+
+
+def _strip_inline_styles(html: str) -> str:
+    """
+    Remove inline styles from HTML to simplify testing of HTML output.
+    """
+    html = re.sub(r'\s+style="[^"]*"', "", html)
+    return html
+
+
+def test_strip_inline_styles():
+    assert (
+        _strip_inline_styles(
+            '<tr><td style="text-align: left;">bands</td><td style="text-align: left;">bands</td><td style="text-align: left;">2</td><td style="text-align: left;">bands: B2, B3</td></tr>'
+        )
+        == "<tr><td>bands</td><td>bands</td><td>2</td><td>bands: B2, B3</td></tr>"
+    )
+
+
+def _strip_html_noise(html: str) -> str:
+    """
+    Remove whitespace between HTML tags and inline styles to simplify testing of HTML output.
+    """
+    html = _strip_inter_tag_whitespace(html)
+    html = _strip_inline_styles(html)
+    return html
+
+
+def test_td():
+    assert td("foo") == '<td style="text-align: left;">foo</td>'
+    assert td("foo & bar") == '<td style="text-align: left;">foo &amp; bar</td>'
+
+    assert td("foo", text_align=None) == "<td>foo</td>"
+
+
+def test_th():
+    assert th("foo") == '<th style="text-align: left;">foo</th>'
+    assert th("foo & bar") == '<th style="text-align: left;">foo &amp; bar</th>'
+
+    assert th("foo", text_align=None) == "<th>foo</th>"
 
 
 @pytest.mark.parametrize(
@@ -49,7 +87,7 @@ def test_strip_inter_tag_whitespace():
 )
 def test_repr_html_dimensions_simple(dimension, expected_body):
     html = repr_html_dimensions([dimension])
-    assert _strip_inter_tag_whitespace(html) == _strip_inter_tag_whitespace(
+    assert _strip_html_noise(html) == _strip_html_noise(
         f"""
         <table>
             <thead><tr><th>Dimension</th><th>Type</th><th>Size</th><th>Labels / Extent</th></tr></thead>
@@ -67,7 +105,7 @@ def test_render_dimensions_html_basic():
         SpatialDimension(name="y", extent=[49, 52]),
     ]
     html = repr_html_dimensions(dimensions)
-    assert _strip_inter_tag_whitespace(html) == _strip_inter_tag_whitespace(
+    assert _strip_html_noise(html) == _strip_html_noise(
         """
             <table>
             <thead><tr><th>Dimension</th><th>Type</th><th>Size</th><th>Labels / Extent</th></tr></thead>

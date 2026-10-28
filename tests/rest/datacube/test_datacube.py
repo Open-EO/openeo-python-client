@@ -508,10 +508,10 @@ class TestDataCube:
                     .*<table>
                     .*<thead>.*Dimension.*Type.*Size.*</thead>
                     .*<tbody>
-                        .*<tr><td>x</td><td>spatial</td>.*</tr>
-                        .*<tr><td>y</td><td>spatial</td>.*</tr>
-                        .*<tr><td>t</td><td>temporal</td>.*</tr>
-                        .*<tr><td>bands</td><td>bands</td><td>4</td><td>bands:\sB02,\sB03,\sB04,\sB08</td></tr>
+                        .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>t</td><td.*?>temporal</td>.*</tr>
+                        .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>4</td><td.*?>bands:\sB02,\sB03,\sB04,\sB08</td></tr>
                .*</details>
                .*<details><summary>Process\ Graph</summary>
                .*<openeo-model-builder>
@@ -534,10 +534,10 @@ class TestDataCube:
                     .*<table>
                     .*<thead>.*Dimension.*Type.*Size.*</thead>
                     .*<tbody>
-                        .*<tr><td>x</td><td>spatial</td>.*</tr>
-                        .*<tr><td>y</td><td>spatial</td>.*</tr>
-                        .*<tr><td>t</td><td>temporal</td><td>\?</td><td>extent:.*2026-09-01.*2026-09-20.*</tr>
-                        .*<tr><td>bands</td><td>bands</td><td>2</td><td>bands:\sB03,\sB04</td></tr>
+                        .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>t</td><td.*?>temporal</td><td.*?>\?</td><td.*?>extent:.*2026-09-01.*2026-09-20.*</tr>
+                        .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>2</td><td.*?>bands:\sB03,\sB04</td></tr>
                .*</details>
                .*<details><summary>Process\ Graph</summary>
                .*<openeo-model-builder>

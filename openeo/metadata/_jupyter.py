@@ -7,6 +7,7 @@ data model free of rendering/presentation concerns.
 
 from __future__ import annotations
 
+import functools
 import html
 from typing import List
 
@@ -18,12 +19,22 @@ from openeo.metadata import (
 )
 
 
+def td(text: str, *, text_align: str | None = "left", escape: bool = True, element: str = "td") -> str:
+    css = f"text-align: {text_align};" if text_align else ""
+    attrs = f' style="{css}"' if css else ""
+    if escape:
+        text = html.escape(text)
+    return f"<{element}{attrs}>{text}</{element}>"
+
+
+th = functools.partial(td, element="th")
+
+
 def repr_html_dimensions(dimensions: List[Dimension]) -> str:
     """
     Render a compact HTML table with an overview of cube dimensions
     (name, type, size, labels/extent), based on available (client-side) metadata.
     """
-
     header = ["Dimension", "Type", "Size", "Labels / Extent"]
     rows = []
     for dim in dimensions:
@@ -37,9 +48,9 @@ def repr_html_dimensions(dimensions: List[Dimension]) -> str:
             row.extend(["?", f"extent: {repr(dim.extent)}"])
         else:
             row.extend(["?", ""])
-        rows.append("<tr>" + "".join(f"<td>{html.escape(c)}</td>" for c in row) + "</tr>")
+        rows.append("<tr>" + "".join(td(c) for c in row) + "</tr>")
 
-    thead = "<tr>" + "".join(f"<th>{html.escape(c)}</th>" for c in header) + "</tr>"
+    thead = "<tr>" + "".join(th(c) for c in header) + "</tr>"
     tbody = "".join(rows)
 
     return f"""<table>

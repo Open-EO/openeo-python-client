@@ -1512,10 +1512,10 @@ class TestCubeMetadata:
                 .*<table>
                 .*<thead>.*Dimension.*Type.*Size.*</thead>
                 .*<tbody>
-                    .*<tr><td>x</td><td>spatial</td>.*</tr>
-                    .*<tr><td>y</td><td>spatial</td>.*</tr>
-                    .*<tr><td>t</td><td>temporal</td>.*</tr>
-                    .*<tr><td>bands</td><td>bands</td><td>2</td><td>bands:\sB2,\sB3</td></tr>
+                    .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                    .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                    .*<tr><td.*?>t</td><td.*?>temporal</td>.*</tr>
+                    .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>2</td><td.*?>bands:\sB2,\sB3</td></tr>
                     .*""",
             regex_flags=re.DOTALL | re.VERBOSE,
         )
