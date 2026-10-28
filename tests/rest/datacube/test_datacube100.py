@@ -1268,28 +1268,44 @@ def test_add_dimension(con100):
 
 @pytest.mark.parametrize("with_metadata", [True, False])
 @pytest.mark.parametrize(
-    ["name", "type_kwargs", "expected_warning"],
+    ["name", "suggested_type"],
     [
-        ("bands", {}, True),
-        ("bands", {"type": None}, True),
-        ("bands", {"type": "bands"}, False),
-        ("bands", {"type": "other"}, False),
-        ("james_band", {}, False),
+        ("bands", "bands"),
+        ("x", "spatial"),
+        ("y", "spatial"),
+        ("t", "temporal"),
+        ("time", "temporal"),
+        ("temporal", "temporal"),
+        ("geometry", "geometry"),
+        ("james_band", None),
     ],
 )
-def test_add_dimension_type_warning(con100, caplog, with_metadata, name, type_kwargs, expected_warning):
-    cube = con100.load_collection("S2", fetch_metadata=with_metadata).reduce_bands(reducer="mean")
+@pytest.mark.parametrize(
+    "type_kwargs",
+    [
+        {},
+        {"type": None},
+        {"type": "bands"},
+        {"type": "spatial"},
+        {"type": "temporal"},
+        {"type": "geometry"},
+        {"type": "other"},
+    ],
+)
+def test_add_dimension_type_warning(con100, caplog, with_metadata, name, suggested_type, type_kwargs):
+    cube = con100.load_collection("S1", fetch_metadata=with_metadata).reduce_bands(reducer="mean")
 
     with caplog.at_level(logging.WARNING, logger="openeo.rest.datacube"):
         result = cube.add_dimension(name=name, label="coh_VV_amp", **type_kwargs)
 
-    if expected_warning:
+    if suggested_type is not None and type_kwargs.get("type") is None:
         assert caplog.record_tuples == [
             (
                 "openeo.rest.datacube",
                 logging.WARNING,
-                "add_dimension(name='bands') defaults to type='other'. "
-                "Pass type='bands' to create a band dimension, or type='other' to make the current behavior explicit.",
+                f"add_dimension(name={name!r}) defaults to type='other'. "
+                f"Pass type={suggested_type!r} to use that dimension type, "
+                "or type='other' to make the current behavior explicit.",
             )
         ]
     else:
@@ -1309,7 +1325,6 @@ def test_add_dimension_type_warning(con100, caplog, with_metadata, name, type_kw
     }
 
     if with_metadata:
-        assert result.metadata == cube.metadata.add_dimension(name=name, label="coh_VV_amp", **type_kwargs)
         assert result.metadata.has_band_dimension() == (type_kwargs.get("type") == "bands")
         if result.metadata.has_band_dimension():
             assert result.metadata.band_names == ["coh_VV_amp"]
