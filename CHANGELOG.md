@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Log a warning when `DataCube.add_dimension()` adds a dimension named `bands`, `x`, `y`, `t`, `time`, `temporal`, or `geometry` without an explicit type; the default remains `other` ([#796](https://github.com/Open-EO/openeo-python-client/issues/796)).
+- Warn when using `DataCube.add_dimension()` to add a common dimension (named "x", "y", "t", "bands", ...) without the appropriate `type` (which defaults to "other") ([#796](https://github.com/Open-EO/openeo-python-client/issues/796)).
 
 ### Changed
 
