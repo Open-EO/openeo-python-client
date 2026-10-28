@@ -7,8 +7,12 @@ class _NonConcreteExtent:
     """
     Special marker class for non-concrete spatial, temporal, or other extents.
     There can be several reasons for an extent to be non-concrete at a given time:
-    being generally unknown, being undefined or unspecified by the user,
-    being (unintendedly) unavailable/unresolvable, being dynamic or parameterized, etc.
+    being unknown (in general, or specifically client-side),
+    being undefined or unspecified by the user,
+    being (unintendedly) unavailable/unresolvable,
+    being dynamic or parameterized,
+    being a placeholder for an unsupported or unimplemented feature,
+    etc.
 
     The essential aspects this class signals:
     - it is known that there is an extent
@@ -19,8 +23,15 @@ class _NonConcreteExtent:
     - an empty extent
     """
 
+    __slots__ = ("reason",)
+
+    def __init__(self, reason: str | None = None):
+        self.reason = reason
+
     def __repr__(self) -> str:
-        return "<_NonConcreteExtent>"
+        if self.reason:
+            return f"_NonConcreteExtent(reason={self.reason!r})"
+        return "_NonConcreteExtent()"
 
     def __eq__(self, value: object, /) -> bool:
         if isinstance(value, _NonConcreteExtent):
@@ -45,7 +56,7 @@ class _EmptyExtent:
     """
 
     def __repr__(self) -> str:
-        return "<_EmptyExtent>"
+        return "_EmptyExtent()"
 
     def __eq__(self, other) -> bool:
         if isinstance(other, _EmptyExtent):

@@ -135,17 +135,21 @@ class SpatialDimension(Dimension):
             | None
         ),
     ):
-        if (this_extent := NumericalInterval.try_from(self.extent)) and (
-            other_extent := NumericalInterval.try_from(extent)
-        ):
-            extent = this_extent.intersection(other_extent)
-        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+        if isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
             extent = _EmptyExtent()
+        elif isinstance(self.extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=self.extent.reason)
+        elif isinstance(extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=extent.reason)
+        elif (this_interval := NumericalInterval.try_from(self.extent)) and (
+            other_interval := NumericalInterval.try_from(extent)
+        ):
+            extent = this_interval.intersection(other_interval)
         elif extent is None:
             extent = self.extent
         else:
             # As lenient fallback, handle as non-concrete extent
-            extent = _NonConcreteExtent()
+            extent = _NonConcreteExtent(reason=f"unhandled")
         return SpatialDimension(name=self.name, axis=self.axis, extent=extent, crs=self.crs, step=self.step)
 
 
@@ -170,17 +174,18 @@ class SpatialDimensionsXY(NamedTuple):
 
                 if bbox_crs == 4326 and bbox["west"] > bbox["east"]:
                     # TODO: proper detection and handling of antimeridian crossing
-                    extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+                    extent_x = _NonConcreteExtent(reason="unsupported: antimeridian crossing")
             else:
                 # TODO: reproject
-                extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+                extent_x = _NonConcreteExtent(reason="unsupported: reprojection")
+                extent_y = _NonConcreteExtent(reason="unsupported: reprojection")
         elif isinstance(extent, _EmptyExtent):
             extent_x, extent_y = _EmptyExtent(), _EmptyExtent()
         elif isinstance(extent, _NonConcreteExtent):
-            extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+            extent_x, extent_y = _NonConcreteExtent(reason=extent.reason), _NonConcreteExtent(reason=extent.reason)
         else:
             # As lenient fallback, handle as non-concrete extent
-            extent_x, extent_y = _NonConcreteExtent(), _NonConcreteExtent()
+            extent_x, extent_y = _NonConcreteExtent(reason="unhandled"), _NonConcreteExtent(reason="unhandled")
 
         return SpatialDimensionsXY(
             x=self.x.filter_extent(extent=extent_x),
@@ -235,7 +240,7 @@ class TemporalDimension(Dimension):
             new_extent = extent
         else:
             # As lenient fallback, handle as non-concrete extent
-            new_extent = _NonConcreteExtent()
+            new_extent = _NonConcreteExtent(reason="fallback")
         return TemporalDimension(name=self.name, extent=new_extent)
 
 

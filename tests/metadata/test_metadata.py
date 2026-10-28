@@ -294,7 +294,7 @@ class TestSpatialDimensionsXY:
 
         assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == (
             dirty_equals.IsInstance(_NonConcreteExtent),
-            dirty_equals.IsInstance(_NonConcreteExtent),
+            NumericalInterval(start=40, end=50),
         )
 
     @pytest.mark.parametrize(
@@ -1587,7 +1587,7 @@ class TestCubeMetadata:
 
         assert metadata2.spatial_dimensions == (
             SpatialDimension(name="x", axis="x", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
-            SpatialDimension(name="y", axis="y", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=NumericalInterval(start=40, end=50), crs=4326),
         )
 
 
