@@ -299,3 +299,43 @@ def test_default_parameter_supports_anything():
     assert schema_supports(parameter.schema, type="number") is True
     assert schema_supports(parameter.schema, type="object") is True
     assert schema_supports(parameter.schema, type="object", subtype="datacube") is True
+
+
+def test_parameter_temporal_extent():
+    # Issue #679: nullable temporal extent, like `temporal_extent` of `load_collection`
+    param = Parameter.temporal_extent()
+    assert param.name == "temporal_extent"
+    description = param.to_dict()["description"]
+    assert "Set this parameter to `null` to set no limit for the temporal extent." in description
+    assert param.to_dict() == {
+        "name": "temporal_extent",
+        "description": description,
+        "schema": [
+            {
+                "type": "array",
+                "subtype": "temporal-interval",
+                "uniqueItems": True,
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                    "anyOf": [
+                        {"type": "string", "subtype": "date-time", "format": "date-time"},
+                        {"type": "string", "subtype": "date", "format": "date"},
+                        {"type": "null"},
+                    ]
+                },
+            },
+            {
+                "title": "No filter",
+                "description": "Don't filter temporally. All data is included in the data cube.",
+                "type": "null",
+            },
+        ],
+    }
+
+
+def test_parameter_temporal_extent_custom():
+    param = Parameter.temporal_extent(name="period", description="My period.", default=None)
+    assert param.to_dict()["name"] == "period"
+    assert param.to_dict()["description"] == "My period."
+    assert param.to_dict()["default"] is None
