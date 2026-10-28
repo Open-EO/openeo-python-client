@@ -1,0 +1,40 @@
+name: Sphinx documentation build
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'openeo/**'
+      - '.github/workflows/sphinx-build.yml'
+
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Set up Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      with:
+        python-version: "3.14"
+
+    - name: Install package and documentation dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install .[docs]
+
+    - name: Sphinx build
+      run: |
+        # --fail-on-warning: Turn warnings into errors
+        # --keep-going: report all warnings before failing, rather than stopping at the first one
+        python -m sphinx --fail-on-warning --keep-going -b html docs build
