@@ -867,7 +867,7 @@ class DataCube(_ProcessGraphAbstraction):
 
     @openeo_process
     def resample_cube_temporal(
-        self, target: DataCube, dimension: Optional[str] = None, valid_within: Optional[int] = None
+        self, target: DataCube, dimension: Optional[str] = None, valid_within: Optional[Union[int, float]] = None
     ) -> DataCube:
         """
         Resamples one or more given temporal dimensions from a source data cube to align with the corresponding
@@ -882,8 +882,9 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param target: A data cube that describes the temporal target resolution.
         :param dimension: The name of the temporal dimension to resample.
-        :param valid_within:
-        :return:
+        :param valid_within: number of days before and after the target timestamps
+            to search for the nearest valid value. If no valid value is found, the result is no-data.
+        :return: data cube with resampled temporal dimension
 
         .. versionadded:: 0.10.0
         """
