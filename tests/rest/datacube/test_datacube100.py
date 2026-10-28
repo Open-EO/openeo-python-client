@@ -1266,6 +1266,57 @@ def test_add_dimension(con100):
     }
 
 
+@pytest.mark.parametrize("with_metadata", [True, False])
+@pytest.mark.parametrize(
+    ["name", "type_kwargs", "expected_warning"],
+    [
+        ("bands", {}, True),
+        ("bands", {"type": None}, True),
+        ("bands", {"type": "bands"}, False),
+        ("bands", {"type": "other"}, False),
+        ("james_band", {}, False),
+    ],
+)
+def test_add_dimension_type_warning(con100, caplog, with_metadata, name, type_kwargs, expected_warning):
+    cube = con100.load_collection("S2", fetch_metadata=with_metadata).reduce_bands(reducer="mean")
+
+    with caplog.at_level(logging.WARNING, logger="openeo.rest.datacube"):
+        result = cube.add_dimension(name=name, label="coh_VV_amp", **type_kwargs)
+
+    if expected_warning:
+        assert caplog.record_tuples == [
+            (
+                "openeo.rest.datacube",
+                logging.WARNING,
+                "add_dimension(name='bands') defaults to type='other'. "
+                "Pass type='bands' to create a band dimension, or type='other' to make the current behavior explicit.",
+            )
+        ]
+    else:
+        assert caplog.records == []
+
+    expected_arguments = {
+        "data": {"from_node": "reducedimension1"},
+        "name": name,
+        "label": "coh_VV_amp",
+    }
+    if type_kwargs.get("type") is not None:
+        expected_arguments.update(type_kwargs)
+    assert result.flat_graph()["adddimension1"] == {
+        "process_id": "add_dimension",
+        "arguments": expected_arguments,
+        "result": True,
+    }
+
+    if with_metadata:
+        assert result.metadata == cube.metadata.add_dimension(name=name, label="coh_VV_amp", **type_kwargs)
+        assert result.metadata.has_band_dimension() == (type_kwargs.get("type") == "bands")
+        if result.metadata.has_band_dimension():
+            assert result.metadata.band_names == ["coh_VV_amp"]
+    else:
+        assert result.metadata is None
+
+
 def test_drop_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.drop_dimension(name="bands")
