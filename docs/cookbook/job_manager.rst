@@ -228,13 +228,13 @@ You can implement your own storage backend by subclassing
 See the :ref:`API reference below <job-manager-api-reference>` for the full interface.
 
 Job Splitting
-=============
+============
 
 The :py:func:`~openeo.extra.job_management._job_splitting.split_area` helper function allows you to split a large area of interest into smaller areas, which can then be processed as separate jobs.
 A user may have a large spatial extent, in the form of a bounding box or polygon, that exceeds the processing limits of a single job on the backend.
 The results are returned as a :py:class:`geopandas.GeoDataFrame` with one row per tile, which can be used as the starting point for a job database where each row corresponds to a manageable job.
 
-The spatial extent can either be split into a regular grid of square tiles, with fixed size and projection, or into a custom grid of variable tiles provided by the user.
+The spatial extent can either be split into a regular grid of square tiles, with fixed size and projection, or into a custom grid of variable tiles provided by the user. 
 
 Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
 

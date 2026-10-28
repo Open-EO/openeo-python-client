@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import concurrent.futures
 import datetime
 import logging
@@ -9,17 +7,11 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pystac
+import pystac_client
 import requests
 from shapely.geometry import mapping, shape
 
 from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobManager
-
-try:
-    # Optional dependecy
-    import pystac_client
-except ImportError:
-    pass
-
 
 _log = logging.getLogger(__name__)
 
