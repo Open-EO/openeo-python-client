@@ -11,6 +11,8 @@ on:
       - 'pyproject.toml'
       - 'openeo/**'
       - 'tests/**'
+  workflow_dispatch:
+
 concurrency: ci-${{ github.ref }}
 permissions: {}
 jobs:
