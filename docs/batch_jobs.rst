@@ -81,6 +81,59 @@ so it's easier to identify in your job listing, e.g.:
     job = cube.create_job(title="NDVI timeseries 2022")
 
 
+Automatically describe the code that creates a job
+---------------------------------------------------
+
+Use :py:func:`openeo.util.auto_description` to record where a job came from:
+
+.. code-block:: python
+
+    from openeo.util import auto_description
+
+    job = cube.create_job(
+        title="NDVI timeseries 2022",
+        description=auto_description(),
+    )
+
+By default, the helper includes the calling script's filename and, when available,
+the calling function's name. It does not read the script's contents or invoke Git.
+The title and description are never changed automatically:
+the helper only generates text that you explicitly pass to job creation.
+
+For more detailed provenance, you can explicitly select a source file,
+include its full Python source, and attach its current Git commit:
+
+.. code-block:: python
+
+    description = auto_description(
+        src=__file__,
+        include_source=True,
+        git_commit=True,
+    )
+    job = cube.create_job(title="NDVI timeseries 2022", description=description)
+
+The source path can be a string or a :py:class:`~pathlib.Path`.
+Only the filename, not the full local path, is recorded.
+Source code is formatted as an indented Markdown code block.
+Git is looked up relative to the source file's directory, including parent directories,
+rather than the current working directory. No additional Python dependency is needed,
+but the ``git`` executable must be installed when requesting Git metadata.
+If Git lookup fails or times out, the helper logs a warning and omits the commit.
+A commit hash does not describe uncommitted changes to your code.
+
+In notebooks or interactive sessions, the helper may not be able to detect a source file.
+It then reports the source as unavailable and omits Git metadata with a warning if requested.
+To include source code in this situation, pass the path to a saved Python script explicitly.
+An unavailable source file with ``include_source=True`` raises an error rather than silently
+omitting the requested code. The helper does not capture notebook cells or notebook contents.
+
+.. warning::
+
+    Including source code is opt-in because it may expose credentials or other sensitive
+    information to the backend. No secrets are automatically redacted.
+    Review the generated description before submitting it.
+
+
 
 .. index:: batch job; object
 

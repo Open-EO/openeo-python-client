@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import re
+import subprocess
 import unittest.mock as mock
 from typing import List, Union
 
@@ -21,6 +22,7 @@ from openeo.util import (
     Rfc3339,
     SimpleProgressBar,
     TimingLogger,
+    auto_description,
     clip,
     deep_get,
     deep_set,
@@ -36,6 +38,138 @@ from openeo.util import (
     to_bbox_dict,
     url_join,
 )
+
+
+class TestAutoDescription:
+    @pytest.mark.parametrize("path_factory", [str, pathlib.Path])
+    def test_explicit_source(self, tmp_path, path_factory):
+        src = tmp_path / "analysis.py"
+        with mock.patch("openeo.util.tokenize.open") as read_source, mock.patch("openeo.util.subprocess.run") as run:
+            description = auto_description(src=path_factory(src))
+        assert description == "Source: analysis.py"
+        assert str(tmp_path) not in description
+        read_source.assert_not_called()
+        run.assert_not_called()
+
+    def test_caller(self):
+        assert auto_description() == "Source: test_util.py\n\nFunction: test_caller"
+
+    @pytest.mark.parametrize("include_source", [False, True])
+    def test_module_caller(self, tmp_path, include_source):
+        src = tmp_path / "analysis.py"
+        source = f"description = auto_description(include_source={include_source})\n"
+        src.write_text(source, encoding="utf-8")
+        namespace = {"auto_description": auto_description}
+        exec(compile(source, str(src), "exec"), namespace)
+        expected = "Source: analysis.py"
+        if include_source:
+            expected += "\n\nPython source:\n\n    " + source
+        assert namespace["description"] == expected
+
+    @pytest.mark.parametrize("filename", ["<stdin>", "<ipython-input-1>", "missing.py"])
+    def test_unavailable_source(self, tmp_path, filename):
+        if filename == "missing.py":
+            filename = str(tmp_path / filename)
+        caller = mock.Mock(f_code=mock.Mock(co_filename=filename, co_name="<module>"))
+        with mock.patch("openeo.util.inspect.currentframe", return_value=mock.Mock(f_back=caller)):
+            assert auto_description() == "Source: unavailable"
+            with pytest.raises(ValueError, match="no source file is available"):
+                auto_description(include_source=True)
+
+    @pytest.mark.parametrize("frame", [None, mock.Mock(f_back=None)])
+    def test_unavailable_frame(self, frame):
+        with mock.patch("openeo.util.inspect.currentframe", return_value=frame):
+            assert auto_description() == "Source: unavailable"
+
+    def test_function_without_source(self):
+        caller = mock.Mock(f_code=mock.Mock(co_filename="<stdin>", co_name="run_analysis"))
+        with mock.patch("openeo.util.inspect.currentframe", return_value=mock.Mock(f_back=caller)):
+            assert auto_description() == "Source: unavailable\n\nFunction: run_analysis"
+
+    @pytest.mark.parametrize(
+        "source", ["", "print('café')", "# ```python\n# ~~~~\nprint('café')\n", 'message = """\n```\n~~~~\n"""\n']
+    )
+    def test_include_source(self, tmp_path, source):
+        src = tmp_path / "analysis.py"
+        src.write_text(source, encoding="utf-8")
+        indented = "".join("    " + line for line in source.splitlines(keepends=True))
+        assert auto_description(src, include_source=True) == "Source: analysis.py\n\nPython source:\n\n" + indented
+
+    def test_source_encoding(self, tmp_path):
+        src = tmp_path / "analysis.py"
+        source = "# coding: latin-1\nprint('café')\n"
+        src.write_bytes(source.encode("latin-1"))
+        assert "    print('café')\n" in auto_description(src, include_source=True)
+
+    def test_missing_source(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            auto_description(tmp_path / "missing.py", include_source=True)
+
+    def test_unreadable_source(self, tmp_path):
+        with mock.patch("openeo.util.tokenize.open", side_effect=PermissionError("cannot read source")):
+            with pytest.raises(PermissionError, match="cannot read source"):
+                auto_description(tmp_path / "analysis.py", include_source=True)
+
+    @pytest.mark.parametrize("src", [123, [], {}])
+    def test_invalid_source(self, src):
+        with pytest.raises(TypeError):
+            auto_description(src)
+
+    def test_git_commit(self, tmp_path, monkeypatch):
+        script_dir = tmp_path / "scripts"
+        script_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+        commit = "a" * 40
+        with mock.patch("openeo.util.subprocess.run", return_value=mock.Mock(stdout=commit + "\n")) as run:
+            description = auto_description("scripts/analysis.py", git_commit=True)
+        assert description == f"Source: analysis.py\n\nGit commit: {commit}"
+        run.assert_called_once_with(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=script_dir,
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=5,
+        )
+
+    def test_caller_git_commit(self):
+        commit = "b" * 40
+        with mock.patch("openeo.util.subprocess.run", return_value=mock.Mock(stdout=commit + "\n")) as run:
+            assert auto_description(git_commit=True) == (
+                f"Source: test_util.py\n\nFunction: test_caller_git_commit\n\nGit commit: {commit}"
+            )
+        assert run.call_args.kwargs["cwd"] == pathlib.Path(__file__).resolve().parent
+
+    def test_git_commit_with_source(self, tmp_path):
+        src = tmp_path / "analysis.py"
+        src.write_text("print(42)\n", encoding="utf-8")
+        with mock.patch("openeo.util.subprocess.run", return_value=mock.Mock(stdout="a" * 40 + "\n")):
+            assert auto_description(src, include_source=True, git_commit=True) == (
+                "Source: analysis.py\n\nGit commit: " + "a" * 40 + "\n\nPython source:\n\n    print(42)\n"
+            )
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            FileNotFoundError("git is not installed"),
+            PermissionError("git is not executable"),
+            subprocess.CalledProcessError(128, ["git"], stderr="sensitive subprocess output"),
+            subprocess.TimeoutExpired(["git"], timeout=5, output="sensitive subprocess output"),
+        ],
+    )
+    def test_git_failure(self, tmp_path, caplog, error):
+        with mock.patch("openeo.util.subprocess.run", side_effect=error):
+            assert auto_description(tmp_path / "analysis.py", git_commit=True) == "Source: analysis.py"
+        assert "Could not attach Git commit" in caplog.text
+        assert type(error).__name__ in caplog.text
+        assert "sensitive subprocess output" not in caplog.text
+
+    def test_git_without_source(self, caplog):
+        with mock.patch("openeo.util.inspect.currentframe", return_value=None):
+            with mock.patch("openeo.util.subprocess.run") as run:
+                assert auto_description(git_commit=True) == "Source: unavailable"
+        run.assert_not_called()
+        assert "Could not attach Git commit: no source file is available." in caplog.text
 
 
 class TestRfc3339:

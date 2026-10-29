@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add opt-in `openeo.util.auto_description()` to generate job descriptions with script metadata, optional Python source code, and Git commit information ([#476](https://github.com/Open-EO/openeo-python-client/issues/476)).
+
 ### Changed
 
 ### Removed

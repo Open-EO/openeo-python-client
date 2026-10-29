@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import datetime as dt
 import functools
+import inspect
 import json
 import logging
 import re
+import subprocess
 import sys
+import textwrap
 import time
+import tokenize
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple, Union
@@ -506,6 +510,93 @@ def repr_truncate(obj: Any, width: int = 64, ellipsis: str = "...") -> str:
     else:
         # General case: just put ellipsis at end
         return str_truncate(text=repr(obj), width=width, ellipsis=ellipsis)
+
+
+def auto_description(
+    src: Optional[Union[str, Path]] = None,
+    *,
+    include_source: bool = False,
+    git_commit: bool = False,
+) -> str:
+    """
+    Build a job description with information about the script that creates it.
+
+    This helper only returns text: pass it explicitly as the ``description``
+    argument of :py:meth:`~openeo.rest.datacube.DataCube.create_job` or
+    :py:meth:`~openeo.rest.datacube.DataCube.execute_batch`.
+
+    :param src: path to the Python script (a string or :py:class:`~pathlib.Path`).
+        If omitted, try to detect the direct caller's file and function.
+        Only the filename, not the full path, is included in the description.
+        If no file can be detected (for example in a notebook), report it as unavailable.
+    :param include_source: include the entire script as an indented Markdown code block.
+        Disabled by default: source code can contain credentials or other sensitive information.
+        The script is read using its declared Python source encoding.
+    :param git_commit: include the current Git commit of the repository containing the script.
+        Disabled by default. Requires the ``git`` executable, but no additional Python packages.
+        If the commit cannot be obtained, log a warning and omit it.
+        Uncommitted changes are not represented by the commit hash.
+    :return: a description string, with blank lines separating metadata and optional source code.
+    :raises ValueError: if source code is requested but no source file can be detected.
+    :raises OSError: if source code is requested but the file cannot be read.
+
+    .. warning::
+        Review the generated description before submitting it to a backend,
+        especially when including source code. No secrets are automatically redacted.
+    """
+    function = None
+    if src is None:
+        frame = inspect.currentframe()
+        caller = frame.f_back if frame is not None else None
+        try:
+            if caller is not None:
+                filename = caller.f_code.co_filename
+                if not filename.startswith("<") and Path(filename).is_file():
+                    src = filename
+                function = caller.f_code.co_name
+        finally:
+            # Avoid retaining frame reference cycles and the caller's local variables.
+            del caller
+            del frame
+
+    source_path = Path(src) if src is not None else None
+    sections = [f"Source: {source_path.name}" if source_path is not None else "Source: unavailable"]
+    if function not in (None, "<module>"):
+        sections.append(f"Function: {function}")
+
+    if git_commit:
+        commit = _get_git_commit(source_path)
+        if commit is not None:
+            sections.append(f"Git commit: {commit}")
+
+    if include_source:
+        if source_path is None:
+            raise ValueError("Cannot include source code: no source file is available.")
+        with tokenize.open(source_path) as source_file:
+            source = source_file.read()
+        sections.append("Python source:\n\n" + textwrap.indent(source, "    "))
+
+    return "\n\n".join(sections)
+
+
+def _get_git_commit(source_path: Optional[Path]) -> Optional[str]:
+    if source_path is None:
+        logger.warning("Could not attach Git commit: no source file is available.")
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=source_path.resolve().parent,
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=5,
+        )
+        return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        # Do not log subprocess output, which could contain sensitive information.
+        logger.warning("Could not attach Git commit (%s).", type(exc).__name__)
+        return None
 
 
 def in_interactive_mode() -> bool:
