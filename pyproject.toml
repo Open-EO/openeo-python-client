@@ -26,7 +26,7 @@ dependencies = [
     "deprecated>=1.2.12",
     "geopandas>=0.14",
     "numpy>=1.17.0",
-    "oschmod>=0.3.12; sys_platform == \"win32\"",
+    "oschmod>=0.3.12,<0.5.0; sys_platform == \"win32\"",
     "pandas>0.20.0,<3.0.0",  # TODO pandas 3 compatibility https://github.com/Open-EO/openeo-python-client/issues/856
     "pystac[validation]>=1.9.0",
     "requests>=2.26.0",
@@ -86,7 +86,7 @@ localprocessing = [
 ]
 # Install oschmod even when platform is not Windows, e.g. for testing in CI.
 oschmod = [
-    "oschmod>=0.3.12",
+    "oschmod>=0.3.12,<0.5.0",
 ]
 tests = [
     "boto3",
