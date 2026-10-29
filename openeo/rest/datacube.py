@@ -1721,6 +1721,21 @@ class DataCube(_ProcessGraphAbstraction):
         :param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'other', default value is 'other'
         :return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.
         """
+        suggested_types = {
+            "bands": "bands",
+            "x": "spatial",
+            "y": "spatial",
+            "t": "temporal",
+            "time": "temporal",
+            "temporal": "temporal",
+            "geometry": "geometry",
+        }
+        if type is None and name in suggested_types:
+            log.warning(
+                f"add_dimension(name={name!r}) defaults to type='other'. "
+                f"Pass type={suggested_types[name]!r} to use that dimension type, "
+                "or type='other' to make the current behavior explicit."
+            )
         return self.process(
             process_id="add_dimension",
             arguments=dict_no_none({"data": self, "name": name, "label": label, "type": type}),
