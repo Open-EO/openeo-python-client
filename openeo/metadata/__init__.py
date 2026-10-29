@@ -501,9 +501,15 @@ class CubeMetadata:
         return isinstance(self._spatial_dimensions, SpatialDimensionsXY)
 
     @property
-    def spatial_dimensions(self) -> SpatialDimensionsXY:
+    def spatial_dimensions(self) -> SpatialDimensionsXY | Tuple[()]:
         if not self.has_spatial_dimensions():
-            raise MetadataException("No spatial dimensions")
+            # TODO: ideally we raise the following exception to be consistent with other dimension accessors,
+            #       but that would be a breaking change with original behavior (returning empty list).
+            # raise MetadataException("No spatial dimensions")
+            _log.info(
+                "Deprecated: avoid depending on getting (non)empty list to detect presence of spatial dimensions. Instead use `has_spatial_dimensions()`."
+            )
+            return ()
         return self._spatial_dimensions
 
     def has_geometry_dimension(self):

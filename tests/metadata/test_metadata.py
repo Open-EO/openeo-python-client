@@ -1306,6 +1306,22 @@ class TestCubeMetadata:
         assert new.dimension_names() == ["t", "bandzz"]
         assert new.band_names == ["tomato", "lettuce"]
 
+    def test_get_spatial_dimensions_empty(self):
+        metadata = CubeMetadata()
+        assert metadata.spatial_dimensions == ()
+
+    def test_get_spatial_dimensions_basic(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="yYy", axis="y", extent=[-30, 30]),
+                SpatialDimension(name="oxo", axis="x", extent=[-60, 60]),
+            ]
+        )
+        assert metadata.spatial_dimensions == SpatialDimensionsXY(
+            x=SpatialDimension(name="oxo", axis="x", extent=[-60, 60]),
+            y=SpatialDimension(name="yYy", axis="y", extent=[-30, 30]),
+        )
+
     def test_subclass(self):
         class MyCubeMetadata(CubeMetadata):
             def __init__(self, dimensions: List[Dimension], bbox=None):
