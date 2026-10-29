@@ -114,6 +114,19 @@ class DataCube(_ProcessGraphAbstraction):
         super().__init__(pgnode=graph, connection=connection)
         self.metadata: Optional[CubeMetadata] = metadata
 
+    def _repr_html_(self) -> str:
+        # Assumption: upstream _repr_html_ gives process graph representation
+        html = graph_html = super()._repr_html_()
+
+        if isinstance(self.metadata, CubeMetadata):
+            metadata_html = self.metadata._repr_html_()
+            html = f"""
+                <details open><summary>Metadata</summary>{metadata_html}</details>
+                <details><summary>Process Graph</summary>{graph_html}</details>
+            """
+
+        return html
+
     def process(
         self,
         process_id: str,
@@ -243,6 +256,10 @@ class DataCube(_ProcessGraphAbstraction):
             if (connection and fetch_metadata)
             else None
         )
+        if metadata and spatial_extent:
+            metadata = metadata.filter_bbox(extent=spatial_extent)
+        if metadata and temporal_extent:
+            metadata = metadata.filter_temporal(extent=temporal_extent)
         if bands is not None:
             bands = cls._get_bands(bands, process_id="load_collection")
             if isinstance(bands, Parameter):
@@ -440,7 +457,7 @@ class DataCube(_ProcessGraphAbstraction):
         """
         arguments: dict = {"url": url}
         if spatial_extent:
-            arguments["spatial_extent"] = _get_geometry_argument(
+            spatial_extent = _get_geometry_argument(
                 argument=spatial_extent,
                 valid_geojson_types=["Polygon", "MultiPolygon", "Feature", "FeatureCollection"],
                 connection=connection,
@@ -450,9 +467,12 @@ class DataCube(_ProcessGraphAbstraction):
                 argument_name="spatial_extent",
                 process_id="load_stac",
             )
+            arguments["spatial_extent"] = spatial_extent
 
         if temporal_extent:
-            arguments["temporal_extent"] = DataCube._get_temporal_extent(extent=temporal_extent)
+            temporal_extent = cls._get_temporal_extent(extent=temporal_extent)
+            arguments["temporal_extent"] = temporal_extent
+
         bands = cls._get_bands(bands, process_id="load_stac")
         if bands is not None:
             arguments["bands"] = bands
@@ -492,6 +512,12 @@ class DataCube(_ProcessGraphAbstraction):
                 f"Failed to extract cube metadata from STAC URL {url!r}. Falling back on no-metadata mode. Exception: {e!r}"
             )
             metadata = None
+
+        if metadata and spatial_extent:
+            metadata = metadata.filter_bbox(extent=spatial_extent)
+        if metadata and temporal_extent:
+            metadata = metadata.filter_temporal(extent=temporal_extent)
+
         return cls(graph=graph, connection=connection, metadata=metadata)
 
     @classmethod
@@ -578,12 +604,11 @@ class DataCube(_ProcessGraphAbstraction):
                 f" If you want a half-unbounded interval, use something like filter_temporal({args[0]!r}, None) or use explicit keyword arguments."
                 f" If you want the full interval covering all of {args[0]!r}, use something like filter_temporal(extent={args[0]!r})."
             )
+        extent = self._get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent)
         return self.process(
-            process_id='filter_temporal',
-            arguments={
-                'data': THIS,
-                'extent': self._get_temporal_extent(*args, start_date=start_date, end_date=end_date, extent=extent)
-            }
+            process_id="filter_temporal",
+            arguments={"data": THIS, "extent": extent},
+            metadata=self.metadata.filter_temporal(extent=extent) if self.metadata else None,
         )
 
     @openeo_process
@@ -693,12 +718,14 @@ class DataCube(_ProcessGraphAbstraction):
             extent = {'west': west, 'east': east, 'north': north, 'south': south}
             extent.update(dict_no_none(crs=crs, base=base, height=height))
 
+        metadata = self.metadata.filter_bbox(extent=extent) if self.metadata else None
         return self.process(
-            process_id='filter_bbox',
+            process_id="filter_bbox",
             arguments={
-                'data': THIS,
-                'extent': extent
-            }
+                "data": THIS,
+                "extent": extent,
+            },
+            metadata=metadata,
         )
 
     @openeo_process
@@ -754,12 +781,14 @@ class DataCube(_ProcessGraphAbstraction):
             "FeatureCollection",
         ]
         geometries = _get_geometry_argument(geometries, valid_geojson_types=valid_geojson_types, connection=self.connection, crs=None)
+        metadata = self.metadata.filter_bbox(extent=geometries) if self.metadata else None
         return self.process(
-            process_id='filter_spatial',
+            process_id="filter_spatial",
             arguments={
-                'data': THIS,
-                'geometries': geometries
-            }
+                "data": THIS,
+                "geometries": geometries,
+            },
+            metadata=metadata,
         )
 
     @openeo_process

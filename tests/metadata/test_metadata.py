@@ -8,8 +8,10 @@ import dirty_equals
 import pystac
 import pytest
 
+import openeo.api.process
 from openeo.api.process import Parameter
 from openeo.metadata import (
+    _PARAMETERIZED_VALUE,
     Band,
     BandDimension,
     CollectionMetadata,
@@ -18,8 +20,12 @@ from openeo.metadata import (
     DimensionAlreadyExistsException,
     GeometryDimension,
     MetadataException,
+    NumericalInterval,
     SpatialDimension,
+    SpatialDimensionsXY,
     TemporalDimension,
+    _EmptyExtent,
+    _NonConcreteExtent,
     _StacMetadataParser,
     metadata_from_stac,
 )
@@ -44,1504 +50,1852 @@ CUBE_METADATA_TBXY = CubeMetadata(
 )
 
 
-class TestCollectionMetadata:
+def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
+    assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
 
+
+class TestTemporalDimension:
+    def test_filter_temporal_basic(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-09-01", "2022-10-01"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-09-01T00:00:00Z", "2022-10-01T00:00:00Z")
+
+    def test_filter_temporal_empty_intersection(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2019-02-02", "2019-02-20"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert isinstance(tdim2.extent, _EmptyExtent)
+
+    def test_filter_temporal_end_inclusive(self):
+        """`filter_temporal` is end-exclusive"""
+        tdim1 = TemporalDimension(name="t", extent=("2026-03-01", "2026-04-01"))
+        # `filter_temporal` with extent just before: no match
+        tdim2 = tdim1.filter_temporal(extent=("2026-02-01", "2026-03-01"))
+        assert tdim2.extent == _EmptyExtent()
+        # `filter_temporal` with extent just after: single instant match
+        tdim3 = tdim1.filter_temporal(extent=("2026-04-01", "2026-05-01"))
+        assert tdim3.extent == ("2026-04-01T00:00:00Z", "2026-04-01T00:00:00Z")
+
+    def test_filter_temporal_none(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=None)
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2021-01-01", None)
+
+    def test_filter_temporal_start_from_none(self):
+        tdim1 = TemporalDimension(name="t", extent=None)
+        tdim2 = tdim1.filter_temporal(extent=("2019-02-02", "2019-02-20"))
+        assert tdim1.extent == (None, None)
+        assert tdim2.extent == ("2019-02-02T00:00:00Z", "2019-02-20T00:00:00Z")
+
+    def test_filter_temporal_multiple_empty_intersection(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-02-02", "2022-02-22"))
+        tdim3 = tdim2.filter_temporal(extent=("2023-03-03", "2023-03-23"))
+        tdim4 = tdim3.filter_temporal(extent=("2024-04-04", "2024-04-24"))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-02-02T00:00:00Z", "2022-02-22T00:00:00Z")
+        assert isinstance(tdim3.extent, _EmptyExtent)
+        assert isinstance(tdim4.extent, _EmptyExtent)
+
+    def test_filter_temporal_half_open(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        tdim2 = tdim1.filter_temporal(extent=("2022-09-01", None))
+        assert tdim1.extent == ("2021-01-01", None)
+        assert tdim2.extent == ("2022-09-01T00:00:00Z", None)
+
+    def test_filter_temporal_parameterized(self):
+        tdim1 = TemporalDimension(name="t", extent=("2021-01-01", None))
+        extent = openeo.api.process.Parameter.temporal_interval(name="extent")
+        tdim2 = tdim1.filter_temporal(extent=extent)
+        assert tdim1.extent == ("2021-01-01", None)
+        assert isinstance(tdim2.extent, _NonConcreteExtent)
+
+
+class TestSpatialDimension:
+    def test_legacy_without_axis(self):
+        dim = SpatialDimension(name="x", extent=[2, 6])
+        assert dim.name == "x"
+        assert dim.axis == "x"
+        assert dim.extent == [2, 6]
+        assert dim.crs == 4326
+
+    def test_basic(self):
+        dim = SpatialDimension(name="lon", axis="x", extent=[2, 6], crs=4326)
+        assert dim.name == "lon"
+        assert dim.axis == "x"
+        assert dim.extent == [2, 6]
+        assert dim.crs == 4326
+
+    def test_crs_default_handling(self):
+        n, a, e = "x", "x", [1, 2]
+        assert SpatialDimension(name=n, axis=a, extent=e).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=None).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=4326).crs == 4326
+        assert SpatialDimension(name=n, axis=a, extent=e, crs=32631).crs == 32631
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ((1, 2), _EmptyExtent()),
+            ([3, 6], NumericalInterval(5, 6)),
+            ((3, 6), NumericalInterval(5, 6)),
+            (NumericalInterval(3, 6), NumericalInterval(5, 6)),
+            ((3, 16), NumericalInterval(5, 8)),
+            ((6, 12), NumericalInterval(6, 8)),
+            ((12, 15), _EmptyExtent()),
+            ((None, 6), NumericalInterval(5, 6)),
+        ],
+    )
+    def test_filter_extent_basic(self, extent, expected):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(5, 8), crs=4326)
+        dim2 = dim1.filter_extent(extent=extent)
+        assert dim1.extent == (5, 8)
+        assert dim2.name == "x"
+        assert dim2.axis == "x"
+        assert dim2.extent == expected
+        assert dim2.crs == 4326
+
+    @pytest.mark.parametrize(
+        ["interval1", "interval2", "expected"],
+        [
+            # Empty extent handling
+            ((5, 8), _EmptyExtent(), _EmptyExtent),
+            (_EmptyExtent(), (5, 8), _EmptyExtent),
+            (_EmptyExtent(), _EmptyExtent(), _EmptyExtent),
+            # Non-concrete extent handling
+            ((5, 8), _NonConcreteExtent(), _NonConcreteExtent),
+            (_NonConcreteExtent(), (5, 8), _NonConcreteExtent),
+            (_NonConcreteExtent(), _NonConcreteExtent(), _NonConcreteExtent),
+            # Mixed
+            (_EmptyExtent(), _NonConcreteExtent(), _EmptyExtent),
+            (_NonConcreteExtent(), _EmptyExtent(), _EmptyExtent),
+        ],
+    )
+    def test_filter_extent_empty_or_non_concrete(self, interval1, interval2, expected):
+        dim1 = SpatialDimension(name="x", axis="x", extent=interval1, crs=4326)
+        dim2 = dim1.filter_extent(extent=interval2)
+        assert isinstance(dim2.extent, expected)
+
+    def test_filter_extent_none(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(5, 8), crs=4326)
+        dim2 = dim1.filter_extent(extent=None)
+        assert dim2.extent == NumericalInterval(5, 8)
+
+    def test_filter_extent_multiple(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(-90, 90), crs=4326)
+        dim2 = dim1.filter_extent(extent=(-30, 60))
+        dim3 = dim2.filter_extent(extent=(-60, 30))
+        dim4 = dim3.filter_extent(extent=(10, 20))
+        dim5 = dim4.filter_extent(extent=(30, 40))
+        dim6 = dim5.filter_extent(extent=(50, 60))
+        assert dim1.extent == (-90, 90)
+        assert dim2.extent == (-30, 60)
+        assert dim3.extent == (-30, 30)
+        assert dim4.extent == (10, 20)
+        assert isinstance(dim5.extent, _EmptyExtent)
+        assert isinstance(dim6.extent, _EmptyExtent)
+
+    def test_filter_extent_parameterized(self):
+        dim1 = SpatialDimension(name="x", axis="x", extent=(-90, 90), crs=4326)
+        extent = openeo.api.process.Parameter.array(name="extent", description="extent")
+        dim2 = dim1.filter_extent(extent=extent)
+        assert dim1.extent == (-90, 90)
+        assert isinstance(dim2.extent, _NonConcreteExtent)
+
+
+class TestSpatialDimensionsXY:
+    def test_basic(self):
+        dim_x = SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326)
+        dim_y = SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326)
+        dim_xy = SpatialDimensionsXY(dim_x, dim_y)
+        assert (dim_xy.x.name, dim_xy.x.axis, dim_xy.x.extent) == ("x", "x", (3, 6))
+        assert (dim_xy.y.name, dim_xy.y.axis, dim_xy.y.extent) == ("y", "y", (49, 52))
+
+    def test_eq_tuple(self):
+        dim_x = SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326)
+        dim_y = SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326)
+        dim_xy = SpatialDimensionsXY(dim_x, dim_y)
+        assert dim_xy == (
+            SpatialDimension(name="x", axis="x", extent=(3, 6), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ({"west": 4, "south": 50, "east": 5, "north": 51, "crs": 4326}, ((4, 5), (50, 51))),
+            ({"west": 1, "south": 40, "east": 4, "north": 50, "crs": 4326}, ((2, 4), (49, 50))),
+            ({"west": 5, "south": 50, "east": 8, "north": 60, "crs": 4326}, ((5, 7), (50, 52))),
+        ],
+    )
+    def test_filter_bbox_simple(self, extent, expected):
+        """Simple case: all in same CRS (EPSG:4326)"""
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == expected
+
+    def test_filter_bbox_empty(self):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        extent = _EmptyExtent()
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert dim_xy_filtered.x.extent == _EmptyExtent()
+        assert dim_xy_filtered.y.extent == _EmptyExtent()
+
+    @pytest.mark.parametrize(
+        ["extent"],
+        [
+            (openeo.api.process.Parameter.spatial_extent(name="roi"),),
+            (
+                {
+                    "west": openeo.api.process.Parameter.number(name="west"),
+                    "south": openeo.api.process.Parameter.number(name="south"),
+                    "east": openeo.api.process.Parameter.number(name="east"),
+                    "north": openeo.api.process.Parameter.number(name="north"),
+                },
+            ),
+        ],
+    )
+    def test_filter_bbox_non_concrete_extent(self, extent):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy.x.extent, dim_xy.y.extent) == ((2, 7), (49, 52))
+        assert isinstance(dim_xy_filtered.x.extent, _NonConcreteExtent)
+        assert isinstance(dim_xy_filtered.y.extent, _NonConcreteExtent)
+
+    @pytest.mark.parametrize(
+        ["extent"],
+        [
+            ({"west": 171, "south": 40, "east": -172, "north": 50, "crs": 4326},),
+        ],
+    )
+    def test_filter_bbox_antimeridian(self, extent):
+        # TODO: test proper detection and handling of antimeridian crossing
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(-180, 180), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(-70, 70), crs=4326),
+        )
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == (
+            dirty_equals.IsInstance(_NonConcreteExtent),
+            NumericalInterval(start=40, end=50),
+        )
+
+    @pytest.mark.parametrize(
+        ["dim_crs", "extent_crs", "match"],
+        [
+            (4326, 4326, True),
+            ("EPSG:4326", "EPSG:4326", True),
+            ("EPSG:4326", 4326, True),
+            (4326, "EPSG:4326", True),
+            ("EPSG:32631", "EPSG:4326", False),
+        ],
+    )
+    def test_filter_bbox_crs_normalisation(self, dim_crs, extent_crs, match):
+        dim_xy = SpatialDimensionsXY(
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=dim_crs),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=dim_crs),
+        )
+        extent = {"west": 4, "south": 50, "east": 5, "north": 51, "crs": extent_crs}
+        dim_xy_filtered = dim_xy.filter_bbox(extent=extent)
+        assert (dim_xy_filtered.x.extent, dim_xy_filtered.y.extent) == (
+            ((4, 5), (50, 51))
+            if match
+            else (dirty_equals.IsInstance(_NonConcreteExtent), dirty_equals.IsInstance(_NonConcreteExtent))
+        )
+
+
+class TestBand:
+    def test_band_minimal(self):
+        band = Band("red")
+        assert band.name == "red"
+
+
+class TestBandDimension:
+    def test_basic(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490),
+                Band("B03", "green", 0.560),
+                Band("B04", "red", 0.665),
+            ],
+        )
+        assert bdim.band_names == ["B02", "B03", "B04"]
+        assert bdim.common_names == ["blue", "green", "red"]
+
+    def test_band_index(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490),
+                Band("B03", "green", 0.560),
+                Band("B04", "red", 0.665),
+                Band("B08", "nir", 0.842),
+            ],
+        )
+        assert bdim.band_index(0) == 0
+        assert bdim.band_index(2) == 2
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_index(-1)
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_index(4)
+        assert bdim.band_index("B02") == 0
+        assert bdim.band_index("B03") == 1
+        assert bdim.band_index("B08") == 3
+        assert bdim.band_index("blue") == 0
+        assert bdim.band_index("green") == 1
+        assert bdim.band_index("red") == 2
+        assert bdim.band_index("nir") == 3
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_index("B05")
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_index("yellow")
+
+    def test_band_index_with_aliases(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490, aliases=["sky"]),
+                Band("B03", "green", 0.560, aliases=["grass", "apple"]),
+                Band("B04", "red", 0.560, aliases=["apple"]),
+            ],
+        )
+        assert bdim.band_index("sky") == 0
+        assert bdim.band_index("grass") == 1
+
+        with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
+            bdim.band_index("apple")
+
+    def test_contains_band(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490),
+                Band("B03", "green", 0.560),
+                Band("B04", "red", 0.665),
+            ],
+        )
+
+        # Test band names
+        assert bdim.contains_band("B02")
+        assert not bdim.contains_band("B05")
+
+        # Test indexes
+        assert bdim.contains_band(0)
+        assert not bdim.contains_band(4)
+
+        # Test common names
+        assert bdim.contains_band("blue")
+        assert not bdim.contains_band("yellow")
+
+    def test_band_name(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490),
+                Band("B03", "green", 0.560),
+            ],
+        )
+        assert bdim.band_name("B02") == "B02"
+        assert bdim.band_name("B03") == "B03"
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_name("B04")
+
+        assert bdim.band_name("blue") == "blue"
+        assert bdim.band_name("blue", allow_common=False) == "B02"
+        assert bdim.band_name("green") == "green"
+        assert bdim.band_name("green", allow_common=False) == "B03"
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_name("red")
+
+        assert bdim.band_name(0) == "B02"
+        assert bdim.band_name(1) == "B03"
+        with pytest.raises(ValueError, match="Invalid band name/index"):
+            bdim.band_name(2)
+
+    def test_band_name_with_aliases(self):
+        bdim = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490, aliases=["sky"]),
+                Band("B03", "green", 0.560, aliases=["grass", "apple"]),
+                Band("B04", "red", 0.560, aliases=["apple"]),
+            ],
+        )
+        assert bdim.band_name("sky") == "B02"
+        assert bdim.band_name("grass") == "B03"
+
+        with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
+            bdim.band_name("apple")
+
+    def test_filter_bands(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        b04 = Band("B04", "red", 0.665)
+        bdim = BandDimension(name="bs", bands=[b02, b03, b04])
+        assert bdim.filter_bands(["B03", "B04"]) == BandDimension(name="bs", bands=[b03, b04])
+        assert bdim.filter_bands(["B04", "blue"]) == BandDimension(name="bs", bands=[b04, b02])
+        assert bdim.filter_bands(["green", 2]) == BandDimension(name="bs", bands=[b03, b04])
+
+    def test_append_band(self):
+        bdim1 = BandDimension(
+            name="spectral",
+            bands=[
+                Band("B02", "blue", 0.490),
+                Band("B04", "red", 0.665),
+            ],
+        )
+        bdim2 = bdim1.append_band(Band("B08", "nir", 0.842))
+        bdim3 = bdim1.append_band("B03")
+        assert bdim1.band_names == ["B02", "B04"]
+        assert bdim1.common_names == ["blue", "red"]
+        assert bdim2.band_names == ["B02", "B04", "B08"]
+        assert bdim2.common_names == ["blue", "red", "nir"]
+        assert bdim3.band_names == ["B02", "B04", "B03"]
+        assert bdim3.common_names == ["blue", "red", None]
+
+
+class TestCollectionMetadata:
     def test_repr_html_basic(self):
         metadata = CollectionMetadata({"hello": "world"})
         assert metadata._repr_html_() == dirty_equals.IsStr(
             regex=r'.*<openeo-collection>.*"hello":\s*"world".*</openeo-collection>.*', regex_flags=re.DOTALL
         )
 
+    def test_metadata_get(self):
+        metadata = CollectionMetadata({"foo": "bar", "very": {"deeply": {"nested": {"path": {"to": "somewhere"}}}}})
+        assert metadata.get("foo") == "bar"
+        assert metadata.get("very", "deeply", "nested", "path", "to") == "somewhere"
+        assert metadata.get("invalid", "key") is None
+        assert metadata.get("invalid", "key", default="nope") == "nope"
 
-def test_metadata_get():
-    metadata = CollectionMetadata({"foo": "bar", "very": {"deeply": {"nested": {"path": {"to": "somewhere"}}}}})
-    assert metadata.get("foo") == "bar"
-    assert metadata.get("very", "deeply", "nested", "path", "to") == "somewhere"
-    assert metadata.get("invalid", "key") is None
-    assert metadata.get("invalid", "key", default="nope") == "nope"
+    def test_metadata_extent(self):
+        metadata = CollectionMetadata({"extent": {"spatial": {"xmin": 4, "xmax": 10}}})
+        assert metadata.extent == {"spatial": {"xmin": 4, "xmax": 10}}
 
+    def test_band_dimension_rename_labels(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        b04 = Band("B04", "red", 0.665)
+        bdim = BandDimension(name="bs", bands=[b02, b03, b04])
 
-def test_metadata_extent():
-    metadata = CollectionMetadata({"extent": {"spatial": {"xmin": 4, "xmax": 10}}})
-    assert metadata.extent == {"spatial": {"xmin": 4, "xmax": 10}}
+        metadata = CollectionMetadata({}, dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
+        assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
+        assert newdim.band_names == ["1", "2", "3"]
 
+    def test_band_dimension_set_labels(self):
+        bdim = BandDimension(name="bs", bands=[Band("some_name", None, None)])
 
-def test_band_minimal():
-    band = Band("red")
-    assert band.name == "red"
+        metadata = CollectionMetadata({}, dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
+        assert metadata.band_dimension.band_names == ["some_name"]
+        assert newdim.band_names == ["1", "2", "3"]
 
+    def test_band_dimension_rename_labels_with_source(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        b04 = Band("B04", "red", 0.665)
+        bdim = BandDimension(name="bs", bands=[b02, b03, b04])
 
-def test_band_dimension():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490),
-            Band("B03", "green", 0.560),
-            Band("B04", "red", 0.665),
-        ],
-    )
-    assert bdim.band_names == ["B02", "B03", "B04"]
-    assert bdim.common_names == ["blue", "green", "red"]
+        metadata = CollectionMetadata({}, dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["2"], source=["B03"]).band_dimension
+        assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
+        assert newdim.band_names == ["B02", "2", "B04"]
 
+    def test_band_dimension_rename_labels_with_source_mismatch(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        bdim = BandDimension(name="bs", bands=[b02, b03])
 
-def test_band_dimension_band_index():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490),
-            Band("B03", "green", 0.560),
-            Band("B04", "red", 0.665),
-            Band("B08", "nir", 0.842),
-        ],
-    )
-    assert bdim.band_index(0) == 0
-    assert bdim.band_index(2) == 2
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_index(-1)
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_index(4)
-    assert bdim.band_index("B02") == 0
-    assert bdim.band_index("B03") == 1
-    assert bdim.band_index("B08") == 3
-    assert bdim.band_index("blue") == 0
-    assert bdim.band_index("green") == 1
-    assert bdim.band_index("red") == 2
-    assert bdim.band_index("nir") == 3
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_index("B05")
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_index("yellow")
+        metadata = CollectionMetadata({}, dimensions=[bdim])
+        with pytest.raises(ValueError, match="should have same number of labels, but got"):
+            _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
 
+    def test_parse_dimensions_cube_dimensions_empty(self):
+        dims = CollectionMetadata._parse_dimensions({})
+        assert_same_dimensions(dims, [])
 
-def test_band_dimension_band_index_with_aliases():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490, aliases=["sky"]),
-            Band("B03", "green", 0.560, aliases=["grass", "apple"]),
-            Band("B04", "red", 0.560, aliases=["apple"]),
-        ],
-    )
-    assert bdim.band_index("sky") == 0
-    assert bdim.band_index("grass") == 1
-
-    with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
-        bdim.band_index("apple")
-
-
-def test_band_dimension_contains_band():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490),
-            Band("B03", "green", 0.560),
-            Band("B04", "red", 0.665),
-        ],
-    )
-
-    # Test band names
-    assert bdim.contains_band("B02")
-    assert not bdim.contains_band("B05")
-
-    # Test indexes
-    assert bdim.contains_band(0)
-    assert not bdim.contains_band(4)
-
-    # Test common names
-    assert bdim.contains_band("blue")
-    assert not bdim.contains_band("yellow")
-
-def test_band_dimension_band_name():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490),
-            Band("B03", "green", 0.560),
-        ],
-    )
-    assert bdim.band_name("B02") == "B02"
-    assert bdim.band_name("B03") == "B03"
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_name("B04")
-
-    assert bdim.band_name("blue") == "blue"
-    assert bdim.band_name("blue", allow_common=False) == "B02"
-    assert bdim.band_name("green") == "green"
-    assert bdim.band_name("green", allow_common=False) == "B03"
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_name("red")
-
-    assert bdim.band_name(0) == "B02"
-    assert bdim.band_name(1) == "B03"
-    with pytest.raises(ValueError, match="Invalid band name/index"):
-        bdim.band_name(2)
-
-
-def test_band_dimension_band_name_with_aliases():
-    bdim = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490, aliases=["sky"]),
-            Band("B03", "green", 0.560, aliases=["grass", "apple"]),
-            Band("B04", "red", 0.560, aliases=["apple"]),
-        ],
-    )
-    assert bdim.band_name("sky") == "B02"
-    assert bdim.band_name("grass") == "B03"
-
-    with pytest.raises(ValueError, match=r"Multiple alias matches for band 'apple': \['B03', 'B04'\]"):
-        bdim.band_name("apple")
-
-
-def test_band_dimension_filter_bands():
-    b02 = Band("B02", "blue", 0.490)
-    b03 = Band("B03", "green", 0.560)
-    b04 = Band("B04", "red", 0.665)
-    bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-    assert bdim.filter_bands(["B03", "B04"]) == BandDimension(name="bs", bands=[b03, b04])
-    assert bdim.filter_bands(["B04", "blue"]) == BandDimension(name="bs", bands=[b04, b02])
-    assert bdim.filter_bands(["green", 2]) == BandDimension(name="bs", bands=[b03, b04])
-
-
-def test_band_dimension_rename_labels():
-    b02 = Band("B02", "blue", 0.490)
-    b03 = Band("B03", "green", 0.560)
-    b04 = Band("B04", "red", 0.665)
-    bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-
-    metadata = CollectionMetadata({}, dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
-    assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
-    assert newdim.band_names == ["1", "2", "3"]
-
-    metadata = CubeMetadata(dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
-    assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
-    assert newdim.band_names == ["1", "2", "3"]
-
-
-def test_band_dimension_set_labels():
-    bdim = BandDimension(name="bs", bands=[Band("some_name", None, None)])
-
-    metadata = CollectionMetadata({}, dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
-    assert metadata.band_dimension.band_names == ["some_name"]
-    assert newdim.band_names == ["1", "2", "3"]
-
-    metadata = CubeMetadata(dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
-    assert metadata.band_dimension.band_names == ["some_name"]
-    assert newdim.band_names == ["1", "2", "3"]
-
-
-def test_band_dimension_rename_labels_with_source():
-    b02 = Band("B02", "blue", 0.490)
-    b03 = Band("B03", "green", 0.560)
-    b04 = Band("B04", "red", 0.665)
-    bdim = BandDimension(name="bs", bands=[b02, b03, b04])
-
-    metadata = CollectionMetadata({}, dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["2"], source=["B03"]).band_dimension
-    assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
-    assert newdim.band_names == ["B02", "2", "B04"]
-
-    metadata = CubeMetadata(dimensions=[bdim])
-    newdim = metadata.rename_labels("bs", target=["2"], source=["B03"]).band_dimension
-    assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
-    assert newdim.band_names == ["B02", "2", "B04"]
-
-
-def test_band_dimension_rename_labels_with_source_mismatch():
-    b02 = Band("B02", "blue", 0.490)
-    b03 = Band("B03", "green", 0.560)
-    bdim = BandDimension(name="bs", bands=[b02, b03])
-
-    metadata = CollectionMetadata({}, dimensions=[bdim])
-    with pytest.raises(ValueError, match="should have same number of labels, but got"):
-        _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
-
-    metadata = CubeMetadata(dimensions=[bdim])
-    with pytest.raises(ValueError, match="should have same number of labels, but got"):
-        _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
-
-
-def test_band_dimension_append_band():
-    bdim1 = BandDimension(
-        name="spectral",
-        bands=[
-            Band("B02", "blue", 0.490),
-            Band("B04", "red", 0.665),
-        ],
-    )
-    bdim2 = bdim1.append_band(Band("B08", "nir", 0.842))
-    bdim3 = bdim1.append_band("B03")
-    assert bdim1.band_names == ["B02", "B04"]
-    assert bdim1.common_names == ["blue", "red"]
-    assert bdim2.band_names == ["B02", "B04", "B08"]
-    assert bdim2.common_names == ["blue", "red", "nir"]
-    assert bdim3.band_names == ["B02", "B04", "B03"]
-    assert bdim3.common_names == ["blue", "red", None]
-
-
-def assert_same_dimensions(dims1: List[Dimension], dims2: List[Dimension]):
-    assert sorted(dims1, key=lambda d: d.name) == sorted(dims2, key=lambda d: d.name)
-
-
-def test_get_dimensions_cube_dimensions_empty():
-    dims = CollectionMetadata._parse_dimensions({})
-    assert_same_dimensions(dims, [])
-
-
-def test_get_dimensions_cube_dimensions_spatial_xyt():
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "xx": {"type": "spatial", "extent": [-10, 10]},
-                "yy": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
-                "tt": {"type": "temporal", "extent": ["2020-02-20", None]},
+    def test_parse_dimensions_cube_dimensions_spatial_xyt(self):
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "xx": {"type": "spatial", "extent": [-10, 10]},
+                    "yy": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
+                    "tt": {"type": "temporal", "extent": ["2020-02-20", None]},
+                }
             }
-        }
-    )
-    assert_same_dimensions(
-        dims,
-        [
-            SpatialDimension(name="xx", extent=[-10, 10]),
-            SpatialDimension(name="yy", extent=[-56, 83], crs=123),
-            TemporalDimension(name="tt", extent=["2020-02-20", None]),
-        ],
-    )
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="xx", extent=[-10, 10]),
+                SpatialDimension(name="yy", extent=[-56, 83], crs=123),
+                TemporalDimension(name="tt", extent=["2020-02-20", None]),
+            ],
+        )
 
-
-def test_get_dimensions_cube_dimensions_spatial_xyt_bands():
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "extent": [-10, 10]},
-                "y": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
-                "t": {"type": "temporal", "extent": ["2020-02-20", None]},
-                "spectral": {"type": "bands", "values": ["red", "green", "blue"]},
+    def test_parse_dimensions_cube_dimensions_spatial_xyt_bands(self):
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "extent": [-10, 10]},
+                    "y": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
+                    "t": {"type": "temporal", "extent": ["2020-02-20", None]},
+                    "spectral": {"type": "bands", "values": ["red", "green", "blue"]},
+                }
             }
-        }
-    )
-    assert_same_dimensions(
-        dims,
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="x", extent=[-10, 10]),
+                SpatialDimension(name="y", extent=[-56, 83], crs=123),
+                TemporalDimension(name="t", extent=["2020-02-20", None]),
+                BandDimension(
+                    name="spectral",
+                    bands=[
+                        Band("red", None, None),
+                        Band("green", None, None),
+                        Band("blue", None, None),
+                    ],
+                ),
+            ],
+        )
+
+    def test_parse_dimensions_cube_dimensions_non_standard_type(self):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "bar": {"type": "foo"},
+                },
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(dims, [Dimension(type="foo", name="bar")])
+        assert logs == ["Unknown dimension type 'foo'"]
+
+    def test_parse_dimensions_cube_dimensions_no_band_names(self):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "spectral": {"type": "bands"},
+                },
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(dims, [BandDimension(name="spectral", bands=[])])
+        assert logs == ["No band names in dimension 'spectral'"]
+
+    @pytest.mark.parametrize(
+        "summaries",
         [
-            SpatialDimension(name="x", extent=[-10, 10]),
-            SpatialDimension(name="y", extent=[-56, 83], crs=123),
-            TemporalDimension(name="t", extent=["2020-02-20", None]),
-            BandDimension(
-                name="spectral",
-                bands=[
-                    Band("red", None, None),
-                    Band("green", None, None),
-                    Band("blue", None, None),
-                ],
-            ),
+            {
+                # Pre-STAC-1.1-style eo:bands
+                "eo:bands": [
+                    {"name": "r", "common_name": "red", "center_wavelength": 5},
+                    {"name": "g", "center_wavelength": 8},
+                    {"name": "b", "common_name": "blue"},
+                ]
+            },
+            {
+                # STAC 1.1-style bands
+                "bands": [
+                    {"name": "r", "eo:common_name": "red", "eo:center_wavelength": 5},
+                    {"name": "g", "eo:center_wavelength": 8},
+                    {"name": "b", "eo:common_name": "blue"},
+                ]
+            },
         ],
     )
+    def test_parse_dimensions_cube_dimensions_eo_bands(self, summaries):
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "extent": [-10, 10]},
+                    "y": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
+                    "t": {"type": "temporal", "extent": ["2020-02-20", None]},
+                    "spectral": {"type": "bands", "values": ["r", "g", "b"]},
+                },
+                "summaries": summaries,
+            }
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="x", extent=[-10, 10]),
+                SpatialDimension(name="y", extent=[-56, 83], crs=123),
+                TemporalDimension(name="t", extent=["2020-02-20", None]),
+                BandDimension(
+                    name="spectral",
+                    bands=[
+                        Band("r", "red", 5),
+                        Band("g", None, 8),
+                        Band("b", "blue", None),
+                    ],
+                ),
+            ],
+        )
 
-
-def test_get_dimensions_cube_dimensions_non_standard_type():
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "bar": {"type": "foo"},
-            },
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(dims, [Dimension(type="foo", name="bar")])
-    assert logs == ["Unknown dimension type 'foo'"]
-
-
-def test_get_dimensions_cube_dimensions_no_band_names():
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "spectral": {"type": "bands"},
-            },
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(dims, [BandDimension(name="spectral", bands=[])])
-    assert logs == ["No band names in dimension 'spectral'"]
-
-
-@pytest.mark.parametrize(
-    "summaries",
-    [
-        {
-            # Pre-STAC-1.1-style eo:bands
-            "eo:bands": [
-                {"name": "r", "common_name": "red", "center_wavelength": 5},
-                {"name": "g", "center_wavelength": 8},
-                {"name": "b", "common_name": "blue"},
-            ]
-        },
-        {
-            # STAC 1.1-style bands
-            "bands": [
-                {"name": "r", "eo:common_name": "red", "eo:center_wavelength": 5},
-                {"name": "g", "eo:center_wavelength": 8},
-                {"name": "b", "eo:common_name": "blue"},
-            ]
-        },
-    ],
-)
-def test_get_dimensions_cube_dimensions_eo_bands(summaries):
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "extent": [-10, 10]},
-                "y": {"type": "spatial", "extent": [-56, 83], "reference_system": 123},
-                "t": {"type": "temporal", "extent": ["2020-02-20", None]},
-                "spectral": {"type": "bands", "values": ["r", "g", "b"]},
-            },
-            "summaries": summaries,
-        }
-    )
-    assert_same_dimensions(
-        dims,
+    @pytest.mark.parametrize(
+        "summaries",
         [
-            SpatialDimension(name="x", extent=[-10, 10]),
-            SpatialDimension(name="y", extent=[-56, 83], crs=123),
-            TemporalDimension(name="t", extent=["2020-02-20", None]),
-            BandDimension(
-                name="spectral",
-                bands=[
-                    Band("r", "red", 5),
-                    Band("g", None, 8),
-                    Band("b", "blue", None),
-                ],
-            ),
-        ],
-    )
-
-
-@pytest.mark.parametrize(
-    "summaries",
-    [
-        {
-            # Pre-STAC-1.1-style eo:bands
-            "eo:bands": [
-                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
-                {"name": "c", "center_wavelength": 8},
-                {"name": "m", "common_name": "magenta"},
-            ]
-        },
-        {
-            # STAC 1.1-style bands
-            "bands": [
-                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
-                {"name": "c", "eo:center_wavelength": 8},
-                {"name": "m", "eo:common_name": "magenta"},
-            ]
-        },
-    ],
-)
-def test_get_dimensions_cube_dimensions_eo_bands_mismatch(summaries):
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "extent": [-10, 10]},
-                "spectral": {"type": "bands", "values": ["r", "g", "b"]},
-            },
-            "summaries": summaries,
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(
-        dims,
-        [
-            SpatialDimension(name="x", extent=[-10, 10]),
-            BandDimension(
-                name="spectral",
-                bands=[
-                    Band("r", None, None),
-                    Band("g", None, None),
-                    Band("b", None, None),
-                ],
-            ),
-        ],
-    )
-    assert logs == ["Band name mismatch: ['r', 'g', 'b'] != ['y', 'c', 'm']"]
-
-
-@pytest.mark.parametrize(
-    "summaries",
-    [
-        {
-            # Pre-STAC-1.1-style eo:bands
-            "eo:bands": [
-                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
-                {"name": "c", "center_wavelength": 8},
-                {"name": "m", "common_name": "magenta"},
-            ]
-        },
-        {
-            # STAC 1.1-style bands
-            "bands": [
-                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
-                {"name": "c", "eo:center_wavelength": 8},
-                {"name": "m", "eo:common_name": "magenta"},
-            ]
-        },
-    ],
-)
-def test_get_dimensions_eo_bands_only(summaries):
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "summaries": {
+            {
+                # Pre-STAC-1.1-style eo:bands
                 "eo:bands": [
                     {"name": "y", "common_name": "yellow", "center_wavelength": 5},
                     {"name": "c", "center_wavelength": 8},
                     {"name": "m", "common_name": "magenta"},
                 ]
-            }
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(
-        dims,
-        [
-            BandDimension(
-                name="bands",
-                bands=[
-                    Band("y", "yellow", 5),
-                    Band("c", None, 8),
-                    Band("m", "magenta", None),
-                ],
-            )
-        ],
-    )
-    assert logs == ["No cube:dimensions metadata", "Assuming name 'bands' for anonymous band dimension."]
-
-
-@pytest.mark.parametrize(
-    "summaries",
-    [
-        {
-            # Pre-STAC-1.1-style eo:bands
-            "eo:bands": [
-                {"name": "y", "common_name": "yellow", "center_wavelength": 5},
-                {"name": "c", "center_wavelength": 8},
-                {"name": "m", "common_name": "magenta"},
-            ]
-        },
-        {
-            # STAC 1.1-style bands
-            "bands": [
-                {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
-                {"name": "c", "eo:center_wavelength": 8},
-                {"name": "m", "eo:common_name": "magenta"},
-            ]
-        },
-    ],
-)
-def test_get_dimensions_no_band_dimension_with_eo_bands(summaries):
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "extent": [-10, 10]},
             },
-            "summaries": summaries,
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(
-        dims,
-        [
-            SpatialDimension(name="x", extent=[-10, 10]),
-        ],
-    )
-    assert logs == ["No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'"]
-
-
-@pytest.mark.parametrize(
-    "summaries",
-    [
-        {
-            # Pre-STAC-1.1-style eo:bands
-            "eo:bands": [
-                {"name": "zu", "common_name": "foo"},
-            ]
-        },
-        {
-            # STAC 1.1-style bands
-            "bands": [
-                {"name": "zu", "eo:common_name": "foo"},
-            ]
-        },
-    ],
-)
-def test_get_dimensions_multiple_band_dimensions_with_eo_bands(summaries):
-    logs = []
-    dims = CollectionMetadata._parse_dimensions(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "extent": [-10, 10]},
-                "spectral": {"type": "bands", "values": ["alpha", "beta"]},
-                "bands": {"type": "bands", "values": ["r", "g", "b"]},
+            {
+                # STAC 1.1-style bands
+                "bands": [
+                    {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                    {"name": "c", "eo:center_wavelength": 8},
+                    {"name": "m", "eo:common_name": "magenta"},
+                ]
             },
-            "summaries": summaries,
-        },
-        complain=logs.append,
-    )
-    assert_same_dimensions(
-        dims,
-        [
-            SpatialDimension(name="x", extent=[-10, 10]),
-            BandDimension(
-                name="spectral",
-                bands=[
-                    Band("alpha", None, None),
-                    Band("beta", None, None),
-                ],
-            ),
-            BandDimension(
-                name="bands",
-                bands=[
-                    Band("r", None, None),
-                    Band("g", None, None),
-                    Band("b", None, None),
-                ],
-            ),
         ],
     )
-    assert logs == ["Multiple dimensions of type 'bands'"]
+    def test_parse_dimensions_cube_dimensions_eo_bands_mismatch(self, summaries):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "extent": [-10, 10]},
+                    "spectral": {"type": "bands", "values": ["r", "g", "b"]},
+                },
+                "summaries": summaries,
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="x", extent=[-10, 10]),
+                BandDimension(
+                    name="spectral",
+                    bands=[
+                        Band("r", None, None),
+                        Band("g", None, None),
+                        Band("b", None, None),
+                    ],
+                ),
+            ],
+        )
+        assert logs == ["Band name mismatch: ['r', 'g', 'b'] != ['y', 'c', 'm']"]
 
+    @pytest.mark.parametrize(
+        "summaries",
+        [
+            {
+                # Pre-STAC-1.1-style eo:bands
+                "eo:bands": [
+                    {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                    {"name": "c", "center_wavelength": 8},
+                    {"name": "m", "common_name": "magenta"},
+                ]
+            },
+            {
+                # STAC 1.1-style bands
+                "bands": [
+                    {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                    {"name": "c", "eo:center_wavelength": 8},
+                    {"name": "m", "eo:common_name": "magenta"},
+                ]
+            },
+        ],
+    )
+    def test_parse_dimensions_eo_bands_only(self, summaries):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "summaries": {
+                    "eo:bands": [
+                        {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                        {"name": "c", "center_wavelength": 8},
+                        {"name": "m", "common_name": "magenta"},
+                    ]
+                }
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                BandDimension(
+                    name="bands",
+                    bands=[
+                        Band("y", "yellow", 5),
+                        Band("c", None, 8),
+                        Band("m", "magenta", None),
+                    ],
+                )
+            ],
+        )
+        assert logs == ["No cube:dimensions metadata", "Assuming name 'bands' for anonymous band dimension."]
 
-@pytest.mark.parametrize(
-    "spec",
-    [
-        # API 0.4 style
-        {
-            "properties": {
+    @pytest.mark.parametrize(
+        "summaries",
+        [
+            {
+                # Pre-STAC-1.1-style eo:bands
+                "eo:bands": [
+                    {"name": "y", "common_name": "yellow", "center_wavelength": 5},
+                    {"name": "c", "center_wavelength": 8},
+                    {"name": "m", "common_name": "magenta"},
+                ]
+            },
+            {
+                # STAC 1.1-style bands
+                "bands": [
+                    {"name": "y", "eo:common_name": "yellow", "eo:center_wavelength": 5},
+                    {"name": "c", "eo:center_wavelength": 8},
+                    {"name": "m", "eo:common_name": "magenta"},
+                ]
+            },
+        ],
+    )
+    def test_parse_dimensions_no_band_dimension_with_eo_bands(self, summaries):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "extent": [-10, 10]},
+                },
+                "summaries": summaries,
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="x", extent=[-10, 10]),
+            ],
+        )
+        assert logs == ["No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'"]
+
+    @pytest.mark.parametrize(
+        "summaries",
+        [
+            {
+                # Pre-STAC-1.1-style eo:bands
+                "eo:bands": [
+                    {"name": "zu", "common_name": "foo"},
+                ]
+            },
+            {
+                # STAC 1.1-style bands
+                "bands": [
+                    {"name": "zu", "eo:common_name": "foo"},
+                ]
+            },
+        ],
+    )
+    def test_parse_dimensions_multiple_band_dimensions_with_eo_bands(self, summaries):
+        logs = []
+        dims = CollectionMetadata._parse_dimensions(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "extent": [-10, 10]},
+                    "spectral": {"type": "bands", "values": ["alpha", "beta"]},
+                    "bands": {"type": "bands", "values": ["r", "g", "b"]},
+                },
+                "summaries": summaries,
+            },
+            complain=logs.append,
+        )
+        assert_same_dimensions(
+            dims,
+            [
+                SpatialDimension(name="x", extent=[-10, 10]),
+                BandDimension(
+                    name="spectral",
+                    bands=[
+                        Band("alpha", None, None),
+                        Band("beta", None, None),
+                    ],
+                ),
+                BandDimension(
+                    name="bands",
+                    bands=[
+                        Band("r", None, None),
+                        Band("g", None, None),
+                        Band("b", None, None),
+                    ],
+                ),
+            ],
+        )
+        assert logs == ["Multiple dimensions of type 'bands'"]
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            # API 0.4 style
+            {
+                "properties": {
+                    "cube:dimensions": {
+                        "x": {"type": "spatial", "axis": "x"},
+                        "b": {"type": "bands", "values": ["foo", "bar"]},
+                    }
+                }
+            },
+            # API 1.0 style
+            {
                 "cube:dimensions": {
                     "x": {"type": "spatial", "axis": "x"},
                     "b": {"type": "bands", "values": ["foo", "bar"]},
                 }
-            }
-        },
-        # API 1.0 style
-        {"cube:dimensions": {"x": {"type": "spatial", "axis": "x"}, "b": {"type": "bands", "values": ["foo", "bar"]}}},
-    ],
-)
-def test_collectionmetadata_bands_dimension_cube_dimensions(spec):
-    metadata = CollectionMetadata(spec)
-    assert metadata.band_dimension.name == "b"
-    assert metadata.bands == [Band("foo", None, None), Band("bar", None, None)]
-    assert metadata.band_names == ["foo", "bar"]
-    assert metadata.band_common_names == [None, None]
-
-
-def test_cubemetdata_bands_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("foo"), Band("bar")]),
-        ]
+            },
+        ],
     )
-    assert metadata.band_dimension.name == "b"
-    assert metadata.bands == [Band("foo", None, None), Band("bar", None, None)]
-    assert metadata.band_names == ["foo", "bar"]
-    assert metadata.band_common_names == [None, None]
+    def test_bands_dimension_cube_dimensions(self, spec):
+        metadata = CollectionMetadata(spec)
+        assert metadata.band_dimension.name == "b"
+        assert metadata.bands == [Band("foo", None, None), Band("bar", None, None)]
+        assert metadata.band_names == ["foo", "bar"]
+        assert metadata.band_common_names == [None, None]
 
-
-def test_collectionmetadata_bands_dimension_no_band_dimensions():
-    metadata = CollectionMetadata(
-        {
-            "cube:dimensions": {
-                "x": {"type": "spatial", "axis": "x"},
+    def test_bands_dimension_no_band_dimensions(self):
+        metadata = CollectionMetadata(
+            {
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "axis": "x"},
+                }
             }
-        }
+        )
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.band_dimension
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.bands
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.band_common_names
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.get_band_index("red")
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.filter_bands(["red"])
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            {
+                # API 0.4 style
+                "properties": {
+                    "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+                }
+            },
+            {
+                # API 1.0 style
+                "summaries": {
+                    "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+                }
+            },
+            {
+                # STAC 1.1 style
+                "summaries": {
+                    "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
+                }
+            },
+        ],
     )
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.band_dimension
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.bands
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.band_common_names
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.get_band_index("red")
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.filter_bands(["red"])
+    def test_bands_dimension_eo_bands(self, spec):
+        metadata = CollectionMetadata(spec)
+        assert metadata.band_dimension.name == "bands"
+        assert metadata.bands == [Band("foo", "F00", 0.543), Band("bar", None, None)]
+        assert metadata.band_names == ["foo", "bar"]
+        assert metadata.band_common_names == ["F00", None]
 
-
-def test_cubemetadata_bands_dimension_no_band_dimensions():
-    metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.band_dimension
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.bands
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.band_common_names
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.get_band_index("red")
-    with pytest.raises(MetadataException, match="No band dimension"):
-        metadata.filter_bands(["red"])
-
-
-@pytest.mark.parametrize(
-    "spec",
-    [
-        {
-            # API 0.4 style
-            "properties": {
-                "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
-            }
-        },
-        {
-            # API 1.0 style
-            "summaries": {
-                "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
-            }
-        },
-        {
-            # STAC 1.1 style
-            "summaries": {
-                "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
-            }
-        },
-    ],
-)
-def test_metadata_bands_dimension_eo_bands(spec):
-    metadata = CollectionMetadata(spec)
-    assert metadata.band_dimension.name == "bands"
-    assert metadata.bands == [Band("foo", "F00", 0.543), Band("bar", None, None)]
-    assert metadata.band_names == ["foo", "bar"]
-    assert metadata.band_common_names == ["F00", None]
-
-
-@pytest.mark.parametrize(
-    "spec",
-    [
-        {
-            # API 0.4 style
-            "properties": {
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            {
+                # API 0.4 style
+                "properties": {
+                    "cube:dimensions": {
+                        "x": {"type": "spatial", "axis": "x"},
+                        "b": {"type": "bands", "values": ["foo", "bar"]},
+                    },
+                    "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}],
+                }
+            },
+            {
+                # API 1.0 style
                 "cube:dimensions": {
                     "x": {"type": "spatial", "axis": "x"},
                     "b": {"type": "bands", "values": ["foo", "bar"]},
                 },
-                "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}],
-            }
-        },
-        {
-            # API 1.0 style
-            "cube:dimensions": {
-                "x": {"type": "spatial", "axis": "x"},
-                "b": {"type": "bands", "values": ["foo", "bar"]},
+                "summaries": {
+                    "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+                },
             },
-            "summaries": {
-                "eo:bands": [{"name": "foo", "common_name": "F00", "center_wavelength": 0.543}, {"name": "bar"}]
+            {
+                # STAC 1.1 bands style
+                "cube:dimensions": {
+                    "x": {"type": "spatial", "axis": "x"},
+                    "b": {"type": "bands", "values": ["foo", "bar"]},
+                },
+                "summaries": {
+                    "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
+                },
             },
-        },
-        {
-            # STAC 1.1 bands style
-            "cube:dimensions": {
-                "x": {"type": "spatial", "axis": "x"},
-                "b": {"type": "bands", "values": ["foo", "bar"]},
-            },
-            "summaries": {
-                "bands": [{"name": "foo", "eo:common_name": "F00", "eo:center_wavelength": 0.543}, {"name": "bar"}]
-            },
-        },
-    ],
-)
-def test_metadata_bands_dimension(spec):
-    metadata = CollectionMetadata(spec)
-    assert metadata.band_dimension.name == "b"
-    assert metadata.bands == [Band("foo", "F00", 0.543), Band("bar", None, None)]
-    assert metadata.band_names == ["foo", "bar"]
-    assert metadata.band_common_names == ["F00", None]
-
-
-def test_cubemetadata_rename_labels():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    renamed = metadata.rename_labels(dimension="b", target=["raspberry", "lime"])
-    assert isinstance(renamed, CubeMetadata)
-    assert renamed.dimension_names() == ["x", "b"]
-    assert renamed.band_names == ["raspberry", "lime"]
-    assert renamed.bands == [Band("raspberry"), Band("lime")]
-
-
-def test_cubemetadata_rename_labels_invalid_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    with pytest.raises(ValueError, match=re.escape("Invalid dimension 'tempus'. Should be one of ['x', 'b']")):
-        _ = metadata.rename_labels(dimension="tempus", target=["1999"])
-
-
-def test_cubemetadata_rename_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    renamed = metadata.rename_dimension("b", "bands")
-    assert renamed.dimension_names() == ["x", "bands"]
-    assert renamed.band_dimension.name == "bands"
-    assert renamed.band_names == ["red", "green"]
-
-
-def test_cubemetadata_rename_dimension_invalid_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    with pytest.raises(ValueError, match=re.escape("Invalid dimension 'bandzz'. Should be one of ['x', 'b']")):
-        _ = metadata.rename_dimension("bandzz", "bands")
-
-
-def test_collectionmetadata_reduce_dimension():
-    metadata = CollectionMetadata(
-        {"cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["red", "green"]}}}
-    )
-    reduced = metadata.reduce_dimension("b")
-    assert set(metadata.dimension_names()) == {"x", "b"}
-    assert set(reduced.dimension_names()) == {"x"}
-
-
-def test_cubemetadata_reduce_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    reduced = metadata.reduce_dimension("b")
-    assert set(metadata.dimension_names()) == {"x", "b"}
-    assert set(reduced.dimension_names()) == {"x"}
-
-
-def test_collectionmetadata_reduce_dimension_invalid_name():
-    metadata = CollectionMetadata(
-        {"cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["red", "green"]}}}
-    )
-    with pytest.raises(ValueError):
-        metadata.reduce_dimension("y")
-
-
-def test_cubemetadata_reduce_dimension_invalid_name():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    with pytest.raises(ValueError):
-        metadata.reduce_dimension("y")
-
-
-def test_collectionmetadata_add_band_dimension():
-    metadata = CollectionMetadata({"cube:dimensions": {"t": {"type": "temporal"}}})
-    new = metadata.add_dimension("layer", "red", "bands")
-
-    assert metadata.dimension_names() == ["t"]
-    assert not metadata.has_band_dimension()
-
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "layer"]
-    assert new.band_dimension.name == "layer"
-    assert new.band_names == ["red"]
-
-
-def test_cubemetadata_add_band_dimension():
-    metadata = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
-    new = metadata.add_dimension("layer", "red", "bands")
-
-    assert metadata.dimension_names() == ["t"]
-    assert not metadata.has_band_dimension()
-
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "layer"]
-    assert new.band_dimension.name == "layer"
-    assert new.band_names == ["red"]
-
-
-def test_collectionmetadata_add_band_dimension_duplicate():
-    metadata = CollectionMetadata({"cube:dimensions": {"t": {"type": "temporal"}}})
-    metadata = metadata.add_dimension("layer", "red", "bands")
-    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
-        _ = metadata.add_dimension("layer", "red", "bands")
-
-
-def test_cubemetadata_add_band_dimension_duplicate():
-    metadata = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
-    metadata = metadata.add_dimension("layer", "red", "bands")
-    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
-        _ = metadata.add_dimension("layer", "red", "bands")
-
-
-def test_cubemetadata_append_band():
-    metadata1 = CubeMetadata(
-        dimensions=[
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    metadata2 = metadata1.append_band(Band("blue"))
-    metadata3 = metadata1.append_band("pink")
-    assert metadata1.band_names == ["red", "green"]
-    assert metadata2.band_names == ["red", "green", "blue"]
-    assert metadata3.band_names == ["red", "green", "pink"]
-
-
-def test_collectionmetadata_add_temporal_dimension():
-    metadata = CollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
-    new = metadata.add_dimension("date", "2020-05-15", "temporal")
-
-    assert metadata.dimension_names() == ["x"]
-    assert not metadata.has_temporal_dimension()
-
-    assert new.has_temporal_dimension()
-    assert new.dimension_names() == ["x", "date"]
-    assert new.temporal_dimension.name == "date"
-    assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
-
-
-def test_cubemetadata_add_temporal_dimension():
-    metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
-    new = metadata.add_dimension("date", "2020-05-15", "temporal")
-
-    assert metadata.dimension_names() == ["x"]
-    assert not metadata.has_temporal_dimension()
-
-    assert new.has_temporal_dimension()
-    assert new.dimension_names() == ["x", "date"]
-    assert new.temporal_dimension.name == "date"
-    assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
-
-
-def test_collectionmetadata_add_temporal_dimension_duplicate():
-    metadata = CollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
-    metadata = metadata.add_dimension("date", "2020-05-15", "temporal")
-    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
-        _ = metadata.add_dimension("date", "2020-05-15", "temporal")
-
-
-def test_cubemetadata_add_temporal_dimension_duplicate():
-    metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
-    metadata = metadata.add_dimension("date", "2020-05-15", "temporal")
-    with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
-        _ = metadata.add_dimension("date", "2020-05-15", "temporal")
-
-
-def test_cube_metadata_add_dimension_geometry():
-    orig = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
-    new = orig.add_dimension(name="fields", label="Mol", type="geometry")
-
-    assert orig.dimension_names() == ["t"]
-    assert not orig.has_geometry_dimension()
-    with pytest.raises(MetadataException):
-        orig.geometry_dimension()
-
-    assert new.dimension_names() == ["t", "fields"]
-    assert new.has_geometry_dimension()
-    assert new.geometry_dimension.name == "fields"
-    assert new.geometry_dimension.type == "geometry"
-
-def test_collectionmetadata_drop_dimension():
-    metadata = CollectionMetadata(
-        {
-            "cube:dimensions": {
-                "t": {"type": "temporal"},
-                "b": {"type": "bands", "values": ["red", "green"]},
-            }
-        }
-    )
-
-    new = metadata.drop_dimension("t")
-    assert metadata.dimension_names() == ["t", "b"]
-    assert new.dimension_names() == ["b"]
-    assert new.band_dimension.band_names == ["red", "green"]
-
-    new = metadata.drop_dimension("b")
-    assert metadata.dimension_names() == ["t", "b"]
-    assert new.dimension_names() == ["t"]
-    assert new.temporal_dimension.name == "t"
-
-    with pytest.raises(ValueError):
-        metadata.drop_dimension("x")
-
-
-def test_cubemetadata_drop_dimension():
-    metadata = CubeMetadata(
-        dimensions=[
-            TemporalDimension(name="t", extent=None),
-            BandDimension(name="b", bands=[Band("red"), Band("green")]),
-        ]
-    )
-
-    new = metadata.drop_dimension("t")
-    assert metadata.dimension_names() == ["t", "b"]
-    assert new.dimension_names() == ["b"]
-    assert new.band_dimension.band_names == ["red", "green"]
-
-    new = metadata.drop_dimension("b")
-    assert metadata.dimension_names() == ["t", "b"]
-    assert new.dimension_names() == ["t"]
-    assert new.temporal_dimension.name == "t"
-
-    with pytest.raises(ValueError):
-        metadata.drop_dimension("x")
-
-
-def test_cubemetadata_ensure_band_dimension_add_bands():
-    metadata = CubeMetadata(
-        dimensions=[
-            TemporalDimension(name="t", extent=None),
-        ]
-    )
-    new = metadata._ensure_band_dimension(bands=["red", "green"], warning="ensure_band_dimension at work")
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "bands"]
-    assert new.band_names == ["red", "green"]
-
-
-def test_cubemetadata_ensure_band_dimension_add_name_and_bands():
-    metadata = CubeMetadata(
-        dimensions=[
-            TemporalDimension(name="t", extent=None),
-        ]
-    )
-    new = metadata._ensure_band_dimension(
-        name="bandzz", bands=["red", "green"], warning="ensure_band_dimension at work"
-    )
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "bandzz"]
-    assert new.band_names == ["red", "green"]
-
-
-def test_cubemetadata_ensure_band_dimension_override_bands():
-    metadata = CubeMetadata(
-        dimensions=[
-            TemporalDimension(name="t", extent=None),
-            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    new = metadata._ensure_band_dimension(bands=["tomato", "lettuce"], warning="ensure_band_dimension at work")
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "bands"]
-    assert new.band_names == ["tomato", "lettuce"]
-
-
-def test_cubemetadata_ensure_band_dimension_override_name_and_bands():
-    metadata = CubeMetadata(
-        dimensions=[
-            TemporalDimension(name="t", extent=None),
-            BandDimension(name="bands", bands=[Band("red"), Band("green")]),
-        ]
-    )
-    new = metadata._ensure_band_dimension(
-        name="bandzz", bands=["tomato", "lettuce"], warning="ensure_band_dimension at work"
-    )
-    assert new.has_band_dimension()
-    assert new.dimension_names() == ["t", "bandzz"]
-    assert new.band_names == ["tomato", "lettuce"]
-
-
-def test_collectionmetadata_subclass():
-    class MyCollectionMetadata(CollectionMetadata):
-        def __init__(self, metadata: dict, dimensions: List[Dimension] = None, bbox=None):
-            super().__init__(metadata=metadata, dimensions=dimensions)
-            self.bbox = bbox
-
-        def _clone_and_update(
-            self, metadata: dict = None, dimensions: List[Dimension] = None, bbox=None, **kwargs
-        ) -> MyCollectionMetadata:
-            return super()._clone_and_update(metadata=metadata, dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
-
-        def filter_bbox(self, bbox):
-            return self._clone_and_update(bbox=bbox)
-
-    orig = MyCollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
-    assert orig.bbox is None
-
-    new = orig.add_dimension(name="layer", label="red", type="bands")
-    assert isinstance(new, MyCollectionMetadata)
-    assert orig.bbox is None
-    assert new.bbox is None
-
-    new = new.filter_bbox((1, 2, 3, 4))
-    assert isinstance(new, MyCollectionMetadata)
-    assert orig.bbox is None
-    assert new.bbox == (1, 2, 3, 4)
-
-    new = new.add_dimension(name="time", label="2020", type="time")
-    assert isinstance(new, MyCollectionMetadata)
-    assert orig.bbox is None
-    assert new.bbox == (1, 2, 3, 4)
-
-
-def test_cubemetadata_subclass():
-    class MyCubeMetadata(CubeMetadata):
-        def __init__(self, dimensions: List[Dimension], bbox=None):
-            super().__init__(dimensions=dimensions)
-            self.bbox = bbox
-
-        def _clone_and_update(self, dimensions: List[Dimension] = None, bbox=None, **kwargs) -> MyCubeMetadata:
-            return super()._clone_and_update(dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
-
-        def filter_bbox(self, bbox):
-            return self._clone_and_update(bbox=bbox)
-
-    orig = MyCubeMetadata([SpatialDimension(name="x", extent=None)])
-    assert orig.bbox is None
-
-    new = orig.add_dimension(name="layer", label="red", type="bands")
-    assert isinstance(new, MyCubeMetadata)
-    assert orig.bbox is None
-    assert new.bbox is None
-
-    new = new.filter_bbox((1, 2, 3, 4))
-    assert isinstance(new, MyCubeMetadata)
-    assert orig.bbox is None
-    assert new.bbox == (1, 2, 3, 4)
-
-    new = new.add_dimension(name="time", label="2020", type="time")
-    assert isinstance(new, MyCubeMetadata)
-    assert orig.bbox is None
-    assert new.bbox == (1, 2, 3, 4)
-
-
-@pytest.mark.parametrize(
-    "test_stac, expected",
-    [
-        (
-            StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
-            ["B01", "B02"],
-        ),
-        (
-            StacDummyBuilder.collection(summaries={"bands": [{"name": "B01"}, {"name": "B02"}]}),
-            ["B01", "B02"],
-        ),
-        # TODO: test asset handling in collection?
-        (
-            StacDummyBuilder.catalog(),
-            [],
-        ),
-        (
-            StacDummyBuilder.item(
-                properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]}
-            ),
-            ["SCL", "B08"],
-        ),
-        (
-            StacDummyBuilder.item(
-                properties={"datetime": "2020-05-22T00:00:00Z", "bands": [{"name": "SCL"}, {"name": "B08"}]}
-            ),
-            ["SCL", "B08"],
-        ),
-        # TODO: test asset handling in item?
-    ],
-)
-def test_metadata_from_stac_bands(tmp_path, test_stac, expected):
-    path = tmp_path / "stac.json"
-    # TODO #738 real request mocking of STAC resources compatible with pystac?
-    path.write_text(json.dumps(test_stac))
-    metadata = metadata_from_stac(str(path))
-    assert metadata.band_names == expected
-
-
-def test_metadata_from_stac_stac_1_1_common_bands_without_datacube_extension(tmp_path):
-    stac_dict = StacDummyBuilder.collection(
-        stac_version="1.1.0",
-        bands=[
-            {"name": "red", "eo:common_name": "red", "eo:center_wavelength": 0.665},
-            {"name": "nir", "eo:common_name": "nir", "eo:center_wavelength": 0.842},
         ],
     )
-    assert "stac_extensions" not in stac_dict
-    assert "cube:dimensions" not in stac_dict
+    def test_bands_dimension(self, spec):
+        metadata = CollectionMetadata(spec)
+        assert metadata.band_dimension.name == "b"
+        assert metadata.bands == [Band("foo", "F00", 0.543), Band("bar", None, None)]
+        assert metadata.band_names == ["foo", "bar"]
+        assert metadata.band_common_names == ["F00", None]
 
-    path = tmp_path / "stac.json"
-    # TODO #738 real request mocking of STAC resources compatible with pystac?
-    path.write_text(json.dumps(stac_dict))
-    metadata = metadata_from_stac(str(path))
+    def test_reduce_dimension(self):
+        metadata = CollectionMetadata(
+            {"cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["red", "green"]}}}
+        )
+        reduced = metadata.reduce_dimension("b")
+        assert set(metadata.dimension_names()) == {"x", "b"}
+        assert set(reduced.dimension_names()) == {"x"}
 
-    assert metadata.dimension_names() == ["x", "y", "bands", "t"]
-    assert metadata.band_names == ["red", "nir"]
-    assert metadata.band_dimension.bands[0].common_name == "red"
-    assert metadata.band_dimension.bands[1].wavelength_um == 0.842
+    def test_reduce_dimension_invalid_name(self):
+        metadata = CollectionMetadata(
+            {"cube:dimensions": {"x": {"type": "spatial"}, "b": {"type": "bands", "values": ["red", "green"]}}}
+        )
+        with pytest.raises(ValueError):
+            metadata.reduce_dimension("y")
 
+    def test_add_band_dimension(self):
+        metadata = CollectionMetadata({"cube:dimensions": {"t": {"type": "temporal"}}})
+        new = metadata.add_dimension("layer", "red", "bands")
 
-@pytest.mark.parametrize(
-    ["eo_extension_is_declared", "expected_warnings"],
-    [
-        (
-            False,
-            [
-                "Deriving band listing from unordered `item_assets`",
-                "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
-            ],
-        ),
-        (True, ["Deriving band listing from unordered `item_assets`"]),
-    ],
-)
-def test_metadata_from_stac_collection_bands_from_item_assets(
-    test_data, tmp_path, eo_extension_is_declared, caplog, expected_warnings
-):
-    stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
-    stac_data["stac_extensions"] = [
-        ext
-        for ext in stac_data["stac_extensions"]
-        if (not ext.startswith("https://stac-extensions.github.io/eo/") or eo_extension_is_declared)
-    ]
-    assert (
-        any(ext.startswith("https://stac-extensions.github.io/eo/") for ext in stac_data["stac_extensions"])
-        == eo_extension_is_declared
-    )
-    path = tmp_path / "stac.json"
-    path.write_text(json.dumps(stac_data))
+        assert metadata.dimension_names() == ["t"]
+        assert not metadata.has_band_dimension()
 
-    metadata = metadata_from_stac(str(path))
-    assert sorted(metadata.band_names) == [
-        "2m_temperature_max",
-        "2m_temperature_min",
-        "dewpoint_temperature_mean",
-        "vapour_pressure",
-    ]
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "layer"]
+        assert new.band_dimension.name == "layer"
+        assert new.band_names == ["red"]
 
-    assert caplog.messages == expected_warnings
+    def test_add_band_dimension_duplicate(self):
+        metadata = CollectionMetadata({"cube:dimensions": {"t": {"type": "temporal"}}})
+        metadata = metadata.add_dimension("layer", "red", "bands")
+        with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
+            _ = metadata.add_dimension("layer", "red", "bands")
 
+    def test_add_temporal_dimension(self):
+        metadata = CollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
+        new = metadata.add_dimension("date", "2020-05-15", "temporal")
 
-@pytest.mark.parametrize(
-    ["stac_dict", "expected"],
-    [
-        (
-            StacDummyBuilder.item(),
-            ("t", ["2024-03-08", "2024-03-08"]),
-        ),
-        (
-            StacDummyBuilder.item(
-                properties={
-                    "datetime": "2024-03-08T00:00:00Z",
-                    "start_datetime": "2024-04-04T00:00:00Z",
-                    "end_datetime": "2024-06-06T00:00:00Z",
-                }
-            ),
-            ("t", ["2024-04-04T00:00:00Z", "2024-06-06T00:00:00Z"]),
-        ),
-        (
-            StacDummyBuilder.item(cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}),
-            ("t", ["2024-04-04", "2024-06-06"]),
-        ),
-        (
-            StacDummyBuilder.item(
-                cube_dimensions={"datezz": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
-            ),
-            ("datezz", ["2024-04-04", "2024-06-06"]),
-        ),
-        (
-            StacDummyBuilder.collection(),
-            ("t", ["2024-01-01T00:00:00Z", "2024-05-05T00:00:00Z"]),
-        ),
-        (
-            StacDummyBuilder.collection(
-                cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
-            ),
-            ("t", ["2024-04-04", "2024-06-06"]),
-        ),
-        (
-            StacDummyBuilder.catalog(),
-            None,
-        ),
-        (
-            # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
-            StacDummyBuilder.catalog(stac_extensions=[StacDummyBuilder._EXT_DATACUBE]),
-            None,
-        ),
-    ],
-)
-def test_metadata_from_stac_temporal_dimension(tmp_path, stac_dict, expected):
-    path = tmp_path / "stac.json"
-    # TODO #738 real request mocking of STAC resources compatible with pystac?
-    path.write_text(json.dumps(stac_dict))
-    metadata = metadata_from_stac(str(path))
-    if expected:
-        dim = metadata.temporal_dimension
-        assert isinstance(dim, TemporalDimension)
-        assert (dim.name, dim.extent) == expected
-    else:
+        assert metadata.dimension_names() == ["x"]
         assert not metadata.has_temporal_dimension()
 
+        assert new.has_temporal_dimension()
+        assert new.dimension_names() == ["x", "date"]
+        assert new.temporal_dimension.name == "date"
+        assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
 
+    def test_add_temporal_dimension_duplicate(self):
+        metadata = CollectionMetadata({"cube:dimensions": {"x": {"type": "spatial"}}})
+        metadata = metadata.add_dimension("date", "2020-05-15", "temporal")
+        with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
+            _ = metadata.add_dimension("date", "2020-05-15", "temporal")
 
-@pytest.mark.parametrize(
-    ["stac_dict", "expected_dims"],
-    [
-        (
-            # No cube:dimensions -> fall back to openEO default naming convention
-            StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}]}),
-            {"t", "bands", "y", "x"},
-        ),
-        (
-            # No cube:dimensions (item) -> fall back to openEO default naming convention
-            StacDummyBuilder.item(
-                properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "B01"}]}
-            ),
-            {"t", "bands", "y", "x"},
-        ),
-        (
-            # cube:dimensions present -> use the dimension names as suggested by cube:dimensions keys
-            StacDummyBuilder.collection(
-                cube_dimensions={
-                    "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
-                    "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
-                    "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
-                    "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+    def test_drop_dimension(self):
+        metadata = CollectionMetadata(
+            {
+                "cube:dimensions": {
+                    "t": {"type": "temporal"},
+                    "b": {"type": "bands", "values": ["red", "green"]},
                 }
-            ),
-            {"time", "band", "y", "x"},
-        ),
-        (
-            # cube:dimensions present without band dimension -> don't inject an openEO "bands" dimension
-            StacDummyBuilder.collection(
-                summaries={"eo:bands": [{"name": "B01"}]},
-                cube_dimensions={
-                    "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
-                    "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
-                    "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
-                },
-            ),
-            {"time", "y", "x"},
-        ),
-    ],
-)
-def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(tmp_path, stac_dict, expected_dims):
-    # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
-    path = tmp_path / "stac.json"
-    # TODO #738 real request mocking of STAC resources compatible with pystac?
-    path.write_text(json.dumps(stac_dict))
-    metadata = metadata_from_stac(str(path))
+            }
+        )
 
-    got = tuple(metadata.dimension_names() or ())
+        new = metadata.drop_dimension("t")
+        assert metadata.dimension_names() == ["t", "b"]
+        assert new.dimension_names() == ["b"]
+        assert new.band_dimension.band_names == ["red", "green"]
 
-    # Order-insensitive check: names only
-    assert set(got) == expected_dims
+        new = metadata.drop_dimension("b")
+        assert metadata.dimension_names() == ["t", "b"]
+        assert new.dimension_names() == ["t"]
+        assert new.temporal_dimension.name == "t"
 
-    # Ensure the policy logic is exercised correctly:
-    # cube:dimensions can be located at root (collection) or in properties (item)
-    cube_dims = stac_dict.get("cube:dimensions") or (stac_dict.get("properties") or {}).get("cube:dimensions")
-    if cube_dims is None:
-        assert set(got) == {"t", "bands", "y", "x"}
-    else:
-        assert set(got) == set(cube_dims.keys())
+        with pytest.raises(ValueError):
+            metadata.drop_dimension("x")
 
 
-def test_metadata_from_stac_cube_dimensions_geometries_not_treated_as_band_dimension(tmp_path):
-    """
-    A "geometries" typed cube:dimensions entry (vector cube dimension) should not be
-    silently converted into a BandDimension, even when the STAC datacube extension
-    is declared (which routes parsing through pystac's extension API).
-    """
-    stac_dict = StacDummyBuilder.collection(
-        cube_dimensions={
-            "geom": {"type": "geometries"},
-            "time": {"type": "temporal", "axis": "t", "extent": ["2024-04-04", "2024-06-06"]},
-            "band": {"type": "bands", "axis": "bands", "values": ["B01"]},
-        }
+class TestCubeMetadata:
+    def test_band_dimension_rename_labels(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        b04 = Band("B04", "red", 0.665)
+        bdim = BandDimension(name="bs", bands=[b02, b03, b04])
+
+        metadata = CubeMetadata(dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
+        assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
+        assert newdim.band_names == ["1", "2", "3"]
+
+    def test_band_dimension_set_labels(self):
+        bdim = BandDimension(name="bs", bands=[Band("some_name", None, None)])
+
+        metadata = CubeMetadata(dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["1", "2", "3"]).band_dimension
+        assert metadata.band_dimension.band_names == ["some_name"]
+        assert newdim.band_names == ["1", "2", "3"]
+
+    def test_band_dimension_rename_labels_with_source(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        b04 = Band("B04", "red", 0.665)
+        bdim = BandDimension(name="bs", bands=[b02, b03, b04])
+
+        metadata = CubeMetadata(dimensions=[bdim])
+        newdim = metadata.rename_labels("bs", target=["2"], source=["B03"]).band_dimension
+        assert metadata.band_dimension.band_names == ["B02", "B03", "B04"]
+        assert newdim.band_names == ["B02", "2", "B04"]
+
+    def test_band_dimension_rename_labels_with_source_mismatch(self):
+        b02 = Band("B02", "blue", 0.490)
+        b03 = Band("B03", "green", 0.560)
+        bdim = BandDimension(name="bs", bands=[b02, b03])
+
+        metadata = CubeMetadata(dimensions=[bdim])
+        with pytest.raises(ValueError, match="should have same number of labels, but got"):
+            _ = metadata.rename_labels("bs", target=["2", "3"], source=["B03"])
+
+    def test_cubemetdata_bands_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("foo"), Band("bar")]),
+            ]
+        )
+        assert metadata.band_dimension.name == "b"
+        assert metadata.bands == [Band("foo", None, None), Band("bar", None, None)]
+        assert metadata.band_names == ["foo", "bar"]
+        assert metadata.band_common_names == [None, None]
+
+    def test_bands_dimension_no_band_dimensions(self):
+        metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.band_dimension
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.bands
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.band_common_names
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.get_band_index("red")
+        with pytest.raises(MetadataException, match="No band dimension"):
+            metadata.filter_bands(["red"])
+
+    def test_rename_labels(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        renamed = metadata.rename_labels(dimension="b", target=["raspberry", "lime"])
+        assert isinstance(renamed, CubeMetadata)
+        assert renamed.dimension_names() == ["x", "b"]
+        assert renamed.band_names == ["raspberry", "lime"]
+        assert renamed.bands == [Band("raspberry"), Band("lime")]
+
+    def test_rename_labels_invalid_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        with pytest.raises(ValueError, match=re.escape("Invalid dimension 'tempus'. Should be one of ['x', 'b']")):
+            _ = metadata.rename_labels(dimension="tempus", target=["1999"])
+
+    def test_rename_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        renamed = metadata.rename_dimension("b", "bands")
+        assert renamed.dimension_names() == ["x", "bands"]
+        assert renamed.band_dimension.name == "bands"
+        assert renamed.band_names == ["red", "green"]
+
+    def test_rename_dimension_invalid_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        with pytest.raises(ValueError, match=re.escape("Invalid dimension 'bandzz'. Should be one of ['x', 'b']")):
+            _ = metadata.rename_dimension("bandzz", "bands")
+
+    def test_reduce_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        reduced = metadata.reduce_dimension("b")
+        assert set(metadata.dimension_names()) == {"x", "b"}
+        assert set(reduced.dimension_names()) == {"x"}
+
+    def test_reduce_dimension_invalid_name(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        with pytest.raises(ValueError):
+            metadata.reduce_dimension("y")
+
+    def test_add_band_dimension(self):
+        metadata = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
+        new = metadata.add_dimension("layer", "red", "bands")
+
+        assert metadata.dimension_names() == ["t"]
+        assert not metadata.has_band_dimension()
+
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "layer"]
+        assert new.band_dimension.name == "layer"
+        assert new.band_names == ["red"]
+
+    def test_add_band_dimension_duplicate(self):
+        metadata = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
+        metadata = metadata.add_dimension("layer", "red", "bands")
+        with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'layer' already exists"):
+            _ = metadata.add_dimension("layer", "red", "bands")
+
+    def test_append_band(self):
+        metadata1 = CubeMetadata(
+            dimensions=[
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        metadata2 = metadata1.append_band(Band("blue"))
+        metadata3 = metadata1.append_band("pink")
+        assert metadata1.band_names == ["red", "green"]
+        assert metadata2.band_names == ["red", "green", "blue"]
+        assert metadata3.band_names == ["red", "green", "pink"]
+
+    def test_add_temporal_dimension(self):
+        metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
+        new = metadata.add_dimension("date", "2020-05-15", "temporal")
+
+        assert metadata.dimension_names() == ["x"]
+        assert not metadata.has_temporal_dimension()
+
+        assert new.has_temporal_dimension()
+        assert new.dimension_names() == ["x", "date"]
+        assert new.temporal_dimension.name == "date"
+        assert new.temporal_dimension.extent == ["2020-05-15", "2020-05-15"]
+
+    def test_add_temporal_dimension_duplicate(self):
+        metadata = CubeMetadata(dimensions=[SpatialDimension(name="x", extent=None)])
+        metadata = metadata.add_dimension("date", "2020-05-15", "temporal")
+        with pytest.raises(DimensionAlreadyExistsException, match="Dimension with name 'date' already exists"):
+            _ = metadata.add_dimension("date", "2020-05-15", "temporal")
+
+    def test_add_dimension_geometry(self):
+        orig = CubeMetadata(dimensions=[TemporalDimension(name="t", extent=None)])
+        new = orig.add_dimension(name="fields", label="Mol", type="geometry")
+
+        assert orig.dimension_names() == ["t"]
+        assert not orig.has_geometry_dimension()
+        with pytest.raises(MetadataException):
+            _ = orig.geometry_dimension
+
+        assert new.dimension_names() == ["t", "fields"]
+        assert new.has_geometry_dimension()
+        assert new.geometry_dimension.name == "fields"
+        assert new.geometry_dimension.type == "geometry"
+
+    def test_drop_dimension(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                TemporalDimension(name="t", extent=None),
+                BandDimension(name="b", bands=[Band("red"), Band("green")]),
+            ]
+        )
+
+        new = metadata.drop_dimension("t")
+        assert metadata.dimension_names() == ["t", "b"]
+        assert new.dimension_names() == ["b"]
+        assert new.band_dimension.band_names == ["red", "green"]
+
+        new = metadata.drop_dimension("b")
+        assert metadata.dimension_names() == ["t", "b"]
+        assert new.dimension_names() == ["t"]
+        assert new.temporal_dimension.name == "t"
+
+        with pytest.raises(ValueError):
+            metadata.drop_dimension("x")
+
+    def test_ensure_band_dimension_add_bands(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                TemporalDimension(name="t", extent=None),
+            ]
+        )
+        new = metadata._ensure_band_dimension(bands=["red", "green"], warning="ensure_band_dimension at work")
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "bands"]
+        assert new.band_names == ["red", "green"]
+
+    def test_ensure_band_dimension_add_name_and_bands(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                TemporalDimension(name="t", extent=None),
+            ]
+        )
+        new = metadata._ensure_band_dimension(
+            name="bandzz", bands=["red", "green"], warning="ensure_band_dimension at work"
+        )
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "bandzz"]
+        assert new.band_names == ["red", "green"]
+
+    def test_ensure_band_dimension_override_bands(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                TemporalDimension(name="t", extent=None),
+                BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        new = metadata._ensure_band_dimension(bands=["tomato", "lettuce"], warning="ensure_band_dimension at work")
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "bands"]
+        assert new.band_names == ["tomato", "lettuce"]
+
+    def test_ensure_band_dimension_override_name_and_bands(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                TemporalDimension(name="t", extent=None),
+                BandDimension(name="bands", bands=[Band("red"), Band("green")]),
+            ]
+        )
+        new = metadata._ensure_band_dimension(
+            name="bandzz", bands=["tomato", "lettuce"], warning="ensure_band_dimension at work"
+        )
+        assert new.has_band_dimension()
+        assert new.dimension_names() == ["t", "bandzz"]
+        assert new.band_names == ["tomato", "lettuce"]
+
+    def test_subclass(self):
+        class MyCubeMetadata(CubeMetadata):
+            def __init__(self, dimensions: List[Dimension], bbox=None):
+                super().__init__(dimensions=dimensions)
+                self.bbox = bbox
+
+            def _clone_and_update(self, dimensions: List[Dimension] = None, bbox=None, **kwargs) -> MyCubeMetadata:
+                return super()._clone_and_update(dimensions=dimensions, bbox=bbox or self.bbox, **kwargs)
+
+            def filter_bbox(self, bbox):
+                return self._clone_and_update(bbox=bbox)
+
+        orig = MyCubeMetadata([SpatialDimension(name="x", extent=None)])
+        assert orig.bbox is None
+
+        new = orig.add_dimension(name="layer", label="red", type="bands")
+        assert isinstance(new, MyCubeMetadata)
+        assert orig.bbox is None
+        assert new.bbox is None
+
+        new = new.filter_bbox((1, 2, 3, 4))
+        assert isinstance(new, MyCubeMetadata)
+        assert orig.bbox is None
+        assert new.bbox == (1, 2, 3, 4)
+
+        new = new.add_dimension(name="time", label="2020", type="time")
+        assert isinstance(new, MyCubeMetadata)
+        assert orig.bbox is None
+        assert new.bbox == (1, 2, 3, 4)
+
+    @pytest.mark.parametrize(
+        ["kwargs", "expected_x", "expected_y"],
+        [
+            ({}, {"crs": 4326, "step": 0.1}, {"crs": 4326, "step": 0.1}),
+            ({"resolution": 2}, {"crs": 4326, "step": 2}, {"crs": 4326, "step": 2}),
+            ({"resolution": [0.5, 2]}, {"crs": 4326, "step": 0.5}, {"crs": 4326, "step": 2}),
+            ({"projection": 32631}, {"crs": 32631, "step": 0.1}, {"crs": 32631, "step": 0.1}),
+            ({"resolution": 10, "projection": 32631}, {"crs": 32631, "step": 10}, {"crs": 32631, "step": 10}),
+            ({"resolution": [11, 22], "projection": 32631}, {"crs": 32631, "step": 11}, {"crs": 32631, "step": 22}),
+        ],
     )
-    assert stac_dict["stac_extensions"] == [StacDummyBuilder._EXT_DATACUBE]
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_spatial(self, cube_metadata, kwargs, expected_x, expected_y):
+        metadata = cube_metadata.resample_spatial(**kwargs)
+        assert isinstance(metadata, CubeMetadata)
+        assert metadata.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], **expected_x),
+            SpatialDimension(name="y", extent=[49, 52], **expected_y),
+        )
+        assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+        assert metadata.band_dimension == cube_metadata.band_dimension
 
-    path = tmp_path / "stac.json"
-    path.write_text(json.dumps(stac_dict))
-    metadata = metadata_from_stac(str(path))
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_spatial_parameter_resolution_only(self, cube_metadata):
+        """When resolution is a Parameter, step should remain unchanged and crs should stay as-is."""
+        param = Parameter.number("res", description="The spatial resolution.")
+        metadata = cube_metadata.resample_spatial(resolution=param)
+        assert isinstance(metadata, CubeMetadata)
+        # step must be set to None after parametrized resample_spatial.
+        assert metadata.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=4326, step=_PARAMETERIZED_VALUE),
+        )
+        assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+        assert metadata.band_dimension == cube_metadata.band_dimension
 
-    assert metadata.dimension_names() == ["geom", "time", "band"]
-    assert metadata.has_geometry_dimension()
-    assert isinstance(metadata.geometry_dimension, GeometryDimension)
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_spatial_parameter_resolution_with_projection(self, cube_metadata):
+        """When resolution is a Parameter but projection is concrete, crs should be updated."""
+        param = Parameter.number("res", description="The spatial resolution.")
+        metadata = cube_metadata.resample_spatial(resolution=param, projection=32631)
+        assert isinstance(metadata, CubeMetadata)
+        assert metadata.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=32631, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=32631, step=_PARAMETERIZED_VALUE),
+        )
+        assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+        assert metadata.band_dimension == cube_metadata.band_dimension
 
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_spatial_parameter_projection_only(self, cube_metadata):
+        """When projection is a Parameter, crs should be set to None."""
+        param = Parameter.integer("proj", description="The target projection.")
+        metadata = cube_metadata.resample_spatial(resolution=10, projection=param)
+        assert isinstance(metadata, CubeMetadata)
+        assert metadata.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=_PARAMETERIZED_VALUE, step=10),
+            SpatialDimension(name="y", extent=[49, 52], crs=_PARAMETERIZED_VALUE, step=10),
+        )
+        assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+        assert metadata.band_dimension == cube_metadata.band_dimension
 
-@pytest.mark.parametrize(
-    ["kwargs", "expected_x", "expected_y"],
-    [
-        ({}, {"crs": 4326, "step": 0.1}, {"crs": 4326, "step": 0.1}),
-        ({"resolution": 2}, {"crs": 4326, "step": 2}, {"crs": 4326, "step": 2}),
-        ({"resolution": [0.5, 2]}, {"crs": 4326, "step": 0.5}, {"crs": 4326, "step": 2}),
-        ({"projection": 32631}, {"crs": 32631, "step": 0.1}, {"crs": 32631, "step": 0.1}),
-        ({"resolution": 10, "projection": 32631}, {"crs": 32631, "step": 10}, {"crs": 32631, "step": 10}),
-        ({"resolution": [11, 22], "projection": 32631}, {"crs": 32631, "step": 11}, {"crs": 32631, "step": 22}),
-    ],
-)
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_spatial(cube_metadata, kwargs, expected_x, expected_y):
-    metadata = cube_metadata.resample_spatial(**kwargs)
-    assert isinstance(metadata, CubeMetadata)
-    assert metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], **expected_x),
-        SpatialDimension(name="y", extent=[49, 52], **expected_y),
-    ]
-    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
-    assert metadata.band_dimension == cube_metadata.band_dimension
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_spatial_parameter_resolution_and_projection(self, cube_metadata):
+        """When both resolution and projection are Parameters, step and crs should both be None."""
+        res_param = Parameter.number("res", description="The spatial resolution.")
+        proj_param = Parameter.integer("proj", description="The target projection.")
+        metadata = cube_metadata.resample_spatial(resolution=res_param, projection=proj_param)
+        assert isinstance(metadata, CubeMetadata)
+        assert metadata.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+            SpatialDimension(name="y", extent=[49, 52], crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+        )
+        assert metadata.temporal_dimension == cube_metadata.temporal_dimension
+        assert metadata.band_dimension == cube_metadata.band_dimension
 
+    @pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
+    def test_resample_cube_spatial(self, cube_metadata):
+        metadata1 = cube_metadata.resample_spatial(resolution=(11, 22), projection=32631)
+        metadata2 = cube_metadata.resample_spatial(resolution=0.5)
 
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_spatial_parameter_resolution_only(cube_metadata):
-    """When resolution is a Parameter, step should remain unchanged and crs should stay as-is."""
-    param = Parameter.number("res", description="The spatial resolution.")
-    metadata = cube_metadata.resample_spatial(resolution=param)
-    assert isinstance(metadata, CubeMetadata)
-    # step must be set to None after parametrized resample_spatial.
-    assert metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=None),
-        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=None),
-    ]
-    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
-    assert metadata.band_dimension == cube_metadata.band_dimension
+        assert metadata1.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
+            SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
+        )
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
+            SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
+        )
 
+        metadata12 = metadata1.resample_cube_spatial(target=metadata2)
+        assert metadata12.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
+            SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
+        )
 
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_spatial_parameter_resolution_with_projection(cube_metadata):
-    """When resolution is a Parameter but projection is concrete, crs should be updated."""
-    param = Parameter.number("res", description="The spatial resolution.")
-    metadata = cube_metadata.resample_spatial(resolution=param, projection=32631)
-    assert isinstance(metadata, CubeMetadata)
-    assert metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=32631, step=None),
-        SpatialDimension(name="y", extent=[49, 52], crs=32631, step=None),
-    ]
-    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
-    assert metadata.band_dimension == cube_metadata.band_dimension
+        metadata21 = metadata2.resample_cube_spatial(target=metadata1)
+        assert metadata21.spatial_dimensions == (
+            SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
+            SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
+        )
 
-
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_spatial_parameter_projection_only(cube_metadata):
-    """When projection is a Parameter, crs should be set to None."""
-    param = Parameter.integer("proj", description="The target projection.")
-    metadata = cube_metadata.resample_spatial(resolution=10, projection=param)
-    assert isinstance(metadata, CubeMetadata)
-    assert metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=None, step=10),
-        SpatialDimension(name="y", extent=[49, 52], crs=None, step=10),
-    ]
-    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
-    assert metadata.band_dimension == cube_metadata.band_dimension
-
-
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_spatial_parameter_resolution_and_projection(cube_metadata):
-    """When both resolution and projection are Parameters, step and crs should both be None."""
-    res_param = Parameter.number("res", description="The spatial resolution.")
-    proj_param = Parameter.integer("proj", description="The target projection.")
-    metadata = cube_metadata.resample_spatial(resolution=res_param, projection=proj_param)
-    assert isinstance(metadata, CubeMetadata)
-    assert metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=None, step=None),
-        SpatialDimension(name="y", extent=[49, 52], crs=None, step=None),
-    ]
-    assert metadata.temporal_dimension == cube_metadata.temporal_dimension
-    assert metadata.band_dimension == cube_metadata.band_dimension
-
-
-@pytest.mark.parametrize("cube_metadata", [CUBE_METADATA_XYTB, CUBE_METADATA_TBXY])
-def test_metadata_resample_cube_spatial(cube_metadata):
-    metadata1 = cube_metadata.resample_spatial(resolution=(11, 22), projection=32631)
-    metadata2 = cube_metadata.resample_spatial(resolution=0.5)
-
-    assert metadata1.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
-        SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
-    ]
-    assert metadata2.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
-        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
-    ]
-
-    metadata12 = metadata1.resample_cube_spatial(target=metadata2)
-    assert metadata12.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.5),
-        SpatialDimension(name="y", extent=[49, 52], crs=4326, step=0.5),
-    ]
-
-    metadata21 = metadata2.resample_cube_spatial(target=metadata1)
-    assert metadata21.spatial_dimensions == [
-        SpatialDimension(name="x", extent=[2, 7], crs=32631, step=11),
-        SpatialDimension(name="y", extent=[49, 52], crs=32631, step=22),
-    ]
-
-
-def test_metadata_resample_cube_spatial_preserve_non_spatial():
-    xy1 = [
-        SpatialDimension(name="x", extent=[12, 17], crs=4326, step=0.1),
-        SpatialDimension(name="y", extent=[41, 51], crs=4326, step=0.1),
-    ]
-    t1 = TemporalDimension(name="t", extent=["2024-01-01", "2024-10-01"])
-    b1 = BandDimension(name="bands", bands=[Band("B1"), Band("B11")])
-    metadata1 = CubeMetadata(dimensions=xy1 + [t1, b1])
-
-    xy2 = [
-        SpatialDimension(name="x", extent=[22, 27], crs=4326, step=0.1),
-        SpatialDimension(name="y", extent=[42, 52], crs=4326, step=0.1),
-    ]
-    t2 = TemporalDimension(name="t", extent=["2024-02-02", "2024-12-02"])
-    metadata2 = CubeMetadata(dimensions=xy2 + [t2])
-
-    xy3 = [
-        SpatialDimension(name="x", extent=[32, 37], crs=4326, step=0.1),
-        SpatialDimension(name="y", extent=[43, 53], crs=4326, step=0.1),
-    ]
-    b3 = BandDimension(name="bands", bands=[Band("B3"), Band("B33")])
-    metadata3 = CubeMetadata(dimensions=xy3 + [b3])
-
-    result12 = metadata1.resample_cube_spatial(target=metadata2)
-    assert result12.spatial_dimensions == xy2
-    assert result12.band_dimension == b1
-    assert result12.temporal_dimension == t1
-
-    result21 = metadata2.resample_cube_spatial(target=metadata1)
-    assert result21.spatial_dimensions == xy1
-    assert not result21.has_band_dimension()
-    assert result21.temporal_dimension == t2
-
-    result23 = metadata2.resample_cube_spatial(target=metadata3)
-    assert result23.spatial_dimensions == xy3
-    assert not result23.has_band_dimension()
-    assert result23.temporal_dimension == t2
-
-    result31 = metadata3.resample_cube_spatial(target=metadata1)
-    assert result31.spatial_dimensions == xy1
-    assert result31.band_dimension == b3
-    assert not result31.has_temporal_dimension()
-
-
-def test_cube_metadata_repr_empty():
-    metadata = CubeMetadata()
-    assert repr(metadata) == "CubeMetadata(dimensions=None)"
-
-
-def test_cube_metadata_repr_with_bands():
-    assert repr(CUBE_METADATA_XYTB) == "CubeMetadata(dimension_names=['x', 'y', 't', 'bands'], band_names=['B2', 'B3'])"
-
-
-def test_cube_metadata_repr_no_bands():
-    metadata = CubeMetadata(
-        dimensions=[
-            SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
-            TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+    def test_resample_cube_spatial_preserve_non_spatial(self):
+        xy1 = [
+            SpatialDimension(name="x", extent=[12, 17], crs=4326, step=0.1),
+            SpatialDimension(name="y", extent=[41, 51], crs=4326, step=0.1),
         ]
+        t1 = TemporalDimension(name="t", extent=["2024-01-01", "2024-10-01"])
+        b1 = BandDimension(name="bands", bands=[Band("B1"), Band("B11")])
+        metadata1 = CubeMetadata(dimensions=xy1 + [t1, b1])
+
+        xy2 = [
+            SpatialDimension(name="x", extent=[22, 27], crs=4326, step=0.1),
+            SpatialDimension(name="y", extent=[42, 52], crs=4326, step=0.1),
+        ]
+        t2 = TemporalDimension(name="t", extent=["2024-02-02", "2024-12-02"])
+        metadata2 = CubeMetadata(dimensions=xy2 + [t2])
+
+        xy3 = [
+            SpatialDimension(name="x", extent=[32, 37], crs=4326, step=0.1),
+            SpatialDimension(name="y", extent=[43, 53], crs=4326, step=0.1),
+        ]
+        b3 = BandDimension(name="bands", bands=[Band("B3"), Band("B33")])
+        metadata3 = CubeMetadata(dimensions=xy3 + [b3])
+
+        result12 = metadata1.resample_cube_spatial(target=metadata2)
+        assert result12.spatial_dimensions == SpatialDimensionsXY(*xy2)
+        assert result12.band_dimension == b1
+        assert result12.temporal_dimension == t1
+
+        result21 = metadata2.resample_cube_spatial(target=metadata1)
+        assert result21.spatial_dimensions == SpatialDimensionsXY(*xy1)
+        assert not result21.has_band_dimension()
+        assert result21.temporal_dimension == t2
+
+        result23 = metadata2.resample_cube_spatial(target=metadata3)
+        assert result23.spatial_dimensions == SpatialDimensionsXY(*xy3)
+        assert not result23.has_band_dimension()
+        assert result23.temporal_dimension == t2
+
+        result31 = metadata3.resample_cube_spatial(target=metadata1)
+        assert result31.spatial_dimensions == SpatialDimensionsXY(*xy1)
+        assert result31.band_dimension == b3
+        assert not result31.has_temporal_dimension()
+
+    def test_repr_empty(self):
+        metadata = CubeMetadata()
+        assert repr(metadata) == "CubeMetadata(dimensions=None)"
+
+    def test_repr_with_bands(self):
+        assert (
+            repr(CUBE_METADATA_XYTB)
+            == "CubeMetadata(dimension_names=['x', 'y', 't', 'bands'], band_names=['B2', 'B3'])"
+        )
+
+    def test_repr_no_bands(self):
+        metadata = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", extent=[2, 7], crs=4326, step=0.1),
+                TemporalDimension(name="t", extent=["2024-09-01", "2024-12-01"]),
+            ]
+        )
+        assert repr(metadata) == "CubeMetadata(dimension_names=['x', 't'])"
+
+    def test_repr_html_empty(self):
+        metadata = CubeMetadata()
+        html = metadata._repr_html_()
+        assert "No cube (dimension) metadata" in html
+
+    def test_repr_html_with_dimensions(self):
+        html = CUBE_METADATA_XYTB._repr_html_()
+        assert html == dirty_equals.IsStr(
+            regex=r"""
+                .*<table>
+                .*<thead>.*Dimension.*Type.*Size.*</thead>
+                .*<tbody>
+                    .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                    .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                    .*<tr><td.*?>t</td><td.*?>temporal</td>.*</tr>
+                    .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>2</td><td.*?>bands:\sB2,\sB3</td></tr>
+                    .*""",
+            regex_flags=re.DOTALL | re.VERBOSE,
+        )
+
+    @pytest.mark.parametrize(
+        ["spatial_extent", "expected"],
+        [
+            ({"west": 3, "east": 5, "south": 46, "north": 51}, ((3, 5), (49, 51))),
+            ({"west": 3, "east": 5, "south": 46, "north": 51, "crs": 4326}, ((3, 5), (49, 51))),
+            ({"west": 3, "east": 5, "south": 46, "north": 51, "crs": "EPSG:4326"}, ((3, 5), (49, 51))),
+        ],
     )
-    assert repr(metadata) == "CubeMetadata(dimension_names=['x', 't'])"
+    def test_filter_bbox_basic(self, spatial_extent, expected):
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
+
+        assert metadata1.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        expected_x, expected_y = expected
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=expected_x, crs=4326),
+            SpatialDimension(name="y", axis="y", extent=expected_y, crs=4326),
+        )
+
+    def test_filter_bbox_parameterized(self):
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        spatial_extent = openeo.api.process.Parameter.spatial_extent()
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
+
+        assert metadata1.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=(2, 7), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=(49, 52), crs=4326),
+        )
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+        )
+
+    @pytest.mark.parametrize(
+        ["spatial_extent"],
+        [
+            ({"west": 170, "south": 40, "east": -170, "north": 50},),
+        ],
+    )
+    def test_filter_bbox_antimeridian(self, spatial_extent):
+        # TODO: test proper detection and handling of antimeridian crossing
+        metadata1 = CubeMetadata(
+            dimensions=[
+                SpatialDimension(name="x", axis="x", extent=(-180, 180), crs=4326),
+                SpatialDimension(name="y", axis="y", extent=(-70, 70), crs=4326),
+                TemporalDimension(name="t", extent=("2021-01-01", None)),
+            ]
+        )
+        metadata2 = metadata1.filter_bbox(extent=spatial_extent)
+
+        assert metadata2.spatial_dimensions == (
+            SpatialDimension(name="x", axis="x", extent=dirty_equals.IsInstance(_NonConcreteExtent), crs=4326),
+            SpatialDimension(name="y", axis="y", extent=NumericalInterval(start=40, end=50), crs=4326),
+        )
 
 
 class TestStacMetadataParser:
+    @pytest.mark.parametrize(
+        "test_stac, expected",
+        [
+            (
+                StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}, {"name": "B02"}]}),
+                ["B01", "B02"],
+            ),
+            (
+                StacDummyBuilder.collection(summaries={"bands": [{"name": "B01"}, {"name": "B02"}]}),
+                ["B01", "B02"],
+            ),
+            # TODO: test asset handling in collection?
+            (
+                StacDummyBuilder.catalog(),
+                [],
+            ),
+            (
+                StacDummyBuilder.item(
+                    properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "SCL"}, {"name": "B08"}]}
+                ),
+                ["SCL", "B08"],
+            ),
+            (
+                StacDummyBuilder.item(
+                    properties={"datetime": "2020-05-22T00:00:00Z", "bands": [{"name": "SCL"}, {"name": "B08"}]}
+                ),
+                ["SCL", "B08"],
+            ),
+            # TODO: test asset handling in item?
+        ],
+    )
+    def test_metadata_from_stac_bands(self, tmp_path, test_stac, expected):
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(test_stac))
+        metadata = metadata_from_stac(str(path))
+        assert metadata.band_names == expected
+
+    def test_metadata_from_stac_stac_1_1_common_bands_without_datacube_extension(self, tmp_path):
+        stac_dict = StacDummyBuilder.collection(
+            stac_version="1.1.0",
+            bands=[
+                {"name": "red", "eo:common_name": "red", "eo:center_wavelength": 0.665},
+                {"name": "nir", "eo:common_name": "nir", "eo:center_wavelength": 0.842},
+            ],
+        )
+        assert "stac_extensions" not in stac_dict
+        assert "cube:dimensions" not in stac_dict
+
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(stac_dict))
+        metadata = metadata_from_stac(str(path))
+
+        assert metadata.dimension_names() == ["x", "y", "bands", "t"]
+        assert metadata.band_names == ["red", "nir"]
+        assert metadata.band_dimension.bands[0].common_name == "red"
+        assert metadata.band_dimension.bands[1].wavelength_um == 0.842
+
+    @pytest.mark.parametrize(
+        ["eo_extension_is_declared", "expected_warnings"],
+        [
+            (
+                False,
+                [
+                    "Deriving band listing from unordered `item_assets`",
+                    "Using 'eo:bands' metadata, but STAC extension eo was not declared.",
+                ],
+            ),
+            (True, ["Deriving band listing from unordered `item_assets`"]),
+        ],
+    )
+    def test_metadata_from_stac_collection_bands_from_item_assets(
+        self, test_data, tmp_path, eo_extension_is_declared, caplog, expected_warnings
+    ):
+        stac_data = test_data.load_json("stac/collections/agera5_daily01.json")
+        stac_data["stac_extensions"] = [
+            ext
+            for ext in stac_data["stac_extensions"]
+            if (not ext.startswith("https://stac-extensions.github.io/eo/") or eo_extension_is_declared)
+        ]
+        assert (
+            any(ext.startswith("https://stac-extensions.github.io/eo/") for ext in stac_data["stac_extensions"])
+            == eo_extension_is_declared
+        )
+        path = tmp_path / "stac.json"
+        path.write_text(json.dumps(stac_data))
+
+        metadata = metadata_from_stac(str(path))
+        assert sorted(metadata.band_names) == [
+            "2m_temperature_max",
+            "2m_temperature_min",
+            "dewpoint_temperature_mean",
+            "vapour_pressure",
+        ]
+
+        assert caplog.messages == expected_warnings
+
+    @pytest.mark.parametrize(
+        ["stac_dict", "expected"],
+        [
+            (
+                StacDummyBuilder.item(),
+                ("t", ["2024-03-08", "2024-03-08"]),
+            ),
+            (
+                StacDummyBuilder.item(
+                    properties={
+                        "datetime": "2024-03-08T00:00:00Z",
+                        "start_datetime": "2024-04-04T00:00:00Z",
+                        "end_datetime": "2024-06-06T00:00:00Z",
+                    }
+                ),
+                ("t", ["2024-04-04T00:00:00Z", "2024-06-06T00:00:00Z"]),
+            ),
+            (
+                StacDummyBuilder.item(
+                    cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
+                ),
+                ("t", ["2024-04-04", "2024-06-06"]),
+            ),
+            (
+                StacDummyBuilder.item(
+                    cube_dimensions={"datezz": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
+                ),
+                ("datezz", ["2024-04-04", "2024-06-06"]),
+            ),
+            (
+                StacDummyBuilder.collection(),
+                ("t", ["2024-01-01T00:00:00Z", "2024-05-05T00:00:00Z"]),
+            ),
+            (
+                StacDummyBuilder.collection(
+                    cube_dimensions={"t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]}}
+                ),
+                ("t", ["2024-04-04", "2024-06-06"]),
+            ),
+            (
+                StacDummyBuilder.catalog(),
+                None,
+            ),
+            (
+                # Note: a catalog is not supposed to have datacube extension enabled, but we should not choke on that
+                StacDummyBuilder.catalog(stac_extensions=[StacDummyBuilder._EXT_DATACUBE]),
+                None,
+            ),
+        ],
+    )
+    def test_metadata_from_stac_temporal_dimension(self, tmp_path, stac_dict, expected):
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(stac_dict))
+        metadata = metadata_from_stac(str(path))
+        if expected:
+            dim = metadata.temporal_dimension
+            assert isinstance(dim, TemporalDimension)
+            assert (dim.name, dim.extent) == expected
+        else:
+            assert not metadata.has_temporal_dimension()
+
+    @pytest.mark.parametrize(
+        ["stac_dict", "expected_dims"],
+        [
+            (
+                # No cube:dimensions -> fall back to openEO default naming convention
+                StacDummyBuilder.collection(summaries={"eo:bands": [{"name": "B01"}]}),
+                {"t", "bands", "y", "x"},
+            ),
+            (
+                # No cube:dimensions (item) -> fall back to openEO default naming convention
+                StacDummyBuilder.item(properties={"datetime": "2020-05-22T00:00:00Z", "eo:bands": [{"name": "B01"}]}),
+                {"t", "bands", "y", "x"},
+            ),
+            (
+                # cube:dimensions present -> use the dimension names as suggested by cube:dimensions keys
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
+                        "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+                    }
+                ),
+                {"time", "band", "y", "x"},
+            ),
+            (
+                # cube:dimensions present without band dimension -> don't inject an openEO "bands" dimension
+                StacDummyBuilder.collection(
+                    summaries={"eo:bands": [{"name": "B01"}]},
+                    cube_dimensions={
+                        "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "y": {"type": "spatial", "axis": "y", "extent": [0, 1]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [0, 1]},
+                    },
+                ),
+                {"time", "y", "x"},
+            ),
+        ],
+    )
+    def test_metadata_from_stac_dimension_policy_cube_dimensions_vs_default(self, tmp_path, stac_dict, expected_dims):
+        # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(stac_dict))
+        metadata = metadata_from_stac(str(path))
+
+        got = tuple(metadata.dimension_names() or ())
+
+        # Order-insensitive check: names only
+        assert set(got) == expected_dims
+
+        # Ensure the policy logic is exercised correctly:
+        # cube:dimensions can be located at root (collection) or in properties (item)
+        cube_dims = stac_dict.get("cube:dimensions") or (stac_dict.get("properties") or {}).get("cube:dimensions")
+        if cube_dims is None:
+            assert set(got) == {"t", "bands", "y", "x"}
+        else:
+            assert set(got) == set(cube_dims.keys())
+
+    def test_metadata_from_stac_cube_dimensions_geometries_not_treated_as_band_dimension(self, tmp_path):
+        """
+        A "geometries" typed cube:dimensions entry (vector cube dimension) should not be
+        silently converted into a BandDimension, even when the STAC datacube extension
+        is declared (which routes parsing through pystac's extension API).
+        """
+        stac_dict = StacDummyBuilder.collection(
+            cube_dimensions={
+                "geom": {"type": "geometries"},
+                "time": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                "band": {"type": "bands", "values": ["B01"]},
+            }
+        )
+        assert stac_dict["stac_extensions"] == [StacDummyBuilder._EXT_DATACUBE]
+
+        path = tmp_path / "stac.json"
+        path.write_text(json.dumps(stac_dict))
+        metadata = metadata_from_stac(str(path))
+
+        assert metadata.dimension_names() == ["geom", "time", "band"]
+        assert metadata.has_geometry_dimension()
+        assert isinstance(metadata.geometry_dimension, GeometryDimension)
+
+    @pytest.mark.parametrize(
+        ["stac_dict", "expected"],
+        [
+            (
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "reference_system": 4326},
+                        "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "reference_system": 4326},
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[-180, 180], crs=4326),
+                    SpatialDimension(name="y", axis="y", extent=[-70, 70], crs=4326),
+                ),
+            ),
+            (
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "band": {"type": "bands", "values": ["B01"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [100_000, 900_000], "reference_system": 32631},
+                        "y": {
+                            "type": "spatial",
+                            "axis": "y",
+                            "extent": [3_000_000, 7_000_000],
+                            "reference_system": 32631,
+                        },
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[100_000, 900_000], crs=32631),
+                    SpatialDimension(name="y", axis="y", extent=[3_000_000, 7_000_000], crs=32631),
+                ),
+            ),
+            (
+                # Exotic use case with a vertical spatial "z" dimension
+                StacDummyBuilder.collection(
+                    cube_dimensions={
+                        "t": {"type": "temporal", "extent": ["2024-04-04", "2024-06-06"]},
+                        "x": {"type": "spatial", "axis": "x", "extent": [-180, 180], "reference_system": 4326},
+                        "y": {"type": "spatial", "axis": "y", "extent": [-70, 70], "reference_system": 4326},
+                        "z": {"type": "spatial", "axis": "z", "extent": [0, 10], "reference_system": 4326},
+                    }
+                ),
+                (
+                    SpatialDimension(name="x", axis="x", extent=[-180, 180], crs=4326),
+                    SpatialDimension(name="y", axis="y", extent=[-70, 70], crs=4326),
+                ),
+            ),
+        ],
+    )
+    def test_metadata_from_stac_spatial_dimensions(self, tmp_path, stac_dict, expected):
+        # Dimension name resolution policy (STAC cube:dimensions vs openEO defaults)
+        path = tmp_path / "stac.json"
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        path.write_text(json.dumps(stac_dict))
+
+        metadata = metadata_from_stac(str(path))
+        assert metadata.spatial_dimensions == expected
+
     def test_band_from_eo_bands_metadata_basic(self):
         assert _StacMetadataParser()._band_from_eo_bands_metadata(
             {"name": "B04"},

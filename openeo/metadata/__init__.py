@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     NamedTuple,
     Optional,
     Tuple,
@@ -21,7 +22,9 @@ import pystac.extensions.item_assets
 
 from openeo.api.process import Parameter
 from openeo.internal.jupyter import render_component
-from openeo.util import Rfc3339, deep_get
+from openeo.metadata._extents import NumericalInterval, _EmptyExtent, _NonConcreteExtent
+from openeo.util import BBoxDict, Rfc3339, deep_get, normalize_crs_or_passthrough
+from openeo.utils.datetime import DateTimeInterval
 from openeo.utils.normalize import normalize_resample_resolution, unique
 
 _log = logging.getLogger(__name__)
@@ -33,6 +36,16 @@ class MetadataException(Exception):
 
 class DimensionAlreadyExistsException(MetadataException):
     pass
+
+
+# Sentinel object to signal that a value is parameterized/abstract
+# at current time (e.g. client side build time)
+# only to become concrete in different context (e.g. server side run time).
+# Note that this different and more expressive alternative to using a generic `None`,
+# which might trigger fallback/default handling logic that would be undesired.
+# TODO: do this with a class instead of singleton object?
+# TODO: move up higher for wider reuse of this concept?
+_PARAMETERIZED_VALUE = object()
 
 
 # TODO: make these dimension classes immutable data classes
@@ -69,36 +82,129 @@ class Dimension:
 
 
 class SpatialDimension(Dimension):
-    # TODO: align better with STAC datacube extension: e.g. support "axis" (x or y)
+    """
+    Spatial dimension metadata, roughly modeled after
+    "Horizontal Spatial Raster Dimension Object" of the STAC datacube extension,
+    which prescribes these required aspects:
+    - name: The name of the dimension
+    - axis: Axis of the spatial raster dimension ("x" or "y").
+    - extent: lower and upper bounds of the dimension as two-element array.
+    """
+
     DEFAULT_CRS = 4326
 
     def __init__(
         self,
         name: str,
-        extent: Union[Tuple[float, float], List[float]],
-        crs: Union[str, int, dict] = DEFAULT_CRS,
+        *,
+        # TODO: axis should be required (without None as default), but currently optional (with fallback guess) for backwards compatibility.
+        axis: Literal["x", "y"] | None = None,
+        extent: Tuple[float, float] | List[float] | NumericalInterval | _NonConcreteExtent | _EmptyExtent,
+        crs: str | int | dict | None = DEFAULT_CRS,
         step=None,
     ):
         """
-
         @param name:
+        @param axis: Axis of the spatial raster dimension ("x" or "y")
         @param extent:
-        @param crs:
+        @param crs: The spatial reference system for the data and datacube metadata (extent, values and step),
+            specified as numerical EPSG code, WKT2 (ISO 19162) string or PROJJSON object.
+            Defaults to EPSG code 4326.
         @param step: The space between the values. Use null for irregularly spaced steps.
         """
         super().__init__(type="spatial", name=name)
+        # TODO: eliminate guessing of axis from name, and make axis a properly required argument (without None as default).
+        self.axis: Literal["x", "y"] = axis or name
+        # TODO: normalize extent to NumericalInterval when appropriate?
         self.extent = extent
-        self.crs = crs
+        # TODO Rename/proxy "crs" to "reference_system" to better align with STAC datacube extension terminology.
+        self.crs = crs or self.DEFAULT_CRS
         self.step = step
 
     def rename(self, name) -> Dimension:
-        return SpatialDimension(name=name, extent=self.extent, crs=self.crs, step=self.step)
+        return SpatialDimension(name=name, axis=self.axis, extent=self.extent, crs=self.crs, step=self.step)
+
+    def filter_extent(
+        self,
+        extent: (
+            Tuple[float | int, float | int]
+            | List[float | int]
+            | NumericalInterval
+            | _EmptyExtent
+            | _NonConcreteExtent
+            | None
+        ),
+    ):
+        if isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            extent = _EmptyExtent()
+        elif isinstance(self.extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=self.extent.reason)
+        elif isinstance(extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=extent.reason)
+        elif (this_interval := NumericalInterval.try_from(self.extent)) and (
+            other_interval := NumericalInterval.try_from(extent)
+        ):
+            extent = this_interval.intersection(other_interval)
+        elif extent is None:
+            extent = self.extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent = _NonConcreteExtent(reason=f"unhandled")
+        return SpatialDimension(name=self.name, axis=self.axis, extent=extent, crs=self.crs, step=self.step)
+
+
+class SpatialDimensionsXY(NamedTuple):
+    """
+    Simple container class for a pair of spatial dimensions (x and y).
+    """
+
+    x: SpatialDimension
+    y: SpatialDimension
+
+    def filter_bbox(self, extent: Any) -> SpatialDimensionsXY:
+        # TODO: support more types and forms of the extent (geometries, etc.) ... e.g. using the BBoxDict factories?
+        if bbox := BBoxDict.try_from_dict(extent):
+            bbox_crs = bbox.get("crs", SpatialDimension.DEFAULT_CRS)
+            if bbox_crs == normalize_crs_or_passthrough(self.x.crs) and bbox_crs == normalize_crs_or_passthrough(
+                self.y.crs
+            ):
+                # No reprojection needed
+                extent_x = bbox["west"], bbox["east"]
+                extent_y = bbox["south"], bbox["north"]
+
+                if bbox_crs == 4326 and bbox["west"] > bbox["east"]:
+                    # TODO: proper detection and handling of antimeridian crossing
+                    extent_x = _NonConcreteExtent(reason="unsupported: antimeridian crossing")
+            else:
+                # TODO: reproject
+                extent_x = _NonConcreteExtent(reason="unsupported: reprojection")
+                extent_y = _NonConcreteExtent(reason="unsupported: reprojection")
+        elif isinstance(extent, _EmptyExtent):
+            extent_x, extent_y = _EmptyExtent(), _EmptyExtent()
+        elif isinstance(extent, _NonConcreteExtent):
+            extent_x, extent_y = _NonConcreteExtent(reason=extent.reason), _NonConcreteExtent(reason=extent.reason)
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent_x, extent_y = _NonConcreteExtent(reason="unhandled"), _NonConcreteExtent(reason="unhandled")
+
+        return SpatialDimensionsXY(
+            x=self.x.filter_extent(extent=extent_x),
+            y=self.y.filter_extent(extent=extent_y),
+        )
 
 
 class TemporalDimension(Dimension):
-    def __init__(self, name: str, extent: Union[Tuple[str, str], List[str]]):
+    def __init__(
+        self,
+        name: str,
+        *,
+        extent: Tuple[str | None, str | None] | List[str | None] | _NonConcreteExtent | _EmptyExtent | None,
+    ):
         super().__init__(type="temporal", name=name)
-        self.extent = extent
+        # TODO: ideally we do some validation/normalization of the extent,
+        #       but this is an existing public API (e.g. used from openeo-python-driver and openeo-geopyspark-driver)
+        #       currently with little wiggle room to change behavior or increase strictness.
+        self.extent = extent or (None, None)
 
     def rename(self, name) -> Dimension:
         return TemporalDimension(name=name, extent=self.extent)
@@ -106,6 +212,36 @@ class TemporalDimension(Dimension):
     def rename_labels(self, target, source) -> Dimension:
         # TODO should we check if the extent has changed with the new labels?
         return TemporalDimension(name=self.name, extent=self.extent)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> TemporalDimension:
+        """
+        Create new TemporalDimension with intersection current and given temporal extents.
+        """
+        if (interval1 := DateTimeInterval.try_from_tuple(self.extent)) and (
+            interval2 := DateTimeInterval.try_from_tuple(extent, end_inclusive=False)
+        ):
+            # Note on "end-inclusiveness" aspect in this intersection calculation:
+            # the current extent of the dimension is end-inclusive by definition (a data extent),
+            # while the `filter_temporal` extent is end-exclusive by definition (a filter extent).
+            # The inclusivity is taken into account while determining the intersection,
+            # but the end result is handled as (coerced into) an end-inclusive data extent regardless.
+            # While this might introduce a (sub-)second imprecision, it is typically
+            # multiple orders of magnitude smaller than the actual error (hours/days)
+            # of this best-effort, client-side approximation/simulation.
+            if intersection := interval1.intersection(interval2):
+                new_extent = intersection.as_rfc3339()
+            else:
+                new_extent = _EmptyExtent()
+        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            new_extent = _EmptyExtent()
+        elif extent is None:
+            new_extent = self.extent
+        elif self.extent is None:
+            new_extent = extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            new_extent = _NonConcreteExtent(reason="fallback")
+        return TemporalDimension(name=self.name, extent=new_extent)
 
 
 class Band(NamedTuple):
@@ -135,7 +271,7 @@ class BandDimension(Dimension):
         self.bands = bands
 
     @property
-    def band_names(self) -> List[str]:
+    def band_names(self) -> List[str | None]:
         return [b.name for b in self.bands]
 
     @property
@@ -272,28 +408,31 @@ class CubeMetadata:
     """
 
     def __init__(self, dimensions: Optional[List[Dimension]] = None):
-        # Original collection metadata (actual cube metadata might be altered through processes)
         # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
         #       but most usage actually assumes it is a list that can be iterated over.
         #       Can we handle this more consistently and less error-prone?
         self._dimensions: Union[List[Dimension], None] = dimensions
-        self._band_dimension = None
-        self._temporal_dimension = None
+        self._band_dimension: BandDimension | None = None
+        self._temporal_dimension: TemporalDimension | None = None
+        self._spatial_dimensions: SpatialDimensionsXY | None = None
 
         if dimensions is not None:
-            for dim in self._dimensions:
-                # TODO: here we blindly pick last bands or temporal dimension if multiple. Let user choose?
-                # TODO: add spatial dimension handling?
-                if dim.type == "bands":
-                    if isinstance(dim, BandDimension):
-                        self._band_dimension = dim
-                    else:
-                        raise MetadataException("Invalid band dimension {d!r}".format(d=dim))
-                if dim.type == "temporal":
-                    if isinstance(dim, TemporalDimension):
-                        self._temporal_dimension = dim
-                    else:
-                        raise MetadataException("Invalid temporal dimension {d!r}".format(d=dim))
+            if band_dims := [d for d in dimensions if isinstance(d, BandDimension)]:
+                if len(band_dims) > 1:
+                    _log.warning(f"Multiple band dimensions, arbitrarily picking the first one: {band_dims=}")
+                self._band_dimension = band_dims[0]
+            if temporal_dims := [d for d in dimensions if isinstance(d, TemporalDimension)]:
+                if len(temporal_dims) > 1:
+                    _log.warning(f"Multiple temporal dimensions, arbitrarily picking the first one: {temporal_dims=}")
+                self._temporal_dimension = temporal_dims[0]
+            if spatial_dims := sorted(
+                (d for d in dimensions if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}),
+                key=lambda d: d.axis,
+            ):
+                if [d.axis for d in spatial_dims] == ["x", "y"]:
+                    self._spatial_dimensions = SpatialDimensionsXY(x=spatial_dims[0], y=spatial_dims[1])
+                else:
+                    _log.warning(f"Failed to detect x and y spatial dimensions: {spatial_dims=}")
 
     def __eq__(self, o: Any) -> bool:
         return isinstance(o, type(self)) and self._dimensions == o._dimensions
@@ -309,6 +448,15 @@ class CubeMetadata:
     def __str__(self) -> str:
         bands = self.band_names if self.has_band_dimension() else "no bands dimension"
         return f"CubeMetadata({bands} - {self.dimension_names()})"
+
+    def _repr_html_(self) -> str:
+        # Local import to avoid circular import issues and dependency overload
+        import openeo.metadata._jupyter
+
+        if self._dimensions:
+            return openeo.metadata._jupyter.repr_html_dimensions(self._dimensions)
+        else:
+            return "<p>No cube (dimension) metadata</p>"
 
     def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
         """Create a new instance (of same class) with copied/updated fields."""
@@ -349,9 +497,14 @@ class CubeMetadata:
             raise MetadataException("No temporal dimension")
         return self._temporal_dimension
 
+    def has_spatial_dimensions(self) -> bool:
+        return isinstance(self._spatial_dimensions, SpatialDimensionsXY)
+
     @property
-    def spatial_dimensions(self) -> List[SpatialDimension]:
-        return [d for d in self._dimensions if isinstance(d, SpatialDimension)]
+    def spatial_dimensions(self) -> SpatialDimensionsXY:
+        if not self.has_spatial_dimensions():
+            raise MetadataException("No spatial dimensions")
+        return self._spatial_dimensions
 
     def has_geometry_dimension(self):
         return any(isinstance(d, GeometryDimension) for d in self._dimensions)
@@ -380,6 +533,30 @@ class CubeMetadata:
     def get_band_index(self, band: Union[int, str]) -> int:
         # TODO: eliminate this shortcut for smaller API surface
         return self.band_dimension.band_index(band)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> CubeMetadata:
+        if not self.has_temporal_dimension():
+            _log.warning("filter_temporal on cube metadata without temporal dimension. Returning unchanged metadata.")
+            return self
+        return self._clone_and_update(
+            dimensions=[
+                d.filter_temporal(extent=extent) if isinstance(d, TemporalDimension) else d for d in self._dimensions
+            ]
+        )
+
+    def filter_bbox(self, extent: Any) -> CubeMetadata:
+        if self._dimensions and isinstance(self._spatial_dimensions, SpatialDimensionsXY):
+            spatial_dimensions: SpatialDimensionsXY = self._spatial_dimensions.filter_bbox(extent=extent)
+            dimensions = [
+                getattr(spatial_dimensions, d.axis)
+                if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}
+                else d
+                for d in self._dimensions
+            ]
+            return self._clone_and_update(dimensions=dimensions)
+
+        _log.warning("filter_bbox on cube metadata without spatial dimension. Returning unchanged metadata.")
+        return self
 
     def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
         """
@@ -449,7 +626,10 @@ class CubeMetadata:
         if type == "bands":
             dim = BandDimension(name=name, bands=[Band(name=label)])
         elif type == "spatial":
-            dim = SpatialDimension(name=name, extent=[label, label])
+            # From `add_dimension` spec: the axis is the first option that does not exist yet from x, y, and z
+            current_axes = {d.axis for d in self._dimensions if isinstance(d, SpatialDimension)}
+            next_axis = next((axis for axis in ["x", "y", "z"] if axis not in current_axes), None)
+            dim = SpatialDimension(name=name, axis=next_axis, extent=[label, label])
         elif type == "temporal":
             dim = TemporalDimension(name=name, extent=[label, label])
         elif type == "geometry":
@@ -496,15 +676,15 @@ class CubeMetadata:
         projection: Union[int, str, Parameter, None] = None,
     ) -> CubeMetadata:
         if isinstance(resolution, Parameter):
-            normalized_resolution = None, None
+            normalized_resolution = _PARAMETERIZED_VALUE, _PARAMETERIZED_VALUE
         else:
             normalized_resolution = normalize_resample_resolution(resolution)
 
         if self._dimensions is None:
             # Best-effort fallback to work with
             dimensions = [
-                SpatialDimension(name="x", extent=[None, None]),
-                SpatialDimension(name="y", extent=[None, None]),
+                SpatialDimension(name="x", axis="x", extent=[None, None]),
+                SpatialDimension(name="y", axis="y", extent=[None, None]),
             ]
         else:
             # Make sure to work with a copy (to edit in-place)
@@ -520,8 +700,10 @@ class CubeMetadata:
             dim: SpatialDimension = dimensions[i]
             dimensions[i] = SpatialDimension(
                 name=dim.name,
+                axis=dim.axis,
+                # TODO #955 extent should be reprojected to new projection when necessary
                 extent=dim.extent,
-                crs=None if isinstance(projection, Parameter) else (projection or dim.crs),
+                crs=_PARAMETERIZED_VALUE if isinstance(projection, Parameter) else (projection or dim.crs),
                 step=r if r != 0.0 else dim.step,
             )
 
@@ -530,7 +712,9 @@ class CubeMetadata:
     def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
         # Replace spatial dimensions with ones from target, but keep other dimensions
         dimensions = [d for d in (self._dimensions or []) if not isinstance(d, SpatialDimension)]
-        dimensions.extend(target.spatial_dimensions)
+        # TODO #955 the spatial extent of the original cube should be reprojected to target projection
+        if target.has_spatial_dimensions():
+            dimensions.extend(target.spatial_dimensions)
         return self._clone_and_update(dimensions=dimensions)
 
 
@@ -554,6 +738,7 @@ class CollectionMetadata(CubeMetadata):
     #       Problem: openeo-geopyspark-driver still heavily depends on CollectionMetadata acting as cube metadata.
 
     def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
+        # Original collection metadata (actual cube metadata might be altered through processes)
         self._orig_metadata = metadata
         if dimensions is None:
             dimensions = self._parse_dimensions(self._orig_metadata)
@@ -595,6 +780,7 @@ class CollectionMetadata(CubeMetadata):
                 dimensions.append(
                     SpatialDimension(
                         name=name,
+                        axis=info.get("axis"),
                         extent=info.get("extent"),
                         crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS),
                         step=info.get("step", None),
@@ -777,8 +963,8 @@ class _StacMetadataParser:
             return self._parse_declared_dimensions(stac_object=stac_object, bands=bands)
 
         dimensions: List[Dimension] = [
-            SpatialDimension(name="x", extent=[None, None]),
-            SpatialDimension(name="y", extent=[None, None]),
+            SpatialDimension(name="x", axis="x", extent=[None, None]),
+            SpatialDimension(name="y", axis="y", extent=[None, None]),
             BandDimension(name="bands", bands=list(bands)),
         ]
         temporal_dimension = self.get_temporal_dimension(stac_object)
@@ -874,7 +1060,7 @@ class _StacMetadataParser:
             extent = self._safe_extent_from_pystac_cube_dim(dim)
 
             if dim_type == pystac.extensions.datacube.DimensionType.SPATIAL:
-                dimensions.append(SpatialDimension(name=name, extent=extent))
+                dimensions.append(SpatialDimension(name=name, axis=dim.axis, extent=extent, crs=dim.reference_system))
             elif dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL:
                 dimensions.append(TemporalDimension(name=name, extent=extent))
             elif dim_type in ("bands", "spectral"):
@@ -901,12 +1087,17 @@ class _StacMetadataParser:
                 continue
 
             dim_type = dim.get("type")
-            extent = dim.get("extent", [None, None])
-
             if dim_type == "spatial":
-                dimensions.append(SpatialDimension(name=name, extent=extent))
+                dimensions.append(
+                    SpatialDimension(
+                        name=name,
+                        axis=dim.get("axis"),
+                        extent=dim.get("extent", [None, None]),
+                        crs=dim.get("reference_system", SpatialDimension.DEFAULT_CRS),
+                    )
+                )
             elif dim_type == "temporal":
-                dimensions.append(TemporalDimension(name=name, extent=extent))
+                dimensions.append(TemporalDimension(name=name, extent=dim.get("extent", [None, None])))
             elif dim_type in ("bands", "spectral"):
                 dimensions.append(BandDimension(name=name, bands=list(bands)))
             elif dim_type == "geometries":
