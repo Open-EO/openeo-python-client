@@ -1,0 +1,1039 @@
+from __future__ import annotations
+
+import collections
+import contextlib
+import copy
+import datetime
+import json
+import logging
+import os.path
+import re
+import time
+import typing
+import urllib.parse
+from pathlib import Path
+from typing import Callable, Container, Dict, List, Literal, Optional, Union
+
+import requests
+
+from openeo.internal.documentation import openeo_endpoint
+from openeo.internal.jupyter import VisualDict, render_component, render_error
+from openeo.internal.warnings import deprecated, legacy_alias, user_deprecation_warning
+from openeo.rest import (
+    DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    DEFAULT_DOWNLOAD_RANGE_SIZE,
+    DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+    DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+    DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX,
+    JobFailedException,
+    OpenEoApiError,
+    OpenEoApiPlainError,
+    OpenEoClientException,
+)
+from openeo.rest.models.general import LogsResponse
+from openeo.rest.models.logs import log_level_name
+from openeo.util import ensure_dir, ensure_parent_dir_for
+from openeo.utils.datastructure import make_new_key
+from openeo.utils.events import EVENTS
+from openeo.utils.http import (
+    HTTP_502_BAD_GATEWAY,
+    HTTP_503_SERVICE_UNAVAILABLE,
+)
+from openeo.utils.logging import get_url_query_param_stripper
+
+if typing.TYPE_CHECKING:
+    # Imports for type checking only (circular import issue at runtime).
+    from openeo.rest.connection import Connection
+
+logger = logging.getLogger(__name__)
+
+
+DEFAULT_JOB_RESULTS_FILENAME = "job-results.json"
+
+
+class BatchJob:
+    """
+    Handle for an openEO batch job, allowing it to describe, start, cancel, inspect results, etc.
+
+    .. versionadded:: 0.11.0
+        This class originally had the more cryptic name :py:class:`RESTJob`,
+        which is still available as legacy alias,
+        but :py:class:`BatchJob` is recommended since version 0.11.0.
+
+    """
+
+    # TODO #425 method to bootstrap `load_stac` directly from a BatchJob object
+
+    def __init__(self, job_id: str, connection: Connection):
+        self.job_id = job_id
+        """Unique identifier of the batch job (string)."""
+
+        self.connection = connection
+
+    def __repr__(self):
+        return "<{c} job_id={i!r}>".format(c=self.__class__.__name__, i=self.job_id)
+
+    def _repr_html_(self):
+        data = self.describe()
+        capabilities = self.connection.capabilities()
+        return render_component(
+            "job",
+            data=data,
+            parameters={
+                "currency": capabilities.currency(),
+                "federation": capabilities.ext_federation_backend_details(),
+            },
+        )
+
+    @openeo_endpoint("GET /jobs/{job_id}")
+    def describe(self) -> dict:
+        """
+        Get detailed metadata about a submitted batch job
+        (title, process graph, status, progress, ...).
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`describe_job`.
+        """
+        return self.connection.get(f"/jobs/{self.job_id}", expected_status=200).json()
+
+    describe_job = legacy_alias(describe, name="describe_job", since="0.20.0", mode="soft")
+
+    def status(self) -> str:
+        """
+        Get the status of the batch job
+
+        :return: batch job status, one of "created", "queued", "running", "canceled", "finished" or "error".
+        """
+        return self.describe().get("status", "N/A")
+
+    @openeo_endpoint("DELETE /jobs/{job_id}")
+    def delete(self):
+        """
+        Delete this batch job.
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`delete_job`.
+        """
+        self.connection.delete(f"/jobs/{self.job_id}", expected_status=204)
+
+    delete_job = legacy_alias(delete, name="delete_job", since="0.20.0", mode="soft")
+
+    @openeo_endpoint("GET /jobs/{job_id}/estimate")
+    def estimate(self):
+        """Calculate time/cost estimate for a job."""
+        data = self.connection.get(f"/jobs/{self.job_id}/estimate", expected_status=200).json()
+        currency = self.connection.capabilities().currency()
+        return VisualDict("job-estimate", data=data, parameters={"currency": currency})
+
+    estimate_job = legacy_alias(estimate, name="estimate_job", since="0.20.0", mode="soft")
+
+    @openeo_endpoint("POST /jobs/{job_id}/results")
+    def start(self) -> BatchJob:
+        """
+        Start this batch job.
+
+        :return: Started batch job
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`start_job`.
+        """
+        self.connection.post(f"/jobs/{self.job_id}/results", expected_status=202)
+        self.connection.events.emit(EVENTS.JOB_STARTED, job_id=self.job_id)
+        return self
+
+    start_job = legacy_alias(start, name="start_job", since="0.20.0", mode="soft")
+
+    @openeo_endpoint("DELETE /jobs/{job_id}/results")
+    def stop(self):
+        """
+        Stop this batch job.
+
+        .. versionadded:: 0.20.0
+            This method was previously called :py:meth:`stop_job`.
+        """
+        self.connection.delete(f"/jobs/{self.job_id}/results", expected_status=204)
+
+    stop_job = legacy_alias(stop, name="stop_job", since="0.20.0", mode="soft")
+
+    def get_results_metadata_url(self, *, full: bool = False) -> str:
+        """Get results metadata URL"""
+        url = f"/jobs/{self.job_id}/results"
+        if full:
+            url = self.connection.build_url(url)
+        return url
+
+    @deprecated("Use :py:meth:`~BatchJob.get_results` instead.", version="0.4.10")
+    def list_results(self) -> dict:
+        """Get batch job results metadata."""
+        return self.get_results().get_metadata()
+
+    def download_result(self, target: Union[str, Path] = None) -> Path:
+        """
+        Download single job result to the target file path or into folder (current working dir by default).
+
+        Fails if there are multiple result files.
+
+        :param target: String or path where the file should be downloaded to.
+        """
+        return self.get_results().download_file(target=target)
+
+    @deprecated(
+        "Instead use :py:meth:`BatchJob.get_results` and the more flexible download functionality of :py:class:`JobResults`",
+        version="0.4.10",
+    )
+    def download_results(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
+        """
+        Download all job result files into given folder (current working dir by default).
+
+        The names of the files are taken directly from the backend.
+
+        :param target: String/path, folder where to put the result files.
+        :return: file_list: Dict containing the downloaded file path as value and asset metadata
+        """
+        return self.get_result().download_files(target)
+
+    @deprecated("Use :py:meth:`BatchJob.get_results` instead.", version="0.4.10")
+    def get_result(self):
+        return _Result(self)
+
+    def get_results(self) -> JobResults:
+        """
+        Get handle to batch job results for result metadata inspection or downloading resulting assets.
+
+        .. versionadded:: 0.4.10
+        """
+        return JobResults(job=self)
+
+    def logs(self, offset: Optional[str] = None, level: Union[str, int, None] = None) -> LogsResponse:
+        """Retrieve job logs.
+
+        :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
+
+            If provided, the back-ends only sends the entries that occurred after the specified identifier.
+            If not provided or empty, start with the first entry.
+
+            Defaults to None.
+
+        :param level: Minimum log level to retrieve.
+
+            You can use either constants from Python's standard module ``logging``
+            or their names (case-insensitive).
+
+            For example:
+                ``logging.INFO``, ``"info"`` or ``"INFO"`` can all be used to show the messages
+                for level ``logging.INFO`` and above, i.e. also ``logging.WARNING`` and
+                ``logging.ERROR`` will be included.
+
+            Default is to show all log levels, in other words ``logging.DEBUG``.
+            This is also the result when you explicitly pass log_level=None or log_level="".
+
+        :return: A list containing the log entries for the batch job.
+        """
+        url = f"/jobs/{self.job_id}/logs"
+        params = {}
+        if offset is not None:
+            params["offset"] = offset
+        if level is not None:
+            params["level"] = log_level_name(level)
+        response_data = self.connection.get(url, params=params, expected_status=200).json()
+        return LogsResponse(response_data=response_data, log_level=level, connection=self.connection)
+
+    @deprecated("Use start_and_wait instead", version="0.39.0")
+    def run_synchronous(
+        self,
+        outputfile: Union[str, Path, None] = None,
+        print=print,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+        show_error_logs: bool = True,
+    ) -> BatchJob:
+        """
+        Start the job, wait for it to finish and download result
+
+        :param outputfile: (optional) output path to download to.
+        :param print: print/logging function to show progress/status
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
+
+        :return: Handle to the job created at the backend.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
+        """
+        self.start_and_wait(
+            print=print,
+            max_poll_interval=max_poll_interval,
+            connection_retry_interval=connection_retry_interval,
+            show_error_logs=show_error_logs,
+        )
+        # TODO #135 support multi file result sets too?
+        if outputfile is not None:
+            self.download_result(outputfile)
+        return self
+
+    def start_and_wait(
+        self,
+        *,
+        print=print,
+        max_poll_interval: float = DEFAULT_JOB_STATUS_POLL_INTERVAL_MAX,
+        connection_retry_interval: float = DEFAULT_JOB_STATUS_POLL_CONNECTION_RETRY_INTERVAL,
+        soft_error_max: int = DEFAULT_JOB_STATUS_POLL_SOFT_ERROR_MAX,
+        show_error_logs: bool = True,
+        require_success: bool = True,
+    ) -> BatchJob:
+        """
+        Start the batch job, poll its status and wait till it finishes (or fails)
+
+        :param print: print/logging function to show progress/status
+        :param max_poll_interval: maximum number of seconds to sleep between job status polls
+        :param connection_retry_interval: how long to wait when status poll failed due to connection issue
+        :param soft_error_max: maximum number of soft errors (e.g. temporary connection glitches) to allow
+        :param show_error_logs: whether to automatically print error logs when the batch job failed.
+        :param require_success: whether to raise an exception if the job did not finish successfully.
+
+        :return: Handle to the job created at the backend.
+
+        .. versionchanged:: 0.37.0
+            Added argument ``show_error_logs``.
+
+        .. versionchanged:: 0.42.0
+            All arguments must be specified as keyword arguments,
+            to eliminate the risk of positional mix-ups between heterogeneous arguments and flags.
+
+        .. versionchanged:: 0.42.0
+            Added argument ``require_success``.
+        """
+        # TODO rename `connection_retry_interval` to something more generic?
+        start_time = time.time()
+
+        def elapsed() -> str:
+            return str(datetime.timedelta(seconds=time.time() - start_time)).rsplit(".")[0]
+
+        def print_status(msg: str):
+            print("{t} Job {i!r}: {m}".format(t=elapsed(), i=self.job_id, m=msg))
+
+        # TODO: make `max_poll_interval`, `connection_retry_interval` class constants or instance properties?
+        print_status("send 'start'")
+        self.start()
+
+        # TODO: also add  `wait` method so you can track a job that already has started explicitly
+        #   or just rename this method to `wait` and automatically do start if not started yet?
+
+        # Start with fast polling.
+        poll_interval = min(5, max_poll_interval)
+        status = None
+        _soft_error_count = 0
+
+        def soft_error(message: str):
+            """Non breaking error (unless we had too much of them)"""
+            nonlocal _soft_error_count
+            _soft_error_count += 1
+            if _soft_error_count > soft_error_max:
+                raise OpenEoClientException("Excessive soft errors")
+            print_status(message)
+            time.sleep(connection_retry_interval)
+
+        while True:
+            # TODO: also allow a hard time limit on this infinite poll loop?
+            try:
+                job_info = self.describe()
+            except requests.ConnectionError as e:
+                soft_error("Connection error while polling job status: {e}".format(e=e))
+                continue
+            except OpenEoApiPlainError as e:
+                if e.http_status_code in [HTTP_502_BAD_GATEWAY, HTTP_503_SERVICE_UNAVAILABLE]:
+                    soft_error("Service availability error while polling job status: {e}".format(e=e))
+                    continue
+                else:
+                    raise
+
+            status = job_info.get("status", "N/A")
+
+            progress = job_info.get("progress")
+            if isinstance(progress, int):
+                progress = f"{progress:d}%"
+            elif isinstance(progress, float):
+                progress = f"{progress:.1f}%"
+            else:
+                progress = "N/A"
+            print_status(f"{status} (progress {progress})")
+            if status not in ("submitted", "created", "queued", "running"):
+                break
+
+            # Sleep for next poll (and adaptively make polling less frequent)
+            time.sleep(poll_interval)
+            poll_interval = min(1.25 * poll_interval, max_poll_interval)
+
+        if require_success and status != "finished":
+            # TODO: render logs jupyter-aware in a notebook context?
+            if show_error_logs:
+                print(f"Your batch job {self.job_id!r} failed. Error logs:")
+                print(self.logs(level=logging.ERROR))
+                print(
+                    f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
+                )
+            raise JobFailedException(
+                f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",
+                job=self,
+            )
+
+        return self
+
+
+@deprecated(reason="Use :py:class:`BatchJob` instead", version="0.11.0")
+class RESTJob(BatchJob):
+    """
+    Legacy alias for :py:class:`BatchJob`.
+    """
+
+
+FILENAME_UNSAFE_REGEX = re.compile(r"[^\w_.-]+")
+
+
+def _sanitize_filename(
+    name: str, *, replacement: str = "", invalid: Container[str] = frozenset(("", ".", ".."))
+) -> str:
+    """
+    Sanitize a string (strip/replace risky characters)
+    so that it can be safely used as file or folder name.
+    """
+    sanitized = str(name).strip()
+    sanitized = FILENAME_UNSAFE_REGEX.sub(replacement, sanitized)
+    if sanitized in invalid:
+        raise ValueError(f"Invalid file/folder name {sanitized!r} (sanitized from {name!r})")
+    return sanitized
+
+
+def _filename_from_url(url: str, *, full: bool = False) -> str:
+    """
+    Try to extract a filename from a URL (based on the path),
+    with sanitization of risky characters,
+    and option to only get the final part (basename) or the full path.
+    """
+    parsed = urllib.parse.urlparse(url)
+    path = urllib.parse.unquote(parsed.path)
+    parts = path.strip("/").split("/")
+    if not full:
+        parts = parts[-1:]
+    parts = [_sanitize_filename(p) for p in parts if p]
+    return "/".join(parts)
+
+
+def _filename_extension_from_url(url: str, *, fallback: str = "", all: bool = False) -> str:
+    filename = _filename_from_url(url)
+    if all:
+        return "".join(Path(filename).suffixes) or fallback
+    else:
+        return Path(filename).suffix or fallback
+
+
+_MEDIA_TYPE_EXTENSION_MAP = {
+    "image/tiff": ".tiff",
+    "image/tiff; application=geotiff": ".tiff",
+    "image/tiff; application=geotiff; profile=cloud-optimized": ".tiff",
+    "application/x-netcdf": ".nc",
+    "image/png": ".png",
+    "application/json": ".json",
+    "application/geo+json": ".json",
+    "text/csv": ".csv",
+    "x-gis/x-shapefile": ".shp",
+    "application/geopackage+sqlite3": ".gpkg",
+    "application/parquet; profile=geo": ".parquet",
+    "application/zip+zarr": ".zarr",
+    "application/zip": ".zip",
+}
+
+
+class ResultAsset:
+    """
+    Result asset of a batch job (e.g. a GeoTIFF or JSON file)
+
+    .. versionadded:: 0.4.10
+
+    .. versionchanged:: 0.51.0
+        Renamed argument ``name`` to ``key``
+    """
+
+    __slots__ = ("job", "key", "href", "media_type", "metadata")
+
+    def __init__(self, job: BatchJob, key: str, href: str, metadata: dict):
+        # TODO: the owning job is actually only used to obtain a Connection for downloading. Eliminate BatchJob as requirement
+        self.job = job
+        self.key = key
+
+        # URL to the downloadable asset
+        self.href = href
+
+        self.media_type = metadata.get("type")
+
+        # Asset metadata provided by the backend, possibly containing keys "roles", "title", "description".
+        self.metadata = metadata
+
+    def __repr__(self):
+        return f"<ResultAsset {self.key!r} (media type {self.media_type}) at {self.href!r}>"
+
+    @property
+    def name(self):
+        # TODO: remove this once users got enough time to migrate
+        user_deprecation_warning("`ResultAsset.name` is deprecated and will be removed, use `ResultAsset.key` instead")
+        return self.key
+
+    def _make_filename(self) -> str:
+        """
+        Produce a filename for downloading the asset to
+        as fallback when user did not provide something,
+        based on: asset key (which is not guaranteed to consist of filename-safe characters)
+        and filename in href (if any)
+        """
+
+        if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
+            # Legacy mode: asset key already looks like a filename
+            return self.key
+
+        # Build filename from key, href's path (if any)
+        # and guess extension from media type if necessary
+        sanitized_key = _sanitize_filename(self.key)
+        href_basename = _filename_from_url(self.href, full=False)
+        filename = f"{sanitized_key}-{href_basename}"
+
+        if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
+            # Extension seems missing, do media type based guess (best effort)
+            if extension := _MEDIA_TYPE_EXTENSION_MAP.get(self.media_type):
+                filename += extension
+        return filename
+
+    def download(
+        self,
+        target: Optional[Union[Path, str]] = None,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+        # TODO: original default here is no URL redacting, but reconsider  that?
+        redact_url_logging: Union[bool, Callable] = False,
+    ) -> Path:
+        """
+        Download asset to given location
+
+        :param target: target path to download to.
+            Can be a path to file, or to an existing folder
+            (in which case the filename will be constructed
+            in best-effort fashion, based on available metadata)
+            By default, the working directory will be used.
+        :param chunk_size: chunk size for streaming response.
+        :param range_size: range size for ranged download.
+        :param redact_url_logging: whether to redact (possibly sensitive) query parameters in the logged URL.
+        """
+        target = Path(target or Path.cwd())
+        if target.is_dir():
+            target = target / self._make_filename()
+        ensure_dir(target.parent)
+        redact = get_url_query_param_stripper(redact_url_logging)
+        logger.info(f"Downloading job result asset {self.key!r} from {redact(self.href)!s} to {target!s}")
+        self.job.connection.download_url(url=self.href, target=target, chunk_size=chunk_size, range_size=range_size)
+        return target
+
+    def _get_response(self, stream=True) -> requests.Response:
+        return self.job.connection.get(self.href, stream=stream)
+
+    def load_json(self) -> dict:
+        """Load asset in memory and parse as JSON."""
+        if self.media_type not in {"application/json", "application/geo+json"}:
+            logger.warning("Asset might not be JSON")
+        return self._get_response().json()
+
+    def load_bytes(self) -> bytes:
+        """Load asset in memory as raw bytes."""
+        return self._get_response().content
+
+    # TODO: more `load` methods e.g.: load GTiff asset directly as numpy array
+
+
+class MultipleAssetException(OpenEoClientException):
+    pass
+
+
+class JobResults:
+    """
+    Results of a batch job: listing of one or more output files (assets)
+    and some metadata.
+
+    .. versionadded:: 0.4.10
+    """
+
+    def __init__(self, job: BatchJob):
+        self._job = job
+        self._results = None
+
+    def __repr__(self):
+        return "<JobResults for job {j!r}>".format(j=self._job.job_id)
+
+    def get_job_id(self) -> str:
+        return self._job.job_id
+
+    def _repr_html_(self):
+        try:
+            response = self.get_metadata()
+            return render_component("batch-job-result", data=response)
+        except OpenEoApiError as error:
+            return render_error(error)
+
+    def get_metadata(self, force=False) -> dict:
+        """Get batch job results metadata (parsed JSON)"""
+        if self._results is None or force:
+            self._results = self._job.connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
+        return self._results
+
+    # TODO: provide methods for `stac_version`, `id`, `geometry`, `properties`, `links`, ...?
+
+    def get_assets(self) -> List[ResultAsset]:
+        """
+        Get all assets from the job results.
+        """
+        # TODO: add arguments to filter on metadata, e.g. to only get assets of type "image/tiff"
+        metadata = self.get_metadata()
+        # API 1.0 style: dictionary mapping filenames to metadata dict (with at least a "href" field)
+        assets = metadata.get("assets", {})
+        if not assets:
+            logger.warning("No assets found in job result metadata.")
+        return [
+            ResultAsset(job=self._job, key=key, href=asset["href"], metadata=asset) for key, asset in assets.items()
+        ]
+
+    def get_asset(self, key: Optional[str] = None, *, name: Optional[str] = None) -> ResultAsset:
+        """
+        Get single asset by asset key or without key if there is only one.
+        """
+        # TODO: also support getting a single asset by type or role?
+        if name:
+            # TODO: remove this legacy `name` support when users got enough time to migrate
+            user_deprecation_warning("Argument `name` is deprecated and will be removed, use `key` instead.")
+            key = name
+            del name
+
+        assets = self.get_assets()
+        if len(assets) == 0:
+            raise OpenEoClientException("No assets in result.")
+        if key is None:
+            if len(assets) == 1:
+                return assets[0]
+            else:
+                raise MultipleAssetException(
+                    "Multiple result assets for job {j}: {a}".format(j=self._job.job_id, a=[a.key for a in assets])
+                )
+        else:
+            try:
+                return next(a for a in assets if a.key == key)
+            except StopIteration:
+                raise OpenEoClientException("No asset {k!r} in: {a}".format(k=key, a=[a.key for a in assets]))
+
+    def download_file(
+        self,
+        target: Union[Path, str, None] = None,
+        key: Optional[str] = None,
+        *,
+        chunk_size: int = DEFAULT_DOWNLOAD_CHUNK_SIZE,
+        range_size: int = DEFAULT_DOWNLOAD_RANGE_SIZE,
+        name: Optional[str] = None,
+    ) -> Path:
+        """
+        Download single asset. Can be used when there is only one asset in the
+        :py:class:`JobResults`, or when the desired asset key is given explicitly.
+
+        :param target: target path to download to.
+            Can be a path to file, or to an existing folder
+            (in which case the filename will be constructed
+            in best-effort fashion, based on available metadata)
+            By default, the working directory will be used.
+        :param key: asset key to download (not required when there is only one asset)
+        :return: path of downloaded asset
+        """
+        if name:
+            # TODO: remove this legacy `name` support when users got enough time to migrate
+            user_deprecation_warning("Argument `name` is deprecated and will be removed, use `key` instead.")
+            key = name
+            del name
+
+        try:
+            return self.get_asset(key=key).download(target=target, chunk_size=chunk_size, range_size=range_size)
+        except MultipleAssetException:
+            raise OpenEoClientException(
+                "Can not use `download_file` with multiple assets. Use `download_files` instead."
+            )
+
+    def download_files(
+        self,
+        target: Union[Path, str] = None,
+        include_stac_metadata: bool = True,
+        chunk_size=DEFAULT_DOWNLOAD_CHUNK_SIZE,
+    ) -> List[Path]:
+        """
+        Download all assets to given folder.
+
+        :param target: path to folder to download to (must be a folder if it already exists)
+        :param include_stac_metadata: whether to download the job result metadata as a STAC (JSON) file.
+        :return: list of paths to the downloaded assets.
+        """
+        target = Path(target or Path.cwd())
+        if target.exists() and not target.is_dir():
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
+        ensure_dir(target)
+
+        downloaded = [a.download(target, chunk_size=chunk_size) for a in self.get_assets()]
+
+        if include_stac_metadata:
+            # TODO #184: convention for metadata file name?
+            metadata_file = target / DEFAULT_JOB_RESULTS_FILENAME
+            # TODO #184: rewrite references to locally downloaded assets?
+            metadata_file.write_text(json.dumps(self.get_metadata()))
+            downloaded.append(metadata_file)
+
+        return downloaded
+
+    def download_as_collection(
+        self,
+        target: Union[Path, str, None] = None,
+        *,
+        rewrite_references: bool = True,
+        add_original_hrefs: bool = False,
+        download_derived_from: bool = False,
+        download_collection_assets: bool = False,
+        json_dump: Optional[dict] = None,
+        on_download_failure: Literal["warn", "raise"] = "warn",
+        path_templates: Optional[dict] = None,
+        redact_url_logging: bool = True,
+    ) -> List[Path]:
+        """
+        Download the job results as a self-contained STAC collection:
+
+        - job result metadata (the root STAC collection)
+        - linked STAC items: metadata and the result assets
+        - additionally linked metadata (e.g. "derived_from" documents)
+
+        .. warning:: this is an experimental API, subject to change.
+
+        :param target: folder path to download to
+        :param rewrite_references: whether to rewrite (item/asset/...) HREFs
+            in the downloaded STAC documents to point to the local files
+            instead of the original URLs.
+        :param add_original_hrefs: whether to add the original HREF URLs as "alternate" HREFs in the metadata
+        :param download_derived_from: whether to download
+            additional "derived_from" documents linked from the STAC collection.
+        :param download_collection_assets: whether to download
+            the STAC Collection level assets in addition to assets from linked STAC Items.
+        :param json_dump: kwargs to finetune json.dump when writing STAC metadata files.
+        :param on_download_failure: how to handle download failures, one of "warn" or "raise".
+        :param path_templates: optional dictionary of template overrides for download paths.
+        :param redact_url_logging: whether to redact (possibly sensitive) query parameters from URLs in logging,
+
+        .. versionadded:: 0.52.0
+        """
+        downloader = _JobResultDownloader(
+            job=self._job,
+            target=target,
+            rewrite_references=rewrite_references,
+            add_original_hrefs=add_original_hrefs,
+            json_dump=json_dump,
+            on_download_failure=on_download_failure,
+            path_templates=path_templates,
+            redact_url_logging=redact_url_logging,
+        )
+        return downloader.download_collection(
+            download_derived_from=download_derived_from,
+            download_collection_assets=download_collection_assets,
+        )
+
+
+class JobResultDownloadException(OpenEoClientException):
+    pass
+
+
+class _DownloadTracker:
+    """Simple tracker of download paths to avoid unintended collisions or double downloads."""
+
+    # TODO: also track the origin of a download for better error reporting?
+
+    __slots__ = ("paths",)
+
+    def __init__(self):
+        self.paths: List[Path] = []
+
+    def assert_new(self, path: Path):
+        """Check that download path is not known already, to avoid download collisions."""
+        if path in self.paths:
+            raise JobResultDownloadException(f"Download collision, already downloaded {path}")
+
+    def register(self, path: Path):
+        """Register a path as downloaded."""
+        # TODO: add verification if path actually exists?
+        self.paths.append(path)
+
+
+class _JobResultDownloader:
+    """
+    Helper class to download batch job results
+    as a local, self-contained STAC collection (openEO API 1.1 style):
+    recursively walking through items, assets, additional linked metadata, etc.,
+    and rewriting the related links accordingly.
+
+    .. warning:: this is an experimental API, subject to change.
+
+    .. versionadded:: 0.52.0
+    """
+
+    # TODO: make this a public API that users can implement for custom download behavior (e.g. download to S3, ...)
+    # TODO: API to warn about or skip existing/previously downloaded files?
+    # TODO: dedicated request session (with appropriate retry strategy) for downloading?
+    # TODO: expose chunk_size/range_size from ResultAsset.download
+    # TODO: verbose mode to log/print each downloaded file to allow showing progress on large result sets
+    # TODO: download STAC documents (root collection, items) to file before parsing, instead of parsing in memory an re-json-encode them to file
+    # TODO: give STAC collection/item docs an ".inprogress" suffix on initial write, before rewriting is done
+
+    DEFAULT_PATH_TEMPLATES = {
+        "collection": "job-results.json",
+        "item": "{item_id}/{item_id}.json",
+        "asset": "{item_id}/{asset_filename}",
+        "collection-asset": "{asset_filename}",
+        "generic-link": "{filename}",
+    }
+
+    def __init__(
+        self,
+        *,
+        job: BatchJob,
+        target: Union[Path, str, None] = None,
+        rewrite_references: bool = True,
+        add_original_hrefs: bool = False,
+        json_dump: Optional[dict] = None,
+        on_download_failure: Literal["warn", "raise"] = "warn",
+        path_templates: Optional[dict] = None,
+        redact_url_logging: bool = True,
+    ):
+        self._job = job
+        self._connection = job.connection
+        self._root_dir = Path(target or Path.cwd() / job.job_id)
+        if self._root_dir.exists() and not self._root_dir.is_dir():
+            raise OpenEoClientException(f"Download target {self._root_dir} exists but isn't a folder.")
+        self._rewrite_references = rewrite_references
+        self._add_original_hrefs = add_original_hrefs
+        # TODO: also support passing a `json.dump`-style callable to customize json dumping
+        self._json_dump = {"ensure_ascii": False, **(json_dump or {})}
+        self._download_tracker = _DownloadTracker()
+        self._on_download_failure = on_download_failure
+        self._path_templates = {**self.DEFAULT_PATH_TEMPLATES, **(path_templates or {})}
+        self._redact = get_url_query_param_stripper(redact_url_logging)
+        self._auto_increment_counters: Dict[str, int] = collections.defaultdict(int)
+
+    def _write_json_file(self, data: dict, path: Union[str, Path]) -> Path:
+        path = Path(path)
+        ensure_parent_dir_for(path)
+        with open(path, mode="w", encoding="utf-8") as f:
+            json.dump(obj=data, fp=f, **self._json_dump)
+        return path
+
+    @contextlib.contextmanager
+    def _download_attempt_context(self, name: str):
+        try:
+            yield
+        except Exception as e:
+            message = f"Failed to download {name} ({e=})"
+            if self._on_download_failure in {"warn"}:
+                logger.warning(message, exc_info=True)
+            else:
+                # TODO: other handling strategies?
+                #       e.g. collect all failures and raise a single exception at the end,
+                if self._on_download_failure != "raise":
+                    logger.warning(f"Unknown on_download_failure strategy {self._on_download_failure!r}")
+                raise JobResultDownloadException(message) from e
+
+    def build_path_collection(self, *, collection_id: str) -> Path:
+        """Build path for the root STAC collection metadata file (job results metadata)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "collection_id": _sanitize_filename(collection_id),
+            "auto_increment": self._auto_increment_id("collection"),
+            "extension": ".json",
+        }
+        return self._root_dir / self._path_templates["collection"].format(**vars)
+
+    def build_path_item(self, *, item_id: str) -> Path:
+        """Build path for a STAC item metadata file (job result item)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "item_id": _sanitize_filename(item_id),
+            "auto_increment": self._auto_increment_id("item"),
+            "extension": ".json",
+        }
+        return self._root_dir / self._path_templates["item"].format(**vars)
+
+    def build_path_asset(self, *, asset_key: str, asset_href: str, item_id: Optional[str] = None) -> Path:
+        """Build path for a STAC asset file (job result asset)"""
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "asset_key": _sanitize_filename(asset_key),
+            "asset_filename": _filename_from_url(asset_href, full=False),
+            # TODO: separate pool for item- and collection-assets?
+            "auto_increment": self._auto_increment_id("asset"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(asset_href),
+        }
+        if item_id:
+            vars["item_id"] = _sanitize_filename(item_id)
+            return self._root_dir / self._path_templates["asset"].format(**vars)
+        else:
+            return self._root_dir / self._path_templates["collection-asset"].format(**vars)
+
+    def build_path_generic_link(self, *, rel: str, href: str) -> Path:
+        vars = {
+            "job_id": _sanitize_filename(self._job.job_id),
+            "rel": _sanitize_filename(rel),
+            "filename": _filename_from_url(href, full=False),
+            "auto_increment": self._auto_increment_id("generic"),
+            # TODO: also leverage media type to determine extension?
+            "extension": _filename_extension_from_url(href),
+        }
+        return self._root_dir / self._path_templates["generic-link"].format(**vars)
+
+    def _auto_increment_id(self, pool: str) -> int:
+        """Generate auto-incrementing ID within a given pool of entity types."""
+        self._auto_increment_counters[pool] += 1
+        return self._auto_increment_counters[pool]
+
+    def _relative_to(self, target: Path, doc: Path) -> str:
+        """Get relative reference to target to be used from given document"""
+        return Path(os.path.relpath(target, start=doc.parent)).as_posix()
+
+    def download_collection(
+        self,
+        *,
+        download_derived_from: bool = False,
+        download_collection_assets: bool = False,
+    ) -> List[Path]:
+        """
+        Download the job results as a self-contained STAC collection.
+        """
+        result_metadata = self._connection.get(self._job.get_results_metadata_url(), expected_status=200).json()
+        if result_metadata.get("type") != "Collection":
+            raise OpenEoClientException(
+                f"Result metadata is not a STAC Collection (openEO API 1.1 style), but {result_metadata.get('type')}"
+            )
+        # Make a copy of the metadata, as we will rewrite references
+        result_metadata = copy.deepcopy(result_metadata)
+
+        result_metadata_path = self.build_path_collection(collection_id=result_metadata.get("id"))
+        self._download_tracker.assert_new(result_metadata_path)
+        # Initial write of metadata, will possibly be updated later if rewrite_references is True
+        logger.info(f"Initial write of STAC Collection metadata of {self._job.job_id!r} to {result_metadata_path}")
+        self._write_json_file(data=result_metadata, path=result_metadata_path)
+
+        extra_rels = ["derived_from"] if download_derived_from else []
+        for link in result_metadata["links"]:
+            if link["rel"] == "item":
+                with self._download_attempt_context(name=f"item {link=}"):
+                    path = self._download_item(href=link["href"])
+                    if self._rewrite_references:
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
+            elif link["rel"] in extra_rels:
+                with self._download_attempt_context(name=f"link {link=}"):
+                    path = self.build_path_generic_link(rel=link["rel"], href=link["href"])
+                    self._download_tracker.assert_new(path)
+                    self._connection.download_url(url=link["href"], target=path)
+                    logger.debug(f"Downloaded link {self._redact(link)=} to {path=}")
+                    self._download_tracker.register(path)
+                    if self._rewrite_references:
+                        self._rewrite_href(obj=link, path=path, relative_to=result_metadata_path)
+
+        if download_collection_assets:
+            for asset_key, asset in result_metadata.get("assets", {}).items():
+                with self._download_attempt_context(name=f"collection asset {asset_key=} {asset=}"):
+                    path = self._download_asset(
+                        asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=None
+                    )
+                    if self._rewrite_references:
+                        self._rewrite_href(obj=asset, path=path, relative_to=result_metadata_path)
+
+        if self._rewrite_references:
+            # Rewrite the root collection metadata with updated references
+            logger.info(f"Update write of STAC Collection metadata of {self._job.job_id!r} to {result_metadata_path}")
+            self._write_json_file(data=result_metadata, path=result_metadata_path)
+
+        self._download_tracker.register(result_metadata_path)
+
+        return self._download_tracker.paths
+
+    def _rewrite_href(self, obj: dict, path: Path, relative_to: Path):
+        """Rewrite (in-place) href of given object."""
+        original = obj["href"]
+        rel_path = self._relative_to(target=path, doc=relative_to)
+        logger.debug(f"Rewriting href {rel_path=} (in {self._redact(obj)})")
+        obj["href"] = rel_path
+        if self._add_original_hrefs:
+            alternate = obj.setdefault("alternate", {})
+            if isinstance(alternate, dict):
+                alternate[make_new_key(alternate, "original")] = {"href": original}
+            else:
+                logger.warning(f"Failed to add original href to {self._redact(obj)} with non-dict 'alternate' field")
+
+    def _download_item(self, href: str) -> Path:
+        item: dict = self._connection.get(href, expected_status=200).json()
+        item_id = item["id"]
+        metadata_path = self.build_path_item(item_id=item_id)
+        self._download_tracker.assert_new(metadata_path)
+        logger.info(f"Initial write of STAC Item {item_id!r} metadata to {metadata_path}")
+        self._write_json_file(data=item, path=metadata_path)
+
+        for asset_key, asset in item.get("assets", {}).items():
+            with self._download_attempt_context(name=f"item asset {asset_key=} {asset=}"):
+                asset_path = self._download_asset(
+                    asset_key=asset_key, asset_href=asset["href"], asset_metadata=asset, item_id=item_id
+                )
+                if self._rewrite_references:
+                    self._rewrite_href(obj=asset, path=asset_path, relative_to=metadata_path)
+
+        if self._rewrite_references:
+            logger.info(f"Update write of STAC Item {item_id!r} metadata to {metadata_path}")
+            self._write_json_file(data=item, path=metadata_path)
+
+        self._download_tracker.register(metadata_path)
+
+        return metadata_path
+
+    def _download_asset(
+        self, *, asset_key: str, asset_href: str, asset_metadata: dict, item_id: Optional[str] = None
+    ) -> Path:
+        asset = ResultAsset(job=self._job, key=asset_key, href=asset_href, metadata=asset_metadata)
+        path = self.build_path_asset(asset_key=asset_key, asset_href=asset_href, item_id=item_id)
+        self._download_tracker.assert_new(path)
+        logger.info(f"Downloading STAC asset {asset_key=} ({item_id=}) to {path}")
+        asset.download(target=path, redact_url_logging=self._redact)
+        self._download_tracker.register(path)
+        return path
+
+
+@deprecated(reason="Use :py:class:`JobResults` instead", version="0.4.10")
+class _Result:
+    """
+    Wrapper around `JobResults` to adapt old deprecated "Result" API.
+
+    .. deprecated:: 0.4.10
+    """
+
+    # TODO: deprecated: remove this
+
+    def __init__(self, job):
+        self.results = JobResults(job=job)
+
+    def download_file(self, target: Union[str, Path] = None) -> Path:
+        return self.results.download_file(target=target)
+
+    def download_files(self, target: Union[str, Path] = None) -> Dict[Path, dict]:
+        target = Path(target or Path.cwd())
+        if target.exists() and not target.is_dir():
+            raise OpenEoClientException(f"Target argument {target} exists but isn't a folder.")
+        return {a.download(target): a.metadata for a in self.results.get_assets()}
+
+    def load_json(self) -> dict:
+        return self.results.get_asset().load_json()
+
+    def load_bytes(self) -> bytes:
+        return self.results.get_asset().load_bytes()

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.extra.job_management.stac_job_db &#8212; openEO Python Client 0.55.0a3 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx_autodoc_typehints.css?v=057ac668" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../../../_static/documentation_options.js?v=792cdf57"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/openeo/extra/job_management/stac_job_db';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.55" />
+    <meta name="docbuild:last-update" content="2026/10/29"/>
+  
+    
+    <script src="../../../../_static/searchtools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <script src="../../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.55.0a3</code></div>
+  <div>Last updated: 2026/10/29</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">openeo.extra.job_management.stac_job_db</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for openeo.extra.job_management.stac_job_db</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">concurrent.futures</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pystac</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">shape</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management</span><span class="w"> </span><span class="kn">import</span> <span class="n">JobDatabaseInterface</span><span class="p">,</span> <span class="n">MultiBackendJobManager</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="c1"># Optional dependecy</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pystac_client</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="STACAPIJobDatabase">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.stac_job_db.STACAPIJobDatabase">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">STACAPIJobDatabase</span><span class="p">(</span><span class="n">JobDatabaseInterface</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Persist/load job metadata from a STAC API</span>
+
+<span class="sd">    Unstable API, subject to change.</span>
+
+<span class="sd">    :implements: :py:class:`~openeo.extra.job_management._interface.JobDatabaseInterface`</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">collection_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">stac_root_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">auth</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">requests</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">AuthBase</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">has_geometry</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">geometry_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"geometry"</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Initialize the STACAPIJobDatabase.</span>
+
+<span class="sd">        :param collection_id: The ID of the STAC collection.</span>
+<span class="sd">        :param stac_root_url: The root URL of the STAC API.</span>
+<span class="sd">        :param auth: requests AuthBase that will be used to authenticate, e.g. OAuth2ResourceOwnerPasswordCredentials</span>
+<span class="sd">        :param has_geometry: Whether the job metadata supports any geometry that implements __geo_interface__.</span>
+<span class="sd">        :param geometry_column: The name of the geometry column in the job metadata that implements __geo_interface__.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span> <span class="o">=</span> <span class="n">collection_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">pystac_client</span><span class="o">.</span><span class="n">Client</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">stac_root_url</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">auth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">has_geometry</span> <span class="o">=</span> <span class="n">has_geometry</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span> <span class="o">=</span> <span class="n">geometry_column</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">stac_root_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_size</span> <span class="o">=</span> <span class="mi">500</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_collections</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Normalize the given dataframe to be compatible with :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager`</span>
+<span class="sd">        by adding the default columns and setting the index.</span>
+<span class="sd">        """</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">MultiBackendJobManager</span><span class="o">.</span><span class="n">_column_requirements</span><span class="o">.</span><span class="n">normalize_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="c1"># If the user doesn't specify the item_id column, we will use the index.</span>
+        <span class="k">if</span> <span class="s2">"item_id"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">"item_id"</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">initialize_from_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">on_exists</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"error"</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Initialize the job database from a given dataframe,</span>
+<span class="sd">        which will be first normalized to be compatible</span>
+<span class="sd">        with :py:class:`~openeo.extra.job_management._manager.MultiBackendJobManager` usage.</span>
+
+<span class="sd">        :param df: dataframe with some columns your ``start_job`` callable expects</span>
+<span class="sd">        :param on_exists: what to do when the job database already exists (persisted on disk):</span>
+<span class="sd">            - "error": (default) raise an exception</span>
+<span class="sd">            - "skip": work with existing database, ignore given dataframe and skip any initialization</span>
+<span class="sd">            - "append": add given dataframe to existing database</span>
+
+<span class="sd">        :return: initialized job database.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Job Database is initialized from GeoDataFrame. Converting geometries to GeoJSON."</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">mapping</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">has_geometry</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">on_exists</span> <span class="o">==</span> <span class="s2">"skip"</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span>
+            <span class="k">elif</span> <span class="n">on_exists</span> <span class="o">==</span> <span class="s2">"error"</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Job database </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2"> already exists."</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">on_exists</span> <span class="o">==</span> <span class="s2">"append"</span><span class="p">:</span>
+                <span class="n">existing_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_by_status</span><span class="p">([])</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">existing_df</span><span class="p">,</span> <span class="n">df</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">({</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid on_exists=</span><span class="si">{</span><span class="n">on_exists</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">persist</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="c1"># Return self to allow chaining with constructor.</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">series_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Convert a STAC Item to a pandas.Series.</span>
+
+<span class="sd">        :param item: STAC Item to be converted.</span>
+<span class="sd">        :return: pandas.Series</span>
+<span class="sd">        """</span>
+        <span class="n">item_dict</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="n">item_id</span> <span class="o">=</span> <span class="n">item_dict</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">item_dict</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">item_id</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">item_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">series</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Convert a pandas.Series to a STAC Item.</span>
+
+<span class="sd">        :param series: pandas.Series to be converted.</span>
+<span class="sd">        :param geometry_name: Name of the geometry column in the series.</span>
+<span class="sd">        :return: pystac.Item</span>
+<span class="sd">        """</span>
+        <span class="n">series_dict</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="n">item_id</span> <span class="o">=</span> <span class="n">series_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"item_id"</span><span class="p">)</span>
+        <span class="n">item_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">item_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"stac_version"</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">get_stac_version</span><span class="p">())</span>
+        <span class="n">item_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"type"</span><span class="p">,</span> <span class="s2">"Feature"</span><span class="p">)</span>
+        <span class="n">item_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"assets"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">item_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"links"</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">item_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">"properties"</span><span class="p">,</span> <span class="n">series_dict</span><span class="p">)</span>
+
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">item_dict</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"datetime"</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tz</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">datetime_to_str</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+        <span class="n">item_dict</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">][</span><span class="s2">"datetime"</span><span class="p">]</span> <span class="o">=</span> <span class="n">dt</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_geometry</span><span class="p">:</span>
+            <span class="n">item_dict</span><span class="p">[</span><span class="s2">"geometry"</span><span class="p">]</span> <span class="o">=</span> <span class="n">series</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">item_dict</span><span class="p">[</span><span class="s2">"geometry"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># from_dict handles associating any Links and Assets with the Item</span>
+        <span class="n">item_dict</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span> <span class="o">=</span> <span class="n">item_id</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">item_dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_geometry</span><span class="p">:</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">bbox</span> <span class="o">=</span> <span class="n">shape</span><span class="p">(</span><span class="n">series</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geometry_column</span><span class="p">])</span><span class="o">.</span><span class="n">bounds</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">bbox</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">item</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">count_by_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statuses</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">statuses</span> <span class="o">=</span> <span class="p">{</span><span class="n">statuses</span><span class="p">}</span>
+        <span class="n">statuses</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">statuses</span><span class="p">)</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_by_status</span><span class="p">(</span><span class="n">statuses</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">items</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">statuses</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">items</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_result_to_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_result</span><span class="p">:</span> <span class="n">pystac_client</span><span class="o">.</span><span class="n">ItemSearch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Build a DataFrame from a STAC ItemSearch result."""</span>
+        <span class="n">series</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">series_from</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">search_result</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">series</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">"item_id"</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_by_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statuses</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">max</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statuses</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">statuses</span> <span class="o">=</span> <span class="p">{</span><span class="n">statuses</span><span class="p">}</span>
+        <span class="n">statuses</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">statuses</span><span class="p">)</span>
+
+        <span class="n">status_filter</span> <span class="o">=</span> <span class="s2">" OR "</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">"</span><span class="se">\"</span><span class="s2">properties.status</span><span class="se">\"</span><span class="s2">='</span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s2">'"</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">statuses</span><span class="p">])</span> <span class="k">if</span> <span class="n">statuses</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">search_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+            <span class="n">method</span><span class="o">=</span><span class="s2">"GET"</span><span class="p">,</span>
+            <span class="n">collections</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span><span class="p">],</span>
+            <span class="nb">filter</span><span class="o">=</span><span class="n">status_filter</span><span class="p">,</span>
+            <span class="n">max_items</span><span class="o">=</span><span class="nb">max</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_result_to_df</span><span class="p">(</span><span class="n">search_results</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># TODO: What if default columns are overwritten by the user?</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>  <span class="c1"># Even for an empty dataframe the default columns are required</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_by_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">search_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+            <span class="n">method</span><span class="o">=</span><span class="s2">"GET"</span><span class="p">,</span>
+            <span class="n">collections</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span><span class="p">],</span>
+            <span class="n">ids</span><span class="o">=</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_result_to_df</span><span class="p">(</span><span class="n">search_results</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">persist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">spatial_extent</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">SpatialExtent</span><span class="p">([[</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="o">-</span><span class="mi">90</span><span class="p">,</span> <span class="mi">180</span><span class="p">,</span> <span class="mi">90</span><span class="p">]])</span>
+            <span class="n">temporal_extent</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">TemporalExtent</span><span class="p">([[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]])</span>
+            <span class="n">extent</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Extent</span><span class="p">(</span><span class="n">spatial</span><span class="o">=</span><span class="n">spatial_extent</span><span class="p">,</span> <span class="n">temporal</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">)</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">"STAC API job database collection."</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_collection</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+        <span class="n">all_items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">handle_row</span><span class="p">(</span><span class="n">series</span><span class="p">):</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">item_from</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>
+                <span class="n">all_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+            <span class="n">df</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">handle_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_upload_items_bulk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection_id</span><span class="p">,</span> <span class="n">all_items</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">,</span> <span class="n">collection_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">collection_id</span> <span class="o">=</span> <span class="n">collection_id</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">item</span><span class="o">.</span><span class="n">get_links</span><span class="p">(</span><span class="n">pystac</span><span class="o">.</span><span class="n">RelType</span><span class="o">.</span><span class="n">COLLECTION</span><span class="p">):</span>
+            <span class="n">item</span><span class="o">.</span><span class="n">add_link</span><span class="p">(</span><span class="n">pystac</span><span class="o">.</span><span class="n">Link</span><span class="p">(</span><span class="n">rel</span><span class="o">=</span><span class="n">pystac</span><span class="o">.</span><span class="n">RelType</span><span class="o">.</span><span class="n">COLLECTION</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">collection_id</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ingest_bulk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">collection_id</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">collection_id</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">collection_id</span> <span class="o">==</span> <span class="n">collection_id</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">items</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">"All collection IDs should be identical for bulk ingests"</span><span class="p">)</span>
+
+        <span class="c1"># TODO: this "bulk_items" endpoint is from obscure "bulk transactions" extension?</span>
+        <span class="n">url_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"collections/</span><span class="si">{</span><span class="n">collection_id</span><span class="si">}</span><span class="s2">/bulk_items"</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="s2">"upsert"</span><span class="p">,</span> <span class="s2">"items"</span><span class="p">:</span> <span class="p">{</span><span class="n">item</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">}}</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">join_url</span><span class="p">(</span><span class="n">url_path</span><span class="p">),</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"HTTP response: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">: body: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="n">_check_response_status</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">_EXPECTED_STATUS_POST</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_upload_items_bulk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">pystac</span><span class="o">.</span><span class="n">Item</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">futures</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_item</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">collection_id</span><span class="p">)</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_size</span><span class="p">:</span>
+                    <span class="n">futures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ingest_bulk</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">copy</span><span class="p">()))</span>
+                    <span class="n">chunk</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ingest_bulk</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">join_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create a URL from the base_url and the url_path.</span>
+
+<span class="sd">        :param url_path: same as in join_path</span>
+<span class="sd">        :return: a URL object that represents the full URL.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">+</span> <span class="s2">"/"</span> <span class="o">+</span> <span class="n">url_path</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">:</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create a new collection.</span>
+
+<span class="sd">        :param collection: pystac.Collection object to create in the STAC API backend (or upload if you will)</span>
+<span class="sd">        :raises TypeError: if collection is not a pystac.Collection.</span>
+<span class="sd">        :return: dict that contains the JSON body of the HTTP response.</span>
+<span class="sd">        """</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="n">pystac</span><span class="o">.</span><span class="n">Collection</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">'Argument "collection" must be of type pystac.Collection, but its type is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">collection</span><span class="p">)</span><span class="si">=}</span><span class="s1">'</span>
+            <span class="p">)</span>
+
+        <span class="n">collection</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="n">coll_dict</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+        <span class="n">default_auth</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"_auth"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"read"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"anonymous"</span><span class="p">],</span>
+                <span class="s2">"write"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"stac-openeo-admin"</span><span class="p">,</span> <span class="s2">"stac-openeo-editor"</span><span class="p">],</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="n">coll_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">default_auth</span><span class="p">)</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">join_url</span><span class="p">(</span><span class="s2">"collections"</span><span class="p">),</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">coll_dict</span><span class="p">)</span>
+        <span class="n">_check_response_status</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">_EXPECTED_STATUS_POST</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+
+
+
+<span class="n">_EXPECTED_STATUS_POST</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">status_codes</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">ok</span><span class="p">,</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">status_codes</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">created</span><span class="p">,</span>
+    <span class="n">requests</span><span class="o">.</span><span class="n">status_codes</span><span class="o">.</span><span class="n">codes</span><span class="o">.</span><span class="n">accepted</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_response_status</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">,</span> <span class="n">expected_status_codes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">raise_exc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">expected_status_codes</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Expecting HTTP status to be any of </span><span class="si">{</span><span class="n">expected_status_codes</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">"but received </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">, request method=</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">method</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">"response body:</span><span class="se">\n</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">raise_exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="c1"># Always raise errors on 4xx and 5xx status codes.</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
