@@ -247,7 +247,7 @@ Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
 
     # Split into 10x10 km tiles in EPSG:3857
     gdf = split_area(
-        aoi=extent,
+        spatial_extent=extent,
         tile_size=10_000,  # tile size in meters (units of the projection)
         projection="EPSG:3857",  # projection for tiling
     )
@@ -300,7 +300,69 @@ or any other custom partitioning, you can pass a pre-computed
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
 
     # Only tiles intersecting the AOI are returned
-    gdf = split_area(aoi=extent , tile_grid=tile_grid)
+    gdf = split_area(spatial_extent=extent, tile_grid=tile_grid)
+
+Grouping geometries (e.g. point-based extractions)
+--------------------------------------------------
+
+When the work to split is a set of geometries (e.g. sample locations)
+rather than a single large area, e.g. for point-based extraction jobs,
+:py:func:`~openeo.extra.job_management._job_splitting.group_geometries` groups
+the rows of a GeoDataFrame into batches, optionally of at most ``max_geometries`` rows.
+Each row is treated as a single feature to group, based on its representative point,
+regardless of geometry type (e.g. ``Point``, ``MultiPoint``, ``Polygon``).
+Null or empty geometries are not allowed.
+Geometries are not split themselves: use ``split_area`` for a large area of interest.
+Like with ``split_area``, geometries without
+CRS information are assumed to be in the CRS of the tile grid (if any).
+Groups are formed by recursive bisection at the (weighted) median along the longer axis,
+so that batches stay geographically clustered and balanced.
+The returned GeoDataFrames keep the original index, to link back to the input rows:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import group_geometries
+
+    points = gpd.read_file("my_sample_locations.gpkg")
+    batches = group_geometries(points, max_geometries=500)
+    # batches is a list of GeoDataFrames, each with at most 500 rows
+
+Batches can also be limited by a ``weight`` (a column name, a pandas Series,
+or ``"area"`` for the geometry area in m², at least 100 m² per feature)
+with ``max_weight``, and by the bounding box edge length of a batch with ``max_extent``
+(in units of the CRS of the geometries, or of the tile grid if any):
+
+.. code-block:: python
+
+    batches = group_geometries(polygons, weight="area", max_weight=1e9, max_extent=50_000)
+
+Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
+that each feature is first assigned to a single tile (the one with the largest overlap)
+and batches are formed per tile. Polygons crossing tile edges may still touch
+neighbouring tiles, but points are guaranteed to stay within one tile:
+
+.. code-block:: python
+
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+    batches = group_geometries(points, max_geometries=500, tile_grid=tile_grid)
+
+Alternatively, a regular grid can be specified through ``tile_size`` and ``projection``.
+This grid is anchored at the origin of the projection,
+so the grouping of existing features does not change when other features are added:
+
+.. code-block:: python
+
+    # group points per 50x50 km tile in EPSG:3857
+    batches = group_geometries(points, max_geometries=500, tile_size=50_000, projection="EPSG:3857")
+
+Without ``max_geometries`` (default ``None``), there is no size limit and
+geometries are simply grouped per tile:
+
+.. code-block:: python
+
+    # one batch per tile
+    batches = group_geometries(points, tile_grid=tile_grid)
 
 Customizing Job Handling
 ========================
