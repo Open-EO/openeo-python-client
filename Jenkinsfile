@@ -15,11 +15,9 @@ pythonPipeline {
   python_version = ["3.11"]
   extras_require = 'tests'
   upload_dev_wheels = false
-  wheel_repo = 'python-openeo'
-  wheel_repo_dev = 'python-openeo'
-  wheel_repo_sas = 'openeo-pypi-local'
-  wheel_repo_dev_sas = 'openeo-pypi-local'
-  artifactory_server = ['rss', 'sas']
+  wheel_repo = 'openeo-pypi-local'
+  wheel_repo_dev = 'openeo-pypi-local'
+  artifactory_server = 'sas'
   extra_env_variables = [
     /* Set pytest `basetemp` inside Jenkins workspace. (Note: this is intentionally Jenkins specific, instead of a global pytest.ini thing.) */
     "PYTEST_DEBUG_TEMPROOT=pytest-tmp",
