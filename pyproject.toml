@@ -63,6 +63,8 @@ dev = [
     "time_machine>=2.13.0",
     "types-boto3-s3",
     "types-boto3-sts",
+    # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and
+    # https://github.com/gabrielfalcao/HTTPretty/issues/484
     "urllib3<2.3.0",
 ]
 docs = [
