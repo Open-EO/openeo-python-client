@@ -29,6 +29,7 @@ dependencies = [
     "oschmod>=0.3.12; sys_platform == \"win32\"",
     "pandas>0.20.0,<3.0.0",  # TODO pandas 3 compatibility https://github.com/Open-EO/openeo-python-client/issues/856
     "pystac[validation]>=1.9.0",
+    "python-dateutil>=2.7.0",
     "requests>=2.26.0",
     "shapely>=1.6.4",
     "urllib3>=1.9.0",
@@ -54,7 +55,6 @@ dev = [
     "pyproj>=3.3.0",  # Pyproj is an optional, best-effort runtime dependency
     "pystac-client>=0.7.5",
     "pytest>=4.5.0",
-    "python-dateutil>=2.7.0",
     "requests-mock>=1.8.0",
     "sphinx",
     "sphinx-autodoc-annotation",
@@ -99,7 +99,6 @@ tests = [
     "pyproj>=3.3.0",
     "pystac-client>=0.7.5",
     "pytest>=4.5.0",
-    "python-dateutil>=2.7.0",
     "requests-mock>=1.8.0",
     "time_machine>=2.13.0",
     # httpretty doesn't work properly with urllib3>=2.3.0. See #700 and
