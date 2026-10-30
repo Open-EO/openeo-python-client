@@ -57,7 +57,6 @@ dev = [
     "pytest>=4.5.0",
     "requests-mock>=1.8.0",
     "sphinx",
-    "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints >=2.2.3",
     "sphinx-copybutton",
     "time_machine>=2.13.0",
@@ -71,7 +70,6 @@ docs = [
     "myst-parser",
     "pydata_sphinx_theme",
     "sphinx",
-    "sphinx-autodoc-annotation",
     "sphinx-autodoc-typehints >=2.2.3",
     "sphinx-copybutton",
 ]
