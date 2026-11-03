@@ -376,9 +376,10 @@ class BatchJob:
             # TODO: render logs jupyter-aware in a notebook context?
             if show_error_logs:
                 print(f"Your batch job {self.job_id!r} failed. Error logs:")
-                print(self.logs(level=logging.ERROR))
+                print(self.logs(level=logging.ERROR, audience="all"))
                 print(
-                    f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
+                    f"Full logs can be inspected in an openEO (web) editor or with "
+                    f"`connection.job({self.job_id!r}).logs(audience='all')`."
                 )
             raise JobFailedException(
                 f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",

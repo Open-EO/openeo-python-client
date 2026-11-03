@@ -201,8 +201,10 @@ def test_execute_batch_show_error_logs(con100, requests_mock, show_error_logs):
         expected += [
             "Your batch job 'f00ba5' failed. Error logs:",
             [{"id": "34", "level": "error", "message": "nope"}],
-            "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+            "Full logs can be inspected in an openEO (web) editor or with "
+            "`connection.job('f00ba5').logs(audience='all')`.",
         ]
+        assert requests_mock.last_request.qs["audience"] == ["all"]
     assert stdout == expected
 
 
