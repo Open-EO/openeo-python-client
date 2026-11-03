@@ -914,13 +914,13 @@ def test_get_results_download_file_to_folder(job_with_1_asset: BatchJob, tmp_pat
         ("1.tiff", "/dl-1", "1.tiff"),
         ("res1", "/dl/1.tiff", "res1-1.tiff"),
         ("res1", "/dl-1", "res1-dl-1.tiff"),
-        ("res/1", "/dl/1.tiff", "res1-1.tiff"),
-        ("res/1", "/dl-1", "res1-dl-1.tiff"),
-        ("res/1.tiff", "/dl/1.tiff", "res1.tiff-1.tiff"),
-        ("res/1.tiff", "/dl-1", "res1.tiff-dl-1.tiff"),
+        ("res/1", "/dl/1.tiff", "res/1-1.tiff"),
+        ("res/1", "/dl-1", "res/1-dl-1.tiff"),
+        ("res/1.tiff", "/dl/1.tiff", "res/1.tiff"),
+        ("res/1.tiff", "/dl-1", "res/1.tiff"),
         ("re$:1t#f", "/dl/1.tiff", "re1tf-1.tiff"),
         ("re$:1t#f", "/dl-1", "re1tf-dl-1.tiff"),
-        ("26/06/19 1:2:3#45z", "/dl/45z", "26061912345z-45z.tiff"),
+        ("26/06/19 1:2:3#45z", "/dl/45z", "26/06/1912345z-45z.tiff"),
     ],
 )
 def test_get_results_download_file_asset_keys(job_with_results_mocker, tmp_path, asset_key, href, expected):
@@ -931,7 +931,7 @@ def test_get_results_download_file_asset_keys(job_with_results_mocker, tmp_path,
     res = job.get_results().download_file(target)
 
     assert res == target / expected
-    assert list(p.name for p in target.iterdir()) == [expected]
+    assert [p.relative_to(target).as_posix() for p in target.rglob("*") if p.is_file()] == [expected]
     assert res.read_bytes() == TIFF_CONTENT
 
 
@@ -1250,7 +1250,7 @@ class TestResultAsset:
             ("cube_123.tiff", "http://data.test/dl/output.tiff", None, "cube_123.tiff"),
             ("cube.t1ff", "http://data.test/dl/output.tiff", None, "cube.t1ff"),
             ("output", "http://data.test/dl/cube.tiff", None, "output-cube.tiff"),
-            ("output/1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
+            ("output/1", "http://data.test/dl/cube.tiff", None, "output/1-cube.tiff"),
             ("output#1", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
             ("output(1)", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
             ("output[1]", "http://data.test/dl/cube.tiff", None, "output1-cube.tiff"),
@@ -1262,10 +1262,22 @@ class TestResultAsset:
             ("ΩuτΠuτ.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "ΩuτΠuτ.tiff"),
             ("donnée-discrètes.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "donnée-discrètes.tiff"),
             ("band-weiß.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "band-weiß.tiff"),
-            ("bands/weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bandsweiß-cube.tiff"),
+            ("bands/weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bands/weiß-cube.tiff"),
             ("bands:weiß", "http://data.test/dl/cube.tiff", "image/tiff", "bandsweiß-cube.tiff"),
             ("立方体.tiff", "http://data.test/dl/cube.tiff", "image/tiff", "立方体.tiff"),
             ("立方体;123", "http://data.test/dl/cube.tiff", "image/tiff", "立方体123-cube.tiff"),
+            # Slashes in asset key are interpreted as subfolders
+            ("folder/cube.tiff", "http://data.test/dl/output.tiff", None, "folder/cube.tiff"),
+            (
+                "quantiles/monthly/2018/03/quantiles_2018-03_p10.tif",
+                "http://data.test/dl/output.tiff",
+                "image/tiff",
+                "quantiles/monthly/2018/03/quantiles_2018-03_p10.tif",
+            ),
+            ("/fo:o//./bar/cube.tiff", "http://data.test/dl/output.tiff", None, "foo/bar/cube.tiff"),
+            ("../../cube.tiff", "http://data.test/dl/output.tiff", None, "cube.tiff"),
+            ("foo/../../cube.tiff", "http://data.test/dl/output.tiff", None, "foo/cube.tiff"),
+            ("foo/..", "http://data.test/dl/cube.tiff", None, "foo-cube.tiff"),
             # Percent-encoded unicode in href URL (e.g. from signed S3 URLs)
             ("output", "http://data.test/dl/file_%CF%83.nc", "application/x-netcdf", "output-file_σ.nc"),
             (

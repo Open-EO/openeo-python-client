@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Spatiotemporal filtering is now reflected more accurately in `DataCube.metadata` (it no longer always carries forward the full original collection extent). The client-side result is a best-effort approximation of backend behavior. When there is a limitation in that simulation (not only because of a shortcoming in implementation, but also because of fundamental unknowns, e.g. parameterized UDP construction), that uncertainty is represented explicitly (e.g. through a `_NonConcreteExtent` instance) instead of misleading fallbacks. ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
 - Improve compatibility with oschmod 0.5.0 on Windows ([#967](https://github.com/Open-EO/openeo-python-client/issues/967)).
+- When downloading job result assets, slashes in asset keys are interpreted again as subfolders (with sanitized path parts), instead of being stripped (regression since 0.51.0, [#820](https://github.com/Open-EO/openeo-python-client/issues/820)).
 
 
 ## [0.54.0] - 2026-10-28

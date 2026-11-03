@@ -492,24 +492,30 @@ class ResultAsset:
         Produce a filename for downloading the asset to
         as fallback when user did not provide something,
         based on: asset key (which is not guaranteed to consist of filename-safe characters)
-        and filename in href (if any)
+        and filename in href (if any).
+        Slashes in the asset key are interpreted as folder separators
+        (resulting in a relative path with sanitized parts).
         """
+        # Split key on slashes into sanitized parts, dropping parts that are empty or could escape the target folder.
+        parts = [_sanitize_filename(p, invalid=()) for p in self.key.split("/")]
+        parts = [p for p in parts if p not in ("", ".", "..")]
+        folders, key = parts[:-1], (parts[-1] if parts else self.key)
 
-        if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", self.key):
+        if re.fullmatch(r"^[\w_.-]+\.[a-zA-Z0-9]{1,10}$", key):
             # Legacy mode: asset key already looks like a filename
-            return self.key
+            filename = key
+        else:
+            # Build filename from key, href's path (if any)
+            # and guess extension from media type if necessary
+            sanitized_key = _sanitize_filename(key)
+            href_basename = _filename_from_url(self.href, full=False)
+            filename = f"{sanitized_key}-{href_basename}"
 
-        # Build filename from key, href's path (if any)
-        # and guess extension from media type if necessary
-        sanitized_key = _sanitize_filename(self.key)
-        href_basename = _filename_from_url(self.href, full=False)
-        filename = f"{sanitized_key}-{href_basename}"
-
-        if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
-            # Extension seems missing, do media type based guess (best effort)
-            if extension := _MEDIA_TYPE_EXTENSION_MAP.get(self.media_type):
-                filename += extension
-        return filename
+            if not re.fullmatch(r".*\.[a-zA-Z0-9]{1,10}$", filename):
+                # Extension seems missing, do media type based guess (best effort)
+                if extension := _MEDIA_TYPE_EXTENSION_MAP.get(self.media_type):
+                    filename += extension
+        return "/".join(folders + [filename])
 
     def download(
         self,
