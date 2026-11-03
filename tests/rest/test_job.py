@@ -171,7 +171,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
         "0:00:20 Job 'f00ba5': error (progress 100%)",
         "Your batch job 'f00ba5' failed. Error logs:",
         [{"id": "34", "level": "error", "message": "nope"}],
-        "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+        "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs(audience='all')`.",
     ]
 
 
