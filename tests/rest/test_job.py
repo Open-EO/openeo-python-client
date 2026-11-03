@@ -579,6 +579,21 @@ def test_get_job_logs_level_handling_default(con100, requests_mock, log_generato
 
 
 @pytest.mark.parametrize(
+    ["kwargs", "expected_audience"],
+    [
+        ({}, ["user"]),
+        ({"audience": "developer"}, ["developer"]),
+        ({"audience": "all"}, ["all"]),
+        ({"audience": None}, None),
+    ],
+)
+def test_get_job_logs_audience(con100, requests_mock, kwargs, expected_audience):
+    m = requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={"logs": []})
+    con100.job("f00ba5").logs(**kwargs)
+    assert m.last_request.qs.get("audience") == expected_audience
+
+
+@pytest.mark.parametrize(
     ["levels", "expected"],
     [
         ([logging.ERROR, "error", "ERROR"], [{"id": "abc005", "level": "error", "message": "Halt! abc005"}]),
