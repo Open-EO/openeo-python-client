@@ -156,7 +156,14 @@ openeo.util
 -------------
 
 .. automodule:: openeo.util
-    :members: to_bbox_dict, BBoxDict, load_json_resource, normalize_crs, auto_description
+    :members: to_bbox_dict, BBoxDict, load_json_resource, normalize_crs
+
+
+openeo.utils.describe
+---------------------
+
+.. automodule:: openeo.utils.describe
+    :members:
 
 
 openeo.processes

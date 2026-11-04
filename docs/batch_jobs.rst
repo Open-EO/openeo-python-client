@@ -81,57 +81,66 @@ so it's easier to identify in your job listing, e.g.:
     job = cube.create_job(title="NDVI timeseries 2022")
 
 
-Automatically describe the code that creates a job
----------------------------------------------------
+Automatically title and describe a job
+--------------------------------------
 
-Use :py:func:`openeo.util.auto_description` to record where a job came from:
+:py:mod:`openeo.utils.describe` provides opt-in helpers to derive a job title
+or description from the script that creates it.
+Nothing happens automatically: pass the returned string to
+:py:meth:`~openeo.rest.datacube.DataCube.create_job` or
+:py:meth:`~openeo.rest.datacube.DataCube.execute_batch`.
+
+Job listings show the title, so :py:func:`~openeo.utils.describe.auto_title`
+is often the most useful:
 
 .. code-block:: python
 
-    from openeo.util import auto_description
+    from openeo.utils.describe import auto_title
+
+    def run_ndvi():
+        ...
+        job = cube.create_job(title=auto_title())  # "analysis.py: run_ndvi"
+
+The title contains the script's filename and, inside a function, the function name.
+It falls back to the filename alone, or ``"openEO job"`` when no source file
+can be detected (for example in a notebook).
+
+:py:func:`~openeo.utils.describe.auto_description` produces a longer description
+with the same metadata, and can include source code and Git information:
+
+.. code-block:: python
+
+    from openeo.utils.describe import auto_description
 
     job = cube.create_job(
         title="NDVI timeseries 2022",
-        description=auto_description(),
+        description=auto_description(include_source=True, include_git_commit=True),
     )
 
-By default, the helper includes the calling script's filename and, when available,
-the calling function's name. It does not read the script's contents or invoke Git.
-The title and description are never changed automatically:
-the helper only generates text that you explicitly pass to job creation.
+Source code inclusion is opt-in. It is read using the script's declared encoding,
+formatted as an indented Markdown code block, and truncated to
+``source_max_length`` characters (1000 by default, ``None`` for no limit).
+Git information is looked up relative to the script's directory and requires
+the ``git`` executable, but no additional Python package.
+The commit is that of the whole repository, so the description also says whether
+the working tree has uncommitted changes and whether the script itself is untracked;
+use ``git_ref`` to report a branch or commit instead of ``HEAD``.
+Unavailable Git information is logged as a warning and omitted.
 
-For more detailed provenance, you can explicitly select a source file,
-include its full Python source, and attach its current Git commit:
-
-.. code-block:: python
-
-    description = auto_description(
-        src=__file__,
-        include_source=True,
-        git_commit=True,
-    )
-    job = cube.create_job(title="NDVI timeseries 2022", description=description)
-
-The source path can be a string or a :py:class:`~pathlib.Path`.
-Only the filename, not the full local path, is recorded.
-Source code is formatted as an indented Markdown code block.
-Git is looked up relative to the source file's directory, including parent directories,
-rather than the current working directory. No additional Python dependency is needed,
-but the ``git`` executable must be installed when requesting Git metadata.
-If Git lookup fails or times out, the helper logs a warning and omits the commit.
-A commit hash does not describe uncommitted changes to your code.
-
-In notebooks or interactive sessions, the helper may not be able to detect a source file.
-It then reports the source as unavailable and omits Git metadata with a warning if requested.
-To include source code in this situation, pass the path to a saved Python script explicitly.
-An unavailable source file with ``include_source=True`` raises an error rather than silently
-omitting the requested code. The helper does not capture notebook cells or notebook contents.
+In notebooks and interactive sessions no source file may be detectable:
+the description reports the source as unavailable, and ``include_source=True``
+raises a ``ValueError`` instead. To include source code in this situation,
+pass the path to a saved script with ``src``. For more control, combine the
+building blocks :py:func:`~openeo.utils.describe.get_source_path`,
+:py:func:`~openeo.utils.describe.get_function_name`,
+:py:func:`~openeo.utils.describe.get_git_info` and
+:py:func:`~openeo.utils.describe.get_source_code`.
 
 .. warning::
 
-    Including source code is opt-in because it may expose credentials or other sensitive
-    information to the backend. No secrets are automatically redacted.
-    Review the generated description before submitting it.
+    Source code may contain credentials or other sensitive information.
+    Nothing is redacted automatically; review the generated description
+    before submitting the job.
 
 
 
