@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import threading
+import time
 from pathlib import Path
 from time import sleep
 from typing import Union
@@ -676,8 +677,18 @@ class TestMultiBackendJobManager:
         time_machine.move_to(create_time)
         job_db_path = tmp_path / "jobs.csv"
 
-        # Mock sleep() to not actually sleep, but skip one hour at a time
-        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
+        real_sleep = time.sleep
+
+        def fake_sleep(seconds):
+            # Skip one hour at a time, but only once the (threaded) job start is processed,
+            # to avoid flakiness depending on thread timing.
+            pool = job_manager._worker_pool
+            if pool is not None and pool.has_unprocessed_tasks():
+                real_sleep(0.01)
+            else:
+                time_machine.shift(60 * 60)
+
+        with mock.patch("time.sleep", new=fake_sleep):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()

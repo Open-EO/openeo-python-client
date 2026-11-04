@@ -871,3 +871,10 @@ def test_vector_cube_validate(vector_cube, dummy_backend):
     ]
     assert isinstance(result, ValidationResponse)
     assert result == [{"code": "OfflineRequired", "message": "Turn off your smartphone"}]
+
+
+def test_vector_cube_temporal_extent_metadata(connection):
+    raster_cube = connection.load_collection("S2", temporal_extent=("2026-09-01", "2026-09-20"), bands=["B03"])
+    polygon = shapely.geometry.box(3, 51, 3.01, 51.01)
+    vector_cube = raster_cube.aggregate_spatial(geometries=polygon, reducer="mean")
+    assert vector_cube.metadata.temporal_dimension.extent == ("2026-09-01T00:00:00Z", "2026-09-20T00:00:00Z")

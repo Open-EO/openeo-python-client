@@ -171,7 +171,7 @@ def test_execute_batch_with_error(con100, requests_mock, tmpdir):
         "0:00:20 Job 'f00ba5': error (progress 100%)",
         "Your batch job 'f00ba5' failed. Error logs:",
         [{"id": "34", "level": "error", "message": "nope"}],
-        "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+        "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs(audience='all')`.",
     ]
 
 
@@ -201,8 +201,10 @@ def test_execute_batch_show_error_logs(con100, requests_mock, show_error_logs):
         expected += [
             "Your batch job 'f00ba5' failed. Error logs:",
             [{"id": "34", "level": "error", "message": "nope"}],
-            "Full logs can be inspected in an openEO (web) editor or with `connection.job('f00ba5').logs()`.",
+            "Full logs can be inspected in an openEO (web) editor or with "
+            "`connection.job('f00ba5').logs(audience='all')`.",
         ]
+        assert requests_mock.last_request.qs["audience"] == ["all"]
     assert stdout == expected
 
 
@@ -576,6 +578,21 @@ def test_get_job_logs_level_handling_default(con100, requests_mock, log_generato
         {"id": "abc002", "level": "info", "message": "Hello abc002"},
         {"id": "abc003", "level": "warning", "message": "Beware abc003"},
     ]
+
+
+@pytest.mark.parametrize(
+    ["kwargs", "expected_audience"],
+    [
+        ({}, ["user"]),
+        ({"audience": "developer"}, ["developer"]),
+        ({"audience": "all"}, ["all"]),
+        ({"audience": None}, None),
+    ],
+)
+def test_get_job_logs_audience(con100, requests_mock, kwargs, expected_audience):
+    m = requests_mock.get(API_URL + "/jobs/f00ba5/logs", json={"logs": []})
+    con100.job("f00ba5").logs(**kwargs)
+    assert m.last_request.qs.get("audience") == expected_audience
 
 
 @pytest.mark.parametrize(

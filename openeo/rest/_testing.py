@@ -161,12 +161,14 @@ class DummyBackend:
         *,
         temporal: Union[bool, Tuple[str, str]] = True,
         bands: Sequence[str] = ("B1", "B2", "B3"),
+        spatial_x: Dict | None = None,
+        spatial_y: Dict | None = None,
     ):
         # TODO: also mock `/collections` overview
         # TODO: option to override cube_dimensions as a whole, or override dimension names
         cube_dimensions = {
-            "x": {"type": "spatial"},
-            "y": {"type": "spatial"},
+            "x": {"type": "spatial", "axis": "x", **(spatial_x or {})},
+            "y": {"type": "spatial", "axis": "y", **(spatial_y or {})},
         }
 
         if temporal:

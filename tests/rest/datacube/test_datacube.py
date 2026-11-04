@@ -8,6 +8,7 @@ General cube method tests against both
 import contextlib
 import json
 import pathlib
+import re
 from datetime import date, datetime
 from unittest import mock
 
@@ -22,7 +23,12 @@ import openeo.processes
 from openeo import collection_property
 from openeo.api.process import Parameter
 from openeo.internal.graph_building import PGNode
-from openeo.metadata import SpatialDimension
+from openeo.metadata import (
+    _PARAMETERIZED_VALUE,
+    NumericalInterval,
+    SpatialDimension,
+    _NonConcreteExtent,
+)
 from openeo.rest import BandMathException, OpenEoClientException
 from openeo.rest._testing import build_capabilities
 from openeo.rest.connection import Connection
@@ -30,6 +36,7 @@ from openeo.rest.datacube import DataCube
 from openeo.rest.models.general import ValidationResponse
 from openeo.testing.stac import StacDummyBuilder
 from openeo.util import dict_no_none
+from openeo.utils.datetime import DateTimeInterval
 
 from .. import get_download_graph
 from .conftest import API_URL
@@ -207,6 +214,63 @@ class TestDataCube:
             "temporal_extent": None,
         }
 
+    @pytest.mark.parametrize(
+        ["source_extents", "spatial_extent", "expected_metadata"],
+        [
+            (
+                # Everything EPSG:4326: Source metadata, requested spatial extent, ...
+                {
+                    "x": {"extent": [-180, 180], "reference_system": 4326},
+                    "y": {"extent": [-70, 70], "reference_system": 4326},
+                },
+                {"west": 1, "south": 2, "east": 3, "north": 4},
+                {
+                    "x": {"extent": NumericalInterval(1, 3), "crs": 4326},
+                    "y": {"extent": NumericalInterval(2, 4), "crs": 4326},
+                },
+            ),
+            (
+                # Source in UTM (EPSG:32631), requested spatial extent in EPSG:4326
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 3, "south": 51, "east": 3.5, "north": 51.3, "crs": 4326},
+                {
+                    # TODO: handle spatial extent intersection with reprojection
+                    "x": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                    "y": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                },
+            ),
+            (
+                # Source and requested spatial extent in UTM (EPSG:32631)
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 500_000, "south": 5_649_820, "east": 535_080, "north": 5_683_300, "crs": 32631},
+                {
+                    "x": {"extent": NumericalInterval(500_000, 535_080), "crs": 32631},
+                    "y": {"extent": NumericalInterval(5_649_820, 5_683_300), "crs": 32631},
+                },
+            ),
+        ],
+    )
+    def test_load_collection_spatial_extent_cube_metadata(
+        self, dummy_backend, source_extents: dict, spatial_extent, expected_metadata
+    ):
+        dummy_backend.setup_collection(collection_id="S2", spatial_x=source_extents["x"], spatial_y=source_extents["y"])
+        cube = DataCube.load_collection("S2", spatial_extent=spatial_extent, connection=dummy_backend.connection)
+
+        assert cube.metadata.spatial_dimensions == (
+            SpatialDimension(
+                name="x", axis="x", extent=expected_metadata["x"]["extent"], crs=expected_metadata["x"].get("crs")
+            ),
+            SpatialDimension(
+                name="y", axis="y", extent=expected_metadata["y"]["extent"], crs=expected_metadata["y"].get("crs")
+            ),
+        )
+
     def test_load_collection_connectionless_save_result(self):
         cube = DataCube.load_collection("T3").save_result(format="GTiff")
         assert cube.flat_graph() == {
@@ -316,6 +380,86 @@ class TestDataCube:
         }
 
     @pytest.mark.parametrize(
+        ["source_extents", "spatial_extent", "expected_metadata"],
+        [
+            (
+                # Everything EPSG:4326: Source metadata, requested spatial extent, ...
+                {
+                    "x": {"extent": [-180, 180], "reference_system": 4326},
+                    "y": {"extent": [-70, 70], "reference_system": 4326},
+                },
+                {"west": 1, "south": 2, "east": 3, "north": 4},
+                {
+                    "x": {"extent": NumericalInterval(1, 3), "crs": 4326},
+                    "y": {"extent": NumericalInterval(2, 4), "crs": 4326},
+                },
+            ),
+            (
+                # Source in UTM (EPSG:32631), requested spatial extent in EPSG:4326
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 3, "south": 51, "east": 3.5, "north": 51.3, "crs": 4326},
+                {
+                    # TODO: handle spatial extent intersection with reprojection
+                    "x": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                    "y": {"extent": dirty_equals.IsInstance(_NonConcreteExtent), "crs": 32631},
+                },
+            ),
+            (
+                # Source and requested spatial extent in UTM (EPSG:32631)
+                {
+                    "x": {"extent": [100_000, 900_000], "reference_system": 32631},
+                    "y": {"extent": [3_000_000, 7_000_000], "reference_system": 32631},
+                },
+                {"west": 500_000, "south": 5_649_820, "east": 535_080, "north": 5_683_300, "crs": 32631},
+                {
+                    "x": {"extent": NumericalInterval(500_000, 535_080), "crs": 32631},
+                    "y": {"extent": NumericalInterval(5_649_820, 5_683_300), "crs": 32631},
+                },
+            ),
+        ],
+    )
+    def test_load_stac_spatial_extent_cube_metadata(
+        self, dummy_backend, tmp_path, source_extents: dict, spatial_extent, expected_metadata
+    ):
+        stac_path = tmp_path / "stac.json"
+        stac_metadata = StacDummyBuilder.collection(
+            cube_dimensions={
+                "x": {
+                    "type": "spatial",
+                    "axis": "x",
+                    "extent": source_extents["x"].get("extent", [-180, 180]),
+                    "reference_system": source_extents["x"].get("reference_system", 4326),
+                },
+                "y": {
+                    "type": "spatial",
+                    "axis": "y",
+                    "extent": source_extents["y"].get("extent", [-70, 70]),
+                    "reference_system": source_extents["y"].get("reference_system", 4326),
+                },
+                "t": {"type": "temporal", "extent": ["2020-02-20T02:20:22Z", None]},
+                "bands": {"type": "bands", "values": ["B03", "B04"]},
+            }
+        )
+        # TODO #738 real request mocking of STAC resources compatible with pystac?
+        stac_path.write_text(json.dumps(stac_metadata))
+
+        cube = DataCube.load_stac(
+            url=str(stac_path), spatial_extent=spatial_extent, connection=dummy_backend.connection
+        )
+
+        assert cube.metadata.spatial_dimensions == (
+            SpatialDimension(
+                name="x", axis="x", extent=expected_metadata["x"]["extent"], crs=expected_metadata["x"].get("crs")
+            ),
+            SpatialDimension(
+                name="y", axis="y", extent=expected_metadata["y"]["extent"], crs=expected_metadata["y"].get("crs")
+            ),
+        )
+
+    @pytest.mark.parametrize(
         "stac_metadata",
         [
             StacDummyBuilder.item(),
@@ -349,143 +493,198 @@ class TestDataCube:
             },
         }
 
+    def test_repr_html_no_metadata(self):
+        cube = DataCube.load_collection("T3")
+        html = cube._repr_html_()
+        assert "openeo-model-builder" in html
+        assert "etadata" not in html
 
-def test_filter_temporal_basic_positional_args(s2cube):
-    im = s2cube.filter_temporal("2016-01-01", "2016-03-10")
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+    def test_repr_html_with_metadata(self, s2cube):
+        assert s2cube.metadata
+        html = s2cube._repr_html_()
+        assert html == dirty_equals.IsStr(
+            regex=r"""
+                .*<details\ open><summary>Metadata</summary>
+                    .*<table>
+                    .*<thead>.*Dimension.*Type.*Size.*</thead>
+                    .*<tbody>
+                        .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>t</td><td.*?>temporal</td>.*</tr>
+                        .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>4</td><td.*?>bands:\sB02,\sB03,\sB04,\sB08</td></tr>
+               .*</details>
+               .*<details><summary>Process\ Graph</summary>
+               .*<openeo-model-builder>
+               .*""",
+            regex_flags=re.DOTALL | re.VERBOSE,
+        )
 
+    def test_load_collection_extent_repr_html(self, connection):
+        cube = connection.load_collection(
+            "S2",
+            spatial_extent={"west": 3.1, "south": 51.1, "east": 3.2, "north": 51.2},
+            temporal_extent=("2026-09-01", "2026-09-20"),
+            bands=["B03", "B04"],
+        )
+        assert cube.metadata
+        html = cube._repr_html_()
+        assert html == dirty_equals.IsStr(
+            regex=r"""
+                .*<details\ open><summary>Metadata</summary>
+                    .*<table>
+                    .*<thead>.*Dimension.*Type.*Size.*</thead>
+                    .*<tbody>
+                        .*<tr><td.*?>x</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>y</td><td.*?>spatial</td>.*</tr>
+                        .*<tr><td.*?>t</td><td.*?>temporal</td><td.*?>\?</td><td.*?>extent:.*2026-09-01.*2026-09-20.*</tr>
+                        .*<tr><td.*?>bands</td><td.*?>bands</td><td.*?>2</td><td.*?>bands:\sB03,\sB04</td></tr>
+               .*</details>
+               .*<details><summary>Process\ Graph</summary>
+               .*<openeo-model-builder>
+               .*""",
+            regex_flags=re.DOTALL | re.VERBOSE,
+        )
 
-def test_filter_temporal_basic_start_end(s2cube):
-    im = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+    def test_filter_temporal_basic_positional_args(self, s2cube):
+        cube = s2cube.filter_temporal("2016-01-01", "2016-03-10")
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
+    def test_filter_temporal_basic_start_end(self, s2cube):
+        cube = s2cube.filter_temporal(start_date="2016-01-01", end_date="2016-03-10")
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
-def test_filter_temporal_basic_extent(s2cube):
-    im = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+    def test_filter_temporal_basic_extent(self, s2cube):
+        cube = s2cube.filter_temporal(extent=("2016-01-01", "2016-03-10"))
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == ["2016-01-01", "2016-03-10"]
+        assert cube.metadata.temporal_dimension.extent == ("2016-01-01T00:00:00Z", "2016-03-10T00:00:00Z")
 
-
-@pytest.mark.parametrize(
-    "args,kwargs,extent",
-    [
-        ((), {}, [None, None]),
-        (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
-        ((("2016-01-01", "2016-03-10"),), {}, ["2016-01-01", "2016-03-10"]),
-        ((["2016-01-01", "2016-03-10"],), {}, ["2016-01-01", "2016-03-10"]),
-        ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
-        (
-            (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)),
-            {},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-        ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
-        ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
-        ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
-        ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
-        (
-            (),
-            {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-        ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
-        ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
-        ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
-        ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
-        (
-            (),
-            {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
-            ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
-        ),
-    ],
-)
-def test_filter_temporal_generic(s2cube, args, kwargs, extent):
-    im = s2cube.filter_temporal(*args, **kwargs)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == extent
-
-
-@pytest.mark.parametrize(
-    ["extent", "expected"],
-    [
-        (["2016", None], ["2016-01-01", None]),
-        (["2016-03", None], ["2016-03-01", None]),
-        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
-        (["2016-03", "2016-04"], ["2016-03-01", "2016-04-01"]),
-        (["2016-03", "2018-12"], ["2016-03-01", "2018-12-01"]),
-        (["2016", "2016-01"], ["2016-01-01", "2016-01-01"]),
-        (["2016", "2016-04"], ["2016-01-01", "2016-04-01"]),
-        ([None, "2016-04"], [None, "2016-04-01"]),
-    ],
-)
-def test_filter_temporal_extent_tuple_with_shorthand_dates(s2cube: DataCube, extent, expected):
-    """Verify it supports shorthand dates that represent years or months."""
-    im = s2cube.filter_temporal(extent=extent)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == expected
-
-
-@pytest.mark.parametrize(
-    ["extent", "expected"],
-    [
-        ("2016", ["2016-01-01", "2017-01-01"]),
-        ("2016-01", ["2016-01-01", "2016-02-01"]),
-        ("2016-04", ["2016-04-01", "2016-05-01"]),
-        ("2016-12", ["2016-12-01", "2017-01-01"]),
-        ("2016-04-11", ["2016-12-01", "2017-01-01"]),
-    ],
-)
-def test_filter_temporal_extent_single_date_string(s2cube: DataCube, extent, expected):
-    """Verify it supports single string extent."""
-    im = s2cube.filter_temporal(extent=extent)
-    graph = _get_leaf_node(im)
-    assert graph["process_id"] == "filter_temporal"
-    assert graph["arguments"]["extent"] == expected
-
-
-@pytest.mark.parametrize(
-    "extent,expected",
-    [
-        (("2016-01-01", None), ["2016-01-01", None]),
-        (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
-        ((None, "2016-03-10"), [None, "2016-03-10"]),
-        (["2016-01-01", None], ["2016-01-01", None]),
-    ],
-)
-def test_load_collection_filter_temporal(connection, api_version, extent, expected):
-    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
-    flat_graph = cube.flat_graph()
-    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+    @pytest.mark.parametrize(
+        ["args", "kwargs", "extent"],
+        [
+            ((), {}, [None, None]),
+            (("2016-01-01", "2016-03-10"), {}, ["2016-01-01", "2016-03-10"]),
+            ((("2016-01-01", "2016-03-10"),), {}, ["2016-01-01", "2016-03-10"]),
+            ((["2016-01-01", "2016-03-10"],), {}, ["2016-01-01", "2016-03-10"]),
+            ((date(2016, 1, 1), date(2016, 3, 10)), {}, ["2016-01-01", "2016-03-10"]),
+            (
+                (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45)),
+                {},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+            ((), {"start_date": "2016-01-01", "end_date": "2016-03-10"}, ["2016-01-01", "2016-03-10"]),
+            ((), {"start_date": "2016-01-01"}, ["2016-01-01", None]),
+            ((), {"end_date": "2016-03-10"}, [None, "2016-03-10"]),
+            ((), {"start_date": date(2016, 1, 1), "end_date": date(2016, 3, 10)}, ["2016-01-01", "2016-03-10"]),
+            (
+                (),
+                {"start_date": datetime(2016, 1, 1, 12, 34), "end_date": datetime(2016, 3, 10, 23, 45)},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+            ((), {"extent": ("2016-01-01", "2016-03-10")}, ["2016-01-01", "2016-03-10"]),
+            ((), {"extent": ("2016-01-01", None)}, ["2016-01-01", None]),
+            ((), {"extent": (None, "2016-03-10")}, [None, "2016-03-10"]),
+            ((), {"extent": (date(2016, 1, 1), date(2016, 3, 10))}, ["2016-01-01", "2016-03-10"]),
+            (
+                (),
+                {"extent": (datetime(2016, 1, 1, 12, 34), datetime(2016, 3, 10, 23, 45))},
+                ["2016-01-01T12:34:00Z", "2016-03-10T23:45:00Z"],
+            ),
+        ],
+    )
+    def test_filter_temporal_generic(self, s2cube, args, kwargs, extent):
+        cube = s2cube.filter_temporal(*args, **kwargs)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == extent
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*extent).as_rfc3339()
 
 
-@pytest.mark.parametrize(
-    "extent,expected",
-    [
-        # Test that the simplest/shortest syntax works: temporal_extent="2016"
-        ("2016", ["2016-01-01", "2017-01-01"]),
-        ("2016-02", ["2016-02-01", "2016-03-01"]),
-        ("2016-02-03", ["2016-02-03", "2016-02-04"]),
-        # Test date abbreviations using tuples for the extent
-        (["2016", None], ["2016-01-01", None]),
-        (["2016-02", None], ["2016-02-01", None]),
-        (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
-        (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
-        ([None, "2016"], [None, "2016-01-01"]),
-        ([None, "2016-02"], [None, "2016-02-01"]),
-    ],
-)
-def test_load_collection_temporal_extent_with_shorthand_date_strings(connection, api_version, extent, expected):
-    """Verify it supports abbreviated date strings."""
-    cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
-    flat_graph = cube.flat_graph()
-    assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            (["2016", None], ["2016-01-01", None]),
+            (["2016-03", None], ["2016-03-01", None]),
+            (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+            (["2016-03", "2016-04"], ["2016-03-01", "2016-04-01"]),
+            (["2016-03", "2018-12"], ["2016-03-01", "2018-12-01"]),
+            (["2016", "2016-04"], ["2016-01-01", "2016-04-01"]),
+            ([None, "2016-04"], [None, "2016-04-01"]),
+        ],
+    )
+    def test_filter_temporal_extent_tuple_with_shorthand_dates(self, s2cube: DataCube, extent, expected):
+        """Verify it supports shorthand dates that represent years or months."""
+        cube = s2cube.filter_temporal(extent=extent)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            ("2016", ["2016-01-01", "2017-01-01"]),
+            ("2016-01", ["2016-01-01", "2016-02-01"]),
+            ("2016-04", ["2016-04-01", "2016-05-01"]),
+            ("2016-12", ["2016-12-01", "2017-01-01"]),
+            ("2016-04-11", ["2016-04-11", "2016-04-12"]),
+        ],
+    )
+    def test_filter_temporal_extent_single_date_string(self, s2cube: DataCube, extent, expected):
+        """Verify it supports single string extent."""
+        cube = s2cube.filter_temporal(extent=extent)
+        graph = _get_leaf_node(cube)
+        assert graph["process_id"] == "filter_temporal"
+        assert graph["arguments"]["extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            (("2016-01-01", None), ["2016-01-01", None]),
+            (("2016-01-01", "2016-03-10"), ["2016-01-01", "2016-03-10"]),
+            ((None, "2016-03-10"), [None, "2016-03-10"]),
+            (["2016-01-01", None], ["2016-01-01", None]),
+        ],
+    )
+    def test_load_collection_filter_temporal(self, connection, api_version, extent, expected):
+        cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+        flat_graph = cube.flat_graph()
+        assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
+
+
+    @pytest.mark.parametrize(
+        ["extent", "expected"],
+        [
+            # Test that the simplest/shortest syntax works: temporal_extent="2016"
+            ("2016", ["2016-01-01", "2017-01-01"]),
+            ("2016-02", ["2016-02-01", "2016-03-01"]),
+            ("2016-02-03", ["2016-02-03", "2016-02-04"]),
+            # Test date abbreviations using tuples for the extent
+            (["2016", None], ["2016-01-01", None]),
+            (["2016-02", None], ["2016-02-01", None]),
+            (["2016", "2017"], ["2016-01-01", "2017-01-01"]),
+            (["2016-02", "2016-08"], ["2016-02-01", "2016-08-01"]),
+            ([None, "2016"], [None, "2016-01-01"]),
+            ([None, "2016-02"], [None, "2016-02-01"]),
+        ],
+    )
+    def test_load_collection_temporal_extent_with_shorthand_date_strings(
+        self, connection, api_version, extent, expected
+    ):
+        """Verify it supports abbreviated date strings."""
+        cube: DataCube = connection.load_collection("S2", temporal_extent=extent)
+        flat_graph = cube.flat_graph()
+        assert flat_graph["loadcollection1"]["arguments"]["temporal_extent"] == expected
+        assert cube.metadata.temporal_dimension.extent == DateTimeInterval(*expected).as_rfc3339()
 
 
 def test_load_collection_bands_name(connection, api_version, test_data):
@@ -861,10 +1060,10 @@ def test_resample_spatial(s2cube):
         }
     }
 
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
         SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
-    ]
+    )
 
 
 def test_resample_spatial_no_metadata(s2cube_without_metadata):
@@ -881,10 +1080,10 @@ def test_resample_spatial_no_metadata(s2cube_without_metadata):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
+    assert cube.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=[None, None], crs=4578, step=3.0),
         SpatialDimension(name="y", extent=[None, None], crs=4578, step=5.0),
-    ]
+    )
 
 
 def test_resample_spatial_parameter_resolution(s2cube):
@@ -903,10 +1102,10 @@ def test_resample_spatial_parameter_resolution(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=None, crs=32631, step=None),
-        SpatialDimension(name="y", extent=None, crs=32631, step=None),
-    ]
+    assert cube.metadata.spatial_dimensions == (
+        SpatialDimension(name="x", extent=None, crs=32631, step=_PARAMETERIZED_VALUE),
+        SpatialDimension(name="y", extent=None, crs=32631, step=_PARAMETERIZED_VALUE),
+    )
 
 
 def test_resample_spatial_parameter_resolution_no_projection(s2cube):
@@ -943,10 +1142,10 @@ def test_resample_spatial_parameter_projection(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=None, crs=None, step=10),
-        SpatialDimension(name="y", extent=None, crs=None, step=10),
-    ]
+    assert cube.metadata.spatial_dimensions == (
+        SpatialDimension(name="x", extent=None, crs=_PARAMETERIZED_VALUE, step=10),
+        SpatialDimension(name="y", extent=None, crs=_PARAMETERIZED_VALUE, step=10),
+    )
 
 
 def test_resample_spatial_parameter_resolution_and_projection(s2cube):
@@ -966,10 +1165,10 @@ def test_resample_spatial_parameter_resolution_and_projection(s2cube):
             },
         }
     }
-    assert cube.metadata.spatial_dimensions == [
-        SpatialDimension(name="x", extent=None, crs=None, step=None),
-        SpatialDimension(name="y", extent=None, crs=None, step=None),
-    ]
+    assert cube.metadata.spatial_dimensions == (
+        SpatialDimension(name="x", extent=None, crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+        SpatialDimension(name="y", extent=None, crs=_PARAMETERIZED_VALUE, step=_PARAMETERIZED_VALUE),
+    )
 
 
 def test_resample_cube_spatial(s2cube):
@@ -1007,10 +1206,10 @@ def test_resample_cube_spatial(s2cube):
             "process_id": "resample_cube_spatial",
         },
     }
-    assert cube12.metadata.spatial_dimensions == [
+    assert cube12.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=10),
         SpatialDimension(name="y", extent=None, crs=32631, step=10),
-    ]
+    )
 
     cube21 = cube2.resample_cube_spatial(target=cube1)
     assert get_download_graph(cube21, drop_load_collection=True, drop_save_result=True) == {
@@ -1043,10 +1242,10 @@ def test_resample_cube_spatial(s2cube):
             "process_id": "resample_cube_spatial",
         },
     }
-    assert cube21.metadata.spatial_dimensions == [
+    assert cube21.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=4578, step=2.0),
         SpatialDimension(name="y", extent=None, crs=4578, step=3.0),
-    ]
+    )
 
 
 def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadata):
@@ -1056,10 +1255,10 @@ def test_resample_cube_spatial_no_source_metadata(s2cube, s2cube_without_metadat
     assert target.metadata is not None
 
     result = cube.resample_cube_spatial(target=target)
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=10),
         SpatialDimension(name="y", extent=None, crs=32631, step=10),
-    ]
+    )
 
 
 def test_resample_cube_spatial_preserve_non_spatial(s2cube):
@@ -1071,17 +1270,17 @@ def test_resample_cube_spatial_preserve_non_spatial(s2cube):
 
     result = cube_xyt.resample_cube_spatial(target=cube_xytb)
     assert result.metadata.dimension_names() == ["t", "x", "y"]
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=11),
         SpatialDimension(name="y", extent=None, crs=32631, step=11),
-    ]
+    )
 
     result = cube_xyb.resample_cube_spatial(target=cube_xyt)
     assert result.metadata.dimension_names() == ["bands", "x", "y"]
-    assert result.metadata.spatial_dimensions == [
+    assert result.metadata.spatial_dimensions == (
         SpatialDimension(name="x", extent=None, crs=32631, step=22),
         SpatialDimension(name="y", extent=None, crs=32631, step=22),
-    ]
+    )
 
 
 def test_resample_cube_spatial_no_target_metadata(s2cube, s2cube_without_metadata):

@@ -30,6 +30,7 @@ from openeo.util import (
     first_not_none,
     guess_format,
     normalize_crs,
+    normalize_crs_or_passthrough,
     repr_truncate,
     rfc3339,
     str_truncate,
@@ -790,6 +791,22 @@ class TestBBoxDict:
         with pytest.raises(InvalidBBoxException, match=re.escape("Missing bbox fields ['north', 'south', 'west']")):
             to_bbox_dict({"east": 3})
 
+    def test_try_from_dict(self):
+        assert BBoxDict.try_from_dict({}) is None
+        assert BBoxDict.try_from_dict({"foo": "bar"}) is None
+        assert BBoxDict.try_from_dict([1, 2, 3, 4]) is None
+        assert BBoxDict.try_from_dict((1, 2, 3, 4)) is None
+        assert BBoxDict.try_from_dict("Belgium") is None
+        assert BBoxDict.try_from_dict(None) is None
+        assert BBoxDict.try_from_dict(object()) is None
+
+        assert BBoxDict.try_from_dict({"west": 1, "south": 2, "east": 3, "north": 4}) == {
+            "west": 1,
+            "south": 2,
+            "east": 3,
+            "north": 4,
+        }
+
     def test_to_bbox_dict_multiple_crs(self):
         with pytest.raises(InvalidBBoxException, match="Two CRS values specified: EPSG:32631 and 4326"):
             _ = to_bbox_dict({"west": 1, "south": 2, "east": 3, "north": 4, "crs": 4326}, crs="EPSG:32631")
@@ -1085,3 +1102,24 @@ PROJCRS["WGS 84 / UTM zone 31N",
     def test_normalize_crs_handles_incorrect_crs(self, epsg_input, use_pyproj):
         with pytest.raises(ValueError):
             normalize_crs(epsg_input, use_pyproj=use_pyproj)
+
+    @pytest.mark.parametrize("use_pyproj", [True, False])
+    @pytest.mark.parametrize(
+        ["crs", "expected"],
+        [
+            # Valid: normalized
+            ("EPSG:4326", 4326),
+            ("4326", 4326),
+            (4326, 4326),
+            (None, None),
+            ("", None),
+            # Invalid: passed through unchanged instead of raising
+            ("foo-bar", "foo-bar"),
+            (-123, -123),
+            (3.14, 3.14),
+            (["EPSG:4326"], ["EPSG:4326"]),
+            ({"EPSG": 4326}, {"EPSG": 4326}),
+        ],
+    )
+    def test_normalize_crs_or_passthrough(self, crs, expected, use_pyproj):
+        assert normalize_crs_or_passthrough(crs, use_pyproj=use_pyproj) == expected

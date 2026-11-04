@@ -4,12 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased]
 
 ### Added
 
+- Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
 - Add opt-in `openeo.utils.describe` helpers (`auto_title()`, `auto_description()`) to derive job titles and descriptions from script metadata, truncated source code and Git revision information, including uncommitted changes and untracked files ([#476](https://github.com/Open-EO/openeo-python-client/issues/476)).
+
+### Changed
+
+### Removed
+
+### Fixed
+
+- Spatiotemporal filtering is now reflected more accurately in `DataCube.metadata` (it no longer always carries forward the full original collection extent). The client-side result is a best-effort approximation of backend behavior. When there is a limitation in that simulation (not only because of a shortcoming in implementation, but also because of fundamental unknowns, e.g. parameterized UDP construction), that uncertainty is represented explicitly (e.g. through a `_NonConcreteExtent` instance) instead of misleading fallbacks. ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+- Improve compatibility with oschmod 0.5.0 on Windows ([#967](https://github.com/Open-EO/openeo-python-client/issues/967)).
+
+
+## [0.54.0] - 2026-10-28
 
 ### Changed
 
@@ -17,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced improper `CollectionMetadata` usage with `CubeMetadata`. `CollectionMetadata` describes the metadata of a whole openEO/STAC collection, while `CubeMetadata` describes the specific dimension metadata of a concrete cube being processed. (Related to [464](https://github.com/Open-EO/openeo-python-client/issues/464), [#949](https://github.com/Open-EO/openeo-python-client/issues/949), [#827](https://github.com/Open-EO/openeo-python-client/issues/827).)
   - The `metadata` attribute of `DataCube`/`VectorCube` is now a `CubeMetadata` object instead of misleading `CollectionMetadata`.
   - The `apply_metadata()` UDF signature changed to use `CubeMetadata` as input and output type annotation.
-
-### Removed
 
 ### Fixed
 

@@ -45,7 +45,8 @@ class TestPrivateJsonFile:
         path = tmp_path / "my_data.secret"
         with path.open("w") as f:
             json.dump({"foo": "bar"}, f)
-        assert path.stat().st_mode & 0o077 > 0
+        set_file_mode(path, mode=0o644)
+        assert get_file_mode(path) & 0o077 > 0
 
         private = PrivateJsonFile(path)
 
@@ -188,6 +189,8 @@ class TestRefreshTokenStorage:
         path = tmp_path / "refresh_tokens.json"
         with path.open("w") as f:
             json.dump({}, f)
+        set_file_mode(path, mode=0o644)
+        assert get_file_mode(path) & 0o077 > 0
         r = RefreshTokenStore(path=path)
         if platform.system() != "Windows":
             with pytest.raises(PermissionError, match="readable by others.*expected: 600"):

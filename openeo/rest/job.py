@@ -204,7 +204,9 @@ class BatchJob:
         """
         return JobResults(job=self)
 
-    def logs(self, offset: Optional[str] = None, level: Union[str, int, None] = None) -> LogsResponse:
+    def logs(
+        self, offset: Optional[str] = None, level: Union[str, int, None] = None, audience: Optional[str] = "user"
+    ) -> LogsResponse:
         """Retrieve job logs.
 
         :param offset: The last identifier (property ``id`` of a LogEntry) the client has received.
@@ -227,10 +229,15 @@ class BatchJob:
             Default is to show all log levels, in other words ``logging.DEBUG``.
             This is also the result when you explicitly pass log_level=None or log_level="".
 
+        :param audience: Audience of the logs to retrieve (``"user"``, ``"developer"`` or ``"all"``).
+            Defaults to ``"user"``. Use None to not send the parameter.
+
         :return: A list containing the log entries for the batch job.
         """
         url = f"/jobs/{self.job_id}/logs"
         params = {}
+        if audience is not None:
+            params["audience"] = audience
         if offset is not None:
             params["offset"] = offset
         if level is not None:
@@ -369,9 +376,10 @@ class BatchJob:
             # TODO: render logs jupyter-aware in a notebook context?
             if show_error_logs:
                 print(f"Your batch job {self.job_id!r} failed. Error logs:")
-                print(self.logs(level=logging.ERROR))
+                print(self.logs(level=logging.ERROR, audience="all"))
                 print(
-                    f"Full logs can be inspected in an openEO (web) editor or with `connection.job({self.job_id!r}).logs()`."
+                    f"Full logs can be inspected in an openEO (web) editor or with "
+                    f"`connection.job({self.job_id!r}).logs(audience='all')`."
                 )
             raise JobFailedException(
                 f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",
