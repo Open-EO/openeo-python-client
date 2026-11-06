@@ -1266,6 +1266,89 @@ def test_add_dimension(con100):
     }
 
 
+@pytest.mark.parametrize(
+    ["name", "add_dimension_kwargs", "expected_type"],
+    [
+        # Type inferred from a common dimension name
+        ("bands", {}, "bands"),
+        ("x", {}, "spatial"),
+        ("y", {}, "spatial"),
+        ("z", {}, "spatial"),
+        ("t", {}, "temporal"),
+        ("time", {}, "temporal"),
+        ("temporal", {}, "temporal"),
+        ("geometry", {}, "geometry"),
+        # Not a common name: unchanged behavior
+        ("james_band", {}, None),
+        # Explicit type wins over inference
+        ("bands", {"type": "bands"}, "bands"),
+        ("bands", {"type": "other"}, None),
+        ("x", {"type": "spatial"}, "spatial"),
+        # Explicit `None` opts out of inference
+        ("bands", {"type": None}, None),
+    ],
+)
+def test_add_dimension_type_inference(con100, caplog, name, add_dimension_kwargs, expected_type):
+    cube = con100.load_collection("S1", fetch_metadata=False)
+
+    with caplog.at_level(logging.INFO, logger="openeo.rest.datacube"):
+        result = cube.add_dimension(name=name, label="coh_VV_amp", **add_dimension_kwargs)
+
+    inferred = "type" not in add_dimension_kwargs and expected_type is not None
+    if inferred:
+        assert caplog.record_tuples == [
+            (
+                "openeo.rest.datacube",
+                logging.INFO,
+                f"add_dimension(name={name!r}): inferred type={expected_type!r} from dimension name",
+            )
+        ]
+    else:
+        assert caplog.records == []
+
+    # An explicitly given type is passed on as is, an inferred type is only present when there is a match.
+    arguments_type = add_dimension_kwargs.get("type", expected_type)
+    expected_arguments = {
+        "data": {"from_node": "loadcollection1"},
+        "name": name,
+        "label": "coh_VV_amp",
+    }
+    if arguments_type is not None:
+        expected_arguments["type"] = arguments_type
+    assert result.flat_graph()["adddimension1"] == {
+        "process_id": "add_dimension",
+        "arguments": expected_arguments,
+        "result": True,
+    }
+
+
+@pytest.mark.parametrize(
+    ["name", "add_dimension_kwargs", "expected_band_dimension", "expected_geometry_dimension"],
+    [
+        ("bands", {}, True, False),
+        ("bands", {"type": "other"}, False, False),
+        ("bands", {"type": None}, False, False),
+        ("geometry", {}, False, True),
+        ("my_dim", {}, False, False),
+        ("my_dim", {"type": "bands"}, True, False),
+    ],
+)
+def test_add_dimension_metadata_type_inference(
+    con100, name, add_dimension_kwargs, expected_band_dimension, expected_geometry_dimension
+):
+    # Only dimension names are used that are not already taken by the test collection's metadata,
+    # as adding a dimension with an existing name is not allowed.
+    cube = con100.load_collection("S1", fetch_metadata=True).reduce_bands(reducer="mean")
+
+    result = cube.add_dimension(name=name, label="coh_VV_amp", **add_dimension_kwargs)
+
+    assert result.metadata.dimension_names()[-1] == name
+    assert result.metadata.has_band_dimension() == expected_band_dimension
+    assert result.metadata.has_geometry_dimension() == expected_geometry_dimension
+    if expected_band_dimension:
+        assert result.metadata.band_names == ["coh_VV_amp"]
+
+
 def test_drop_dimension(con100):
     s2 = con100.load_collection("S2")
     x = s2.drop_dimension(name="bands")
