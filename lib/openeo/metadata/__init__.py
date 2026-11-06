@@ -1,0 +1,1336 @@
+from __future__ import annotations
+
+import functools
+import logging
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
+
+import pystac
+import pystac.extensions.datacube
+import pystac.extensions.eo
+import pystac.extensions.item_assets
+
+from openeo.api.process import Parameter
+from openeo.internal.jupyter import render_component
+from openeo.metadata._extents import NumericalInterval, _EmptyExtent, _NonConcreteExtent
+from openeo.util import BBoxDict, Rfc3339, deep_get, normalize_crs_or_passthrough
+from openeo.utils.datetime import DateTimeInterval
+from openeo.utils.normalize import normalize_resample_resolution, unique
+
+_log = logging.getLogger(__name__)
+
+
+class MetadataException(Exception):
+    pass
+
+
+class DimensionAlreadyExistsException(MetadataException):
+    pass
+
+
+# Sentinel object to signal that a value is parameterized/abstract
+# at current time (e.g. client side build time)
+# only to become concrete in different context (e.g. server side run time).
+# Note that this different and more expressive alternative to using a generic `None`,
+# which might trigger fallback/default handling logic that would be undesired.
+# TODO: do this with a class instead of singleton object?
+# TODO: move up higher for wider reuse of this concept?
+_PARAMETERIZED_VALUE = object()
+
+
+# TODO: make these dimension classes immutable data classes
+class Dimension:
+    """Base class for dimensions."""
+
+    def __init__(self, type: str, name: str):
+        self.type = type
+        self.name = name
+
+    def __repr__(self):
+        return "{c}({f})".format(
+            c=self.__class__.__name__,
+            f=", ".join("{k!s}={v!r}".format(k=k, v=v) for (k, v) in self.__dict__.items()),
+        )
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
+
+    def rename(self, name) -> Dimension:
+        """Create new dimension with new name."""
+        return Dimension(type=self.type, name=name)
+
+    def rename_labels(self, target, source) -> Dimension:
+        """
+        Rename labels, if the type of dimension allows it.
+
+        :param target: List of target labels
+        :param source: Source labels, or empty list
+        :return: A new dimension with modified labels, or the same if no change is applied.
+        """
+        # In general, we don't have/manage label info here, so do nothing.
+        return Dimension(type=self.type, name=self.name)
+
+
+class SpatialDimension(Dimension):
+    """
+    Spatial dimension metadata, roughly modeled after
+    "Horizontal Spatial Raster Dimension Object" of the STAC datacube extension,
+    which prescribes these required aspects:
+    - name: The name of the dimension
+    - axis: Axis of the spatial raster dimension ("x" or "y").
+    - extent: lower and upper bounds of the dimension as two-element array.
+    """
+
+    DEFAULT_CRS = 4326
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        # TODO: axis should be required (without None as default), but currently optional (with fallback guess) for backwards compatibility.
+        axis: Literal["x", "y"] | None = None,
+        extent: Tuple[float, float] | List[float] | NumericalInterval | _NonConcreteExtent | _EmptyExtent,
+        crs: str | int | dict | None = DEFAULT_CRS,
+        step=None,
+    ):
+        """
+        @param name:
+        @param axis: Axis of the spatial raster dimension ("x" or "y")
+        @param extent:
+        @param crs: The spatial reference system for the data and datacube metadata (extent, values and step),
+            specified as numerical EPSG code, WKT2 (ISO 19162) string or PROJJSON object.
+            Defaults to EPSG code 4326.
+        @param step: The space between the values. Use null for irregularly spaced steps.
+        """
+        super().__init__(type="spatial", name=name)
+        # TODO: eliminate guessing of axis from name, and make axis a properly required argument (without None as default).
+        self.axis: Literal["x", "y"] = axis or name
+        # TODO: normalize extent to NumericalInterval when appropriate?
+        self.extent = extent
+        # TODO Rename/proxy "crs" to "reference_system" to better align with STAC datacube extension terminology.
+        self.crs = crs or self.DEFAULT_CRS
+        self.step = step
+
+    def rename(self, name) -> Dimension:
+        return SpatialDimension(name=name, axis=self.axis, extent=self.extent, crs=self.crs, step=self.step)
+
+    def filter_extent(
+        self,
+        extent: (
+            Tuple[float | int, float | int]
+            | List[float | int]
+            | NumericalInterval
+            | _EmptyExtent
+            | _NonConcreteExtent
+            | None
+        ),
+    ):
+        if isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            extent = _EmptyExtent()
+        elif isinstance(self.extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=self.extent.reason)
+        elif isinstance(extent, _NonConcreteExtent):
+            extent = _NonConcreteExtent(reason=extent.reason)
+        elif (this_interval := NumericalInterval.try_from(self.extent)) and (
+            other_interval := NumericalInterval.try_from(extent)
+        ):
+            extent = this_interval.intersection(other_interval)
+        elif extent is None:
+            extent = self.extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent = _NonConcreteExtent(reason=f"unhandled")
+        return SpatialDimension(name=self.name, axis=self.axis, extent=extent, crs=self.crs, step=self.step)
+
+
+class SpatialDimensionsXY(NamedTuple):
+    """
+    Simple container class for a pair of spatial dimensions (x and y).
+    """
+
+    x: SpatialDimension
+    y: SpatialDimension
+
+    def filter_bbox(self, extent: Any) -> SpatialDimensionsXY:
+        # TODO: support more types and forms of the extent (geometries, etc.) ... e.g. using the BBoxDict factories?
+        if bbox := BBoxDict.try_from_dict(extent):
+            bbox_crs = bbox.get("crs", SpatialDimension.DEFAULT_CRS)
+            if bbox_crs == normalize_crs_or_passthrough(self.x.crs) and bbox_crs == normalize_crs_or_passthrough(
+                self.y.crs
+            ):
+                # No reprojection needed
+                extent_x = bbox["west"], bbox["east"]
+                extent_y = bbox["south"], bbox["north"]
+
+                if bbox_crs == 4326 and bbox["west"] > bbox["east"]:
+                    # TODO: proper detection and handling of antimeridian crossing
+                    extent_x = _NonConcreteExtent(reason="unsupported: antimeridian crossing")
+            else:
+                # TODO: reproject
+                extent_x = _NonConcreteExtent(reason="unsupported: reprojection")
+                extent_y = _NonConcreteExtent(reason="unsupported: reprojection")
+        elif isinstance(extent, _EmptyExtent):
+            extent_x, extent_y = _EmptyExtent(), _EmptyExtent()
+        elif isinstance(extent, _NonConcreteExtent):
+            extent_x, extent_y = _NonConcreteExtent(reason=extent.reason), _NonConcreteExtent(reason=extent.reason)
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            extent_x, extent_y = _NonConcreteExtent(reason="unhandled"), _NonConcreteExtent(reason="unhandled")
+
+        return SpatialDimensionsXY(
+            x=self.x.filter_extent(extent=extent_x),
+            y=self.y.filter_extent(extent=extent_y),
+        )
+
+
+class TemporalDimension(Dimension):
+    def __init__(
+        self,
+        name: str,
+        *,
+        extent: Tuple[str | None, str | None] | List[str | None] | _NonConcreteExtent | _EmptyExtent | None,
+    ):
+        super().__init__(type="temporal", name=name)
+        # TODO: ideally we do some validation/normalization of the extent,
+        #       but this is an existing public API (e.g. used from openeo-python-driver and openeo-geopyspark-driver)
+        #       currently with little wiggle room to change behavior or increase strictness.
+        self.extent = extent or (None, None)
+
+    def rename(self, name) -> Dimension:
+        return TemporalDimension(name=name, extent=self.extent)
+
+    def rename_labels(self, target, source) -> Dimension:
+        # TODO should we check if the extent has changed with the new labels?
+        return TemporalDimension(name=self.name, extent=self.extent)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> TemporalDimension:
+        """
+        Create new TemporalDimension with intersection current and given temporal extents.
+        """
+        if (interval1 := DateTimeInterval.try_from_tuple(self.extent)) and (
+            interval2 := DateTimeInterval.try_from_tuple(extent, end_inclusive=False)
+        ):
+            # Note on "end-inclusiveness" aspect in this intersection calculation:
+            # the current extent of the dimension is end-inclusive by definition (a data extent),
+            # while the `filter_temporal` extent is end-exclusive by definition (a filter extent).
+            # The inclusivity is taken into account while determining the intersection,
+            # but the end result is handled as (coerced into) an end-inclusive data extent regardless.
+            # While this might introduce a (sub-)second imprecision, it is typically
+            # multiple orders of magnitude smaller than the actual error (hours/days)
+            # of this best-effort, client-side approximation/simulation.
+            if intersection := interval1.intersection(interval2):
+                new_extent = intersection.as_rfc3339()
+            else:
+                new_extent = _EmptyExtent()
+        elif isinstance(self.extent, _EmptyExtent) or isinstance(extent, _EmptyExtent):
+            new_extent = _EmptyExtent()
+        elif extent is None:
+            new_extent = self.extent
+        elif self.extent is None:
+            new_extent = extent
+        else:
+            # As lenient fallback, handle as non-concrete extent
+            new_extent = _NonConcreteExtent(reason="fallback")
+        return TemporalDimension(name=self.name, extent=new_extent)
+
+
+class Band(NamedTuple):
+    """
+    Simple container class for band metadata.
+    Based on STAC-1.1 common band object
+    and https://github.com/stac-extensions/eo#band-object
+    """
+
+    # Note: "name" is strictly speaking not required per spec,
+    # but it's probably assumed to be present in a lot of places.
+    name: Optional[str]
+
+    common_name: Optional[str] = None
+    # wavelength in micrometer
+    wavelength_um: Optional[float] = None
+    # Note: "aliases" is non-standard band metadata (probably just VITO-specific).
+    aliases: Optional[List[str]] = None
+    # "openeo:gsd" field (https://github.com/Open-EO/openeo-stac-extensions#GSD-Object)
+    gsd: Optional[dict] = None
+
+
+class BandDimension(Dimension):
+    # TODO #575 support unordered bands and avoid assumption that band order is known.
+    def __init__(self, name: str, bands: List[Band]):
+        super().__init__(type="bands", name=name)
+        self.bands = bands
+
+    @property
+    def band_names(self) -> List[str | None]:
+        return [b.name for b in self.bands]
+
+    @property
+    def band_aliases(self) -> List[List[str]]:
+        return [b.aliases for b in self.bands]
+
+    @property
+    def common_names(self) -> List[str]:
+        return [b.common_name for b in self.bands]
+
+    def _alias_match(self, name: str) -> Union[Tuple[int, Band], None]:
+        """Look up band by alias, return (index, Band) or None if not found."""
+        matches = [(i, b) for (i, b) in enumerate(self.bands) if b.aliases and name in b.aliases]
+        if len(matches) == 0:
+            return None
+        elif len(matches) == 1:
+            return matches[0]
+        else:
+            raise ValueError(f"Multiple alias matches for band {name!r}: {[b.name for _, b in matches]}")
+
+    def band_index(self, band: Union[int, str]) -> int:
+        """
+        Resolve a given band (common) name/index to band index
+
+        :param band: band name, common name or index
+        :return int: band index
+        """
+        band_names = self.band_names
+        if isinstance(band, int) and 0 <= band < len(band_names):
+            return band
+        elif isinstance(band, str):
+            common_names = self.common_names
+            # First try common names if possible
+            if band in common_names:
+                return common_names.index(band)
+            if band in band_names:
+                return band_names.index(band)
+            # Check band aliases to still support old band names
+            if alias_match := self._alias_match(name=band):
+                return alias_match[0]
+        raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=band_names))
+
+    def band_name(self, band: Union[str, int], allow_common=True) -> str:
+        """Resolve (common) name or index to a valid (common) name"""
+        if isinstance(band, str):
+            if band in self.band_names:
+                return band
+            elif band in self.common_names:
+                if allow_common:
+                    return band
+                else:
+                    return self.band_names[self.common_names.index(band)]
+            elif alias_match := self._alias_match(name=band):
+                return alias_match[1].name
+        elif isinstance(band, int) and 0 <= band < len(self.bands):
+            return self.band_names[band]
+        raise ValueError("Invalid band name/index {b!r}. Valid names: {n!r}".format(b=band, n=self.band_names))
+
+    def filter_bands(self, bands: List[Union[int, str]]) -> BandDimension:
+        """
+        Construct new BandDimension with subset of bands,
+        based on given band indices or (common) names
+        """
+        return BandDimension(
+            name=self.name,
+            bands=[self.bands[self.band_index(b)] for b in bands],
+        )
+
+    def append_band(self, band: Union[Band, str]) -> BandDimension:
+        """Create new BandDimension with appended band."""
+        if isinstance(band, str):
+            band = Band(name=band)
+        if band.name in self.band_names:
+            raise ValueError("Duplicate band {b!r}".format(b=band))
+
+        return BandDimension(
+            name=self.name,
+            bands=self.bands + [band],
+        )
+
+    def rename_labels(self, target, source) -> Dimension:
+        if source:
+            if len(target) != len(source):
+                raise ValueError(
+                    "In rename_labels, `target` and `source` should have same number of labels, "
+                    "but got: `target` {t} and `source` {s}".format(t=target, s=source)
+                )
+            new_bands = self.bands.copy()
+            for old_name, new_name in zip(source, target):
+                band_index = self.band_index(old_name)
+                the_band = new_bands[band_index]
+                new_bands[band_index] = Band(
+                    name=new_name,
+                    common_name=the_band.common_name,
+                    wavelength_um=the_band.wavelength_um,
+                    aliases=the_band.aliases,
+                    gsd=the_band.gsd,
+                )
+        else:
+            new_bands = [Band(name=n) for n in target]
+        return BandDimension(name=self.name, bands=new_bands)
+
+    def rename(self, name) -> Dimension:
+        return BandDimension(name=name, bands=self.bands)
+
+    def contains_band(self, band: Union[int, str]) -> bool:
+        """
+        Check if the given band name or index is present in the dimension.
+        """
+        try:
+            self.band_index(band)
+            return True
+        except ValueError:
+            return False
+
+
+class GeometryDimension(Dimension):
+    # TODO: how to model/store labels of geometry dimension?
+    def __init__(self, name: str):
+        super().__init__(name=name, type="geometry")
+
+    def rename(self, name) -> Dimension:
+        return GeometryDimension(name=name)
+
+    def rename_labels(self, target, source) -> Dimension:
+        return GeometryDimension(name=self.name)
+
+
+class CubeMetadata:
+    """
+    Interface for metadata of a data cube.
+
+    Allows interaction with the cube dimensions and their labels (if available).
+    """
+
+    def __init__(self, dimensions: Optional[List[Dimension]] = None):
+        # TODO: for `self._dimensions` we use `None` here to indicate an unknown/unspecified dimension set,
+        #       but most usage actually assumes it is a list that can be iterated over.
+        #       Can we handle this more consistently and less error-prone?
+        self._dimensions: Union[List[Dimension], None] = dimensions
+        self._band_dimension: BandDimension | None = None
+        self._temporal_dimension: TemporalDimension | None = None
+        self._spatial_dimensions: SpatialDimensionsXY | None = None
+
+        if dimensions is not None:
+            if band_dims := [d for d in dimensions if isinstance(d, BandDimension)]:
+                if len(band_dims) > 1:
+                    _log.warning(f"Multiple band dimensions, arbitrarily picking the first one: {band_dims=}")
+                self._band_dimension = band_dims[0]
+            if temporal_dims := [d for d in dimensions if isinstance(d, TemporalDimension)]:
+                if len(temporal_dims) > 1:
+                    _log.warning(f"Multiple temporal dimensions, arbitrarily picking the first one: {temporal_dims=}")
+                self._temporal_dimension = temporal_dims[0]
+            if spatial_dims := sorted(
+                (d for d in dimensions if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}),
+                key=lambda d: d.axis,
+            ):
+                if [d.axis for d in spatial_dims] == ["x", "y"]:
+                    self._spatial_dimensions = SpatialDimensionsXY(x=spatial_dims[0], y=spatial_dims[1])
+                else:
+                    _log.warning(f"Failed to detect x and y spatial dimensions: {spatial_dims=}")
+
+    def __eq__(self, o: Any) -> bool:
+        return isinstance(o, type(self)) and self._dimensions == o._dimensions
+
+    def __repr__(self) -> str:
+        if self.has_band_dimension():
+            return f"{self.__class__.__name__}(dimension_names={self.dimension_names()}, band_names={self.band_names})"
+        elif self._dimensions is not None:
+            return f"{self.__class__.__name__}(dimension_names={self.dimension_names()})"
+        else:
+            return f"{self.__class__.__name__}(dimensions=None)"
+
+    def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
+        return f"CubeMetadata({bands} - {self.dimension_names()})"
+
+    def _repr_html_(self) -> str:
+        # Local import to avoid circular import issues and dependency overload
+        import openeo.metadata._jupyter
+
+        if self._dimensions:
+            return openeo.metadata._jupyter.repr_html_dimensions(self._dimensions)
+        else:
+            return "<p>No cube (dimension) metadata</p>"
+
+    def _clone_and_update(self, dimensions: Optional[List[Dimension]] = None, **kwargs) -> CubeMetadata:
+        """Create a new instance (of same class) with copied/updated fields."""
+        cls = type(self)
+        if dimensions is None:
+            dimensions = self._dimensions
+        return cls(dimensions=dimensions, **kwargs)
+
+    def dimension_names(self) -> Union[List[str], None]:
+        if self._dimensions is None:
+            # TODO: better solution for unknown dimensions?
+            return None
+        return list(d.name for d in self._dimensions)
+
+    def assert_valid_dimension(self, dimension: str) -> str:
+        """Make sure given dimension name is valid."""
+        names = self.dimension_names()
+        if dimension not in names:
+            raise ValueError(f"Invalid dimension {dimension!r}. Should be one of {names}")
+        return dimension
+
+    def has_band_dimension(self) -> bool:
+        return isinstance(self._band_dimension, BandDimension)
+
+    @property
+    def band_dimension(self) -> BandDimension:
+        """Dimension corresponding to spectral/logic/thematic "bands"."""
+        if not self.has_band_dimension():
+            raise MetadataException("No band dimension")
+        return self._band_dimension
+
+    def has_temporal_dimension(self) -> bool:
+        return isinstance(self._temporal_dimension, TemporalDimension)
+
+    @property
+    def temporal_dimension(self) -> TemporalDimension:
+        if not self.has_temporal_dimension():
+            raise MetadataException("No temporal dimension")
+        return self._temporal_dimension
+
+    def has_spatial_dimensions(self) -> bool:
+        return isinstance(self._spatial_dimensions, SpatialDimensionsXY)
+
+    @property
+    def spatial_dimensions(self) -> SpatialDimensionsXY | Tuple[()]:
+        if not self.has_spatial_dimensions():
+            # TODO: ideally we raise the following exception to be consistent with other dimension accessors,
+            #       but that would be a breaking change with original behavior (returning empty list).
+            # raise MetadataException("No spatial dimensions")
+            _log.info(
+                "Deprecated: avoid depending on getting (non)empty list to detect presence of spatial dimensions. Instead use `has_spatial_dimensions()`."
+            )
+            return ()
+        return self._spatial_dimensions
+
+    def has_geometry_dimension(self):
+        return any(isinstance(d, GeometryDimension) for d in self._dimensions)
+
+    @property
+    def geometry_dimension(self) -> GeometryDimension:
+        for d in self._dimensions:
+            if isinstance(d, GeometryDimension):
+                return d
+        raise MetadataException("No geometry dimension")
+
+    @property
+    def bands(self) -> List[Band]:
+        """Get band metadata as list of Band metadata tuples"""
+        return self.band_dimension.bands
+
+    @property
+    def band_names(self) -> List[str]:
+        """Get band names of band dimension"""
+        return self.band_dimension.band_names
+
+    @property
+    def band_common_names(self) -> List[str]:
+        return self.band_dimension.common_names
+
+    def get_band_index(self, band: Union[int, str]) -> int:
+        # TODO: eliminate this shortcut for smaller API surface
+        return self.band_dimension.band_index(band)
+
+    def filter_temporal(self, extent: Tuple[str | None, str | None] | List[str | None] | Any) -> CubeMetadata:
+        if not self.has_temporal_dimension():
+            _log.warning("filter_temporal on cube metadata without temporal dimension. Returning unchanged metadata.")
+            return self
+        return self._clone_and_update(
+            dimensions=[
+                d.filter_temporal(extent=extent) if isinstance(d, TemporalDimension) else d for d in self._dimensions
+            ]
+        )
+
+    def filter_bbox(self, extent: Any) -> CubeMetadata:
+        if self._dimensions and isinstance(self._spatial_dimensions, SpatialDimensionsXY):
+            spatial_dimensions: SpatialDimensionsXY = self._spatial_dimensions.filter_bbox(extent=extent)
+            dimensions = [
+                getattr(spatial_dimensions, d.axis)
+                if isinstance(d, SpatialDimension) and d.axis in {"x", "y"}
+                else d
+                for d in self._dimensions
+            ]
+            return self._clone_and_update(dimensions=dimensions)
+
+        _log.warning("filter_bbox on cube metadata without spatial dimension. Returning unchanged metadata.")
+        return self
+
+    def filter_bands(self, band_names: List[Union[int, str]]) -> CubeMetadata:
+        """
+        Create new `CubeMetadata` with filtered band dimension
+        :param band_names: list of band names/indices to keep
+        :return:
+        """
+        assert self.band_dimension
+        return self._clone_and_update(
+            dimensions=[d.filter_bands(band_names) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
+
+    def append_band(self, band: Union[Band, str]) -> CubeMetadata:
+        """
+        Create new `CubeMetadata` with given band added to band dimension.
+        """
+        assert self.band_dimension
+        return self._clone_and_update(
+            dimensions=[d.append_band(band) if isinstance(d, BandDimension) else d for d in self._dimensions]
+        )
+
+    def rename_labels(self, dimension: str, target: list, source: list = None) -> CubeMetadata:
+        """
+        Renames the labels of the specified dimension from source to target.
+
+        :param dimension: Dimension name
+        :param target: The new names for the labels.
+        :param source: The names of the labels as they are currently in the data cube.
+
+        :return: Updated metadata
+        """
+        self.assert_valid_dimension(dimension)
+        return self._clone_and_update(
+            dimensions=[
+                d.rename_labels(target=target, source=source) if d.name == dimension else d for d in self._dimensions
+            ]
+        )
+
+    def rename_dimension(self, source: str, target: str) -> CubeMetadata:
+        """
+        Rename source dimension into target, preserving other properties
+        """
+        self.assert_valid_dimension(source)
+        return self._clone_and_update(
+            dimensions=[d.rename(name=target) if d.name == source else d for d in self._dimensions]
+        )
+
+    def reduce_dimension(self, dimension_name: str) -> CubeMetadata:
+        """Create new CubeMetadata object by collapsing/reducing a dimension."""
+        # TODO: option to keep reduced dimension (with a single value)?
+        # TODO: rename argument to `name` for more internal consistency
+        # TODO: merge with drop_dimension (which does the same).
+        self.assert_valid_dimension(dimension_name)
+        loc = self.dimension_names().index(dimension_name)
+        dimensions = self._dimensions[:loc] + self._dimensions[loc + 1 :]
+        return self._clone_and_update(dimensions=dimensions)
+
+    def reduce_spatial(self) -> CubeMetadata:
+        """Create new CubeMetadata object by reducing the spatial dimensions."""
+        dimensions = [d for d in self._dimensions if not isinstance(d, SpatialDimension)]
+        return self._clone_and_update(dimensions=dimensions)
+
+    def add_dimension(self, name: str, label: Union[str, float], type: Optional[str] = None) -> CubeMetadata:
+        """Create new CubeMetadata object with added dimension"""
+        if any(d.name == name for d in self._dimensions):
+            raise DimensionAlreadyExistsException(f"Dimension with name {name!r} already exists")
+        if type == "bands":
+            dim = BandDimension(name=name, bands=[Band(name=label)])
+        elif type == "spatial":
+            # From `add_dimension` spec: the axis is the first option that does not exist yet from x, y, and z
+            current_axes = {d.axis for d in self._dimensions if isinstance(d, SpatialDimension)}
+            next_axis = next((axis for axis in ["x", "y", "z"] if axis not in current_axes), None)
+            dim = SpatialDimension(name=name, axis=next_axis, extent=[label, label])
+        elif type == "temporal":
+            dim = TemporalDimension(name=name, extent=[label, label])
+        elif type == "geometry":
+            dim = GeometryDimension(name=name)
+        else:
+            dim = Dimension(type=type or "other", name=name)
+        return self._clone_and_update(dimensions=self._dimensions + [dim])
+
+    def _ensure_band_dimension(
+        self, *, name: Optional[str] = None, bands: List[Union[Band, str]], warning: str
+    ) -> CubeMetadata:
+        """
+        Create new CubeMetadata object, ensuring a band dimension with given bands.
+        This will override any existing band dimension, and is intended for
+        special cases where pragmatism necessitates to ignore the original metadata.
+        For example, to overrule badly/incomplete detected band names from STAC metadata.
+
+        .. note::
+            It is required to specify a warning message as this method is only intended
+            to be used as temporary stop-gap solution for use cases that are possibly not future-proof.
+            Enforcing a warning should make that clear and avoid that users unknowingly depend on
+            metadata handling behavior that is not guaranteed to be stable.
+        """
+        _log.warning(warning or "ensure_band_dimension: overriding band dimension metadata with user-defined bands.")
+        if name is None:
+            # Preserve original band dimension name if possible
+            name = self.band_dimension.name if self.has_band_dimension() else "bands"
+        bands = [b if isinstance(b, Band) else Band(name=b) for b in bands]
+        band_dimension = BandDimension(name=name, bands=bands)
+        return self._clone_and_update(
+            dimensions=[d for d in self._dimensions if not isinstance(d, BandDimension)] + [band_dimension]
+        )
+
+    def drop_dimension(self, name: str = None) -> CubeMetadata:
+        """Create new CubeMetadata object without dropped dimension with given name"""
+        dimension_names = self.dimension_names()
+        if name not in dimension_names:
+            raise ValueError("No dimension named {n!r} (valid names: {ns!r})".format(n=name, ns=dimension_names))
+        return self._clone_and_update(dimensions=[d for d in self._dimensions if not d.name == name])
+
+    def resample_spatial(
+        self,
+        resolution: Union[float, Tuple[float, float], List[float], Parameter] = 0.0,
+        projection: Union[int, str, Parameter, None] = None,
+    ) -> CubeMetadata:
+        if isinstance(resolution, Parameter):
+            normalized_resolution = _PARAMETERIZED_VALUE, _PARAMETERIZED_VALUE
+        else:
+            normalized_resolution = normalize_resample_resolution(resolution)
+
+        if self._dimensions is None:
+            # Best-effort fallback to work with
+            dimensions = [
+                SpatialDimension(name="x", axis="x", extent=[None, None]),
+                SpatialDimension(name="y", axis="y", extent=[None, None]),
+            ]
+        else:
+            # Make sure to work with a copy (to edit in-place)
+            dimensions = list(self._dimensions)
+
+        # Find and replace spatial dimensions
+        spatial_indices = [i for i, d in enumerate(dimensions) if isinstance(d, SpatialDimension)]
+        if len(spatial_indices) != 2:
+            raise MetadataException(f"Expected two spatial dimensions but found {spatial_indices=}")
+
+        assert len(normalized_resolution) == 2
+        for i, r in zip(spatial_indices, normalized_resolution):
+            dim: SpatialDimension = dimensions[i]
+            dimensions[i] = SpatialDimension(
+                name=dim.name,
+                axis=dim.axis,
+                # TODO #955 extent should be reprojected to new projection when necessary
+                extent=dim.extent,
+                crs=_PARAMETERIZED_VALUE if isinstance(projection, Parameter) else (projection or dim.crs),
+                step=r if r != 0.0 else dim.step,
+            )
+
+        return self._clone_and_update(dimensions=dimensions)
+
+    def resample_cube_spatial(self, target: CubeMetadata) -> CubeMetadata:
+        # Replace spatial dimensions with ones from target, but keep other dimensions
+        dimensions = [d for d in (self._dimensions or []) if not isinstance(d, SpatialDimension)]
+        # TODO #955 the spatial extent of the original cube should be reprojected to target projection
+        if target.has_spatial_dimensions():
+            dimensions.extend(target.spatial_dimensions)
+        return self._clone_and_update(dimensions=dimensions)
+
+
+class CollectionMetadata(CubeMetadata):
+    """
+    Wrapper for EO Data Collection metadata.
+
+    Simplifies getting values from deeply nested mappings,
+    allows additional parsing and normalizing compatibility issues.
+
+    Metadata is expected to follow format defined by
+    https://openeo.org/documentation/1.0/developers/api/reference.html#operation/describe-collection
+    (with partial support for older versions)
+    """
+
+    # TODO #949 Fully decouple CollectionMetadata from CubeMetadata.
+    #       In the beginning, there was only CollectionMetadata, and later CubeMetadata was inserted as quickfix.
+    #       Superficially there are similarities, but this coupled design is becoming counterproductive.
+    #       CollectionMetadata generally describes an external, immutable (STAC) resource,
+    #       while CubeMetadata is for keeping track of important dimension/metadata aspects during cube manipulations.
+    #       Problem: openeo-geopyspark-driver still heavily depends on CollectionMetadata acting as cube metadata.
+
+    def __init__(self, metadata: dict, dimensions: List[Dimension] = None, _federation: Optional[dict] = None):
+        # Original collection metadata (actual cube metadata might be altered through processes)
+        self._orig_metadata = metadata
+        if dimensions is None:
+            dimensions = self._parse_dimensions(self._orig_metadata)
+        super().__init__(dimensions=dimensions)
+
+        self._federation = _federation
+
+    @classmethod
+    def _parse_dimensions(cls, spec: dict, complain: Callable[[str], None] = _log.warning) -> List[Dimension]:
+        """
+        Extract data cube dimension metadata from STAC-like description of a collection.
+
+        Dimension metadata comes from different places in spec:
+        - 'cube:dimensions' has dimension names (e.g. 'x', 'y', 't'), dimension extent info
+            and band names for band dimensions
+        - 'eo:bands' has more detailed band information like "common" name and wavelength info
+
+        This helper tries to normalize/combine these sources.
+
+        :param spec: STAC like collection metadata dict
+        :param complain: handler for warnings
+        :return list: list of `Dimension` objects
+
+        """
+        # TODO: can this whole parse logic be replaced with _StacMetadataParser/metadata_from_stac logic?
+
+        # Dimension info is in `cube:dimensions` (or 0.4-style `properties/cube:dimensions`)
+        cube_dimensions = (
+            deep_get(spec, "cube:dimensions", default=None)
+            or deep_get(spec, "properties", "cube:dimensions", default=None)
+            or {}
+        )
+        if not cube_dimensions:
+            complain("No cube:dimensions metadata")
+        dimensions = []
+        for name, info in cube_dimensions.items():
+            dim_type = info.get("type")
+            if dim_type == "spatial":
+                dimensions.append(
+                    SpatialDimension(
+                        name=name,
+                        axis=info.get("axis"),
+                        extent=info.get("extent"),
+                        crs=info.get("reference_system", SpatialDimension.DEFAULT_CRS),
+                        step=info.get("step", None),
+                    )
+                )
+            elif dim_type == "temporal":
+                dimensions.append(TemporalDimension(name=name, extent=info.get("extent")))
+            elif dim_type == "bands":
+                bands = [Band(name=b) for b in info.get("values", [])]
+                if not bands:
+                    complain("No band names in dimension {d!r}".format(d=name))
+                dimensions.append(BandDimension(name=name, bands=bands))
+            else:
+                complain("Unknown dimension type {t!r}".format(t=dim_type))
+                dimensions.append(Dimension(name=name, type=dim_type))
+
+        # Detailed band information: `summaries/[eo|raster]:bands` (and 0.4 style `properties/eo:bands`)
+        summaries_bands = (
+            deep_get(spec, "summaries", "eo:bands", default=None)
+            or deep_get(spec, "summaries", "bands", default=None)
+            or deep_get(spec, "summaries", "raster:bands", default=None)
+            # TODO: drop this 0.4-style "properties/eo:bands"
+            or deep_get(spec, "properties", "eo:bands", default=None)
+        )
+        if summaries_bands:
+            bands_detailed = [
+                Band(
+                    name=b["name"],
+                    common_name=b.get("eo:common_name") or b.get("common_name"),
+                    # center_wavelength is in micrometer according to spec
+                    wavelength_um=b.get("eo:center_wavelength") or b.get("center_wavelength"),
+                    aliases=b.get("aliases"),
+                    gsd=b.get("openeo:gsd"),
+                )
+                for b in summaries_bands
+            ]
+            # Update band dimension with more detailed info
+            band_dimensions = [d for d in dimensions if d.type == "bands"]
+            if len(band_dimensions) == 1:
+                dim = band_dimensions[0]
+                # Update band values from 'cube:dimensions' with more detailed 'eo:bands' info
+                eo_band_names = [b.name for b in bands_detailed]
+                cube_dimension_band_names = [b.name for b in dim.bands]
+                if eo_band_names == cube_dimension_band_names:
+                    dim.bands = bands_detailed
+                else:
+                    complain("Band name mismatch: {a} != {b}".format(a=cube_dimension_band_names, b=eo_band_names))
+            elif len(band_dimensions) == 0:
+                if len(dimensions) == 0:
+                    complain("Assuming name 'bands' for anonymous band dimension.")
+                    dimensions.append(BandDimension(name="bands", bands=bands_detailed))
+                else:
+                    complain("No 'bands' dimension in 'cube:dimensions' while having 'eo:bands' or 'raster:bands'")
+            else:
+                complain("Multiple dimensions of type 'bands'")
+
+        return dimensions
+
+    def _clone_and_update(
+        self, metadata: dict = None, dimensions: List[Dimension] = None, **kwargs
+    ) -> CollectionMetadata:
+        """
+        Create a new instance (of same class) with copied/updated fields.
+
+        This overrides the method in `CubeMetadata` to keep the original metadata.
+        """
+        # TODO #949 there are multiple (indications of) design errors here:
+        #       - the signature is not compatible with base interface
+        #       - at client side, collection metadata is an external resource and immutable client side
+        #         supporting a transform to a new "CollectionMetadata" object makes little sense
+        cls = type(self)
+        if metadata is None:
+            metadata = self._orig_metadata
+        if dimensions is None:
+            dimensions = self._dimensions
+        return cls(metadata=metadata, dimensions=dimensions, **kwargs)
+
+    def get(self, *args, default=None):
+        return deep_get(self._orig_metadata, *args, default=default)
+
+    @property
+    def extent(self) -> dict:
+        # TODO: is this currently used and relevant?
+        # TODO: check against extent metadata in dimensions
+        return self._orig_metadata.get("extent")
+
+    def _repr_html_(self):
+        return render_component("collection", data=self._orig_metadata, parameters={"federation": self._federation})
+
+    def __str__(self) -> str:
+        bands = self.band_names if self.has_band_dimension() else "no bands dimension"
+        return f"CollectionMetadata({self.extent} - {bands} - {self.dimension_names()})"
+
+
+def metadata_from_stac(url: str) -> CubeMetadata:
+    """
+    Reads the band metadata a static STAC catalog or a STAC API Collection and returns it as a :py:class:`CubeMetadata`
+
+    Policy:
+      - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
+      - Otherwise: apply openEO-style defaults (x, y, t) and (for Collection/Item) keep bands dimension even if empty.
+
+    :param url: The URL to a static STAC catalog (STAC Item, STAC Collection, or STAC Catalog) or a specific STAC API Collection
+    :return: A :py:class:`CubeMetadata` containing the DataCube band metadata from the url.
+    """
+    stac_object = pystac.read_file(href=url)
+    parser = _StacMetadataParser()
+    return parser.metadata_from_stac_object(stac_object)
+
+
+# Sniff for PySTAC support for Collection.item_assets (in STAC core since 1.1)
+# (supported since PySTAC 1.12.0, which requires Python>=3.10)
+_PYSTAC_1_12_ITEM_ASSETS = hasattr(pystac.Collection, "item_assets")
+
+
+class _BandList(list):
+    """
+    Internal wrapper for list of ``Band`` objects.
+
+    .. warning::
+        This is an internal, experimental helper, with an API that is subject to change.
+        Do not use/expose it directly in user (facing) code
+    """
+
+    def __init__(self, bands: Iterable[Band]):
+        super().__init__(bands)
+
+    def band_names(self) -> List[str]:
+        return [band.name for band in self]
+
+    @classmethod
+    def merge(cls, band_lists: Iterable[_BandList]) -> _BandList:
+        """Merge multiple lists of bands into a single list (unique by name)."""
+        all_bands = (band for bands in band_lists for band in bands)
+        return cls(unique(all_bands, key=lambda b: b.name))
+
+
+_ON_EMPTY_WARN = "warn"
+_ON_EMPTY_IGNORE = "ignore"
+
+
+class _StacMetadataParser:
+    """
+    Helper to extract openEO metadata from STAC metadata resources (Collection, Item, Asset, etc.).
+
+    .. warning::
+        This is an internal, experimental helper, with an API that is subject to change.
+        Do not use/expose it directly in user (facing) code
+    """
+
+    # TODO: better, more compact name: StacMetadata is a bit redundant, technically we're also not "parsing" here either
+
+    def __init__(self, *, logger=_log, log_level=logging.DEBUG, supress_duplicate_warnings: bool = True):
+        # TODO: argument to set some kind of reference to a root document to improve logging messages?
+        self._logger = logger
+        self._log_level = log_level
+        self._log = lambda msg, **kwargs: self._logger.log(msg=msg, level=self._log_level, **kwargs)
+        self._warn = lambda msg, **kwargs: self._logger.warning(msg=msg, **kwargs)
+        if supress_duplicate_warnings:
+            # Use caching trick to avoid duplicate warnings
+            self._warn = functools.lru_cache(maxsize=1000)(self._warn)
+
+    def metadata_from_stac_object(self, stac_object: pystac.STACObject) -> CubeMetadata:
+        """
+        Build cube metadata from a STAC object.
+        """
+        dimensions = self.dimensions_from_stac_object(stac_object=stac_object)
+        return CubeMetadata(dimensions=dimensions)
+
+    def dimensions_from_stac_object(self, stac_object: pystac.STACObject) -> List[Dimension]:
+        """
+        Build dimension metadata from a STAC object.
+
+        Philosophy:
+          - If cube:dimensions exists: treat it as source of truth (it may omit x/y/t/bands).
+          - Otherwise: apply openEO-style defaults (x, y, bands, optional t).
+        """
+        bands = self.bands_from_stac_object(stac_object)
+        if self._has_cube_dimensions(stac_object):
+            return self._parse_declared_dimensions(stac_object=stac_object, bands=bands)
+
+        dimensions: List[Dimension] = [
+            SpatialDimension(name="x", axis="x", extent=[None, None]),
+            SpatialDimension(name="y", axis="y", extent=[None, None]),
+            BandDimension(name="bands", bands=list(bands)),
+        ]
+        temporal_dimension = self.get_temporal_dimension(stac_object)
+        if temporal_dimension:
+            dimensions.append(temporal_dimension)
+        return dimensions
+
+    def get_temporal_dimension(self, stac_obj: pystac.STACObject) -> Union[TemporalDimension, None]:
+        """
+        Extract the temporal dimension from a STAC Collection/Item (if any)
+        """
+        if self._has_cube_dimensions(stac_obj):
+            temporal_dimensions = [
+                d
+                for d in self._parse_declared_dimensions(stac_object=stac_obj, bands=_BandList([]))
+                if isinstance(d, TemporalDimension)
+            ]
+            if len(temporal_dimensions) == 1:
+                return temporal_dimensions[0]
+
+        if isinstance(stac_obj, pystac.Collection) and stac_obj.extent and stac_obj.extent.temporal:
+            extent = [Rfc3339(propagate_none=True).normalize(d) for d in stac_obj.extent.temporal.intervals[0]]
+            return TemporalDimension(name="t", extent=extent)
+
+        if isinstance(stac_obj, pystac.Item):
+            props = stac_obj.properties
+            start = props.get("start_datetime")
+            end = props.get("end_datetime")
+            if start or end:
+                extent = [
+                    Rfc3339(propagate_none=True).normalize(start),
+                    Rfc3339(propagate_none=True).normalize(end),
+                ]
+                return TemporalDimension(name="t", extent=extent)
+
+            dt = props.get("datetime")
+            if dt:
+                norm = Rfc3339(propagate_none=True).normalize(dt)
+                return TemporalDimension(name="t", extent=[norm, norm])
+
+    def _has_cube_dimensions(self, stac_object: pystac.STACObject) -> bool:
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
+        return isinstance(cube_dimensions, dict) and len(cube_dimensions) > 0
+
+    @staticmethod
+    def _cube_dimensions_dict(stac_object: pystac.STACObject) -> Dict[str, dict]:
+        """
+        Return raw cube:dimensions dict from a Collection/Item, or {}.
+        """
+        if isinstance(stac_object, pystac.Item):
+            return stac_object.properties.get("cube:dimensions", {}) or {}
+        if isinstance(stac_object, pystac.Collection):
+            return stac_object.extra_fields.get("cube:dimensions", {}) or {}
+        return {}
+
+    @staticmethod
+    def _safe_extent_from_pystac_cube_dim(dim: pystac.extensions.datacube.Dimension) -> List[Any]:
+        """
+        PySTAC cube dimension wrapper may raise if 'extent' is missing.
+        Also, depending on serialization/version, extent might live in extra_fields.
+        """
+        ext = getattr(dim, "extent", None)
+
+        if not ext:
+            extra = getattr(dim, "extra_fields", {}) or {}
+            ext = extra.get("extent")
+
+        return ext or [None, None]
+
+    def _parse_declared_dimensions(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+        """
+        Parse dimensions declared through cube:dimensions.
+        """
+        if (
+            getattr(stac_object, "ext", None) is not None
+            and stac_object.ext.has("cube")
+            and hasattr(stac_object.ext, "cube")
+        ):
+            return self._parse_cube_dimensions_from_pystac_extension(stac_object=stac_object, bands=bands)
+        return self._parse_cube_dimensions_from_raw_dict(stac_object=stac_object, bands=bands)
+
+    def _parse_cube_dimensions_from_pystac_extension(
+        self, stac_object: pystac.STACObject, bands: _BandList
+    ) -> List[Dimension]:
+        """
+        Parse dimensions from PySTAC's cube extension wrapper (assumed to be present).
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_raw_dict``
+        """
+        dimensions = []
+        for name, dim in stac_object.ext.cube.dimensions.items():
+            dim_type = dim.dim_type
+            extent = self._safe_extent_from_pystac_cube_dim(dim)
+
+            if dim_type == pystac.extensions.datacube.DimensionType.SPATIAL:
+                dimensions.append(SpatialDimension(name=name, axis=dim.axis, extent=extent, crs=dim.reference_system))
+            elif dim_type == pystac.extensions.datacube.DimensionType.TEMPORAL:
+                dimensions.append(TemporalDimension(name=name, extent=extent))
+            elif dim_type in ("bands", "spectral"):
+                dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == pystac.extensions.datacube.DimensionType.GEOMETRIES:
+                dimensions.append(GeometryDimension(name=name))
+            else:
+                self._warn(f"Unhandled cube:dimensions type {dim_type!r} for dimension {name!r}")
+                dimensions.append(Dimension(name=name, type=dim_type))
+
+        return dimensions
+
+    def _parse_cube_dimensions_from_raw_dict(self, stac_object: pystac.STACObject, bands: _BandList) -> List[Dimension]:
+        """
+        Parse dimensions from raw cube:dimensions dict.
+        Supports 'spatial', 'temporal', and 'bands' (or 'spectral' as an alias).
+        Also see ``_parse_cube_dimensions_from_pystac_extension``
+        """
+        dimensions = []
+        cube_dimensions = self._cube_dimensions_dict(stac_object)
+
+        for name, dim in cube_dimensions.items():
+            if not isinstance(dim, dict):
+                continue
+
+            dim_type = dim.get("type")
+            if dim_type == "spatial":
+                dimensions.append(
+                    SpatialDimension(
+                        name=name,
+                        axis=dim.get("axis"),
+                        extent=dim.get("extent", [None, None]),
+                        crs=dim.get("reference_system", SpatialDimension.DEFAULT_CRS),
+                    )
+                )
+            elif dim_type == "temporal":
+                dimensions.append(TemporalDimension(name=name, extent=dim.get("extent", [None, None])))
+            elif dim_type in ("bands", "spectral"):
+                dimensions.append(BandDimension(name=name, bands=list(bands)))
+            elif dim_type == "geometries":
+                dimensions.append(GeometryDimension(name=name))
+            else:
+                dimensions.append(Dimension(name=name, type=dim_type))
+
+        return dimensions
+
+    def _band_from_eo_bands_metadata(self, band: Union[dict, pystac.extensions.eo.Band]) -> Band:
+        """Construct band from metadata in eo v1.1 style"""
+        if isinstance(band, pystac.extensions.eo.Band):
+            return Band(
+                name=band.name,
+                common_name=band.common_name,
+                wavelength_um=band.center_wavelength,
+            )
+        elif isinstance(band, dict):
+            return Band(
+                name=band.get("name"),
+                common_name=band.get("common_name"),
+                wavelength_um=band.get("center_wavelength"),
+            )
+        else:
+            raise ValueError(band)
+
+    def _band_from_common_bands_metadata(self, data: dict) -> Band:
+        """Construct band from metadata dict in STAC 1.1 + eo v2 style metadata"""
+        # TODO: also support pystac wrapper when available (pystac v2?)
+        return Band(
+            name=data.get("name"),
+            common_name=data.get("eo:common_name"),
+            wavelength_um=data.get("eo:center_wavelength"),
+        )
+
+    def bands_from_stac_object(self, obj: Union[pystac.STACObject, pystac.Asset]) -> _BandList:
+        """
+        Extract band listing from a STAC object (Collection, Catalog, Item or Asset).
+        """
+        # Note: first check for Collection, as it is a subclass of Catalog
+        if isinstance(obj, pystac.Collection):
+            return self.bands_from_stac_collection(collection=obj)
+        elif isinstance(obj, pystac.Catalog):
+            return self.bands_from_stac_catalog(catalog=obj)
+        elif isinstance(obj, pystac.Item):
+            return self.bands_from_stac_item(item=obj)
+        elif isinstance(obj, pystac.Asset):
+            return self.bands_from_stac_asset(asset=obj)
+        else:
+            # TODO: also support dictionary with raw STAC metadata?
+            raise ValueError(f"Unsupported STAC object: {obj!r}")
+
+    def bands_from_stac_catalog(self, catalog: pystac.Catalog, *, on_empty: str = _ON_EMPTY_WARN) -> _BandList:
+        """
+        Extract band listing from a STAC Catalog.
+        """
+        # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
+        summaries = catalog.extra_fields.get("summaries", {})
+        self._warn(f"bands_from_stac_catalog with {summaries.keys()=} (which is non-standard)")
+        if "eo:bands" in summaries:
+            if not catalog.ext.has("eo"):
+                self._warn_undeclared_metadata(field="eo:bands", ext="eo")
+            return _BandList(self._band_from_eo_bands_metadata(b) for b in summaries["eo:bands"])
+        elif "bands" in summaries:
+            return _BandList(self._band_from_common_bands_metadata(b) for b in summaries["bands"])
+
+        if on_empty == _ON_EMPTY_WARN:
+            self._warn("bands_from_stac_catalog: no band name source found")
+        return _BandList([])
+
+    def bands_from_stac_collection(
+        self,
+        collection: pystac.Collection,
+        *,
+        consult_items: bool = True,
+        consult_assets: bool = True,
+        on_empty: str = _ON_EMPTY_WARN,
+    ) -> _BandList:
+        """
+        Extract band listing from a STAC Collection.
+        """
+        # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
+        self._log(f"bands_from_stac_collection with {collection.summaries.lists.keys()=}")
+        # Look for band metadata in collection summaries
+        if "eo:bands" in collection.summaries.lists:
+            if not collection.ext.has("eo"):
+                self._warn_undeclared_metadata(field="eo:bands", ext="eo")
+            return _BandList(self._band_from_eo_bands_metadata(b) for b in collection.summaries.lists["eo:bands"])
+        elif "bands" in collection.summaries.lists:
+            return _BandList(self._band_from_common_bands_metadata(b) for b in collection.summaries.lists["bands"])
+        elif "bands" in collection.extra_fields:
+            # TODO: is this actually valid and necessary to support? https://github.com/radiantearth/stac-spec/issues/1346
+            # TODO: avoid `extra_fields`, but built-in "bands" support seems to be scheduled for pystac V2
+            return _BandList(self._band_from_common_bands_metadata(b) for b in collection.extra_fields["bands"])
+        # Check item assets if available
+        elif _PYSTAC_1_12_ITEM_ASSETS and collection.item_assets:
+            return self._bands_from_item_assets(collection.item_assets)
+        elif (
+            collection.ext.has("item_assets")
+            and collection.extra_fields.get("item-assets")
+            and collection.ext.item_assets
+        ):
+            return self._bands_from_item_assets(collection.ext.item_assets)
+        elif collection.extra_fields.get("item_assets"):
+            # Workaround for lack of support for STAC 1.1 core item_assets with pystac < 1.12
+            item_assets = {
+                k: pystac.extensions.item_assets.AssetDefinition(properties=v, owner=collection)
+                for k, v in collection.extra_fields["item_assets"].items()
+            }
+            return self._bands_from_item_assets(item_assets)
+        # If no band metadata so far: traverse items in collection
+        elif consult_items:
+            self._warn("bands_from_stac_collection: consulting items for band metadata")
+            bands = _BandList.merge(
+                self.bands_from_stac_item(
+                    item=i, consult_collection=False, consult_assets=consult_assets, on_empty=_ON_EMPTY_IGNORE
+                )
+                for i in collection.get_items()
+            )
+            if bands:
+                return bands
+
+        if on_empty == _ON_EMPTY_WARN:
+            self._warn("bands_from_stac_collection: no band name source found")
+        return _BandList([])
+
+    def bands_from_stac_item(
+        self,
+        item: pystac.Item,
+        *,
+        consult_collection: bool = True,
+        consult_assets: bool = True,
+        on_empty: str = _ON_EMPTY_WARN,
+    ) -> _BandList:
+        """
+        Extract band listing from a STAC Item.
+        """
+        # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
+        self._log(f"bands_from_stac_item with {item.properties.keys()=}")
+        if "eo:bands" in item.properties:
+            return _BandList(self._band_from_eo_bands_metadata(b) for b in item.properties["eo:bands"])
+        elif "bands" in item.properties:
+            return _BandList(self._band_from_common_bands_metadata(b) for b in item.properties["bands"])
+        elif consult_collection and (parent_collection := item.get_collection()) is not None:
+            return self.bands_from_stac_collection(collection=parent_collection, consult_items=False)
+        elif consult_assets:
+            # TODO: filter on asset roles?
+            bands = _BandList.merge(
+                self.bands_from_stac_asset(asset=a, on_empty=_ON_EMPTY_IGNORE) for a in item.get_assets().values()
+            )
+            if bands:
+                return bands
+
+        if on_empty == _ON_EMPTY_WARN:
+            self._warn("bands_from_stac_item: no band name source found")
+        return _BandList([])
+
+    def _warn_undeclared_metadata(self, *, field: str, ext: str):
+        """Helper to warn about using metadata from undeclared STAC extension"""
+        self._warn(f"Using {field!r} metadata, but STAC extension {ext} was not declared.")
+
+    def bands_from_stac_asset(self, asset: pystac.Asset, *, on_empty: str = _ON_EMPTY_WARN) -> _BandList:
+        """
+        Extract band listing from a STAC Asset.
+        """
+        # TODO: "eo:bands" vs "bands" priority based on STAC and EO extension version information
+        # TODO: filter on asset roles?
+        if asset.owner and asset.ext.has("eo") and asset.ext.eo.bands is not None:
+            return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.ext.eo.bands)
+        elif "eo:bands" in asset.extra_fields:
+            if asset.owner and not asset.ext.has("eo"):
+                self._warn_undeclared_metadata(field="eo:bands", ext="eo")
+            return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.extra_fields["eo:bands"])
+        elif "bands" in asset.extra_fields:
+            # TODO: avoid `extra_fields`, but built-in "bands" support seems to be scheduled for pystac V2
+            return _BandList(self._band_from_common_bands_metadata(b) for b in asset.extra_fields["bands"])
+
+        if on_empty == _ON_EMPTY_WARN:
+            self._warn("bands_from_stac_asset: no band name source found")
+        return _BandList([])
+
+    def _bands_from_item_asset_definition(
+        self,
+        asset: Union[
+            pystac.extensions.item_assets.AssetDefinition,
+            "pystac.ItemAssetDefinition",  # TODO: non-string type hint once pystac dependency is bumped to at least 1.12
+        ],
+    ) -> _BandList:
+        """
+        Extract band listing from a STAC Asset definition
+        (as used in the item-assets extension, or STAC 1.1 item-assets).
+        """
+        if isinstance(asset, pystac.extensions.item_assets.AssetDefinition):
+            if "eo:bands" in asset.properties:
+                if asset.owner and not asset.ext.has("eo"):
+                    self._warn_undeclared_metadata(field="eo:bands", ext="eo")
+                return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
+            elif "bands" in asset.properties:
+                return _BandList(self._band_from_common_bands_metadata(b) for b in asset.properties["bands"])
+        elif _PYSTAC_1_12_ITEM_ASSETS and isinstance(asset, pystac.ItemAssetDefinition):
+            if "bands" in asset.properties:
+                return _BandList(self._band_from_common_bands_metadata(b) for b in asset.properties["bands"])
+            elif "eo:bands" in asset.properties:
+                if asset.owner and not asset.ext.has("eo"):
+                    self._warn_undeclared_metadata(field="eo:bands", ext="eo")
+                return _BandList(self._band_from_eo_bands_metadata(b) for b in asset.properties["eo:bands"])
+        else:
+            self._warn(f"_bands_from_item_asset_definition: unsupported {type(asset)=}")
+        return _BandList([])
+
+    def _bands_from_item_assets(
+        self,
+        item_assets: Dict[
+            str,
+            Union[
+                pystac.extensions.item_assets.AssetDefinition,
+                "pystac.ItemAssetDefinition",  # TODO: non-string type hint once pystac dependency is bumped to at least 1.12
+            ],
+        ],
+    ) -> _BandList:
+        """
+        Get bands extracted from assets defined under
+        a collection's "item_assets" field
+
+        Note that "item_assets" in STAC is a mapping, which means that the
+        band order might be ill-defined.
+        """
+        self._warn("Deriving band listing from unordered `item_assets`")
+        # TODO: filter on asset roles?
+        return _BandList.merge(self._bands_from_item_asset_definition(a) for a in item_assets.values())
