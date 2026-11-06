@@ -57,6 +57,9 @@ source_suffix = {
 # The master toctree document.
 master_doc = "index"
 
+# Generate anchors for Markdown headings (used for in-page links in MyST documents).
+myst_heading_anchors = 4
+
 # General information about the project.
 project = "openEO Python Client"
 copyright = "2017 - {d}, Jeroen Dries".format(d=datetime.date.today().strftime("%Y"))
