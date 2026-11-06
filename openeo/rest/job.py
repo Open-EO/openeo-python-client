@@ -205,7 +205,7 @@ class BatchJob:
         return JobResults(job=self)
 
     def logs(
-        self, offset: Optional[str] = None, level: Union[str, int, None] = None, audience: Optional[str] = "user"
+        self, offset: Optional[str] = None, level: Union[str, int, None] = None, audience: Optional[str] = "all"
     ) -> LogsResponse:
         """Retrieve job logs.
 
@@ -230,7 +230,7 @@ class BatchJob:
             This is also the result when you explicitly pass log_level=None or log_level="".
 
         :param audience: Audience of the logs to retrieve (``"user"``, ``"developer"`` or ``"all"``).
-            Defaults to ``"user"``. Use None to not send the parameter.
+            Defaults to ``"all"``. Use None to not send the parameter.
 
         :return: A list containing the log entries for the batch job.
         """
@@ -379,7 +379,7 @@ class BatchJob:
                 print(self.logs(level=logging.ERROR, audience="all"))
                 print(
                     f"Full logs can be inspected in an openEO (web) editor or with "
-                    f"`connection.job({self.job_id!r}).logs(audience='all')`."
+                    f"`connection.job({self.job_id!r}).logs()`."
                 )
             raise JobFailedException(
                 f"Batch job {self.job_id!r} didn't finish successfully. Status: {status} (after {elapsed()}).",
