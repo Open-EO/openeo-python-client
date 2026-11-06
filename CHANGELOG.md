@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+- Add opt-in `openeo.utils.describe` helpers (`auto_title()`, `auto_description()`) to derive job titles and descriptions from script metadata, truncated source code and Git revision information, including uncommitted changes and untracked files ([#476](https://github.com/Open-EO/openeo-python-client/issues/476)).
 
 ### Changed
 

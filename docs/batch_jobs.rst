@@ -81,6 +81,68 @@ so it's easier to identify in your job listing, e.g.:
     job = cube.create_job(title="NDVI timeseries 2022")
 
 
+Automatically title and describe a job
+--------------------------------------
+
+:py:mod:`openeo.utils.describe` provides opt-in helpers to derive a job title
+or description from the script that creates it.
+Nothing happens automatically: pass the returned string to
+:py:meth:`~openeo.rest.datacube.DataCube.create_job` or
+:py:meth:`~openeo.rest.datacube.DataCube.execute_batch`.
+
+Job listings show the title, so :py:func:`~openeo.utils.describe.auto_title`
+is often the most useful:
+
+.. code-block:: python
+
+    from openeo.utils.describe import auto_title
+
+    def run_ndvi():
+        ...
+        job = cube.create_job(title=auto_title())  # "analysis.py: run_ndvi"
+
+The title contains the script's filename and, inside a function, the function name.
+It falls back to the filename alone, or ``"openEO job"`` when no source file
+can be detected (for example in a notebook).
+
+:py:func:`~openeo.utils.describe.auto_description` produces a longer description
+with the same metadata, and can include source code and Git information:
+
+.. code-block:: python
+
+    from openeo.utils.describe import auto_description
+
+    job = cube.create_job(
+        title="NDVI timeseries 2022",
+        description=auto_description(include_source=True, include_git_commit=True),
+    )
+
+Source code inclusion is opt-in. It is read using the script's declared encoding,
+formatted as an indented Markdown code block, and truncated to
+``source_max_length`` characters (1000 by default, ``None`` for no limit).
+Git information is looked up relative to the script's directory and requires
+the ``git`` executable, but no additional Python package.
+The commit is that of the whole repository, so the description also says whether
+the working tree has uncommitted changes and whether the script itself is untracked;
+use ``git_ref`` to report a branch or commit instead of ``HEAD``.
+Unavailable Git information is logged as a warning and omitted.
+
+In notebooks and interactive sessions no source file may be detectable:
+the description reports the source as unavailable, and ``include_source=True``
+raises a ``ValueError`` instead. To include source code in this situation,
+pass the path to a saved script with ``src``. For more control, combine the
+building blocks :py:func:`~openeo.utils.describe.get_source_path`,
+:py:func:`~openeo.utils.describe.get_function_name`,
+:py:func:`~openeo.utils.describe.get_git_info` and
+:py:func:`~openeo.utils.describe.get_source_code`.
+
+.. warning::
+
+    Source code may contain credentials or other sensitive information.
+    Nothing is redacted automatically; review the generated description
+    before submitting the job.
+
+
 
 .. index:: batch job; object
 
