@@ -160,7 +160,7 @@ class ProcessBasedJobCreator:
 
             arguments[param_name] = value
 
-        cube = connection.datacube_from_process(process_id=process_id, namespace=self._namespace, **arguments)
+        cube = connection.datacube_from_process(process_id=process_id, namespace=self._namespace, arguments=arguments)
 
         title = row.get("title", f"Process {process_id!r} with {repr_truncate(arguments)}")
         description = row.get("description", f"Process {process_id!r} (namespace {self._namespace}) with {arguments}")

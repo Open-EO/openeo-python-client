@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+- Add `Connection.stac_resource_from_process()` to build a `StacResource` from a (custom) process
 
 ### Changed
 

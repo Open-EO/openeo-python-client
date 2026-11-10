@@ -82,6 +82,7 @@ from openeo.rest.models.general import (
 )
 from openeo.rest.result import SaveResult
 from openeo.rest.service import Service
+from openeo.rest.stac_resource import StacResource
 from openeo.rest.udp import Parameter, RESTUserDefinedProcess
 from openeo.rest.userfile import UserFile
 from openeo.rest.vectorcube import VectorCube
@@ -1179,17 +1180,51 @@ class Connection(RestApiConnection):
         # TODO: load_uploaded_files might also return a raster data cube. Determine this based on format?
         return VectorCube(graph=graph, connection=self)
 
-    def datacube_from_process(self, process_id: str, namespace: Optional[str] = None, **kwargs) -> DataCube:
+    def datacube_from_process(
+        self,
+        process_id: str,
+        namespace: Optional[str] = None,
+        *,
+        arguments: Optional[dict] = None,
+        **kwargs,
+    ) -> DataCube:
         """
         Load a data cube from a (custom) process.
 
         :param process_id: The process id.
         :param namespace: optional: process namespace
-        :param kwargs: The arguments of the custom process
+        :param arguments: The arguments of the custom process (as a dictionary).
+        :param kwargs: Additional arguments of the custom process (merged with ``arguments``).
         :return: A :py:class:`DataCube`, without valid metadata, as the client is not aware of this custom process.
+
+        .. versionchanged:: 0.55.0
+            Added ``arguments`` parameter.
         """
-        graph = PGNode(process_id, namespace=namespace, arguments=kwargs)
+        graph = PGNode(process_id, namespace=namespace, arguments=arguments, **kwargs)
         return DataCube(graph=graph, connection=self)
+
+    def stac_resource_from_process(
+        self,
+        *,
+        process_id: str,
+        namespace: Optional[str] = None,
+        arguments: Optional[dict] = None,
+        **kwargs,
+    ) -> StacResource:
+        """
+        Build a :py:class:`~openeo.rest.stac_resource.StacResource` from a (custom) process
+        that returns a STAC resource.
+
+        :param process_id: The process id.
+        :param namespace: optional: process namespace
+        :param arguments: The arguments of the custom process (as a dictionary).
+        :param kwargs: Additional arguments of the custom process (merged with ``arguments``).
+        :return: A :py:class:`~openeo.rest.stac_resource.StacResource`.
+
+        .. versionadded:: 0.55.0
+        """
+        graph = PGNode(process_id, namespace=namespace, arguments=arguments, **kwargs)
+        return StacResource(graph=graph, connection=self)
 
     def datacube_from_flat_graph(
         self, flat_graph: dict, parameters: Optional[dict] = None
