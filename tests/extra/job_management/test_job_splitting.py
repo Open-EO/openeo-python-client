@@ -561,6 +561,19 @@ class TestGroupGeometries:
         tile_grid = _SizeBasedTileGrid(epsg=4326, size=1.0)
         assert len(group_geometries(gdf, max_geometries=10, tile_grid=tile_grid)) == 2
 
+    def test_unsupported_tile_grid_interface_raises(self):
+        class CustomTileGrid(_TileGridInterface):
+            @property
+            def crs(self) -> int:
+                return 4326
+
+            def get_tiles(self, geometry):
+                return gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0.5, 0.5)], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure, match="Unsupported tile_grid type: CustomTileGrid"):
+            group_geometries(gdf, max_geometries=10, tile_grid=CustomTileGrid())
+
     def test_null_geometry_raises(self):
         gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0), None], crs="EPSG:4326")
         with pytest.raises(JobSplittingFailure, match="1 null or empty"):

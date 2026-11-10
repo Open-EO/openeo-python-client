@@ -478,6 +478,11 @@ def group_geometries(
             )
         if isinstance(tile_grid, gpd.GeoDataFrame):
             tile_grid = _PredefinedTileGrid(tiles=tile_grid)
+        elif not isinstance(tile_grid, (_PredefinedTileGrid, _SizeBasedTileGrid)):
+            raise JobSplittingFailure(
+                "Unsupported tile_grid type: "
+                f"{type(tile_grid).__name__}. Expected _PredefinedTileGrid, _SizeBasedTileGrid, or GeoDataFrame."
+            )
     elif projection is not None or tile_size is not None:
         if projection is None or tile_size is None:
             raise JobSplittingFailure("'projection' and 'tile_size' must be provided together.")
