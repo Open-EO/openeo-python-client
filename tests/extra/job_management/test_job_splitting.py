@@ -418,10 +418,16 @@ class TestSplitPoints:
             xs = [geom.x for geom in group.geometry]
             assert max(xs) - min(xs) < 50
 
-    def test_default_max_points(self):
-        gdf = self._grid_points(3)
+    def test_default_max_points_is_unlimited(self):
+        gdf = self._grid_points(30)  # 900 points
         result = split_points(gdf)
         assert len(result) == 1
+        assert len(result[0]) == 900
+
+    def test_default_max_points_groups_per_tile(self):
+        gdf = self._grid_points(30)
+        result = split_points(gdf, tile_size=15, projection="EPSG:4326")
+        assert sorted(len(g) for g in result) == [225, 225, 225, 225]
 
     def test_empty_geodataframe(self):
         gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
@@ -439,10 +445,11 @@ class TestSplitPoints:
         with pytest.raises(JobSplittingFailure, match="geometry"):
             split_points(gdf)
 
-    def test_missing_crs_raises(self):
+    def test_missing_crs_without_grid(self):
         gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0)])
-        with pytest.raises(JobSplittingFailure, match="CRS"):
-            split_points(gdf)
+        result = split_points(gdf)
+        assert len(result) == 1
+        assert result[0].crs is None
 
     def test_non_positive_max_points_raises(self):
         gdf = self._grid_points(2)
@@ -520,8 +527,81 @@ class TestSplitPoints:
     def test_tile_grid_missing_crs_raises(self):
         tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)])
         gdf = self._grid_points(2)
-        with pytest.raises(JobSplittingFailure, match="tile_grid.*CRS"):
+        with pytest.raises(JobSplittingFailure, match="CRS"):
             split_points(gdf, tile_grid=tile_grid)
+
+    def test_list_of_points(self):
+        points = [shapely.geometry.Point(x, 0) for x in range(5)]
+        result = split_points(points, max_points=10)
+        assert len(result) == 1
+        assert len(result[0]) == 5
+
+    def test_multipoint_input_is_exploded(self):
+        multipoint = shapely.geometry.MultiPoint([(x, 0) for x in range(5)])
+        result = split_points(multipoint, max_points=2)
+        assert sum(len(g) for g in result) == 5
+        assert all(len(g) <= 2 for g in result)
+
+    def test_points_without_crs_assume_grid_crs(self, caplog):
+        points = [shapely.geometry.Point(100_000 * x, 0) for x in range(3)]
+        result = split_points(points, max_points=10, tile_size=150_000, projection="EPSG:3857")
+        assert [len(g) for g in result] == [2, 1]
+        assert all(g.crs.to_epsg() == 3857 for g in result)
+        assert "assuming they are already in the tile grid's CRS (EPSG:3857)" in caplog.text
+
+    def test_tile_grid_interface_instance(self):
+        gdf = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.Point(0.5, 0.5), shapely.geometry.Point(1.5, 0.5)], crs="EPSG:4326"
+        )
+        tile_grid = _PredefinedTileGrid(
+            tiles=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(1, 0, 2, 1)], crs=4326
+        )
+        assert len(split_points(gdf, max_points=10, tile_grid=tile_grid)) == 2
+        tile_grid = _SizeBasedTileGrid(epsg=4326, size=1.0)
+        assert len(split_points(gdf, max_points=10, tile_grid=tile_grid)) == 2
+
+    def test_list_with_non_points_raises(self):
+        with pytest.raises(JobSplittingFailure, match="Point or MultiPoint"):
+            split_points([shapely.geometry.box(0, 0, 1, 1)])
+
+    def test_non_point_geometries_raise(self):
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure, match="Point or MultiPoint"):
+            split_points(gdf)
+
+    def test_tile_size_projection_groups_by_regular_grid(self):
+        points = [shapely.geometry.Point(0.1 * i, 0.5) for i in range(5)]
+        points += [shapely.geometry.Point(1.1 + 0.1 * i, 0.5) for i in range(5)]
+        gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+        result = split_points(gdf, max_points=100, tile_size=1.0, projection="EPSG:4326")
+        assert len(result) == 2
+        for group in result:
+            xs = [geom.x for geom in group.geometry]
+            assert (max(xs) < 1) or (min(xs) >= 1)
+
+    def test_tile_size_projection_reprojects(self):
+        # ~0.1 degree apart near the equator is ~11 km in EPSG:3857: 50 km tiles keep them together
+        gdf = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.Point(0.0, 0.0), shapely.geometry.Point(0.1, 0.0)], crs="EPSG:4326"
+        )
+        result = split_points(gdf, max_points=10, tile_size=50_000, projection="EPSG:3857")
+        assert len(result) == 1
+        result = split_points(gdf, max_points=10, tile_size=5_000, projection="EPSG:3857")
+        assert len(result) == 2
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"tile_size": 1.0},
+            {"projection": "EPSG:4326"},
+            {"tile_size": 1.0, "projection": "EPSG:4326", "tile_grid": "grid"},
+        ],
+    )
+    def test_invalid_grid_argument_combinations_raise(self, kwargs):
+        if kwargs.get("tile_grid") == "grid":
+            kwargs["tile_grid"] = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure):
+            split_points(self._grid_points(2), **kwargs)
 
     def test_antimeridian_crossing_points_raises(self):
         """Geographic points with longitude outside [-180, 180] are rejected to avoid antimeridian issues."""
