@@ -1,7 +1,6 @@
 import warnings
 
 import geopandas as gpd
-import pandas as pd
 import pytest
 import shapely
 
@@ -619,91 +618,6 @@ class TestGroupGeometries:
         result = group_geometries(gdf, max_geometries=30)
         assert sorted(len(g) for g in result) == [25, 25, 25, 25]
 
-    def test_weight_area_respects_max_weight(self):
-        big = [shapely.geometry.box(2000 * i, 0, 2000 * i + 1000, 1000) for i in range(3)]  # 1e6 m² each
-        small = [shapely.geometry.box(10_000 + 100 * i, 0, 10_010 + 100 * i, 10) for i in range(3)]  # 100 m² each
-        gdf = gpd.GeoDataFrame(geometry=big + small, crs="EPSG:6933")
-        result = group_geometries(gdf, weight="area", max_weight=2.5e6)
-        assert len(result) > 1
-        for group in result:
-            assert (group.geometry.area.clip(lower=100)).sum() <= 2.5e6
-        assert sum(len(g) for g in result) == 6
-
-    def test_weight_area_floor_applies_to_points(self):
-        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(i, 0) for i in range(10)], crs="EPSG:6933")
-        result = group_geometries(gdf, weight="area", max_weight=250)
-        assert all(len(g) <= 2 for g in result)
-
-    def test_weight_area_without_crs_raises(self):
-        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)])
-        with pytest.raises(JobSplittingFailure, match="CRS"):
-            group_geometries(gdf, weight="area", max_weight=10)
-
-    def test_weight_column(self):
-        gdf = self._grid_points(3)
-        gdf["w"] = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-        result = group_geometries(gdf, weight="w", max_weight=6)
-        assert sum(len(g) for g in result) == 9
-        assert all(g["w"].sum() <= 6 for g in result)
-        assert len(result) > 1
-
-    def test_weight_series(self):
-        gdf = self._grid_points(3)
-        weights = pd.Series([1, 2, 3, 1, 2, 3, 1, 2, 3], index=gdf.index)
-        result = group_geometries(gdf, weight=weights, max_weight=6)
-        assert sum(len(g) for g in result) == 9
-        assert all(weights.loc[g.index].sum() <= 6 for g in result)
-
-    def test_unknown_weight_column_raises(self):
-        with pytest.raises(JobSplittingFailure, match="not found"):
-            group_geometries(self._grid_points(2), weight="nope", max_weight=1)
-
-    def test_oversize_feature_gets_own_group_with_warning(self, caplog):
-        gdf = self._grid_points(2)
-        gdf["w"] = [10, 1, 1, 1]
-        result = group_geometries(gdf, weight="w", max_weight=5)
-        heavy = [g for g in result if 0 in g.index]
-        assert len(heavy) == 1 and len(heavy[0]) == 1
-        assert "exceeding 'max_weight'" in caplog.text
-
-    def test_max_weight_without_weight_raises(self):
-        with pytest.raises(JobSplittingFailure, match="requires 'weight'"):
-            group_geometries(self._grid_points(2), max_weight=5)
-
-    @pytest.mark.parametrize("max_weight", [0, -1])
-    def test_non_positive_max_weight_raises(self, max_weight):
-        gdf = self._grid_points(2)
-        gdf["w"] = 1
-        with pytest.raises(JobSplittingFailure, match="max_weight"):
-            group_geometries(gdf, weight="w", max_weight=max_weight)
-
-    @pytest.mark.parametrize("bad", [-1.0, float("nan")])
-    def test_invalid_weight_values_raise(self, bad):
-        gdf = self._grid_points(2)
-        gdf["w"] = [1.0, 1.0, 1.0, bad]
-        with pytest.raises(JobSplittingFailure, match="finite and non-negative"):
-            group_geometries(gdf, weight="w", max_weight=5)
-
-    def test_max_extent(self):
-        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(x, 0) for x in range(100)], crs="EPSG:3857")
-        result = group_geometries(gdf, max_extent=30)
-        assert len(result) > 1
-        for group in result:
-            minx, _, maxx, _ = group.total_bounds
-            assert maxx - minx <= 30
-
-    def test_max_extent_uses_geometry_bounds(self):
-        gdf = gpd.GeoDataFrame(
-            geometry=[shapely.geometry.box(0, 0, 10, 1), shapely.geometry.box(0, 2, 10, 3)], crs="EPSG:3857"
-        )
-        assert len(group_geometries(gdf, max_extent=10)) == 1
-        assert len(group_geometries(gdf, max_extent=5)) == 2  # single features exceeding the limit stay alone
-
-    @pytest.mark.parametrize("max_extent", [0, -5])
-    def test_non_positive_max_extent_raises(self, max_extent):
-        with pytest.raises(JobSplittingFailure, match="max_extent"):
-            group_geometries(self._grid_points(2), max_extent=max_extent)
-
     def test_size_based_grid_is_globally_anchored(self):
         def grouping(gdf):
             result = group_geometries(gdf, tile_size=5, projection="EPSG:3857")
@@ -715,7 +629,7 @@ class TestGroupGeometries:
         )
         assert grouping(extended) - {frozenset({5})} == grouping(base)
 
-    def test_predefined_grid_polygon_assigned_to_largest_overlap_tile(self):
+    def test_predefined_grid_polygon_assigned_by_representative_point(self):
         tile_grid = gpd.GeoDataFrame(
             geometry=[shapely.geometry.box(0, 0, 10, 10), shapely.geometry.box(10, 0, 20, 10)], crs="EPSG:3857"
         )
@@ -723,7 +637,7 @@ class TestGroupGeometries:
             geometry=[
                 shapely.geometry.Point(5, 5),
                 shapely.geometry.Point(15, 5),
-                shapely.geometry.box(8, 2, 13, 4),  # 2 wide in tile A, 3 wide in tile B
+                shapely.geometry.box(8, 2, 13, 4),  # representative point (10.5, 3) lies in tile B
             ],
             crs="EPSG:3857",
         )

@@ -14,10 +14,6 @@ from openeo.util import BBoxDict, normalize_crs
 
 _log = logging.getLogger(__name__)
 
-# Minimum area weight (m²) of a feature when weighting by "area": roughly one 10 m Sentinel-2 pixel,
-# so that points and lines are not "free".
-_MIN_AREA_WEIGHT = 100.0
-
 
 class JobSplittingFailure(Exception):
     pass
@@ -364,54 +360,16 @@ def split_area(
     return grid.get_tiles(spatial_extent)
 
 
-def _resolve_weights(
-    geometries: gpd.GeoDataFrame,
-    weight: Union[None, str, pd.Series],
-    max_weight: Optional[float],
-) -> np.ndarray:
-    """Resolve the *weight* argument of :func:`group_geometries` to a validated float array (one value per row)."""
-    if weight is None:
-        return np.ones(len(geometries))
-
-    if isinstance(weight, str):
-        if weight in geometries.columns:
-            values = geometries[weight]
-        elif weight == "area":
-            if geometries.crs is None:
-                raise JobSplittingFailure("weight='area' requires geometries with a CRS.")
-            values = np.maximum(geometries.geometry.to_crs("EPSG:6933").area.to_numpy(), _MIN_AREA_WEIGHT)
-        else:
-            raise JobSplittingFailure(f"Weight column {weight!r} not found in the GeoDataFrame.")
-    elif isinstance(weight, pd.Series):
-        if not weight.index.equals(geometries.index):
-            if not (weight.index.is_unique and geometries.index.is_unique):
-                raise JobSplittingFailure("'weight' Series must be aligned with the index of 'geometries'.")
-            weight = weight.reindex(geometries.index)
-        values = weight
-    else:
-        raise JobSplittingFailure(f"'weight' must be None, a column name or a pandas Series, got {weight!r}.")
-
-    try:
-        values = np.asarray(values, dtype=float)
-    except (TypeError, ValueError) as e:
-        raise JobSplittingFailure("Weights must be numeric.") from e
-    if not np.isfinite(values).all() or (values < 0).any():
-        raise JobSplittingFailure("Weights must be finite and non-negative.")
-    return values
-
-
-def _predefined_tile_keys(tile_grid: "_PredefinedTileGrid", geoms: np.ndarray) -> np.ndarray:
-    """For each geometry (in the grid CRS), the position of the intersecting tile with largest overlap (-1: none)."""
-    tiles = tile_grid._gdf.geometry.to_numpy()
-    tile_idx, geom_idx = shapely.STRtree(tiles).query(geoms, predicate="intersects")[::-1]
-    areas = shapely.area(shapely.intersection(geoms[geom_idx], tiles[tile_idx]))
-    # Sort per geometry by decreasing overlap area, then tile position; take the first of each geometry.
-    order = np.lexsort((tile_idx, -areas, geom_idx))
-    geom_idx, tile_idx = geom_idx[order], tile_idx[order]
-    first = np.ones(len(geom_idx), dtype=bool)
-    first[1:] = geom_idx[1:] != geom_idx[:-1]
-    keys = np.full(len(geoms), -1)
-    keys[geom_idx[first]] = tile_idx[first]
+def _predefined_tile_keys(tile_grid: "_PredefinedTileGrid", points: np.ndarray) -> np.ndarray:
+    """For each point (in the grid CRS), the position of the first tile containing it (-1: none)."""
+    # TODO: polygons are assigned by their representative point only, so they may extend beyond their tile.
+    #   Assigning them to e.g. the tile with the largest overlap could be a future addition.
+    n_tiles = len(tile_grid._gdf)
+    point_idx, tile_idx = shapely.STRtree(tile_grid._gdf.geometry.to_numpy()).query(points, predicate="intersects")
+    # Lowest tile position wins for points on shared tile edges.
+    keys = np.full(len(points), n_tiles)
+    np.minimum.at(keys, point_idx, tile_idx)
+    keys[keys == n_tiles] = -1
     return keys
 
 
@@ -420,50 +378,23 @@ def _bisect_group(
     *,
     xs: np.ndarray,
     ys: np.ndarray,
-    weights: np.ndarray,
-    bounds: np.ndarray,
     max_geometries: Optional[int],
-    max_weight: Optional[float],
-    max_extent: Optional[float],
 ) -> List[np.ndarray]:
     """
-    Recursively bisect a group of rows (given as positions) at the weighted median of their locations,
-    along the longer axis of the locations' spread, until limits are satisfied.
+    Recursively bisect a group of rows (given as positions) at the median of their locations,
+    along the longer axis of the locations' spread, until groups have at most *max_geometries* rows.
     """
     result = []
     stack = [positions]
     while stack:
         pos = stack.pop()
-        if len(pos) == 1:
-            if max_weight is not None and weights[pos[0]] > max_weight:
-                _log.warning(
-                    "Feature at position %d has weight %s exceeding 'max_weight' %s: putting it in its own group.",
-                    pos[0],
-                    weights[pos[0]],
-                    max_weight,
-                )
-            result.append(pos)
-            continue
-        fits = (
-            (max_geometries is None or len(pos) <= max_geometries)
-            and (max_weight is None or weights[pos].sum() <= max_weight)
-            and (
-                max_extent is None
-                or max(
-                    bounds[pos, 2].max() - bounds[pos, 0].min(),
-                    bounds[pos, 3].max() - bounds[pos, 1].min(),
-                )
-                <= max_extent
-            )
-        )
-        if fits:
+        if max_geometries is None or len(pos) <= max_geometries:
             result.append(pos)
             continue
         px, py = xs[pos], ys[pos]
         axis = px if np.ptp(px) >= np.ptp(py) else py
         pos = pos[np.argsort(axis, kind="stable")]
-        cumulative = np.cumsum(weights[pos])
-        cut = int(np.clip(np.searchsorted(cumulative, cumulative[-1] / 2, side="right"), 1, len(pos) - 1))
+        cut = len(pos) // 2
         stack.append(pos[cut:])
         stack.append(pos[:cut])
     return result
@@ -473,9 +404,6 @@ def group_geometries(
     geometries: gpd.GeoDataFrame,
     *,
     max_geometries: Optional[int] = None,
-    weight: Union[None, str, pd.Series] = None,
-    max_weight: Optional[float] = None,
-    max_extent: Optional[float] = None,
     projection: Optional[str] = None,
     tile_size: Optional[float] = None,
     tile_grid: Optional[Union[_TileGridInterface, gpd.GeoDataFrame]] = None,
@@ -496,33 +424,28 @@ def group_geometries(
     use :func:`split_area` instead.
 
     Grouping is done by recursive bisection (k-d tree style): a group is cut at the
-    weighted median of the feature locations along the longer axis of their spread,
-    until it satisfies all given limits (*max_geometries*, *max_weight*, *max_extent*)
-    or consists of a single feature. This keeps groups spatially clustered and balanced.
+    median of the feature locations along the longer axis of their spread,
+    until it has at most *max_geometries* features.
+    This keeps groups spatially clustered and balanced.
 
     If *tile_grid* is given (e.g. a Sentinel-2 MGRS/UTM tile grid), each feature is first
-    assigned to a single tile (the one with the largest overlap), and every tile is bisected separately.
-    Note that polygons crossing tile edges may still touch neighbouring tiles.
-    Features not intersecting any tile are grouped (and bisected) separately.
+    assigned to the tile containing its representative point, and every tile is bisected separately.
+    Features whose representative point is not in any tile are grouped (and bisected) separately.
     Alternatively, *tile_size* and *projection* can be given to group
     features in a regular grid of square tiles anchored at the origin of the projection
     (so grouping does not change when other features are added).
+
+    Current limitations:
+
+    - Features are never split: a polygon crossing tile edges, or larger than a tile,
+      is assigned to a single tile and extends beyond it. Use :func:`split_area` for large areas.
+    - Groups are limited by feature count only, not by area or processing cost.
+      Use a tile grid to limit the spatial extent of groups.
 
     :param geometries: GeoDataFrame with a ``geometry`` column.
         Null or empty geometries are not allowed.
     :param max_geometries: maximum number of geometries per group.
         ``None`` (default) means no limit.
-    :param weight: weight of each feature, to be limited with *max_weight*:
-        ``None`` (every feature has weight 1), the name of a numeric column,
-        a pandas Series aligned with the index of *geometries*,
-        or ``"area"`` (if there is no column with that name):
-        geometry area in m² (computed in EPSG:6933, requires a CRS),
-        with a minimum of 100 m² (about one 10 m Sentinel-2 pixel) per feature.
-    :param max_weight: maximum total weight per group (requires *weight*).
-        A single feature heavier than this ends up alone in its own group (with a warning).
-    :param max_extent: maximum edge length (largest of width and height)
-        of the bounding box of the geometries in a group, in the units of the
-        working CRS (the tile grid's CRS if there is one, else the CRS of *geometries*).
     :param projection: EPSG string (e.g. ``"EPSG:3857"``) of the regular grid
         to group by. Must be combined with *tile_size*.
     :param tile_size: tile edge length in the unit of *projection*.
@@ -545,13 +468,6 @@ def group_geometries(
         raise JobSplittingFailure("The GeoDataFrame must contain a 'geometry' column.")
     if max_geometries is not None and max_geometries <= 0:
         raise JobSplittingFailure(f"'max_geometries' must be positive, got {max_geometries!r}.")
-    if max_weight is not None:
-        if weight is None:
-            raise JobSplittingFailure("'max_weight' requires 'weight'.")
-        if max_weight <= 0:
-            raise JobSplittingFailure(f"'max_weight' must be positive, got {max_weight!r}.")
-    if max_extent is not None and max_extent <= 0:
-        raise JobSplittingFailure(f"'max_extent' must be positive, got {max_extent!r}.")
 
     if tile_grid is not None:
         if projection is not None or tile_size is not None:
@@ -582,16 +498,12 @@ def group_geometries(
     if geometries.empty:
         return []
 
-    weights = _resolve_weights(geometries, weight, max_weight)
-
+    # TODO: limiting groups by area or processing cost (e.g. a weight per feature) is not supported yet.
     # Work with positions (not index labels), so duplicated index labels are no problem.
     locations = geometries.geometry.representative_point()
-    working = geometries.geometry
     if tile_grid is not None:
         locations = locations.to_crs(epsg=tile_grid.crs)
-        working = working.to_crs(epsg=tile_grid.crs)
     xs, ys = locations.x.to_numpy(), locations.y.to_numpy()
-    bounds = working.bounds.to_numpy()
 
     all_positions = np.arange(len(geometries))
     if tile_grid is None:
@@ -601,22 +513,13 @@ def group_geometries(
             # Regular grid anchored at the origin of the CRS.
             keys = pd.DataFrame({"x": np.floor(xs / tile_grid.size), "y": np.floor(ys / tile_grid.size)})
         elif isinstance(tile_grid, _PredefinedTileGrid):
-            keys = pd.DataFrame({"tile": _predefined_tile_keys(tile_grid, working.to_numpy())})
+            keys = pd.DataFrame({"tile": _predefined_tile_keys(tile_grid, locations.to_numpy())})
         else:
             raise JobSplittingFailure(f"Unsupported tile grid type: {type(tile_grid).__name__}.")
         position_groups = list(keys.groupby(list(keys.columns), sort=True).indices.values())
 
     result = []
     for positions in position_groups:
-        for group in _bisect_group(
-            positions,
-            xs=xs,
-            ys=ys,
-            weights=weights,
-            bounds=bounds,
-            max_geometries=max_geometries,
-            max_weight=max_weight,
-            max_extent=max_extent,
-        ):
+        for group in _bisect_group(positions, xs=xs, ys=ys, max_geometries=max_geometries):
             result.append(geometries.iloc[np.sort(group)])
     return result

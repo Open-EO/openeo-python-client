@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-<<<<<<< HEAD
 - Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
 
 ### Changed
@@ -22,10 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.54.0] - 2026-10-28
-- Add public `split_points` helper in `openeo.extra.job_management` for point-based job splitting, including optional tile-grid co-grouping.
-=======
-- Add public `split_points` helper in `openeo.extra.job_management` for point-based job splitting, including optional co-grouping by tile grid or by `tile_size` + `projection`.
->>>>>>> 3796ed2b (review)
+- Add public `group_geometries` helper in `openeo.extra.job_management` for geometry-grouping based job splitting, including optional tile-grid co-grouping.
 
 ### Changed
 
