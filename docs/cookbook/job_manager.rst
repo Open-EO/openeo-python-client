@@ -202,21 +202,6 @@ to resume where you left off.
     Parquet support requires the ``pyarrow`` package
     (see :ref:`optional dependencies <installation-optional-dependencies>`).
 
-SQLite (experimental)
-------
-
-A SQLite database file (e.g. ``jobs.sqlite`` or ``jobs.db``) only needs the Python standard library.
-It updates individual rows in a transaction instead of rewriting the whole file,
-which is more robust against interruptions and faster for large job databases:
-
-.. code-block:: python
-
-    job_db = create_job_db("jobs.sqlite", df=df)
-
-.. note::
-
-    Avoid placing a SQLite job database on a network file system (NFS, SMB, ...),
-    as file locking is unreliable there.
 
 STAC API (experimental)
 -----------------------
@@ -619,7 +604,6 @@ Job Database
 
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
 
-.. autoclass:: openeo.extra.job_management.sqlite_job_db.SqliteJobDatabase
 
 .. autofunction:: openeo.extra.job_management.create_job_db
 
