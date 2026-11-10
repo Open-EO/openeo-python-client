@@ -302,6 +302,43 @@ or any other custom partitioning, you can pass a pre-computed
     # Only tiles intersecting the AOI are returned
     gdf = split_area(aoi=extent , tile_grid=tile_grid)
 
+Splitting point-based extractions
+----------------------------------
+
+When the work to split is a set of sample locations (points) rather than a
+single large area, e.g. for point-based extraction jobs,
+:py:func:`~openeo.extra.job_management._job_splitting.split_points` groups
+geometries into batches of at most ``max_points`` rows.
+Each row is treated as a single feature to group, so a row can be a single
+``Point`` or a multi-part geometry (e.g. ``MultiPoint``) representing a
+cluster of locations that must stay together.
+By default, groups are formed with a spatial quadtree split so that each
+batch stays geographically clustered:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import split_points
+
+    points = gpd.read_file("my_sample_locations.gpkg")
+    batches = split_points(points, max_points=500)
+    # batches is a list of GeoDataFrames, each with at most 500 rows
+
+Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
+that geometries are first grouped by the tile their centroid falls in. This
+guarantees a batch never spans multiple tiles, which avoids batch jobs
+having to load multiple source products for a single extraction job:
+
+.. code-block:: python
+
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+    batches = split_points(points, max_points=500, tile_grid=tile_grid)
+
+.. tip::
+
+    See the `job splitting notebook <https://github.com/Open-EO/openeo-python-client/blob/master/docs/cookbook/examples/job_splitting.ipynb>`_
+    for a visual, hands-on walkthrough of ``split_area`` and ``split_points``.
+
 Customizing Job Handling
 ========================
 
