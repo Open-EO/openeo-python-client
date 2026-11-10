@@ -331,7 +331,7 @@ Null or empty geometries are not allowed.
 Geometries are not split themselves: use ``split_area`` for a large area of interest.
 Like with ``split_area``, geometries without
 CRS information are assumed to be in the CRS of the tile grid (if any).
-Groups are formed by recursive bisection at the (weighted) median along the longer axis,
+Groups are formed by recursive bisection at the median along the longer axis,
 so that batches stay geographically clustered and balanced.
 The returned GeoDataFrames keep the original index, to link back to the input rows:
 
@@ -344,19 +344,9 @@ The returned GeoDataFrames keep the original index, to link back to the input ro
     batches = group_geometries(points, max_geometries=500)
     # batches is a list of GeoDataFrames, each with at most 500 rows
 
-Batches can also be limited by a ``weight`` (a column name, a pandas Series,
-or ``"area"`` for the geometry area in m², at least 100 m² per feature)
-with ``max_weight``, and by the bounding box edge length of a batch with ``max_extent``
-(in units of the CRS of the geometries, or of the tile grid if any):
-
-.. code-block:: python
-
-    batches = group_geometries(polygons, weight="area", max_weight=1e9, max_extent=50_000)
-
 Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
-that each feature is first assigned to a single tile (the one with the largest overlap)
-and batches are formed per tile. Polygons crossing tile edges may still touch
-neighbouring tiles, but points are guaranteed to stay within one tile:
+that each feature is first assigned to the tile containing its representative point
+and batches are formed per tile:
 
 .. code-block:: python
 
@@ -379,6 +369,14 @@ geometries are simply grouped per tile:
 
     # one batch per tile
     batches = group_geometries(points, tile_grid=tile_grid)
+
+Current limitations:
+
+- Geometries are never split: a polygon crossing tile edges, or larger than a tile,
+  ends up in a single batch and extends beyond its tile.
+  Use ``split_area`` for large areas of interest.
+- Batches are limited by number of geometries only, not by area or processing cost.
+  Use a tile grid to limit the spatial extent of batches.
 
 Customizing Job Handling
 ========================
