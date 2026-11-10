@@ -406,7 +406,7 @@ def group_geometries(
     max_geometries: Optional[int] = None,
     projection: Optional[str] = None,
     tile_size: Optional[float] = None,
-    tile_grid: Optional[Union[_TileGridInterface, gpd.GeoDataFrame]] = None,
+    tile_grid: Optional[Union[_PredefinedTileGrid, _SizeBasedTileGrid, gpd.GeoDataFrame]] = None,
 ) -> List[gpd.GeoDataFrame]:
     """
     Group geometries (e.g. sample locations for point-based extraction)
@@ -450,9 +450,10 @@ def group_geometries(
         to group by. Must be combined with *tile_size*.
     :param tile_size: tile edge length in the unit of *projection*.
         Must be combined with *projection*.
-    :param tile_grid: optional :class:`_TileGridInterface` instance or
-        GeoDataFrame of tile polygons (with CRS set) to co-join geometries by
-        before splitting, e.g. a satellite tiling grid.
+    :param tile_grid: optional :class:`_PredefinedTileGrid` or
+        :class:`_SizeBasedTileGrid` instance, or GeoDataFrame of tile polygons
+        (with CRS set) to co-join geometries by before splitting, e.g. a
+        satellite tiling grid.
         Mutually exclusive with *projection* / *tile_size*.
     :return: list of GeoDataFrames, with the original index of *geometries* preserved.
     :raises JobSplittingFailure: on invalid input (e.g. non-positive
