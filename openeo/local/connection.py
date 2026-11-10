@@ -226,7 +226,7 @@ class LocalConnection():
             arguments["bands"] = bands
         if properties is not None:
             arguments["properties"] = properties
-        cube = self.datacube_from_process(process_id="load_stac", **arguments)
+        cube = self.datacube_from_process(process_id="load_stac", arguments=arguments)
         # detect actual metadata from URL
         # run load_stac to get the datacube metadata
         if spatial_extent is not None:
