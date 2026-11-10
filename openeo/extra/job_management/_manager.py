@@ -550,6 +550,10 @@ class MultiBackendJobManager:
 
         stats = stats if stats is not None else collections.defaultdict(int)
 
+        # Apply worker results first, so that they can't overwrite fresher statuses from `_track_statuses`.
+        if self._worker_pool is not None:
+            self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
+
         with ignore_connection_errors(context="get statuses"):
             jobs_done, jobs_error, jobs_cancel = self._track_statuses(job_db, stats=stats)
             stats["track_statuses"] += 1
@@ -575,13 +579,9 @@ class MultiBackendJobManager:
                         self._launch_job(start_job, df=not_started, i=i, backend_name=backend_name, stats=stats)
                         stats["job launch"] += 1
 
-                        job_db.persist(not_started.loc[i : i + 1])
+                        job_db.persist(not_started.loc[[i]])
                         stats["job_db persist"] += 1
                         total_added += 1
-
-        if self._worker_pool is not None:
-            self._process_threadworker_updates(worker_pool=self._worker_pool, job_db=job_db, stats=stats)
-            
 
         # TODO: move this back closer to the `_track_statuses` call above, once job done/error handling is also handled in threads?
         for job, row in jobs_done:
@@ -696,8 +696,9 @@ class MultiBackendJobManager:
         """
         Fetches completed TaskResult objects from the worker pool and applies
         their db_update and stats_updates. Only existing DataFrame rows
-        (matched by df_idx) are upserted via job_db.persist(). Any results
+        (matched by df_idx and job id) are updated via job_db.update(). Any results
         targeting unknown df_idx indices are logged as errors but not persisted.
+        Stale status updates (job already past "created"/"queued_for_start") are skipped.
 
         :param worker_pool: Thread-pool managing asynchronous Task executes
         :param job_db:      Interface to append/upsert to the job database
@@ -706,19 +707,14 @@ class MultiBackendJobManager:
         # Retrieve completed task results immediately
         results, _  = worker_pool.process_futures(timeout=0)
 
-        # Collect update dicts
-        updates: List[Dict[str, Any]] = []
+        # Collect updates per dataframe index
+        updates: Dict[Any, Dict[str, Any]] = {}
         for res in results:
             # Process database updates
             if res.db_update:
                 try:
-                    updates.append(
-                        {
-                            "id": res.job_id,
-                            "df_idx": res.df_idx,
-                            **res.db_update,
-                        }
-                    )
+                    update = {"id": res.job_id, **res.db_update}
+                    updates.setdefault(res.df_idx, {}).update(update)
                 except Exception as e:
                     _log.error(f"Skipping invalid db_update {res.db_update!r} for job {res.job_id!r}: {e}")
 
@@ -735,10 +731,25 @@ class MultiBackendJobManager:
         if not updates:
             return
 
-        # Build update DataFrame and persist
-        df_updates = job_db.get_by_indices(indices=set(u["df_idx"] for u in updates))
-        df_updates.update(pd.DataFrame(updates).set_index("df_idx", drop=True), overwrite=True)
-        job_db.persist(df_updates)
+        # Worker results can arrive late: don't apply them to another job,
+        # and don't let them overwrite a status that already moved on (e.g. "running" or "finished").
+        current = job_db.get_by_indices(indices=updates.keys())
+        for i in list(updates):
+            if i not in current.index:
+                del updates[i]
+            elif current.loc[i, "id"] != updates[i]["id"]:
+                _log.warning(f"Skipping worker update {updates[i]!r}: row {i!r} has job {current.loc[i, 'id']!r}")
+                del updates[i]
+            elif "status" in updates[i] and current.loc[i, "status"] not in {"created", "queued_for_start"}:
+                _log.warning(
+                    f"Skipping stale worker status {updates[i]['status']!r} for job {updates[i]['id']!r}"
+                    f" (current status {current.loc[i, 'status']!r})"
+                )
+                del updates[i]["status"]
+        if not updates:
+            return
+
+        job_db.update(updates)
         stats["job_db persist"] = stats.get("job_db persist", 0) + 1
 
     def on_job_done(self, job: BatchJob, row):
@@ -854,11 +865,14 @@ class MultiBackendJobManager:
         jobs_done = []
         jobs_error = []
         jobs_cancel = []
+        # Only the changed fields per job, to avoid overwriting the database with a stale snapshot.
+        updates: Dict[Any, Dict[str, Any]] = {}
 
         for i in active.index:
             job_id = active.loc[i, "id"]
             backend_name = active.loc[i, "backend_name"]
             previous_status = active.loc[i, "status"]
+            changes = {}
 
             try:
                 con = self._get_connection(backend_name)
@@ -889,7 +903,7 @@ class MultiBackendJobManager:
 
                 if previous_status in {"created", "queued", "queued_for_start"} and new_status == "running":
                     stats["job started running"] += 1
-                    active.loc[i, "running_start_time"] = rfc3339.now_utc()
+                    active.loc[i, "running_start_time"] = changes["running_start_time"] = rfc3339.now_utc()
 
                 if self._cancel_running_job_after and new_status == "running":
                     if not active.loc[i, "running_start_time"] or pd.isna(active.loc[i, "running_start_time"]):
@@ -897,11 +911,12 @@ class MultiBackendJobManager:
                             f"Unknown 'running_start_time' for running job {job_id}. Using current time as an approximation."
                         )
                         stats["job started running"] += 1
-                        active.loc[i, "running_start_time"] = rfc3339.now_utc()
+                        active.loc[i, "running_start_time"] = changes["running_start_time"] = rfc3339.now_utc()
 
                     self._cancel_prolonged_job(the_job, active.loc[i])
 
-                active.loc[i, "status"] = new_status
+                if new_status != previous_status:
+                    changes["status"] = new_status
 
                 # Dynamically add all "usage" metadata fields as columns.
                 for key in job_metadata.get("usage", {}).keys():
@@ -910,23 +925,20 @@ class MultiBackendJobManager:
                             f"Skipping usage field {key!r} of job {job_id!r}: collides with existing job db column"
                         )
                         continue
-                    if key not in active.columns:
-                        # Initialize new column with None (instead of NaN) to keep it JSON-serializable
-                        active[key] = None
-                    elif active[key].dtype != object:
-                        # Legacy job dbs may have empty usage columns loaded as float64, which can't hold strings
-                        active[key] = active[key].astype(object)
-                    active.loc[i, key] = _format_usage_stat(job_metadata, key)
+                    changes[key] = _format_usage_stat(job_metadata, key)
                 if "costs" in job_metadata.keys():
-                    active.loc[i, "costs"] = job_metadata.get("costs")
+                    changes["costs"] = job_metadata.get("costs")
 
             except OpenEoApiError as e:
                 # TODO: inspect status code and e.g. differentiate between 4xx/5xx
                 stats["job tracking error"] += 1
                 _log.warning(f"Error while tracking status of job {job_id!r} on backend {backend_name}: {e!r}")
 
+            if changes:
+                updates[i] = changes
+
         stats["job_db persist"] += 1
-        job_db.persist(active)
+        job_db.update(updates)
 
         return jobs_done, jobs_error, jobs_cancel
 

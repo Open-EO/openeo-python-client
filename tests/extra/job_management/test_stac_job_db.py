@@ -380,6 +380,7 @@ class TestSTACAPIJobDatabase:
                     "status": ["not_started", "not_started"],
                     "datetime": ["2025-06-07T00:00:00Z", "2025-06-07T00:00:00Z"],
                 },
+                index=["item-123", "item-789"],
             ),
         )
         pdt.assert_frame_equal(
@@ -390,8 +391,30 @@ class TestSTACAPIJobDatabase:
                     "status": ["running"],
                     "datetime": ["2025-06-07T00:00:00Z"],
                 },
+                index=["item-456"],
             ),
         )
+
+    def test_update_by_item_id(self, requests_mock):
+        dummy_stac_api = DummyStacApi(root_url="http://stacapi.test", requests_mock=requests_mock)
+        for item_id in ["item-a", "item-b", "item-c"]:
+            dummy_stac_api.predefine_item(
+                collection_id="collection-123",
+                item=_pystac_item(id=item_id, properties={"status": "created", "id": f"j-{item_id}"}),
+            )
+        job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url="http://stacapi.test")
+
+        # Update with string indices (item ids), in another order than the search results
+        job_db.update({"item-c": {"status": "queued", "new": "x"}, "item-a": {"status": "running"}})
+
+        items = dummy_stac_api.items["collection-123"]
+        assert {k: v["properties"]["status"] for k, v in items.items()} == {
+            "item-a": "running",
+            "item-b": "created",
+            "item-c": "queued",
+        }
+        assert items["item-c"]["properties"]["new"] == "x"
+        assert items["item-c"]["properties"]["id"] == "j-item-c"
 
     def test_persist_single_chunk(self, requests_mock, job_db_exists):
         rows = 5

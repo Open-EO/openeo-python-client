@@ -1,4 +1,5 @@
 import collections
+import concurrent.futures
 import dataclasses
 import datetime
 import json
@@ -32,6 +33,7 @@ from openeo.extra.job_management._job_db import (
     create_job_db,
 )
 from openeo.extra.job_management._manager import MAX_RETRIES, MultiBackendJobManager
+from openeo.extra.job_management.sqlite_job_db import SqliteJobDatabase
 from openeo.extra.job_management._thread_worker import (
     Task,
     _JobManagerWorkerThreadPool,
@@ -109,6 +111,14 @@ class TestMultiBackendJobManager:
         year = int(row["year"])
         pg = {"yearify": {"process_id": "yearify", "arguments": {"year": year}, "result": True}}
         return connection.create_job(pg)
+
+    @staticmethod
+    def _wait_for_workers_and_shift(job_manager, time_machine):
+        """Replacement for `time.sleep`: wait for pending worker tasks, then skip one hour."""
+        if job_manager._worker_pool is not None:
+            futures = [f for pool in job_manager._worker_pool._pools.values() for f, _ in pool._future_task_pairs]
+            concurrent.futures.wait(futures)
+        time_machine.shift(60 * 60)
 
     def test_basic_legacy(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock):
         """
@@ -195,7 +205,7 @@ class TestMultiBackendJobManager:
             for filename in ["job-results.json", f"job_{job_id}.json", "result.data"]
         }
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_db_class(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock, db_class):
         """
         Basic run parameterized on database class
@@ -221,7 +231,7 @@ class TestMultiBackendJobManager:
         assert set(result.cpu) == {"1234.5 cpu-seconds"}
         assert set(result.costs) == {123}
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_usage_fields_dynamic_columns(
         self, tmp_path, job_manager, dummy_backend_foo, dummy_backend_bar, sleep_mock, db_class
     ):
@@ -308,6 +318,7 @@ class TestMultiBackendJobManager:
         [
             ("jobz.csv", CsvJobDatabase),
             ("jobz.parquet", ParquetJobDatabase),
+            ("jobz.sqlite", SqliteJobDatabase),
         ],
     )
     def test_create_job_db(self, tmp_path, job_manager, job_manager_root_dir, sleep_mock, filename, expected_db_class):
@@ -677,7 +688,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to not actually sleep, but skip one hour at a time
-        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch("time.sleep", new=lambda s: self._wait_for_workers_and_shift(job_manager, time_machine)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -796,7 +807,7 @@ class TestMultiBackendJobManager:
         job_db_path = tmp_path / "jobs.csv"
 
         # Mock sleep() to skip one hour at a time instead of actually sleeping
-        with mock.patch("time.sleep", new=lambda s: time_machine.shift(60 * 60)):
+        with mock.patch("time.sleep", new=lambda s: self._wait_for_workers_and_shift(job_manager, time_machine)):
             job_manager.run_jobs(df=df, start_job=self._create_year_job, job_db=job_db_path)
 
         final_df = CsvJobDatabase(job_db_path).read()
@@ -881,6 +892,29 @@ class TestMultiBackendJobManager:
             }
         )
         assert caplog.messages == [dirty_equals.IsStr(regex=".*Ignoring unknown.*indices.*4.*")]
+
+    def test_process_threadworker_updates_late_result(self, tmp_path, caplog):
+        """Late worker results must not overwrite a newer status or another job's row."""
+        pool = _JobManagerWorkerThreadPool()
+        stats = collections.defaultdict(int)
+
+        pool.submit_task(DummyResultTask("j-0", df_idx=0, db_update={"status": "queued"}, stats_update={}))
+        pool.submit_task(DummyResultTask("j-1", df_idx=1, db_update={"status": "queued"}, stats_update={}))
+        pool.submit_task(DummyResultTask("j-2", df_idx=2, db_update={"status": "queued"}, stats_update={}))
+
+        df_initial = pd.DataFrame({"id": ["j-0", "j-other", "j-2"], "status": ["finished", "created", "created"]})
+        job_db = CsvJobDatabase(tmp_path / "jobs.csv").initialize_from_df(df_initial)
+
+        mgr = MultiBackendJobManager(root_dir=tmp_path / "jobs")
+        mgr._process_threadworker_updates(worker_pool=pool, job_db=job_db, stats=stats)
+
+        df_final = job_db.read()
+        assert list(df_final["id"]) == ["j-0", "j-other", "j-2"]
+        assert list(df_final["status"]) == ["finished", "created", "queued"]
+        assert sorted(caplog.messages) == [
+            dirty_equals.IsStr(regex=".*Skipping stale worker status 'queued' for job 'j-0'.*finished.*"),
+            dirty_equals.IsStr(regex=".*Skipping worker update.*j-1.*j-other.*"),
+        ]
 
     def test_no_results_leaves_db_and_stats_untouched(self, tmp_path, caplog):
         pool = _JobManagerWorkerThreadPool()

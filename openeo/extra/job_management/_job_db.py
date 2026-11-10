@@ -84,7 +84,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
 
     def _merge_into_df(self, df: pd.DataFrame):
         if self._df is not None:
-            unknown_indices = set(df.index).difference(df.index)
+            unknown_indices = set(df.index).difference(self._df.index)
             if unknown_indices:
                 _log.warning(f"Merging DataFrame with {unknown_indices=} which will be lost.")
             # `DataFrame.update` ignores columns that don't exist yet in `self._df`, so add them first
@@ -108,6 +108,7 @@ class FullDataFrameJobDatabase(JobDatabaseInterface):
         if unknown:
             _log.warning(f"Ignoring unknown DataFrame indices {unknown}")
         return self._df.loc[list(known)]
+
 
 
 class CsvJobDatabase(FullDataFrameJobDatabase):
@@ -229,6 +230,11 @@ def get_job_db(path: Union[str, Path]) -> JobDatabaseInterface:
         job_db = CsvJobDatabase(path=path)
     elif path.suffix.lower() in {".parquet", ".geoparquet"}:
         job_db = ParquetJobDatabase(path=path)
+    elif path.suffix.lower() in {".db", ".sqlite", ".sqlite3"}:
+        # Local import to avoid circular import (sqlite_job_db builds on this module).
+        from openeo.extra.job_management.sqlite_job_db import SqliteJobDatabase
+
+        job_db = SqliteJobDatabase(path=path)
     else:
         raise ValueError(f"Could not guess job database type from {path!r}")
     return job_db

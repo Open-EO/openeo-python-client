@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MultiBackendJobManager`: add `SqliteJobDatabase` job database backend (`.sqlite`/`.db` files), with per-row transactional updates
+- `JobDatabaseInterface`: add `update()` for partial updates of existing jobs (SQLite: plain `UPDATE` instead of read-merge-persist)
+
 ### Changed
 
 ### Removed
 
 ### Fixed
+
+- `FullDataFrameJobDatabase`: fix warning about unknown indices when merging updates never being triggered
 
 
 ## [0.54.0] - 2026-10-28

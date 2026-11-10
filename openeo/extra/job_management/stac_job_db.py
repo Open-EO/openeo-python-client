@@ -176,7 +176,10 @@ class STACAPIJobDatabase(JobDatabaseInterface):
     def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
         """Build a DataFrame from a STAC ItemSearch result."""
         series = [self.series_from(item) for item in search_result.items()]
+        # Index on item id (also kept as column), so that dataframe indices used by the job manager
+        # (e.g. in `update` and `get_by_indices`) refer to the right STAC item.
         df = pd.DataFrame(series).reset_index(names=["item_id"])
+        df.index = df["item_id"].rename(None)
         return df
 
     def get_by_status(self, statuses: Iterable[str], max: Optional[int] = None) -> pd.DataFrame:

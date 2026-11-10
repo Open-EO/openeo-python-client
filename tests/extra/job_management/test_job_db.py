@@ -1,16 +1,18 @@
-import re
+﻿import re
 
 import geopandas
 import pandas as pd
 import pytest
 import shapely.geometry
 
+from openeo.extra.job_management._interface import JobDatabaseInterface
 from openeo.extra.job_management._job_db import (
     CsvJobDatabase,
     ParquetJobDatabase,
     create_job_db,
     get_job_db,
 )
+from openeo.extra.job_management.sqlite_job_db import SqliteJobDatabase
 from openeo.utils.version import ComparableVersion
 
 JOB_DB_DF_BASICS = pd.DataFrame(
@@ -34,7 +36,7 @@ JOB_DB_DF_WITH_GEOJSON_STRING = pd.DataFrame(
 
 
 class TestFullDataFrameJobDatabase:
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_initialize_from_df(self, tmp_path, db_class):
         orig_df = pd.DataFrame({"some_number": [3, 2, 1]})
         path = tmp_path / "jobs.db"
@@ -59,7 +61,7 @@ class TestFullDataFrameJobDatabase:
         actual_columns = set(db_class(path).read().columns)
         assert actual_columns == expected_columns
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_initialize_from_df_on_exists_error(self, tmp_path, db_class):
         df = pd.DataFrame({"some_number": [3, 2, 1]})
         path = tmp_path / "jobs.csv"
@@ -71,7 +73,7 @@ class TestFullDataFrameJobDatabase:
 
         assert set(db_class(path).read()["some_number"]) == {1, 2, 3}
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_initialize_from_df_on_exists_skip(self, tmp_path, db_class):
         path = tmp_path / "jobs.db"
 
@@ -87,7 +89,7 @@ class TestFullDataFrameJobDatabase:
         )
         assert set(db.read()["some_number"]) == {1, 2, 3}
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_persist_with_new_columns(self, tmp_path, db_class):
         """Persisting an update with new columns (e.g. dynamically added usage columns) should preserve them."""
         path = tmp_path / "jobs.db"
@@ -102,7 +104,7 @@ class TestFullDataFrameJobDatabase:
         assert list(result["cpu"].fillna("")) == ["123 cpu-seconds", "456 cpu-seconds", ""]
         assert list(result["some_number"]) == [3, 2, 1]
 
-    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase])
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
     def test_count_by_status(self, tmp_path, db_class):
         path = tmp_path / "jobs.db"
 
@@ -137,6 +139,64 @@ class TestFullDataFrameJobDatabase:
             "queued": 3,
             "running": 2,
         }
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
+    def test_update(self, tmp_path, db_class):
+        db = db_class(tmp_path / "jobs.db").initialize_from_df(
+            pd.DataFrame({"year": [2021, 2022, 2023], "status": ["not_started"] * 3})
+        )
+        db.update({1: {"status": "queued", "id": "j-1", "new": "x"}, 2: {"status": None}, 99: {"status": "x"}})
+        df = db.read()
+        assert list(df["status"]) == ["not_started", "queued", "not_started"]
+        assert df.loc[1, "id"] == "j-1"
+        assert df.loc[1, "year"] == 2022
+        assert df.loc[1, "new"] == "x"
+        assert len(df) == 3
+
+    @pytest.mark.parametrize("db_class", [CsvJobDatabase, ParquetJobDatabase, SqliteJobDatabase])
+    def test_update_reopened(self, tmp_path, db_class):
+        path = tmp_path / "jobs.db"
+        db_class(path).initialize_from_df(pd.DataFrame({"year": [2021, 2022]}))
+
+        db_class(path).update({0: {"status": "queued", "id": "j-0"}})
+
+        df = db_class(path).read()
+        assert list(df["status"]) == ["queued", "not_started"]
+        assert df.loc[0, "id"] == "j-0"
+        assert list(df["year"]) == [2021, 2022]
+
+
+class _InMemoryJobDatabase(JobDatabaseInterface):
+    """Third-party style job database implementing only the original abstract methods (no `update`)."""
+
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
+    def exists(self) -> bool:
+        return True
+
+    def persist(self, df: pd.DataFrame):
+        for column in df.columns.difference(self.df.columns):
+            self.df[column] = None
+        self.df.loc[df.index, df.columns] = df
+
+    def count_by_status(self, statuses=()) -> dict:
+        return self.df["status"].value_counts().to_dict()
+
+    def get_by_status(self, statuses, max=None) -> pd.DataFrame:
+        return self.df[self.df["status"].isin(statuses)].head(max)
+
+    def get_by_indices(self, indices) -> pd.DataFrame:
+        return self.df.loc[self.df.index.intersection(list(indices))]
+
+
+def test_default_update_for_custom_job_database():
+    db = _InMemoryJobDatabase(pd.DataFrame({"status": ["created", "created"], "costs": [1.0, 2.0]}, index=["a", "b"]))
+    db.update({"b": {"status": "running", "costs": None, "new": "x"}, "zz": {"status": "error"}})
+    assert db.df.to_dict(orient="index") == {
+        "a": {"status": "created", "costs": 1.0, "new": None},
+        "b": {"status": "running", "costs": 2.0, "new": "x"},
+    }
 
 
 class TestCsvJobDatabase:
@@ -351,6 +411,8 @@ class TestParquetJobDatabase:
     [
         ("jobz.csv", CsvJobDatabase),
         ("jobz.parquet", ParquetJobDatabase),
+        ("jobz.db", SqliteJobDatabase),
+        ("jobz.sqlite", SqliteJobDatabase),
     ],
 )
 def test_get_job_db(tmp_path, filename, expected):
@@ -365,6 +427,7 @@ def test_get_job_db(tmp_path, filename, expected):
     [
         ("jobz.csv", CsvJobDatabase),
         ("jobz.parquet", ParquetJobDatabase),
+        ("jobz.sqlite", SqliteJobDatabase),
     ],
 )
 def test_create_job_db(tmp_path, filename, expected):
