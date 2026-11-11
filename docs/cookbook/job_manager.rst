@@ -331,7 +331,8 @@ The returned GeoDataFrames keep the original index, to link back to the input ro
 
 Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
 that each feature is first assigned to the tile containing its representative point
-and batches are formed per tile:
+and batches are formed per tile.
+Features outside every tile are batched separately:
 
 .. code-block:: python
 
@@ -360,8 +361,20 @@ Current limitations:
 - Geometries are never split: a polygon crossing tile edges, or larger than a tile,
   ends up in a single batch and extends beyond its tile.
   Use ``split_area`` for large areas of interest.
+- Multi-part geometries (e.g. ``MultiPolygon``) are kept together as one feature,
+  placed by a single representative point, even if their parts are far apart.
+  To group parts individually, explode them into separate rows first
+  (the original index is kept, to link back to the input rows;
+  note that a single feature may then be spread over multiple batches):
+
+  .. code-block:: python
+
+      batches = group_geometries(points.explode(index_parts=False), max_geometries=500)
+
 - Batches are limited by number of geometries only, not by area or processing cost.
   Use a tile grid to limit the spatial extent of batches.
+- With overlapping tiles (e.g. Sentinel-2 MGRS), a feature is assigned to the first tile
+  (in grid order) containing its representative point, not to the tile with the largest overlap.
 
 Customizing Job Handling
 ========================
