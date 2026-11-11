@@ -441,6 +441,10 @@ def group_geometries(
       is assigned to a single tile and extends beyond it. Use :func:`split_area` for large areas.
     - Groups are limited by feature count only, not by area or processing cost.
       Use a tile grid to limit the spatial extent of groups.
+    - Multi-part geometries are placed by a single representative point,
+      so their parts can be far away from the rest of their group.
+    - With overlapping tiles, a feature is assigned to the first tile (in grid order)
+      containing its representative point, not to the tile with the largest overlap.
 
     :param geometries: GeoDataFrame with a ``geometry`` column.
         Null or empty geometries are not allowed.
