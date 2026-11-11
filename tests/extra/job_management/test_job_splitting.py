@@ -278,6 +278,12 @@ class TestSplitArea:
         assert isinstance(result, gpd.GeoDataFrame)
         assert result.crs.to_epsg() == 4326
 
+    def test_aoi_keyword_argument(self):
+        aoi = {"west": 0.0, "south": 0.0, "east": 10_000.0, "north": 10_000.0, "crs": "EPSG:3857"}
+        result = split_area(aoi=aoi, tile_size=10_000.0, projection="EPSG:3857")
+        assert len(result) == 1
+        assert result.crs.to_epsg() == 3857
+
     def test_with_tile_size_and_projection(self):
         aoi = {"west": 0.0, "south": 0.0, "east": 1.0, "north": 1.0, "crs": "EPSG:4326"}
         result = split_area(aoi, projection="EPSG:4326", tile_size=1.0)

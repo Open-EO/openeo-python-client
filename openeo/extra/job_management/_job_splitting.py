@@ -307,7 +307,7 @@ class _PredefinedTileGrid(_TileGridInterface):
 
 
 def split_area(
-    spatial_extent: Union[Dict, MultiPolygon, Polygon],
+    aoi: Union[Dict, MultiPolygon, Polygon],
     *,
     projection: Optional[str] = None,
     tile_size: Optional[float] = None,
@@ -325,7 +325,7 @@ def split_area(
        (e.g. :class:`_PredefinedTileGrid`) or a :class:`~geopandas.GeoDataFrame`
        as *tile_grid*.
 
-    :param spatial_extent: area of interest as a bounding-box dict
+    :param aoi: area of interest as a bounding-box dict
         (keys ``west``, ``south``, ``east``, ``north``, optionally ``crs``),
         a :class:`~shapely.geometry.Polygon`, or
         a :class:`~shapely.geometry.MultiPolygon`.
@@ -347,7 +347,7 @@ def split_area(
             )
         if isinstance(tile_grid, gpd.GeoDataFrame):
             tile_grid = _PredefinedTileGrid(tiles=tile_grid)
-        return tile_grid.get_tiles(spatial_extent)
+        return tile_grid.get_tiles(aoi)
 
     # --- Size-based splitting path ---
     if tile_size is None:
@@ -357,7 +357,7 @@ def split_area(
         raise JobSplittingFailure("'projection' is required when using size-based tiling.")
 
     grid = _SizeBasedTileGrid(epsg=normalize_crs(projection), size=tile_size)
-    return grid.get_tiles(spatial_extent)
+    return grid.get_tiles(aoi)
 
 
 def _predefined_tile_keys(tile_grid: "_PredefinedTileGrid", points: np.ndarray) -> np.ndarray:
