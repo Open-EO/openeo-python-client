@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.54.0] - 2026-10-28
+- Add public `group_geometries` helper in `openeo.extra.job_management` for geometry-grouping based job splitting, including optional tile-grid co-grouping.
 
 ### Changed
 

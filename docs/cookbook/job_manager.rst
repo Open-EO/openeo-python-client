@@ -202,6 +202,7 @@ to resume where you left off.
     Parquet support requires the ``pyarrow`` package
     (see :ref:`optional dependencies <installation-optional-dependencies>`).
 
+
 STAC API (experimental)
 -----------------------
 
@@ -247,7 +248,7 @@ Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
 
     # Split into 10x10 km tiles in EPSG:3857
     gdf = split_area(
-        aoi=extent,
+        spatial_extent=extent,
         tile_size=10_000,  # tile size in meters (units of the projection)
         projection="EPSG:3857",  # projection for tiling
     )
@@ -300,7 +301,80 @@ or any other custom partitioning, you can pass a pre-computed
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
 
     # Only tiles intersecting the AOI are returned
-    gdf = split_area(aoi=extent , tile_grid=tile_grid)
+    gdf = split_area(spatial_extent=extent, tile_grid=tile_grid)
+
+Grouping geometries (e.g. point-based extractions)
+--------------------------------------------------
+
+When the work to split is a set of geometries (e.g. sample locations)
+rather than a single large area, e.g. for point-based extraction jobs,
+:py:func:`~openeo.extra.job_management._job_splitting.group_geometries` groups
+the rows of a GeoDataFrame into batches, optionally of at most ``max_geometries`` rows.
+Each row is treated as a single feature to group, based on its representative point,
+regardless of geometry type (e.g. ``Point``, ``MultiPoint``, ``Polygon``).
+Null or empty geometries are not allowed.
+Geometries are not split themselves: use ``split_area`` for a large area of interest.
+Like with ``split_area``, geometries without
+CRS information are assumed to be in the CRS of the tile grid (if any).
+Groups are formed by recursive bisection at the median along the longer axis,
+so that batches stay geographically clustered and balanced.
+The returned GeoDataFrames keep the original index, to link back to the input rows:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import group_geometries
+
+    points = gpd.read_file("my_sample_locations.gpkg")
+    batches = group_geometries(points, max_geometries=500)
+    # batches is a list of GeoDataFrames, each with at most 500 rows
+
+Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
+that each feature is first assigned to the tile containing its representative point
+and batches are formed per tile.
+Features outside every tile are batched separately:
+
+.. code-block:: python
+
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+    batches = group_geometries(points, max_geometries=500, tile_grid=tile_grid)
+
+Alternatively, a regular grid can be specified through ``tile_size`` and ``projection``.
+This grid is anchored at the origin of the projection,
+so the grouping of existing features does not change when other features are added:
+
+.. code-block:: python
+
+    # group points per 50x50 km tile in EPSG:3857
+    batches = group_geometries(points, max_geometries=500, tile_size=50_000, projection="EPSG:3857")
+
+Without ``max_geometries`` (default ``None``), there is no size limit and
+geometries are simply grouped per tile:
+
+.. code-block:: python
+
+    # one batch per tile
+    batches = group_geometries(points, tile_grid=tile_grid)
+
+Current limitations:
+
+- Geometries are never split: a polygon crossing tile edges, or larger than a tile,
+  ends up in a single batch and extends beyond its tile.
+  Use ``split_area`` for large areas of interest.
+- Multi-part geometries (e.g. ``MultiPolygon``) are kept together as one feature,
+  placed by a single representative point, even if their parts are far apart.
+  To group parts individually, explode them into separate rows first
+  (the original index is kept, to link back to the input rows;
+  note that a single feature may then be spread over multiple batches):
+
+  .. code-block:: python
+
+      batches = group_geometries(points.explode(index_parts=False), max_geometries=500)
+
+- Batches are limited by number of geometries only, not by area or processing cost.
+  Use a tile grid to limit the spatial extent of batches.
+- With overlapping tiles (e.g. Sentinel-2 MGRS), a feature is assigned to the first tile
+  (in grid order) containing its representative point, not to the tile with the largest overlap.
 
 Customizing Job Handling
 ========================
@@ -542,6 +616,7 @@ Job Database
 .. autoclass:: openeo.extra.job_management.CsvJobDatabase
 
 .. autoclass:: openeo.extra.job_management.ParquetJobDatabase
+
 
 .. autofunction:: openeo.extra.job_management.create_job_db
 
