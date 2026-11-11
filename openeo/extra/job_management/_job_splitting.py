@@ -365,7 +365,7 @@ def _predefined_tile_keys(tile_grid: "_PredefinedTileGrid", points: np.ndarray) 
     # TODO: polygons are assigned by their representative point only, so they may extend beyond their tile.
     #   Assigning them to e.g. the tile with the largest overlap could be a future addition.
     n_tiles = len(tile_grid._gdf)
-    point_idx, tile_idx = shapely.STRtree(tile_grid._gdf.geometry.to_numpy()).query(points, predicate="intersects")
+    point_idx, tile_idx = tile_grid._gdf.sindex.query(points, predicate="intersects")
     # Lowest tile position wins for points on shared tile edges.
     keys = np.full(len(points), n_tiles)
     np.minimum.at(keys, point_idx, tile_idx)
