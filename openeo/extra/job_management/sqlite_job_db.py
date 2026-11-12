@@ -2,6 +2,7 @@ import contextlib
 import logging
 import math
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Dict, Iterable, Union
 
@@ -53,6 +54,12 @@ class SqliteJobDatabase(FullDataFrameJobDatabase):
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self.path = Path(path)
+        self._connection = None
+        self._lock = threading.RLock()
+
+    def __del__(self):
+        if getattr(self, "_connection", None) is not None:
+            self._connection.close()
 
     def __repr__(self):
         return f"{self.__class__.__name__}({str(self.path)!r})"
@@ -62,17 +69,25 @@ class SqliteJobDatabase(FullDataFrameJobDatabase):
 
     @contextlib.contextmanager
     def _connect(self, write: bool = False):
-        # Manual transaction control (`isolation_level=None`): sqlite3's implicit transactions
-        # would not cover schema changes (CREATE/ALTER TABLE).
-        with contextlib.closing(sqlite3.connect(self.path, isolation_level=None, timeout=30)) as connection:
+        # One connection per instance (opening one per call is a significant cost),
+        # shared across threads, so serialize its use with a lock.
+        with self._lock:
+            if self._connection is None:
+                # Manual transaction control (`isolation_level=None`): sqlite3's implicit transactions
+                # would not cover schema changes (CREATE/ALTER TABLE).
+                connection = sqlite3.connect(self.path, isolation_level=None, timeout=30, check_same_thread=False)
+                # WAL: readers don't block on the writer.
+                connection.execute("PRAGMA journal_mode=WAL")
+                # No fsync on every commit: in WAL mode this is still safe against application crashes,
+                # only a power loss or OS crash can lose the most recent commits.
+                connection.execute("PRAGMA synchronous=NORMAL")
+                self._connection = connection
             # Connection as context manager: commit on success, rollback on error.
-            with connection:
+            with self._connection:
                 if write:
-                    # WAL: readers don't block on the writer. Persistent in the db file, no-op once set.
-                    connection.execute("PRAGMA journal_mode=WAL")
                     # Take the write lock before inspecting the schema, so concurrent writers can't race.
-                    connection.execute("BEGIN IMMEDIATE")
-                yield connection
+                    self._connection.execute("BEGIN IMMEDIATE")
+                yield self._connection
 
     def _query(self, where: str = "", params=(), limit=None) -> pd.DataFrame:
         with self._connect() as connection:
@@ -123,6 +138,8 @@ class SqliteJobDatabase(FullDataFrameJobDatabase):
                     connection.execute(
                         f"ALTER TABLE {self._TABLE} ADD COLUMN {_quote_identifier(column)} {column_type}"
                     )
+            if "status" in existing or "status" in df.columns:
+                connection.execute(f"CREATE INDEX IF NOT EXISTS {self._TABLE}_status ON {self._TABLE} (status)")
             columns = [index] + [_quote_identifier(c) for c in df.columns]
             updates = ", ".join(f"{c} = excluded.{c}" for c in columns[1:])
             sql = (
