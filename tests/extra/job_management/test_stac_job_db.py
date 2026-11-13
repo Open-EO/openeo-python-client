@@ -344,13 +344,17 @@ class TestSTACAPIJobDatabase:
         job_db_exists.get_by_status(())
 
         job_db_exists.client.search.assert_called_once_with(
-            method="GET", collections=["collection-1"], filter=None, max_items=None
+            method="GET", collections=["collection-1"], filter=None, max_items=None, limit=1000
         )
 
     def test_get_by_status_with_filter(self, job_db_exists):
         job_db_exists.get_by_status(["not_started"])
         job_db_exists.client.search.assert_called_once_with(
-            method="GET", collections=["collection-1"], filter="\"properties.status\"='not_started'", max_items=None
+            method="GET",
+            collections=["collection-1"],
+            filter="\"properties.status\"='not_started'",
+            max_items=None,
+            limit=1000,
         )
 
     def test_get_by_status_result(self, requests_mock):

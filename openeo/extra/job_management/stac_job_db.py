@@ -58,9 +58,15 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.geometry_column = geometry_column
         self.base_url = stac_root_url
         self.bulk_size = 500
+        # Items per page in search requests (many STAC APIs default to only 10).
+        self.page_size = 1000
+        self._exists = False
 
     def exists(self) -> bool:
-        return any(c.id == self.collection_id for c in self.client.get_collections())
+        # Only cache a positive result: avoids listing all collections on every `persist`.
+        if not self._exists:
+            self._exists = any(c.id == self.collection_id for c in self.client.get_collections())
+        return self._exists
 
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -193,6 +199,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             collections=[self.collection_id],
             filter=status_filter,
             max_items=max,
+            limit=self.page_size,
         )
 
         df = self._search_result_to_df(search_results)
@@ -207,6 +214,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             method="GET",
             collections=[self.collection_id],
             ids=[str(i) for i in indices],
+            limit=self.page_size,
         )
         df = self._search_result_to_df(search_results)
         return df
@@ -218,6 +226,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             extent = pystac.Extent(spatial=spatial_extent, temporal=temporal_extent)
             c = pystac.Collection(id=self.collection_id, description="STAC API job database collection.", extent=extent)
             self._create_collection(c)
+            self._exists = True
 
         all_items = []
         if not df.empty:
