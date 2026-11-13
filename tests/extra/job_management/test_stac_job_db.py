@@ -27,6 +27,9 @@ def mock_pystac_client():
         MagicMock(id="collection-1"),
         MagicMock(id="collection-2"),
     ]
+    mock_client.get_collection.side_effect = lambda collection_id: (
+        MagicMock(id=collection_id) if collection_id in {"collection-1", "collection-2"} else None
+    )
 
     with patch("pystac_client.Client.open", return_value=mock_client):
         yield mock_client
@@ -340,17 +343,56 @@ class TestSTACAPIJobDatabase:
         )
         assert job_db_exists.count_by_status() == {"not_started": 1}
 
+    def test_exists_does_not_list_all_collections(self, job_db_exists):
+        assert job_db_exists.exists() is True
+        job_db_exists.client.get_collection.assert_called_once_with("collection-1")
+        job_db_exists.client.get_collections.assert_not_called()
+
+    def test_count_by_status_uses_number_matched(self, requests_mock):
+        dummy_stac_api = DummyStacApi(root_url="http://stacapi.test", requests_mock=requests_mock)
+        for i, status in enumerate(["not_started", "running", "not_started", "finished"]):
+            dummy_stac_api.predefine_item(
+                collection_id="collection-123",
+                item=_pystac_item(id=f"item-{i}", properties={"status": status}),
+            )
+        job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url="http://stacapi.test")
+
+        counts = job_db.count_by_status(["not_started", "running", "queued"])
+
+        assert counts == {"not_started": 2, "running": 1, "queued": 0}
+        searches = [r for r in requests_mock.request_history if r.path == "/search"]
+        # One search per status, each only asking for a single item: no full download of the job database.
+        assert len(searches) == 3
+        assert all(r.qs["limit"] == ["1"] for r in searches)
+
+    def test_count_by_status_falls_back_without_number_matched(self, requests_mock):
+        dummy_stac_api = DummyStacApi(
+            root_url="http://stacapi.test", requests_mock=requests_mock, support_number_matched=False
+        )
+        for i, status in enumerate(["not_started", "running", "not_started"]):
+            dummy_stac_api.predefine_item(
+                collection_id="collection-123",
+                item=_pystac_item(id=f"item-{i}", properties={"status": status}),
+            )
+        job_db = STACAPIJobDatabase(collection_id="collection-123", stac_root_url="http://stacapi.test")
+
+        assert job_db.count_by_status(["not_started", "running"]) == {"not_started": 2, "running": 1}
+
     def test_get_by_status_no_filter(self, job_db_exists):
         job_db_exists.get_by_status(())
 
         job_db_exists.client.search.assert_called_once_with(
-            method="GET", collections=["collection-1"], filter=None, max_items=None
+            method="GET", collections=["collection-1"], filter=None, max_items=None, limit=1000
         )
 
     def test_get_by_status_with_filter(self, job_db_exists):
         job_db_exists.get_by_status(["not_started"])
         job_db_exists.client.search.assert_called_once_with(
-            method="GET", collections=["collection-1"], filter="\"properties.status\"='not_started'", max_items=None
+            method="GET",
+            collections=["collection-1"],
+            filter="\"properties.status\"='not_started'",
+            max_items=None,
+            limit=1000,
         )
 
     def test_get_by_status_result(self, requests_mock):
@@ -491,14 +533,16 @@ def sleep_mock():
 class DummyStacApi:
     """Minimal dummy implementation of a STAC API for testing purposes."""
 
-    def __init__(self, *, root_url: str = "http://stacapi.test", requests_mock):
+    def __init__(self, *, root_url: str = "http://stacapi.test", requests_mock, support_number_matched: bool = True):
         self.root_url = root_url.rstrip("/")
         self._requests_mock = requests_mock
+        self._support_number_matched = support_number_matched
 
         requests_mock.get(f"{self.root_url}/", json=self._get_root())
         self.collections: List[dict] = []
         requests_mock.get(f"{self.root_url}/collections", json=self._get_collections)
         requests_mock.post(f"{self.root_url}/collections", json=self._post_collections)
+        requests_mock.get(re.compile(rf"{re.escape(self.root_url)}/collections/[^/]+$"), json=self._get_collection)
 
         self.items: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
         requests_mock.post(
@@ -526,6 +570,15 @@ class DummyStacApi:
     def _get_collections(self, request, context):
         """Handler of `GET /collections` requests."""
         return {"collections": self.collections}
+
+    def _get_collection(self, request, context):
+        """Handler of `GET /collections/{collection_id}` requests."""
+        collection_id = request.path.split("/")[-1]
+        for collection in self.collections:
+            if collection["id"] == collection_id:
+                return collection
+        context.status_code = 404
+        return {"code": "NotFound", "description": f"Collection {collection_id} not found"}
 
     def _post_collections(self, request, context):
         """Handler of `POST /collections` requests."""
@@ -581,11 +634,14 @@ class DummyStacApi:
             statuses = set(re.findall(r"\"properties\.status\"='(\w+)'", property_filter))
             items = [i for i in items if i.get("properties", {}).get("status") in statuses]
 
-        return {
+        result = {
             "type": "FeatureCollection",
             "features": items,
             "links": [],
         }
+        if self._support_number_matched:
+            result["numberMatched"] = len(items)
+        return result
 
 
 def test_run_jobs_basic(tmp_path, dummy_backend_foo, requests_mock, sleep_mock):
