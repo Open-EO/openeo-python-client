@@ -18,6 +18,7 @@ from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobMan
 try:
     # Optional dependecy
     import pystac_client
+    import pystac_client.exceptions
 except ImportError:
     pass
 
@@ -64,7 +65,13 @@ class STACAPIJobDatabase(JobDatabaseInterface):
 
     def exists(self) -> bool:
         # Look up the collection directly instead of paging through all collections of the STAC API.
-        return self.client.get_collection(self.collection_id) is not None
+        try:
+            return self.client.get_collection(self.collection_id) is not None
+        except pystac_client.exceptions.APIError as e:
+            # Older pystac_client versions raise on a missing collection instead of returning None.
+            if getattr(e, "status_code", None) == 404:
+                return False
+            raise
 
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
