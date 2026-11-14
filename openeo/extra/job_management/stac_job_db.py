@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import datetime
 import logging
+import warnings
 from typing import Iterable, List, Optional, Union
 
 import geopandas as gpd
@@ -17,6 +18,7 @@ from openeo.extra.job_management import JobDatabaseInterface, MultiBackendJobMan
 try:
     # Optional dependecy
     import pystac_client
+    import pystac_client.exceptions
 except ImportError:
     pass
 
@@ -58,9 +60,18 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         self.geometry_column = geometry_column
         self.base_url = stac_root_url
         self.bulk_size = 500
+        # Page size to request from the STAC API when searching items (servers may cap this to a lower maximum).
+        self.search_page_size = 1000
 
     def exists(self) -> bool:
-        return any(c.id == self.collection_id for c in self.client.get_collections())
+        # Look up the collection directly instead of paging through all collections of the STAC API.
+        try:
+            return self.client.get_collection(self.collection_id) is not None
+        except pystac_client.exceptions.APIError as e:
+            # Older pystac_client versions raise on a missing collection instead of returning None.
+            if getattr(e, "status_code", None) == 404:
+                return False
+            raise
 
     def _normalize_df(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -167,11 +178,31 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
+        if statuses:
+            # Ask the STAC API for the number of matching items, instead of downloading all of them.
+            counts = {s: self._count_matched(status_filter=self._status_filter([s])) for s in statuses}
+            if all(c is not None for c in counts.values()):
+                return counts
         items = self.get_by_status(statuses)
         if items is None:
             return {k: 0 for k in statuses}
         else:
             return items["status"].value_counts().to_dict()
+
+    @staticmethod
+    def _status_filter(statuses: Iterable[str]) -> Optional[str]:
+        return " OR ".join([f"\"properties.status\"='{s}'" for s in statuses]) or None
+
+    def _count_matched(self, status_filter: Optional[str]) -> Optional[int]:
+        """
+        Get the number of matching items as reported by the STAC API (``numberMatched`` or ``context.matched``),
+        or ``None`` if the STAC API does not report it.
+        """
+        search = self.client.search(method="GET", collections=[self.collection_id], filter=status_filter, limit=1)
+        with warnings.catch_warnings():
+            # pystac_client warns when the count is not supported, we handle that by falling back.
+            warnings.simplefilter("ignore")
+            return search.matched()
 
     def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
         """Build a DataFrame from a STAC ItemSearch result."""
@@ -184,12 +215,12 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             statuses = {statuses}
         statuses = set(statuses)
 
-        status_filter = " OR ".join([f"\"properties.status\"='{s}'" for s in statuses]) if statuses else None
         search_results = self.client.search(
             method="GET",
             collections=[self.collection_id],
-            filter=status_filter,
+            filter=self._status_filter(statuses),
             max_items=max,
+            limit=self.search_page_size,
         )
 
         df = self._search_result_to_df(search_results)
@@ -204,6 +235,7 @@ class STACAPIJobDatabase(JobDatabaseInterface):
             method="GET",
             collections=[self.collection_id],
             ids=[str(i) for i in indices],
+            limit=self.search_page_size,
         )
         df = self._search_result_to_df(search_results)
         return df
