@@ -38,6 +38,7 @@ from openeo.rest import (
 )
 from openeo.rest._testing import build_capabilities
 from openeo.rest.auth.auth import BearerAuth, NullAuth
+from openeo.rest.auth.config import PRIVATE_PERMISSIONS, set_file_mode
 from openeo.rest.auth.oidc import OidcException
 from openeo.rest.auth.testing import ABSENT, OidcMock, SimpleBasicAuthMocker
 from openeo.rest.connection import (
@@ -1987,6 +1988,41 @@ def test_authenticate_oidc_auto_no_existing_refresh_token(
     assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
         "urn:ietf:params:oauth:grant-type:device_code"
     ]
+
+
+def test_authenticate_oidc_auto_corrupt_refresh_token_file(
+    requests_mock, refresh_token_store, oidc_device_code_flow_checker, caplog
+):
+    """Corrupt refresh token file: fall back to device flow and overwrite the file with the new token."""
+    refresh_token_store.path.write_text("{\nInvalid JSON here!")
+    set_file_mode(refresh_token_store.path, mode=PRIVATE_PERMISSIONS)
+
+    requests_mock.get(API_URL, json={"api_version": "1.0.0"})
+    client_id = "myclient"
+    issuer = "https://oidc.test"
+    requests_mock.get(
+        API_URL + "credentials/oidc",
+        json={"providers": [{"id": "oi", "issuer": issuer, "title": "example", "scopes": ["openid"]}]},
+    )
+    oidc_mock = OidcMock(
+        requests_mock=requests_mock,
+        expected_client_id=client_id,
+        expected_grant_type=None,
+        oidc_issuer=issuer,
+        expected_fields={"scope": "offline_access openid"},
+    )
+
+    conn = Connection(API_URL, refresh_token_store=refresh_token_store)
+    oidc_mock.state["device_code_callback_timeline"] = ["great success"]
+    with oidc_device_code_flow_checker():
+        conn.authenticate_oidc(client_id=client_id)
+    assert conn.auth.bearer == "oidc/oi/" + oidc_mock.state["access_token"]
+    assert [r["grant_type"] for r in oidc_mock.grant_request_history] == [
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ]
+    assert "is corrupt and will be ignored" in caplog.text
+    assert "is corrupt and will be overwritten" in caplog.text
+    assert refresh_token_store.get_refresh_token(issuer=issuer, client_id=client_id) == oidc_mock.state["refresh_token"]
 
 
 @pytest.mark.parametrize(

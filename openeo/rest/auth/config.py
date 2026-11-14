@@ -216,11 +216,20 @@ class RefreshTokenStore(PrivateJsonFile):
     def default_path(cls) -> Path:
         return get_user_data_dir(auto_create=True) / cls.DEFAULT_FILENAME
 
+    def _load_or_empty(self, consequence: str) -> dict:
+        """Load the file content, or warn and return an empty dict if the file is corrupt."""
+        try:
+            return self.load()
+        except RuntimeError as e:
+            log.warning(f"Refresh token file {self.path} is corrupt and will be {consequence}: {e}")
+            return {}
+
     def get_refresh_token(self, issuer: str, client_id: str) -> Union[str, None]:
-        return self.get(_normalize_url(issuer), client_id, "refresh_token", default=None)
+        data = self._load_or_empty(consequence="ignored")
+        return deep_get(data, _normalize_url(issuer), client_id, "refresh_token", default=None)
 
     def set_refresh_token(self, issuer: str, client_id: str, refresh_token: str):
-        data = self.load()
+        data = self._load_or_empty(consequence="overwritten with the new refresh token")
         log.info("Storing refresh token for issuer {i!r} (client {c!r})".format(i=issuer, c=client_id))
         deep_set(
             data,

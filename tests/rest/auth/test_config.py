@@ -222,3 +222,23 @@ class TestRefreshTokenStorage:
         r = RefreshTokenStore(path=tmp_path)
         r.set_refresh_token("foo", "bar", "ih6zdaT0k3n")
         assert r.get_refresh_token("foo", "bar") == "ih6zdaT0k3n"
+
+    def test_get_refresh_token_corrupt_file(self, tmp_path, caplog):
+        path = tmp_path / RefreshTokenStore.DEFAULT_FILENAME
+        path.write_text("{\nInvalid JSON here!")
+        set_file_mode(path, mode=PRIVATE_PERMISSIONS)
+
+        r = RefreshTokenStore(path=tmp_path)
+        assert r.get_refresh_token("foo", "bar") is None
+        assert re.search(r"refresh-tokens\.json is corrupt and will be ignored", caplog.text)
+
+    def test_set_refresh_token_corrupt_file(self, tmp_path, caplog):
+        path = tmp_path / RefreshTokenStore.DEFAULT_FILENAME
+        path.write_text("{\nInvalid JSON here!")
+        set_file_mode(path, mode=PRIVATE_PERMISSIONS)
+
+        r = RefreshTokenStore(path=tmp_path)
+        r.set_refresh_token("foo", "bar", "ih6zdaT0k3n")
+        assert re.search(r"refresh-tokens\.json is corrupt and will be overwritten", caplog.text)
+        assert json.loads(path.read_text())["foo"]["bar"]["refresh_token"] == "ih6zdaT0k3n"
+        assert r.get_refresh_token("foo", "bar") == "ih6zdaT0k3n"
