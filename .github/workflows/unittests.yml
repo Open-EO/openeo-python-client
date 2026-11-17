@@ -22,7 +22,6 @@ jobs:
         # Basic configurations to run on
         os: ["ubuntu-latest"]
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
@@ -30,6 +29,8 @@ jobs:
           - "3.14"
         # Additional special cases (see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-adding-configurations)
         include:
+          - os: "ubuntu-24.04"
+            python-version: "3.9"
           - os: "windows-latest"
             python-version: "3.11"
     runs-on: ${{ matrix.os }}
