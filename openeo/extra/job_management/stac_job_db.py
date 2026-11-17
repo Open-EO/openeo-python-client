@@ -71,6 +71,8 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         # If the user doesn't specify the item_id column, we will use the index.
         if "item_id" not in df.columns:
             df = df.reset_index(names=["item_id"])
+        # STAC item ids must be strings (e.g. integer index values are rejected by the STAC API).
+        df["item_id"] = df["item_id"].astype(str)
         return df
 
     def initialize_from_df(self, df: pd.DataFrame, *, on_exists: str = "error"):
