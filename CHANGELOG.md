@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `DataCube.add_dimension()` now infers the dimension type from common dimension names when `type` is not specified: "x", "y" and "z" are spatial, "t", "time" and "temporal" are temporal, "bands" is a band dimension and "geometry" a geometry dimension. Previously such dimensions were silently added as type "other". An explicitly given `type` (including `None` or "other") still takes precedence ([#796](https://github.com/Open-EO/openeo-python-client/issues/796)).
+
 ### Removed
 
 ### Fixed

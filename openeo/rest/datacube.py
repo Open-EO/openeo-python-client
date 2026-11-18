@@ -85,6 +85,18 @@ if typing.TYPE_CHECKING:
 # Sentinel value for arguments that are unset (when `None` has a different meaning)
 _UNSET = object()
 
+# Dimension names that conventionally correspond to a specific dimension type.
+_DIMENSION_NAME_TYPES = {
+    "bands": "bands",
+    "x": "spatial",
+    "y": "spatial",
+    "z": "spatial",
+    "t": "temporal",
+    "time": "temporal",
+    "temporal": "temporal",
+    "geometry": "geometry",
+}
+
 
 log = logging.getLogger(__name__)
 
@@ -1737,7 +1749,7 @@ class DataCube(_ProcessGraphAbstraction):
         return self.reduce_bands(reducer=UDF(code=code, runtime=runtime, version=version))
 
     @openeo_process
-    def add_dimension(self, name: str, label: str, type: Optional[str] = None):
+    def add_dimension(self, name: str, label: str, type: Optional[str] = _UNSET):
         """
         Adds a new named dimension to the data cube.
         Afterwards, the dimension can be referenced with the specified name. If a dimension with the specified name exists,
@@ -1747,9 +1759,16 @@ class DataCube(_ProcessGraphAbstraction):
 
         :param name: The name of the dimension to add
         :param label: The dimension label.
-        :param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'other', default value is 'other'
+        :param type: Dimension type, allowed values: 'spatial', 'temporal', 'bands', 'geometry', 'other'.
+            If not specified, it is inferred from the dimension name for common names
+            ('x', 'y', 'z' -> 'spatial', 't', 'time', 'temporal' -> 'temporal', 'bands' -> 'bands',
+            'geometry' -> 'geometry') and defaults to 'other' otherwise.
         :return: The data cube with a newly added dimension. The new dimension has exactly one dimension label. All other dimensions remain unchanged.
         """
+        if type is _UNSET:
+            type = _DIMENSION_NAME_TYPES.get(name)
+            if type is not None:
+                log.info(f"add_dimension(name={name!r}): inferred type={type!r} from dimension name")
         return self.process(
             process_id="add_dimension",
             arguments=dict_no_none({"data": self, "name": name, "label": label, "type": type}),
