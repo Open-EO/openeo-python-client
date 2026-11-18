@@ -77,6 +77,20 @@ class TestConvertCallableToPgnode:
             "add1": {"process_id": "add", "arguments": {"x": {"from_parameter": "x"}, "y": 5}, "result": True}
         }
 
+    @pytest.mark.parametrize(
+        ("parent_parameters", "argument"),
+        [
+            (None, {"from_parameter": "x"}),
+            (["data"], {"from_parameter": "data"}),
+            (["x", "y"], [{"from_parameter": "x"}, {"from_parameter": "y"}]),
+        ],
+    )
+    def test_identity_lambda(self, parent_parameters, argument):
+        result = convert_callable_to_pgnode(lambda x: x, parent_parameters=parent_parameters)
+        assert result.flat_graph() == {
+            "constant1": {"process_id": "constant", "arguments": {"x": argument}, "result": True}
+        }
+
     def test_simple_def(self):
         def callback(data):
             return data.count()

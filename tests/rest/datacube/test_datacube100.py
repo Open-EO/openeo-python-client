@@ -3926,6 +3926,20 @@ def test_apply_more_math(con100, math, apply_pg):
     }
 
 
+def test_apply_identity_callback(con100):
+    cube = con100.load_collection("S2").apply(lambda x: x)
+
+    assert cube.flat_graph()["apply1"]["arguments"]["process"] == {
+        "process_graph": {
+            "constant1": {
+                "process_id": "constant",
+                "arguments": {"x": {"from_parameter": "x"}},
+                "result": True,
+            }
+        }
+    }
+
+
 def test_apply_append_math_keep_context(con100):
     cube = con100.load_collection("S2")
     cube = cube.apply(lambda x: x + 1, context={"foo": 866})

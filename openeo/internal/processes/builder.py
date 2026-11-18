@@ -79,7 +79,7 @@ def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[L
 
     """
     # TODO: eliminate local import (due to circular dependency)?
-    from openeo.processes import ProcessBuilder
+    from openeo.processes import ProcessBuilder, constant
 
     process_params = get_parameter_names(callback)
     if parent_parameters is None:
@@ -117,4 +117,7 @@ def convert_callable_to_pgnode(callback: Callable, parent_parameters: Optional[L
         raise OpenEoClientException(
             f"Callback {callback} did not evaluate to ProcessBuilderBase. Got {result!r} instead"
         )
+    # A callback graph needs a result node even when it returns one of its inputs.
+    if any(result is argument for argument in kwargs.values()):
+        return constant(result).pgnode
     return result.pgnode
