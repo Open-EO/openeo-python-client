@@ -384,7 +384,8 @@ class MultiBackendJobManager:
                 stats["run_jobs loop"] += 1
 
                 # Show current stats and sleep
-                _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
+                if _log.isEnabledFor(logging.INFO):
+                    _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
                 for _ in range(int(max(1, self.poll_sleep))):
                     time.sleep(1)
                     if self._stop_thread:
@@ -526,7 +527,8 @@ class MultiBackendJobManager:
             stats["run_jobs loop"] += 1
 
             # Show current stats and sleep
-            _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
+            if _log.isEnabledFor(logging.INFO):
+                _log.info(f"Job status histogram: {job_db.count_by_status()}. Run stats: {dict(stats)}")
             time.sleep(self.poll_sleep)
             stats["sleep"] += 1
 

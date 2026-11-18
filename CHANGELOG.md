@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `STACAPIJobDatabase`: improve performance by using `numberMatched` counts, a larger search page size and a direct collection lookup ([#972](https://github.com/Open-EO/openeo-python-client/issues/972))
+
 ### Removed
 
 ### Fixed
