@@ -112,7 +112,7 @@ class TestSTACAPIJobDatabase:
                 pd.DataFrame({"no": [1], "geometry": [2], "here": [3]}),
                 pd.DataFrame(
                     data={
-                        "item_id": [0],
+                        "item_id": ["0"],
                         "no": [1],
                         "geometry": [2],
                         "here": [3],
@@ -130,6 +130,17 @@ class TestSTACAPIJobDatabase:
                     },
                 ),
             ),
+            (
+                # Integer item_id column should be converted to strings (STAC item ids must be strings)
+                pd.DataFrame({"item_id": [123, 456], "hello": ["world", "earth"]}),
+                pd.DataFrame(
+                    data={
+                        "item_id": ["123", "456"],
+                        "hello": ["world", "earth"],
+                        **_common_normalized_df_data(rows=2),
+                    },
+                ),
+            ),
         ],
     )
     @patch("openeo.extra.job_management.stac_job_db.STACAPIJobDatabase.persist", return_value=None)
@@ -139,6 +150,19 @@ class TestSTACAPIJobDatabase:
         mock_persist.assert_called_once()
         pdt.assert_frame_equal(mock_persist.call_args[0][0], expected)
         assert job_db_not_exists.has_geometry == False
+
+    def test_initialize_from_df_without_item_id_uses_string_index(self, requests_mock, job_db_not_exists):
+        """https://github.com/Open-EO/openeo-python-client/issues/792"""
+        df = pd.DataFrame({"hello": ["world", "earth"]}, index=[0, 500])
+        requests_mock.post("http://fake-stac-api/collections", json={})
+        bulk_mock = requests_mock.post("http://fake-stac-api/collections/collection-3/bulk_items", json={})
+
+        job_db_not_exists.initialize_from_df(df)
+
+        assert bulk_mock.call_count == 1
+        items = bulk_mock.last_request.json()["items"]
+        assert set(items.keys()) == {"0", "500"}
+        assert [item["id"] for item in items.values()] == ["0", "500"]
 
     def test_initialize_from_df_existing_error(self, job_db_exists):
         df = pd.DataFrame({"hello": ["world"]})
@@ -155,7 +179,7 @@ class TestSTACAPIJobDatabase:
     ):
         mock_get_by_status.return_value = pd.DataFrame(
             {
-                "item_id": [0],
+                "item_id": ["0"],
                 "no": [1],
                 "geometry": [2],
                 "here": [3],
@@ -176,7 +200,7 @@ class TestSTACAPIJobDatabase:
         mock_persist.assert_called_once()
         expected_df = pd.DataFrame(
             {
-                "item_id": [0, 1],
+                "item_id": ["0", "1"],
                 "no": [1, 4],
                 "geometry": [2, 5],
                 "here": [3, 6],
@@ -200,7 +224,7 @@ class TestSTACAPIJobDatabase:
                 ),
                 pd.DataFrame(
                     {
-                        "item_id": [0],
+                        "item_id": ["0"],
                         "there": [1],
                         "is": [2],
                         "geometry": [{"type": "Point", "coordinates": (1.0, 1.0)}],
