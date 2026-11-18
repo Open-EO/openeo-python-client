@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `STACAPIJobDatabase`: `count_by_status()` uses server-side counts (`numberMatched`) instead of downloading all job items, so `MultiBackendJobManager` loop time no longer grows with the number of finished jobs. Falls back to a full item scan (with warning) if the STAC API does not report `numberMatched` or the database contains unknown statuses. Note: on Elasticsearch-backed STAC APIs, recent writes may only become visible after the index refresh.
+
 ### Removed
 
 ### Fixed

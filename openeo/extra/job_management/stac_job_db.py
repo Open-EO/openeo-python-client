@@ -23,6 +23,21 @@ except ImportError:
 
 _log = logging.getLogger(__name__)
 
+# Statuses used by MultiBackendJobManager, counted server-side for the full status histogram.
+_KNOWN_STATUSES = [
+    "not_started",
+    "created",
+    "queued_for_start",
+    "queued",
+    "running",
+    "finished",
+    "error",
+    "canceled",
+    "skipped",
+    "start_failed",
+    "queued_for_start_failed",
+]
+
 
 class STACAPIJobDatabase(JobDatabaseInterface):
     """
@@ -173,11 +188,32 @@ class STACAPIJobDatabase(JobDatabaseInterface):
         if isinstance(statuses, str):
             statuses = {statuses}
         statuses = set(statuses)
-        items = self.get_by_status(statuses)
-        if items is None:
-            return {k: 0 for k in statuses}
+
+        # Count server-side (`numberMatched`) instead of downloading all matching items.
+        to_count = list(statuses or _KNOWN_STATUSES)
+        # Also count the combined total (unfiltered without explicit statuses) in one query:
+        # detects custom statuses and jobs changing status between the per-status queries.
+        check_total = len(to_count) > 1
+        queries = [[s] for s in to_count] + ([sorted(statuses)] if check_total else [])
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            matched = list(executor.map(self._count_matched, queries))
+
+        if any(not isinstance(m, int) for m in matched):
+            _log.warning("STAC API did not report `numberMatched`: falling back to (slow) full item scan for counting.")
+        elif check_total and sum(matched[:-1]) != matched[-1]:
+            _log.warning("Inconsistent per-status counts: falling back to (slow) full item scan for counting.")
         else:
-            return items["status"].value_counts().to_dict()
+            return {s: m for s, m in zip(to_count, matched) if m > 0}
+
+        items = self.get_by_status(statuses)
+        return items["status"].value_counts().to_dict()
+
+    def _count_matched(self, statuses: List[str]) -> Optional[int]:
+        """Server-side count of items with given statuses (all items if empty), or None if not reported."""
+        status_filter = " OR ".join([f"\"properties.status\"='{s}'" for s in statuses]) if statuses else None
+        return self.client.search(
+            method="GET", collections=[self.collection_id], filter=status_filter, max_items=1, limit=1
+        ).matched()
 
     def _search_result_to_df(self, search_result: pystac_client.ItemSearch) -> pd.DataFrame:
         """Build a DataFrame from a STAC ItemSearch result."""
