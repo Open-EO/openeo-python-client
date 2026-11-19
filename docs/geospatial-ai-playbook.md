@@ -1014,7 +1014,7 @@ pred = features.apply_neighborhood(
     size=[
         {"dimension": "x", "value": 128, "unit": "px"},
         {"dimension": "y", "value": 128, "unit": "px"},
-        {"dimension": "t", "value": 'month'}
+        {"dimension": "t", "value": 'P1D'}
     ],
     overlap=[
         {"dimension": "x", "value": 8, "unit": "px"},
