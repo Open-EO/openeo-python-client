@@ -271,8 +271,12 @@ s1 = connection.load_collection(
 At this point, there is no need to specify a `spatial_extent`: the extraction processes referenced above
 (`aggregate_spatial` or `filter_spatial`) come into play at the end of the process graph and restrict the computation to
 the sample locations.
-This is a deliberate design choice in openEO: the extraction process knows which pixels it needs, so it can push that constraint down
+
+```{note}
+This is a deliberate design choice in the geotrellis backend of openEO: the extraction process knows which pixels it needs, so it can push that constraint down
 to the data loading step rather than reading the entire scene and then filtering.
+```
+
 
 ### 2.4 Preprocessing
 
@@ -580,7 +584,13 @@ UDFs are the most flexible and established way to run custom ML code in openEO. 
 
 **Best for:** any model that requires custom Python logic, access to the full data cube (band names, coordinates), or per-job parameterisation via the `context` object. See [Section 4.2](#42-deploying-via-user-defined-functions) for the operational details.
 
-#### 4.0.2 Native `predict_onnx` Process
+```{tip}
+Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
+
+This also makes the UDF a natural precursor to `predict_onnx`: the UDF gives you room to experiment, add pre- and postprocessing code around the inference call, and pull in extra dependencies. Once the workflow is stable and the extra logic can be moved into native openEO processes (or into the ONNX graph itself), switch to `predict_onnx` with the same ONNX model.
+```
+
+#### 4.0.2 Native `predict_onnx` Process [experimental]
 
 `predict_onnx` is a more streamlined, backend-native approach for deploying ONNX models. Instead of writing a UDF wrapper, you pass the model directly to the process, and the backend handles the ONNX runtime and data chunking internally.
 
@@ -598,7 +608,7 @@ UDFs are the most flexible and established way to run custom ML code in openEO. 
 
 **Best for:** fixed, per-pixel or per-tile computations where the model is a self-contained ONNX graph and the target backend supports the process. See [Section 4.3](#43-deploying-via-predict_onnx) for a deployment example.
 
-#### 4.0.3 Common Workflow Language (CWL)
+#### 4.0.3 Common Workflow Language (CWL) [experimental]
 
 CWL is an open standard for describing command-line tools and workflows. openEO can run CWL workflows inside the `run_udf` process by setting `runtime="EOAP-CWL"` and passing the CWL definition as a string or URL. The workflows are executed using [Calrissian](https://duke-gcb.github.io/calrissian/) on a Kubernetes cluster.
 
@@ -622,7 +632,7 @@ CWL is an open standard for describing command-line tools and workflows. openEO 
 Use the following rules of thumb to choose the right onboarding path:
 
 1. **Use `predict_onnx`** if your model is a fixed, per-pixel ONNX graph and the target backend supports the process. It is the simplest operational path, with no UDF wrapper and minimal dependency management.
-2. **Use a UDF** for everything else that requires custom Python code, the `context` object, or access to the full data cube (band names, coordinates). This remains the most flexible and widely applicable option. Keep the UDF small, push as much preprocessing as possible into native openEO processes, and watch memory usage.
+2. **Use a UDF** for everything else that requires custom Python code, the `context` object, or access to the full data cube (band names, coordinates). This remains the most flexible and widely applicable option. Keep the UDF small, push as much preprocessing as possible into native openEO processes, and watch memory usage. Prefer an ONNX-converted model inside the UDF for its low memory footprint; this also makes the UDF a good sandbox to iterate in before moving to `predict_onnx`.
 3. **Use CWL** when you need to wrap an existing, complex, or multi-step workflow, especially one that is already containerized or defined in CWL. Define explicit resource requirements and expect the workflow to return a STAC collection that openEO loads back as a data cube.
 
 This decision framework complements the STAC-based model description discussed in [Section 5](#5-ml-models-and-stac): by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.
@@ -833,6 +843,16 @@ job_options={
 ```
 
 Inside the UDF, those archives are then available as `deps/` and `model/` relative to the UDF's working directory.
+A typical UDF bootstrap pattern is:
+
+```python
+import sys
+
+# Keep default module resolution first; add mounted dependencies as fallback.
+sys.path.append("deps")
+
+import onnx
+```
 
 Using a ready-made archive like this is exactly the "start with pre-built dependency archives" strategy recommended above:
 it removes the build step from your critical path and lets you focus on the model itself.
@@ -958,20 +978,20 @@ the model expects spatial context that the process does not provide.
 
 Quick rule of thumb:
 
-1. Use [`apply`](https://openeo.org/documentation/1.0/processes.html#apply) when each pixel can be handled independently
-   and there is no neighborhood context. This is the simplest and cheapest option, and it is appropriate for per-pixel
-   operations like scaling or thresholding.
+1. Use [`apply`](https://openeo.org/documentation/1.0/processes.html#apply) for lightweight element-wise transforms
+  (for example scaling or thresholding) where you do not need to control chunking explicitly.
 2. Use [`apply_dimension`](https://openeo.org/documentation/1.0/processes.html#apply_dimension) when logic runs along one
    dimension (most often time, `t`) for each pixel location. This is the natural choice for time-series models that consume
    a full temporal profile per pixel.
-3. Use [`apply_neighborhood`](https://openeo.org/documentation/1.0/processes.html#apply_neighborhood) when your model needs
-   a spatial patch (for example, CNN-style inference). This is the most expensive option, because it requires the backend
-   to assemble overlapping spatial windows, but it is the only correct choice for models that use spatial context.
+3. Use [`apply_neighborhood`](https://openeo.org/documentation/1.0/processes.html#apply_neighborhood) for model inference
+  whenever you need explicit control over spatial and temporal chunking, including many pixel-based models. It is required
+  for patch-based models (for example CNN-style inference), and it can also be preferable for pixel-based inference because
+  you define chunk sizes and overlap yourself instead of relying on backend defaults.
 
 Minimal patterns:
 
 ```python
-# 1) Per-pixel operation: no spatial context needed.
+# 1) Lightweight element-wise transform: no custom chunking needed.
 scaled = prediction.apply(lambda x: x * 100.0)
 ```
 
@@ -992,12 +1012,13 @@ udf_spatial = openeo.UDF.from_file("udf_spatial.py")
 pred = features.apply_neighborhood(
     process=udf_spatial,
     size=[
-        {"dimension": "x", "value": 224, "unit": "px"},
-        {"dimension": "y", "value": 224, "unit": "px"},
+        {"dimension": "x", "value": 128, "unit": "px"},
+        {"dimension": "y", "value": 128, "unit": "px"},
+        {"dimension": "t", "value": 'month'}
     ],
     overlap=[
-        {"dimension": "x", "value": 32, "unit": "px"},
-        {"dimension": "y", "value": 32, "unit": "px"},
+        {"dimension": "x", "value": 8, "unit": "px"},
+        {"dimension": "y", "value": 8, "unit": "px"},
     ],
 )
 ```
