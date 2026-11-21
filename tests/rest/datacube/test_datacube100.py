@@ -1090,6 +1090,17 @@ def test_merge_cubes_max_resolver(con100, test_data):
     assert merged.flat_graph() == test_data.load_json("1.0.0/merge_cubes_max.json")
 
 
+def test_merge_cubes_keep_right_overlap(con100):
+    left = con100.load_collection("S2", temporal_extent=["2020-01-01", "2020-03-01"])
+    right = con100.load_collection("S2", temporal_extent=["2020-02-01", "2020-04-01"])
+    merged = left.merge_cubes(right, overlap_resolver=lambda x, y: y)
+
+    resolver = merged.flat_graph()["mergecubes1"]["arguments"]["overlap_resolver"]["process_graph"]
+    assert resolver == {
+        "constant1": {"process_id": "constant", "arguments": {"x": {"from_parameter": "y"}}, "result": True}
+    }
+
+
 @pytest.mark.parametrize("overlap_resolver", [None, "max"])
 def test_merge_cubes_band_merging_disjunct(con100, requests_mock, overlap_resolver):
     setup_collection_metadata(requests_mock=requests_mock, cid="S3", bands=["B2", "B3"])

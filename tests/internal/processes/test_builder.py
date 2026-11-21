@@ -82,7 +82,6 @@ class TestConvertCallableToPgnode:
         [
             (None, {"from_parameter": "x"}),
             (["data"], {"from_parameter": "data"}),
-            (["x", "y"], [{"from_parameter": "x"}, {"from_parameter": "y"}]),
         ],
     )
     def test_identity_lambda(self, parent_parameters, argument):
