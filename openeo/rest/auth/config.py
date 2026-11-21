@@ -97,6 +97,11 @@ class PrivateJsonFile:
         try:
             with self._path.open("r", encoding="utf8") as f:
                 return json.load(f)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"Failed to load {type(self).__name__}: {str(self._path)!r} contains invalid JSON ({e})."
+                " Fix or remove this file and try again."
+            ) from e
         except Exception as e:
             raise RuntimeError(f"Failed to load {type(self).__name__} from {self._path!r}: {e!r}") from e
 

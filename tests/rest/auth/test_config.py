@@ -98,7 +98,8 @@ class TestPrivateJsonFile:
 
         private = PrivateJsonFile(path=path)
         with pytest.raises(
-            RuntimeError, match=r"Failed to load PrivateJsonFile from .*my_data\.secret.*JSONDecodeError.*line 2"
+            RuntimeError,
+            match=r"PrivateJsonFile: '.*my_data\.secret' contains invalid JSON \(.*line 2.*\)\. Fix or remove",
         ):
             private.load()
 
