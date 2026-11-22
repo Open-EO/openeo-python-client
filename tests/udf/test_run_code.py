@@ -9,7 +9,7 @@ import pytest
 import xarray
 
 from openeo import UDF
-from openeo.udf import UdfData, XarrayDataCube
+from openeo.udf import OpenEoUdfException, UdfData, XarrayDataCube
 from openeo.udf._compat import FlimsyTomlParser
 from openeo.udf.run_code import (
     _annotation_is_pandas_series,
@@ -87,6 +87,35 @@ def test_run_udf_code_map_fabs():
     assert output.array.name == "temp_fabs"
     assert output.array.shape == (3, 3, 3)
     assert list(output.array[0, :2, :].values.ravel()) == [0, 1, 2, 10, 9, 8]
+
+
+def test_run_udf_code_reports_the_signatures_it_found():
+    """An unsupported signature should say what the UDF code does define, not just "No UDF found"."""
+    udf_code = textwrap.dedent(
+        """
+        def apply_datacube(cube, context):
+            # the annotations are what selects the entrypoint, so this cannot be called
+            return cube
+        """
+    )
+    xdc = _build_txy_data(ts=[2019, 2020, 2021], xs=[2, 3], ys=[10, 20], name="temp")
+    udf_data = UdfData(datacube_list=[xdc])
+
+    with pytest.raises(OpenEoUdfException) as exc_info:
+        run_udf_code(code=udf_code, data=udf_data)
+
+    message = str(exc_info.value)
+    assert "No UDF found" in message
+    assert "apply_datacube(cube, context)" in message
+    assert "annotations" in message
+
+
+def test_run_udf_code_reports_when_no_function_is_defined():
+    xdc = _build_txy_data(ts=[2019, 2020, 2021], xs=[2, 3], ys=[10, 20], name="temp")
+    udf_data = UdfData(datacube_list=[xdc])
+
+    with pytest.raises(OpenEoUdfException, match="no functions"):
+        run_udf_code(code="x = 1", data=udf_data)
 
 
 def test_run_udf_code_reduce_time_mean():

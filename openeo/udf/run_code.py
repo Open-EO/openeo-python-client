@@ -150,13 +150,19 @@ def apply_timeseries_generic(
 def run_udf_code(code: str, data: UdfData) -> UdfData:
     # TODO: current implementation uses first match directly, first check for multiple matches?
     module = load_module_from_string(code)
-    functions = ((k, v) for (k, v) in module.items() if callable(v))
+    # The execution context pre-loads types like `UdfData`, which are callable but never UDFs.
+    functions = ((k, v) for (k, v) in module.items() if callable(v) and not inspect.isclass(v))
+
+    # Keep track of what the UDF code does define, to name it when nothing matches.
+    found_functions = []
 
     for (fn_name, func) in functions:
         try:
             sig = inspect.signature(func)
         except ValueError:
+            found_functions.append("`{n}`".format(n=fn_name))
             continue
+        found_functions.append("`{n}{s}`".format(n=fn_name, s=sig))
         params = sig.parameters
         first_param = next(iter(params.values()), None)
 
@@ -235,7 +241,14 @@ def run_udf_code(code: str, data: UdfData) -> UdfData:
             func(data)
             return data
 
-    raise OpenEoUdfException("No UDF found.")
+    raise OpenEoUdfException(
+        "No UDF found: none of the functions in the UDF code has a supported UDF signature. "
+        "Found: {found}. The function name and its type annotations decide how the UDF "
+        "is called, so they cannot be left out "
+        "(see https://open-eo.github.io/openeo-python-client/udf.html#udf-function-names-and-signatures).".format(
+            found=", ".join(found_functions) if found_functions else "no functions"
+        )
+    )
 
 
 def execute_local_udf(
