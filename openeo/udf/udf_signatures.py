@@ -34,6 +34,9 @@ def apply_timeseries(series: Series, context: dict) -> Series:
     # TODO: do we need geospatial coordinates for the series?
     return series
 
+# Note: this stub is shadowed by the xarray.DataArray variant further down, which is
+# the form to use. The "Supported signatures" section of the UDF documentation lists
+# both, since a module can only define one function of a given name.
 @deprecated
 def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
     """

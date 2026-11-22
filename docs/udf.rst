@@ -173,12 +173,103 @@ Instead, write the full annotated signature:
         ...
 
 
-Module ``openeo.udf.udf_signatures``
--------------------------------------
+Supported signatures
+--------------------
 
+These are the entrypoint signatures a UDF can implement.
+Pick the one that matches the process the UDF is used with,
+and write it as shown, with the type annotations.
 
-.. automodule:: openeo.udf.udf_signatures
- :members:
+``apply_datacube`` with a data array
+    Map a :py:class:`xarray.DataArray` to another :py:class:`xarray.DataArray`.
+    This is the form to use for ``apply_datacube``.
+
+    .. code-block:: python
+
+        import xarray
+
+        def apply_datacube(cube: xarray.DataArray, context: dict) -> xarray.DataArray:
+            ...
+
+    Depending on the context in which the UDF is used, the dimensions of the
+    data array have to be retained or may change.
+    In the context of a reducing operation along a dimension,
+    that dimension has to be reduced to a single value.
+    In the context of a 1 to 1 mapping operation, all dimensions have to be retained.
+
+``apply_datacube`` with a data cube
+    Map an :py:class:`XarrayDataCube` to another :py:class:`XarrayDataCube`.
+
+    .. deprecated:: 0.26.0
+        Use the ``xarray.DataArray`` variant above instead.
+
+    .. code-block:: python
+
+        from openeo.udf import XarrayDataCube
+
+        def apply_datacube(cube: XarrayDataCube, context: dict) -> XarrayDataCube:
+            ...
+
+``apply_timeseries``
+    Process a timeseries of values, without changing the time instants.
+    This can for instance be used for smoothing or gap-filling.
+
+    .. code-block:: python
+
+        import pandas
+
+        def apply_timeseries(series: pandas.Series, context: dict) -> pandas.Series:
+            ...
+
+    The series has a datetime index, and the returned series has to keep it.
+
+``apply_vectorcube``
+    Map a vector cube to another vector cube.
+    ``geometries`` holds the shapely geometries and their properties,
+    ``cube`` has dimensions (geometries, time, bands), where time and bands are optional,
+    and its coordinates along the geometry dimension index the geometries.
+
+    .. code-block:: python
+
+        import geopandas
+        import xarray
+
+        def apply_vectorcube(
+            geometries: geopandas.GeoDataFrame, cube: xarray.DataArray, context: dict
+        ) -> tuple[geopandas.GeoDataFrame, xarray.DataArray]:
+            ...
+
+``apply_metadata``
+    Return the metadata of the cube after the UDF has been applied,
+    given the metadata of the whole input cube.
+    It is called once, not once per chunk,
+    and is only needed when the backend cannot infer the resulting metadata
+    by running the UDF, for instance because it changes the labels of a dimension.
+
+    .. warning::
+        This signature is not yet fully standardized and is subject to change.
+
+    .. code-block:: python
+
+        from openeo.metadata import CubeMetadata
+
+        def apply_metadata(metadata: CubeMetadata, context: dict) -> CubeMetadata:
+            ...
+
+``apply_udf_data``
+    Take a :py:class:`UdfData` object and manipulate it in place.
+    This is the generic form: it gives access to everything the other signatures offer,
+    at the cost of having to manage the data cube and feature collection lists yourself.
+
+    .. code-block:: python
+
+        from openeo.udf import UdfData
+
+        def apply_udf_data(data: UdfData):
+            ...
+
+The module :py:mod:`openeo.udf.udf_signatures` holds the same signatures
+as executable stubs, for reference and for tooling.
 
 
 
