@@ -231,7 +231,7 @@ See the :ref:`API reference below <job-manager-api-reference>` for the full inte
 Job Splitting
 =============
 
-The :py:func:`~openeo.extra.job_management._job_splitting.split_area` helper function allows you to split a large area of interest into smaller areas, which can then be processed as separate jobs.
+The :py:func:`~openeo.extra.job_management.split_area` helper function allows you to split a large area of interest into smaller areas, which can then be processed as separate jobs.
 A user may have a large spatial extent, in the form of a bounding box or polygon, that exceeds the processing limits of a single job on the backend.
 The results are returned as a :py:class:`geopandas.GeoDataFrame` with one row per tile, which can be used as the starting point for a job database where each row corresponds to a manageable job.
 
@@ -507,6 +507,8 @@ Example: subclass to add custom post-processing:
             print(f"Job {job.job_id} failed!")
 
 
+.. _job-manager-download-results:
+
 Automatic Result Downloading
 ============================
 
@@ -523,6 +525,8 @@ Results and metadata are saved under the ``root_dir`` directory
 .. versionadded:: 0.47.0
     The ``download_results`` parameter.
 
+
+.. _job-manager-cancel-running-job:
 
 Canceling Long-Running Jobs
 ============================
@@ -714,6 +718,8 @@ Job Database
 .. autofunction:: openeo.extra.job_management.create_job_db
 
 .. autofunction:: openeo.extra.job_management.get_job_db
+
+.. autofunction:: openeo.extra.job_management.split_area
 
 .. autoclass:: openeo.extra.job_management.stac_job_db.STACAPIJobDatabase
 

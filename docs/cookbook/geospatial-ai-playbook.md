@@ -198,7 +198,7 @@ The output format follows from the extraction mode and from how you consume the 
 | CSV / JSON | vector | Quick inspection in spreadsheets; may not retain feature attributes. |
 
 Supported formats and their options are backend-specific; check them with
-{py:meth}`~openeo.rest.connection.Connection.list_output_formats`.
+{py:meth}`~openeo.rest.connection.Connection.list_file_formats`.
 
 ### 2.2 Organising your reference data
 
@@ -357,9 +357,9 @@ tile keeps the job size manageable, aligns with how the input data is stored, an
 single UTM zone.
 
 The openEO Python client offers a job splitting utility
-(`split_area` in `openeo.extra.job_management`, see {ref}`job-splitting-custom-grid`) that partitions your area or
+(the {py:func}`~openeo.extra.job_management.split_area` function, see {ref}`job-splitting-custom-grid`) that partitions your area or
 samples over a tile grid, such as a pre-computed Sentinel-2 tile grid, and returns a GeoDataFrame with one row per tile — a
-ready-made starting point for a job database. The openEO {ref}`MultiBackendJobManager <job-manager>` can
+ready-made starting point for a job database. The openEO {py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`) can
 then run and track the resulting list of extraction jobs. For patch extractions, note that size-based splitting does not
 guarantee pixel alignment: pass a pre-computed grid, and derive the patch polygons from that same pixel-aligned grid.
 
@@ -409,8 +409,8 @@ Whether and where to preprocess is a design choice of your ML pipeline, and it i
 letting it emerge by accident. The two options have different trade-offs:
 
 - **Preprocess in openEO**: apply cloud masking (for example, based on the Sentinel-2 SCL band with
-  `mask_scl_dilation`/`to_scl_dilation_mask`), compute backscatter with `sar_backscatter`, composite to regular time steps
-  with `aggregate_temporal_period`, resample with `resample_cube_spatial`, and merge sensors with `merge_cubes`. This
+  `mask_scl_dilation`/`to_scl_dilation_mask`), compute backscatter with {py:meth}`~openeo.rest.datacube.DataCube.sar_backscatter`, composite to regular time steps
+  with {py:meth}`~openeo.rest.datacube.DataCube.aggregate_temporal_period`, resample with {py:meth}`~openeo.rest.datacube.DataCube.resample_cube_spatial`, and merge sensors with {py:meth}`~openeo.rest.datacube.DataCube.merge_cubes`. This
   yields analysis-ready training data and keeps the ML code simple. The advantage is that the preprocessing is visible in
   the openEO graph, versioned alongside the extraction logic, and applied identically to training and inference.
 - **Preprocess in the model**: extract (nearly) raw observations and perform normalisation, compositing, or feature
@@ -519,8 +519,8 @@ call.
 
 #### Delivering patches to storage
 
-`download_files` is convenient for experiments, but batch job results are only kept for a limited time. For larger or
-recurring extractions, let the backend write the results straight to your own object storage with `export_workspace`
+{py:meth}`download_files <openeo.rest.job.JobResults.download_files>` is convenient for experiments, but batch job results are only kept for a limited time. For larger or
+recurring extractions, let the backend write the results straight to your own object storage with {py:meth}`~openeo.rest.stac_resource.StacResource.export_workspace`
 (where supported), which also writes the STAC metadata:
 
 ```python
@@ -533,7 +533,7 @@ job = result.create_job(title="ML patch extraction")
 ```
 
 Which workspaces are available, and whether you can register your own storage, is backend-specific. When running such
-extractions through the job manager, create it with `download_results=False`, so results are not downloaded a second time.
+extractions through the job manager, create it with `download_results=False` (see {ref}`job-manager-download-results`), so results are not downloaded a second time.
 Check the backend process listing (for example `/openeo/1.2/processes`) to confirm `export_workspace` availability and
 workspace options.
 
@@ -591,7 +591,7 @@ Reference implementation used here: [random-forest forest-fire
 example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/random-forest-forest-fire).
 
 For tree-based models, openEO does support native training and inference, given that it is genuinely CPU-friendly:
-`fit_class_random_forest` trains server-side on the backend's regular compute nodes. You send openEO a cube
+{py:meth}`~openeo.rest.vectorcube.VectorCube.fit_class_random_forest` trains server-side on the backend's regular compute nodes. You send openEO a cube
 of input features (predictors) and a set of labelled points (y_train), and the backend fits the
 trees.
 
@@ -736,7 +736,7 @@ UDFs are the most flexible and established way to run custom ML code in openEO. 
 
 - **Maximum flexibility:** you can implement any preprocessing, model inference, and postprocessing logic in Python, including custom neural network architectures and specialised embedding models.
 - **Full data cube access:** the UDF receives band names, coordinates, and the `context` object, allowing you to pass per-job parameters and inspect the cube's structure.
-- **Mature ecosystem:** well-documented patterns exist for managing dependencies via `udf-dependency-archives` and for applying UDFs with `apply`, `apply_dimension`, and `apply_neighborhood`.
+- **Mature ecosystem:** well-documented patterns exist for managing dependencies via `udf-dependency-archives` and for applying UDFs with `apply`, {py:meth}`~openeo.rest.datacube.DataCube.apply_dimension`, and {py:meth}`~openeo.rest.datacube.DataCube.apply_neighborhood`.
 
 **Disadvantages:**
 
@@ -765,7 +765,7 @@ This also makes the UDF a natural precursor to `predict_onnx`: the UDF gives you
 
 **Disadvantages:**
 
-- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is listed on CDSE and Terrascope (verified 2026-11-23), but other backends may not offer it; check `connection.list_processes()`. The CDSE community example is the reference implementation.
+- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is listed on CDSE and Terrascope (verified 2026-11-23), but other backends may not offer it; check {py:meth}`connection.list_processes() <openeo.rest.connection.Connection.list_processes>`. The CDSE community example is the reference implementation.
 - **Fixed interface:** the process operates on a tensor interface with no access to band names, coordinates, or the `context` object, making it unsuitable for models that need this metadata.
 - **Limited to ONNX:** only models that can be exported to ONNX and conform to the expected input/output contract are supported. R backends, for example, currently require Python bridging to export ONNX artifacts.
 
@@ -786,7 +786,7 @@ CWL is an open standard for describing command-line tools and workflows. openEO 
 - **Conceptual overlap with openEO:** CWL and openEO have overlapping purposes, which can lead to complexity in deciding where one ends and the other begins. There is demand to run CWL as part of a larger openEO chain, but the boundary requires careful design.
 - **Indirect data handling:** the CWL workflow must output a STAC collection (with the root as `collection.json`), which openEO can then `load_stac` back into a data cube. This adds an extra layer of indirection compared to a UDF.
 - **Manual resource management:** you must explicitly define resource limits (for example `ramMin`, `ramMax`, and `coresMin`) in the CWL `ResourceRequirement` field to avoid scheduling all steps on a single node and causing out-of-memory errors.
-- **Backend constraints:** the `EOAP-CWL` runtime is listed by CDSE but not by Terrascope (verified 2026-11-23); check `connection.list_udf_runtimes()`. On CDSE, as reported in February 2026 (not covered by the upstream CWL documentation, so confirm in the CDSE docs), only whitelisted Docker images that can be pulled without credentials are supported, memory is capped (around 20 GB), and increasing requested memory increases credit usage.
+- **Backend constraints:** the `EOAP-CWL` runtime is listed by CDSE but not by Terrascope (verified 2026-11-23); check {py:meth}`connection.list_udf_runtimes() <openeo.rest.connection.Connection.list_udf_runtimes>`. On CDSE, as reported in February 2026 (not covered by the upstream CWL documentation, so confirm in the CDSE docs), only whitelisted Docker images that can be pulled without credentials are supported, memory is capped (around 20 GB), and increasing requested memory increases credit usage.
 
 **Best for:** packaging and running complex, multi-step, or container-based ML workflows that are already defined in CWL, or when you need the standardisation and portability that CWL offers. See [Section 4.4](#44-deploying-via-common-workflow-language-cwl) for a deployment example.
 
@@ -1041,7 +1041,7 @@ sessions and tune thread counts.
 
 ### 4.3 Deploying via `predict_onnx`
 
-Once an ONNX artifact is exported and parity-tested (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), `predict_onnx` is the simplest deployment path on backends that support it. The process takes the model (URL) and the array of values to predict on, typically applied along a dimension of the cube, and the backend handles the ONNX runtime, session caching, and chunking.
+Once an ONNX artifact is exported and parity-tested (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), `predict_onnx` ({py:func}`openeo.processes.predict_onnx`) is the simplest deployment path on backends that support it. The process takes the model (URL) and the array of values to predict on, typically applied along a dimension of the cube, and the backend handles the ONNX runtime, session caching, and chunking.
 
 ```python
 from openeo.processes import predict_onnx
@@ -1369,7 +1369,7 @@ coverage, output quality, and runtime after each step. Tune job options separate
 [9.2](#92-job-option-tuning).
 
 In practice, this incremental approach pairs well with the
-{ref}`MultiBackendJobManager <job-manager>`, which is built
+{py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`), which is built
 specifically for running and tracking large numbers of batch jobs rather than babysitting them one at a time. Instead of
 manually looping over areas or job options and keeping track of what succeeded, you describe the work as a small table, one row per job,
 and let the manager submit, poll, track, and (optionally) download results for you. More orchestration examples are in
@@ -1421,13 +1421,13 @@ manager.run_jobs(job_db=job_db, start_job=start_job)
 ```
 
 Because the job database is persisted to disk (as CSV or Parquet), the whole run can be interrupted and resumed later with
-`get_job_db()` without losing track of which tiles already finished, which is exactly the kind of bookkeeping that becomes
+{py:func}`~openeo.extra.job_management.get_job_db` without losing track of which tiles already finished, which is exactly the kind of bookkeeping that becomes
 tedious to do by hand once you are past a handful of jobs.
 
 If other tools, such as a dashboard, need to read the job state, the job database can also live in a STAC API with
 {py:class}`~openeo.extra.job_management.stac_job_db.STACAPIJobDatabase`. This is still experimental, so pin your client
 version when relying on it. When results are written to object storage with `export_workspace` (see
-[Delivering patches to storage](#delivering-patches-to-storage)), create the manager with `download_results=False`, so results are not downloaded a second time.
+[Delivering patches to storage](#delivering-patches-to-storage)), create the manager with `download_results=False` (see {ref}`job-manager-download-results`), so results are not downloaded a second time.
 
 ### 9.2 Job option tuning
 
@@ -1447,8 +1447,8 @@ run.
 
 ### 9.3 Cost and credit control
 
-Cost control should start from a representative pilot. When using the `MultiBackendJobManager` for the upscaling/tuning exercise, pass
-`cancel_running_job_after` (in seconds) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
+Cost control should start from a representative pilot. When using the {py:class}`~openeo.extra.job_management.MultiBackendJobManager` for the upscaling/tuning exercise, pass
+`cancel_running_job_after` (in seconds, see {ref}`job-manager-cancel-running-job`) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
 the limit from pilot runtimes, with enough margin for normal variation. For the area sweep in
 [9.1](#91-incremental-scaling-strategy), ensure the limit accommodates the largest planned extent; otherwise, omit it for
 that sweep.
