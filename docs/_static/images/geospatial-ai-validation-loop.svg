@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="300" viewBox="0 0 920 300" role="img" aria-labelledby="title desc">
+  <title id="title">Three-stage validation loop</title>
+  <desc id="desc">Stage 1: source-versus-ONNX parity check locally. Stage 2: run the UDF locally on a representative tile. Stage 3: tiny smoke run on the backend. A failure at any stage means fixing and repeating before moving on. Cost and realism increase from left to right.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5174a5"/>
+    </marker>
+    <marker id="back" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#b86b4b"/>
+    </marker>
+    <style>
+      .card { fill:#f7f9fc; stroke:#b8c7dc; stroke-width:2; }
+      .openeo { fill:#edf4fb; stroke:#5174a5; }
+      .number { fill:#ffffff; font:700 13px Arial,sans-serif; }
+      .title { fill:#24344d; font:700 16px Arial,sans-serif; }
+      .detail { fill:#5d6b7d; font:13px Arial,sans-serif; }
+      .arrow { fill:none; stroke:#5174a5; stroke-width:2.5; marker-end:url(#arrow); }
+      .retry { fill:none; stroke:#b86b4b; stroke-width:2; stroke-dasharray:6 4; marker-end:url(#back); }
+      .label { fill:#5174a5; font:700 12px Arial,sans-serif; }
+      .retrylabel { fill:#b86b4b; font:700 12px Arial,sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="920" height="300" rx="16" fill="#ffffff" stroke="#e4e9f1" stroke-width="2"/>
+
+  <!-- Stage 1 -->
+  <rect class="card" x="35" y="60" width="240" height="110" rx="10"/>
+  <circle cx="60" cy="84" r="14" fill="#5174a5"/><text class="number" x="55.5" y="89">1</text>
+  <text class="title" x="82" y="90">Model parity</text>
+  <text class="detail" x="55" y="118">Source vs exported ONNX</text>
+  <text class="detail" x="55" y="138">Local, seconds</text>
+  <text class="detail" x="55" y="158">Catches export errors</text>
+
+  <!-- Stage 2 -->
+  <rect class="card" x="340" y="60" width="240" height="110" rx="10"/>
+  <circle cx="365" cy="84" r="14" fill="#5174a5"/><text class="number" x="360.5" y="89">2</text>
+  <text class="title" x="387" y="90">Local UDF test</text>
+  <text class="detail" x="360" y="118">Representative openEO tile</text>
+  <text class="detail" x="360" y="138">Local, minutes</text>
+  <text class="detail" x="360" y="158">Shape, dtype, band order</text>
+
+  <!-- Stage 3 -->
+  <rect class="openeo card" x="645" y="60" width="240" height="110" rx="10"/>
+  <circle cx="670" cy="84" r="14" fill="#5174a5"/><text class="number" x="665.5" y="89">3</text>
+  <text class="title" x="692" y="90">Backend smoke run</text>
+  <text class="detail" x="665" y="118">Tiny, held-out AOI</text>
+  <text class="detail" x="665" y="138">Remote, costs credits</text>
+  <text class="detail" x="665" y="158">Backend-specific issues</text>
+
+  <!-- Forward arrows -->
+  <path class="arrow" d="M275 115 H340"/>
+  <text class="label" x="307" y="105" text-anchor="middle">pass</text>
+  <path class="arrow" d="M580 115 H645"/>
+  <text class="label" x="612" y="105" text-anchor="middle">pass</text>
+
+  <!-- Retry loops -->
+  <path class="retry" d="M460 170 V215 H155 V176"/>
+  <text class="retrylabel" x="307" y="232" text-anchor="middle">fail: fix and repeat earlier stage</text>
+  <path class="retry" d="M765 170 V215 H475 V176"/>
+
+  <!-- Cost bar -->
+  <text class="detail" x="35" y="275">Cheap, fast</text>
+  <path class="arrow" d="M120 271 H760"/>
+  <text class="detail" x="885" y="275" text-anchor="end">Realistic, costly</text>
+</svg>

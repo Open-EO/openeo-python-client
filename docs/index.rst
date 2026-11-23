@@ -55,7 +55,10 @@ A simple example, to give a feel of using this library:
    udf
    datacube_construction
    machine_learning
+<<<<<<< HEAD
    cookbook/geospatial-ai-playbook
+=======
+>>>>>>> c8ee41e1 (adding an index and a few diagrams)
    configuration
    cookbook/index
    api
