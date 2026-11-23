@@ -157,6 +157,9 @@ Training a machine-learning model on Earth observation data starts with high-qua
 which the target variable (for example, a crop type, land-cover class, or biophysical measurement) is known. This section
 describes how to organise such reference data and how to extract the corresponding satellite observations with openEO,
 either as points (tabular time series per sample) or as patches (small raster chips per sample).
+For a worked end-to-end example, see the [extracting-training-data
+notebook](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/extracting-training-data)
+(Sentinel-2 L2A with LUCAS 2022 reference samples).
 
 ### 2.1 Extraction modes
 
@@ -433,6 +436,10 @@ s1_monthly = s1.aggregate_temporal_period(period="month", reducer="mean")
 features = s2_monthly.merge_cubes(s1_monthly.resample_cube_spatial(s2_monthly))
 ```
 
+Related community examples: [scl-dilation-mask](https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/scl-dilation-mask)
+for cloud/shadow masking and [basic-sentinel-merge](https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/basic-sentinel-merge)
+for merging Sentinel-1 and Sentinel-2 into one cube.
+
 ### 2.5 Point extraction with `aggregate_spatial`
 
 For point-based models, use
@@ -623,7 +630,7 @@ result asset, alongside the usual STAC metadata.
 
 ### 3.3 Using the trained model at inference time
 
-The companion notebook, `random-forest-inference-udp.ipynb`, picks the model up purely by URL:
+The companion notebook, [`random-forest-inference-udp.ipynb`](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/random-forest-forest-fire), picks the model up purely by URL:
 
 ```python
 # link to the trained model
@@ -800,7 +807,7 @@ Use the following rules of thumb to choose the right onboarding path:
 This decision framework complements the STAC-based model description discussed in [Section 5](#5-ml-models-and-stac): by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.
 
 ```{note}
-The three options are not mutually exclusive. One can perfectly combine UDFs with predic_onnx into a single pipeline if need be. In the current version CWL supports rather a stand-alone approach.
+The three options are not mutually exclusive. One can perfectly combine UDFs with predict_onnx into a single pipeline if need be. In the current version CWL supports rather a stand-alone approach.
 ```
 
 **Where to go next**
@@ -1023,6 +1030,11 @@ import onnx
 Using a ready-made archive like this is exactly the "start with pre-built dependency archives" strategy recommended above:
 it removes the build step from your critical path and lets you focus on the model itself.
 
+Related UDF examples: [onnx-inference](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/onnx-inference)
+runs a pretrained CNN with ONNX Runtime inside a UDF, and
+[parcel-delineation](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/parcel-delineation)
+deploys a pretrained U-Net.
+
 See [Section 7](#7-running-inference-inside-the-udf) for the patterns that make UDF inference reliable at scale: how to
 choose between `apply`, `apply_dimension`, and `apply_neighborhood`, how to handle chunk padding, and how to cache
 sessions and tune thread counts.
@@ -1044,7 +1056,7 @@ Three things to watch:
 
 - **Contract, not code.** The input cube must already match the model's expected shape, dtype, and band order. There is no `context` and no band-name access inside the process, so any preprocessing must be done with native openEO processes (or baked into the ONNX graph, see [4.1.2](#412-calibration-lives-inside-the-model)) before the call.
 - **Backend support.** The process is experimental. It is listed on CDSE and Terrascope (verified 2026-11-23) but may be missing elsewhere; check `connection.list_processes()` before designing around it.
-- **Spatial context.** For CNN-style models, combine with `apply_neighborhood` and set `size` and `overlap` explicitly. The [onnx-ml-inference example](https://documentation.dataspace.copernicus.eu/APIs/openEO/openeo-community-examples/python/40_machine-learning/onnx-inference/onnx-ml-inference.html) shows the reference pattern, and the [brdf-predict-onnx example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/brdf-predict-onnx) shows a per-pixel variant.
+- **Spatial context.** For CNN-style models, check how the backend tiles the input. According to the community examples, the CDSE `predict_onnx` has no overlap option, so tiles are processed without overlap and seams are possible (the OlmoEarth example below accepts this). If your model needs overlapping windows, use a UDF with `apply_neighborhood` instead (see [4.2](#42-deploying-via-user-defined-functions)).
 
 The [OlmoEarth example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) shows the full pattern for an embedding model:
 
@@ -1073,7 +1085,7 @@ Operationally, three constraints shape how you write the CWL:
 - **STAC output.** The workflow must write a STAC collection (`collection.json` at the root) that openEO can then `load_stac` back into a data cube. The inference result reaches the caller through this collection, not through the UDF return value.
 - **Image constraints.** On CDSE, only whitelisted Docker images that can be pulled without credentials are supported (as reported in February 2026; see 4.0.3). Test locally with `cwltool` before submitting to the cluster.
 
-See the [CWL UDF documentation](https://open-eo.github.io/openeo-geopyspark-driver/udf-eoap-cwl.html) for the full operational reference, including the accepted CWL version, the supported hints, and the data staging behaviour.
+See the [CWL UDF documentation](https://open-eo.github.io/openeo-geopyspark-driver/udf-eoap-cwl.html) for the full operational reference, including the accepted CWL version, the supported hints, and the data staging behaviour. The [sar-in-openeo-with-cwl examples](https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/sar-in-openeo-with-cwl) show CWL in practice (Sentinel-1 coherence and interferograms).
 
 ## 5. ML models and STAC
 
@@ -1120,6 +1132,7 @@ artifacts. This kind of information is especially relevant during deployment.
 - {doc}`Batch Jobs </batch_jobs>`
 - {doc}`Data Access </data_access>`
 - [openEO community examples: geospatial embeddings](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings)
+- [openEO community examples: machine learning](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning)
 - [EOTDL](https://www.eotdl.com/)
 
 ## 6. Emerging: a standardized ML API in openEO
@@ -1359,7 +1372,9 @@ In practice, this incremental approach pairs well with the
 {ref}`MultiBackendJobManager <job-manager>`, which is built
 specifically for running and tracking large numbers of batch jobs rather than babysitting them one at a time. Instead of
 manually looping over areas or job options and keeping track of what succeeded, you describe the work as a small table, one row per job,
-and let the manager submit, poll, track, and (optionally) download results for you. For an area-scaling sweep, vary only the spatial extent while keeping the process graph and job options fixed:
+and let the manager submit, poll, track, and (optionally) download results for you. More orchestration examples are in
+[70 · Platform and large scale](https://github.com/Open-EO/openeo-community-examples/tree/main/python/70_platform-and-large-scale).
+For an area-scaling sweep, vary only the spatial extent while keeping the process graph and job options fixed:
 
 ```python
 import pandas as pd
