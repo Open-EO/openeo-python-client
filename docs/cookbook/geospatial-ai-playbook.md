@@ -41,6 +41,19 @@ Each of those stages maps to a section below.
 9. Online validation + metrics
 10. Upscaling + tuning (job manager sweeps)
 
+```text
+Reference data + labels
+        |
+        v
+openEO feature extraction --> Training dataset --> Model training --> Model export
+                                                                         |      \
+                                                                         v       +--> Optional STAC
+                                                               Offline validation    model description
+                                                                         |
+                                                                         v
+openEO inference --> Online validation + metrics --> Upscaling + tuning
+```
+
 ## 1. Data extraction and feature engineering in openEO
 
 If your goal is an ML model that is eventually operationalized through openEO, start with openEO constraints in mind from
