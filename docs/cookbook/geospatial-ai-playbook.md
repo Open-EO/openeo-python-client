@@ -685,11 +685,21 @@ examples](https://github.com/Open-EO/openeo-community-examples/tree/main/python/
 the practical starting point for the embedding-first pattern. It contains several worked examples that cover different
 points on the spectrum from classical dimensionality reduction to foundation-model-style embeddings:
 
-- **Dimensionality reduction** examples showing how a compact representation can be derived without a heavy backbone,
-  useful as a baseline before committing to a large model.
-- **TESSERA** and **TerraMind** examples, which demonstrate foundation-model-style embeddings, including how the input
-  calibration the network depends on is baked into the exported ONNX graph (see [Section
-  4.1.2](#412-calibration-lives-inside-the-model)).
+- **[Dimensionality reduction](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/dimensionality-reduction)**,
+  a PCA-based UDF showing how a compact representation can be derived without a heavy backbone, useful as a baseline
+  before committing to a large model.
+- **[CORSA](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/corsa)**,
+  learned compression of Sentinel-2 through custom backend processes.
+- **[TESSERA](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/tessera)**
+  (PyTorch UDF) and **[TerraMind](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/terramind)**
+  (ONNX UDF), which demonstrate foundation-model-style embeddings. TerraMind also shows how the input calibration the
+  network depends on is baked into the exported ONNX graph (see [Section 4.1.2](#412-calibration-lives-inside-the-model)).
+- **[OlmoEarth](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth)**,
+  which computes annual Sentinel-1/2 embeddings with native `predict_onnx`: no UDF, no dependency archive and no GPU.
+
+Once an embedding model is chosen, its pipeline is fixed: a pinned checkpoint, a known input layout and no custom
+logic between the bands and the model. That makes `predict_onnx` (see [4.3](#43-deploying-via-predict_onnx)) usually
+a better fit than a UDF. Reserve UDFs for the experimental phase, or for steps that native processes cannot express.
 
 Each example is a runnable notebook rather than a fragment, so it doubles as a template for your own pipeline.
 
@@ -1035,6 +1045,12 @@ Three things to watch:
 - **Contract, not code.** The input cube must already match the model's expected shape, dtype, and band order. There is no `context` and no band-name access inside the process, so any preprocessing must be done with native openEO processes (or baked into the ONNX graph, see [4.1.2](#412-calibration-lives-inside-the-model)) before the call.
 - **Backend support.** The process is experimental. It is listed on CDSE and Terrascope (verified 2026-11-23) but may be missing elsewhere; check `connection.list_processes()` before designing around it.
 - **Spatial context.** For CNN-style models, combine with `apply_neighborhood` and set `size` and `overlap` explicitly. The [onnx-ml-inference example](https://documentation.dataspace.copernicus.eu/APIs/openEO/openeo-community-examples/python/40_machine-learning/onnx-inference/onnx-ml-inference.html) shows the reference pattern, and the [brdf-predict-onnx example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/brdf-predict-onnx) shows a per-pixel variant.
+
+The [OlmoEarth example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) shows the full pattern for an embedding model:
+
+- the model is exported and parity-checked locally;
+- the monthly Sentinel-1/2 inputs are built with native processes;
+- the ONNX file is uploaded as an artifact and run through `predict_onnx`, with a STAC model description.
 
 For simple per-pixel or per-tile models, `predict_onnx` is usually less code and less operational overhead than the equivalent UDF. For anything that needs custom logic around the model, fall back to Section 4.2.
 
