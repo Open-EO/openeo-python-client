@@ -383,6 +383,91 @@ Current limitations:
   while ``split_area`` anchors its tiles at the corner of the area of interest.
   The same tile size can therefore give different tile boundaries in both functions.
 
+From grouped geometries to a job database
+-----------------------------------------
+
+``group_geometries`` returns a list of GeoDataFrames, which have to be
+turned into a job database with one row per batch.
+There are two ways to pass the geometries of a batch to its job:
+
+**Inline GeoJSON in the process graph.**
+Store each batch as a GeoJSON ``FeatureCollection`` in the job database,
+and pass it directly to e.g. ``aggregate_spatial``.
+This is simple, but has some important downsides:
+
+- GeoJSON geometries must be in lat/lon (EPSG:4326),
+  so batches in another CRS have to be reprojected first.
+- Reprojecting very large or complex geometries to EPSG:4326 can introduce
+    precision/distortion artifacts (especially near poles or the antimeridian),
+    which may lead to slight but unwanted geometry differences in the job input.
+- All geometries end up in the process graph itself.
+  Batches with many (or complex) geometries lead to very large process graphs,
+  which may be slow to submit or even get rejected by the backend.
+
+.. code-block:: python
+
+    import json
+    import pandas as pd
+    from openeo.extra.job_management import create_job_db
+
+    df = pd.DataFrame({
+        "geometry_geojson": [batch.to_crs(epsg=4326).to_json() for batch in batches],
+    })
+    job_db = create_job_db("jobs.csv", df=df)
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection("SENTINEL2_L2A", temporal_extent=["2024-06-01", "2024-07-01"], bands=["B04", "B08"])
+        geometries = json.loads(row["geometry_geojson"])
+        return cube.aggregate_spatial(geometries=geometries, reducer="mean").create_job()
+
+**GeoParquet files referenced by URL (recommended for native CRS).**
+Write each batch to a GeoParquet file, upload it to object storage, and only store
+its URL in the job database.
+This keeps process graphs small and preserves the CRS of the batch.
+In ``start_job``, explicitly load the geometry URL with ``connection.load_url(..., format="Parquet")``
+and pass that to spatial operations such as ``aggregate_spatial``.
+
+If your backend supports it, the :ref:`artifact helper <api-openeo-extra-artifacts>`
+can be used to upload the files to backend-provided object storage
+and get a presigned URL for each of them:
+
+.. code-block:: python
+
+    import pandas as pd
+    from openeo.extra.artifacts import build_artifact_helper
+    from openeo.extra.job_management import create_job_db
+
+    artifact_helper = build_artifact_helper(connection)
+
+    rows = []
+    for i, batch in enumerate(batches):
+        path = f"batch_{i}.parquet"
+        batch.to_parquet(path)
+        storage_uri = artifact_helper.upload_file(path, object_name=path)
+        url = artifact_helper.get_presigned_url(storage_uri, expires_in_seconds=7 * 24 * 3600)
+        rows.append({"batch_id": i, "geometry_url": url})
+    job_db = create_job_db("jobs.csv", df=pd.DataFrame(rows))
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection("SENTINEL2_L2A", temporal_extent=["2024-06-01", "2024-07-01"], bands=["B04", "B08"])
+        geometries = connection.load_url(row["geometry_url"], format="Parquet")
+        return cube.aggregate_spatial(geometries).create_job()
+
+Keep the following in mind with this approach:
+
+- Presigned URLs contain credentials: keep the job database private.
+- Presigned URLs expire (after ``expires_in_seconds``):
+  make sure this covers the full run of the job manager,
+  or create new URLs for jobs that have not started yet.
+- Artifact storage is meant for temporary data and may be cleaned up by the backend.
+  Keep your original geometries locally.
+- Pratical limits to the artifact helper do apply; local memory,
+  network limits, and quotas or policies of the backend's object storage.
+- The temporary storage credentials of the artifact helper are not refreshed automatically,
+  so for long-running scripts, create a new artifact helper when uploads start failing.
+- Instead of the artifact helper, you can use your own object storage,
+  as long as the backend can read the URLs.
+
 Customizing Job Handling
 ========================
 

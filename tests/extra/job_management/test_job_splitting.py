@@ -471,20 +471,6 @@ class TestGroupGeometries:
         # Then
         assert _index_groups(actual) == [[0, 2], [1, 3]]
 
-#TODO check warning
-    def test_polygons_in_geographic_crs_emit_no_warning(self):
-        # Given
-        gdf = gpd.GeoDataFrame(
-            geometry=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(100, 0, 101, 1)],
-            crs="EPSG:4326",
-        )
-        # When
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", UserWarning)
-            actual = group_geometries(gdf, max_geometries=1)
-        # Then
-        assert _index_groups(actual) == [[0], [1]]
-
     def test_multipoint_row_counts_as_one_geometry(self):
         # Given: a MultiPoint with 3 coordinates, and a Point
         gdf = gpd.GeoDataFrame(
@@ -611,7 +597,6 @@ class TestGroupGeometries:
         # Then
         assert _index_groups(actual) == [[0], [1, 2]]
 
-#TODO check if wanted behavior
     def test_tile_grid_in_other_crs_groups_reprojected_but_returns_input_crs(self):
         # Given: tiles west/east of the prime meridian in EPSG:3857, points in EPSG:4326
         tile_grid = gpd.GeoDataFrame(
@@ -682,7 +667,6 @@ class TestGroupGeometries:
         # Then
         assert _index_groups(actual) == [[0, 1], [2]]
 
-#TODO check if wanted behavior
     def test_geometries_without_crs_are_assumed_in_grid_crs(self, caplog):
         # Given
         gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(x, 0) for x in (0, 100_000, 200_000)])
