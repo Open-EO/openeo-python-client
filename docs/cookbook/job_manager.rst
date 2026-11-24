@@ -398,8 +398,8 @@ This is simple, but has some important downsides:
 - GeoJSON geometries must be in lat/lon (EPSG:4326),
   so batches in another CRS have to be reprojected first.
 - Reprojecting very large or complex geometries to EPSG:4326 can introduce
-    precision/distortion artifacts (especially near poles or the antimeridian),
-    which may lead to slight but unwanted geometry differences in the job input.
+  precision/distortion artifacts (especially near poles or the antimeridian),
+  which may lead to slight but unwanted geometry differences in the job input.
 - All geometries end up in the process graph itself.
   Batches with many (or complex) geometries lead to very large process graphs,
   which may be slow to submit or even get rejected by the backend.
@@ -461,8 +461,9 @@ Keep the following in mind with this approach:
   or create new URLs for jobs that have not started yet.
 - Artifact storage is meant for temporary data and may be cleaned up by the backend.
   Keep your original geometries locally.
-- Pratical limits to the artifact helper do apply; local memory,
+- Practical limits to the artifact helper do apply: local memory,
   network limits, and quotas or policies of the backend's object storage.
+- The artifact helper needs the optional ``artifacts`` extra (``pip install openeo[artifacts]``).
 - The temporary storage credentials of the artifact helper are not refreshed automatically,
   so for long-running scripts, create a new artifact helper when uploads start failing.
 - Instead of the artifact helper, you can use your own object storage,
