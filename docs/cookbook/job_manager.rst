@@ -248,7 +248,7 @@ Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
 
     # Split into 10x10 km tiles in EPSG:3857
     gdf = split_area(
-        spatial_extent=extent,
+        aoi=extent,
         tile_size=10_000,  # tile size in meters (units of the projection)
         projection="EPSG:3857",  # projection for tiling
     )
@@ -301,7 +301,7 @@ or any other custom partitioning, you can pass a pre-computed
     tile_grid = gpd.read_parquet("my_tile_grid.parquet")
 
     # Only tiles intersecting the AOI are returned
-    gdf = split_area(spatial_extent=extent, tile_grid=tile_grid)
+    gdf = split_area(aoi=extent, tile_grid=tile_grid)
 
 Grouping geometries (e.g. point-based extractions)
 --------------------------------------------------
@@ -375,6 +375,13 @@ Current limitations:
   Use a tile grid to limit the spatial extent of batches.
 - With overlapping tiles (e.g. Sentinel-2 MGRS), a feature is assigned to the first tile
   (in grid order) containing its representative point, not to the tile with the largest overlap.
+- Batches are cut along the axis with the largest spread, measured in the units of the CRS.
+  In a geographic CRS (e.g. EPSG:4326), degrees of longitude shrink towards the poles,
+  so batches at high latitudes are cut along longitude more than needed.
+  Use a projected CRS (for the input, the ``tile_grid`` or ``projection``) to group by actual distance.
+- The regular grid from ``tile_size`` and ``projection`` is anchored at the origin of the projection,
+  while ``split_area`` anchors its tiles at the corner of the area of interest.
+  The same tile size can therefore give different tile boundaries in both functions.
 
 Customizing Job Handling
 ========================

@@ -1,6 +1,7 @@
 import abc
 import logging
 import math
+import numbers
 from typing import Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
@@ -445,10 +446,16 @@ def group_geometries(
       so their parts can be far away from the rest of their group.
     - With overlapping tiles, a feature is assigned to the first tile (in grid order)
       containing its representative point, not to the tile with the largest overlap.
+    - Bisection compares spreads in the units of the CRS used for grouping
+      (the input CRS, or the tile grid's CRS if given). In a geographic CRS (e.g. EPSG:4326),
+      a degree of longitude is shorter than a degree of latitude away from the equator,
+      so groups at high latitudes are cut along longitude more than their real extent warrants.
+      Use a projected CRS (e.g. reproject the input, or pass a *tile_grid* or *projection*
+      in a projected CRS) to group by actual distance.
 
     :param geometries: GeoDataFrame with a ``geometry`` column.
         Null or empty geometries are not allowed.
-    :param max_geometries: maximum number of geometries per group.
+    :param max_geometries: maximum number of geometries per group, as a positive integer.
         ``None`` (default) means no limit.
     :param projection: EPSG string (e.g. ``"EPSG:3857"``) of the regular grid
         to group by. Must be combined with *tile_size*.
@@ -459,9 +466,11 @@ def group_geometries(
         (with CRS set) to co-join geometries by before splitting, e.g. a
         satellite tiling grid.
         Mutually exclusive with *projection* / *tile_size*.
+        Note that a :class:`_SizeBasedTileGrid` is anchored at the origin of its CRS here,
+        unlike in :func:`split_area`, where its tiles are anchored at the corner of the area of interest.
     :return: list of GeoDataFrames, with the original index of *geometries* preserved.
-    :raises JobSplittingFailure: on invalid input (e.g. non-positive
-        *max_geometries*, null/empty geometries, contradictory grid arguments).
+    :raises JobSplittingFailure: on invalid input (e.g. *max_geometries* not a positive integer,
+        null/empty geometries, contradictory grid arguments).
 
     Like with :func:`split_area`, geometries without CRS information
     are assumed to be in the tile grid's CRS.
@@ -471,8 +480,10 @@ def group_geometries(
         raise JobSplittingFailure(f"Expected a GeoDataFrame, got {type(geometries).__name__}.")
     if "geometry" not in geometries.columns:
         raise JobSplittingFailure("The GeoDataFrame must contain a 'geometry' column.")
-    if max_geometries is not None and max_geometries <= 0:
-        raise JobSplittingFailure(f"'max_geometries' must be positive, got {max_geometries!r}.")
+    if max_geometries is not None and (
+        isinstance(max_geometries, bool) or not isinstance(max_geometries, numbers.Integral) or max_geometries <= 0
+    ):
+        raise JobSplittingFailure(f"'max_geometries' must be a positive integer, got {max_geometries!r}.")
 
     if tile_grid is not None:
         if projection is not None or tile_size is not None:
