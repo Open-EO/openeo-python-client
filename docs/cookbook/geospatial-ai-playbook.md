@@ -572,18 +572,17 @@ and process multiple chunks from each scene that intersects the sample locations
 
 ### 3.1 Training outside openEO (common path)
 
-Deep learning training usually runs outside openEO on GPU-capable environments. European initiatives such as
-[EOTDL](https://www.eotdl.com/) (Earth Observation Training Data Lab) are a good option if you want cloud-based training on
-EU infrastructure. EOTDL is worth considering for three distinct reasons, and it helps to be clear about which one you
+Deep learning training usually runs outside openEO on GPU-capable environments. Which environment fits depends on what you
 actually need:
 
-- **A curated dataset repository.** EOTDL hosts a catalogue of EO training datasets that you can stage and reuse instead of
-  rebuilding from scratch. If your task overlaps with an existing dataset, this can remove a large part of the
-  reference-data work described in [Section 2](#2-organising-and-extracting-reference-data-for-ml).
-- **A staging mechanism.** Datasets can be staged into your own environment in a reproducible way, which matters when you
-  want to pin a training run to a specific dataset version rather than a snapshot you copied by hand.
-- **Cloud workspaces with GPU machines.** For the actual training step, EOTDL provides cloud workspaces suitable for GPU
-  workloads, which is the piece openEO deliberately does not try to cover.
+- **Existing training datasets.** If your task overlaps with a published EO training dataset, reusing it can remove a
+  large part of the reference-data work described in [Section 2](#2-organising-and-extracting-reference-data-for-ml).
+  Datasets are shared through several channels, for example [Source Cooperative](https://source.coop/),
+  [Hugging Face](https://huggingface.co/datasets), the dataset loaders of [TorchGeo](https://torchgeo.readthedocs.io/),
+  or [EOTDL](https://www.eotdl.com/) (Earth Observation Training Data Lab). Pin the exact dataset version you train on.
+- **GPU compute.** Options range from local or institutional GPU machines and HPC centres to commercial clouds and
+  EO-specific platforms that offer GPU workspaces (EOTDL is one such European option). GPU training is the piece openEO
+  deliberately does not try to cover.
 
 The reason training typically happens outside openEO is not a limitation of the platform but a matter of fit: openEO is
 optimized for scalable EO data processing, not for GPU-accelerated gradient descent, and the tooling around model
@@ -592,10 +591,10 @@ development (experiment tracking, hyperparameter search, GPU scheduling) is more
 The important part for this playbook is not where training runs, but that training sees exactly the same feature semantics
 as operational inference. If you train on a laptop with locally downloaded data and then deploy to openEO, you are
 implicitly trusting that the local data and the openEO data are equivalent. That trust is often misplaced, because the two
-paths may differ in cloud masking, atmospheric correction, resampling, or compositing. Using EOTDL for training does not
-change that requirement: whatever dataset you train on, the features must match what your openEO
-inference graph will produce. For practical examples, see the EOTDL openEO use-case tutorials:
-https://github.com/earthpulse/eotdl/tree/main/tutorials/usecases/openEO
+paths may differ in cloud masking, atmospheric correction, resampling, or compositing. The same holds for third-party
+training datasets: whatever dataset you train on, the features must match what your openEO inference graph will produce.
+The safest route is to extract the training data with the same openEO graph used for inference (see
+[Section 1](#1-data-extraction-and-feature-engineering-in-openeo)).
 
 ### 3.2 Training in openEO for lightweight models
 
@@ -1104,7 +1103,6 @@ artifacts. This kind of information is especially relevant during deployment.
 - {doc}`Data Access </data_access>`
 - [openEO community examples: geospatial embeddings](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings)
 - [openEO community examples: machine learning](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning)
-- [EOTDL](https://www.eotdl.com/)
 
 ## 6. Emerging: a standardized ML API in openEO
 
