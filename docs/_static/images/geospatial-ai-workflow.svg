@@ -71,7 +71,7 @@
     <rect class="openeo card" x="345" y="420" width="230" height="82"/>
     <circle cx="370" cy="444" r="14" fill="#5174a5"/><text class="number" x="365.5" y="449" fill="#fff">8</text>
     <text class="title" x="392" y="441">openEO inference</text>
-    <text class="detail" x="392" y="465">predict_onnx, UDF or CWL</text>
+    <text class="detail" x="392" y="465">predict_onnx or UDF</text>
     <text class="detail" x="392" y="485">Backend handles execution</text>
 
     <rect class="card" x="655" y="420" width="230" height="82"/>
