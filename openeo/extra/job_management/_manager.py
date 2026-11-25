@@ -98,6 +98,15 @@ class _ColumnRequirements:
         """
         new_columns = {col: req.default for (col, req) in self._requirements.items() if col not in df.columns}
         df = df.assign(**new_columns)
+        # A string column that only holds NaN (e.g. an empty "running_start_time") is read as float64.
+        # pandas 3 no longer upcasts on assignment, so make it object before strings are set into it (#856).
+        to_object = {
+            col: "object"
+            for (col, req) in self._requirements.items()
+            if req.dtype == "str" and df[col].dtype.kind == "f"
+        }
+        if to_object:
+            df = df.astype(to_object)
         return df
 
     def dtype_mapping(self) -> Dict[str, str]:
