@@ -348,22 +348,22 @@ reference_data_url = artifact_helper.get_presigned_url(storage_uri)
 reference_data = connection.load_url(reference_data_url, format="Parquet")
 ```
 
-```{note}
-**CDSE-specific.** Artifact storage is backend-specific functionality and the uploaded files are only kept temporarily, so it is well suited
-for one-off extractions, but not as a long-term home for your reference dataset. By default, the presigned URL returned
-by `get_presigned_url` is valid for 7 days. If you rely on it for a multi-week training
-campaign, you may find that your reference data has expired between runs.
-```
+**CDSE-specific.** The artifact helper is **backend-specific** functionality and the uploaded files are only kept
+temporarily, so it is well suited for one-off extractions, but not as a long-term home for your reference dataset.
+By default, the presigned URL returned by `get_presigned_url` is valid for 7 days. If you rely on it for a
+multi-week training campaign, you may find that your reference data has expired between runs.
 
 #### Splitting into spatial groups
 
-For large-scale (for example, continental or global) reference datasets, do not extract everything in a single batch job.
-The most fundamental reason is projection: a job that crosses UTM zones has to reproject part of the data, so samples in
-different zones no longer line up with the native pixel grid of the input data. A second reason is job duration: a job
-that covers e.g. an entire country runs for so long that any transient failure forces you to start over. Instead, split your samples
-into spatial groups, resulting in one GeoParquet/GeoJSON file and one openEO batch job per group. The Sentinel-2 tiling
-grid (MGRS, roughly 110x110 km tiles) is a good unit for this: one job per Sentinel-2 tile guarantees that each group
-stays within a single UTM zone, keeps the job size manageable, and aligns with how the input data is stored.
+For large-scale (for example, continental or global) reference datasets, do not extract everything in a single batch
+job. The most fundamental reason is projection: a job that crosses UTM zones has to reproject part of the data, so
+samples in different zones no longer line up with the native pixel grid of the input data. A second reason is request
+size and memory pressure: very large AOIs can exceed backend limits or run out of memory before completion. A third
+reason is job duration: a job that covers e.g. an entire country runs for so long that any transient failure forces
+you to start over. Instead, split your samples into spatial groups, resulting in one GeoParquet/GeoJSON file and one
+openEO batch job per group. The Sentinel-2 tiling grid (MGRS, roughly 110x110 km tiles) is a good unit for this: one
+job per Sentinel-2 tile guarantees that each group stays within a single UTM zone, keeps the job size manageable, and
+aligns with how the input data is stored.
 
 The openEO Python client offers a job splitting utility
 (the {py:func}`~openeo.extra.job_management.split_area` function, see {ref}`job-splitting-custom-grid`) that partitions your area or
@@ -371,6 +371,26 @@ samples over a tile grid, such as a pre-computed Sentinel-2 tile grid, and retur
 ready-made starting point for a job database. The openEO {py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`) can
 then run and track the resulting list of extraction jobs. For patch extractions, note that size-based splitting does not
 guarantee pixel alignment: pass a pre-computed grid, and derive the patch polygons from that same pixel-aligned grid.
+
+In `split_area`, these two modes are mutually exclusive: either pass `projection` + `tile_size` for size-based tiling,
+or pass `tile_grid` for a pre-defined grid. In size-based mode, tiles are anchored at the AOI south-west corner and edge
+tiles are clipped to the AOI boundary; this is convenient for load balancing but not automatically pixel-aligned.
+
+In addition the `group_geometries` helper can be used to pre-batch very large
+feature sets into manageable geometry groups before launching extraction jobs. 
+
+```python
+# group many input features into small batches before extraction.
+try:
+  from openeo.extra.job_management import group_geometries
+
+  groups = group_geometries(reference_data, max_geometries=500)
+except ImportError:
+  # Fallback on older client versions: build groups manually.
+  groups = [reference_data.iloc[i:i + 500] for i in range(0, len(reference_data), 500)]
+```
+
+Use these groups as your per-job input geometries, optionally combined with `split_area` for large AOIs.
 
 ```{important}
 Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
@@ -468,27 +488,12 @@ value per sample, band, and timestep, which can be exported to GeoParquet or CSV
 tabular structure is what makes point extraction a natural fit for classical ML models, which expect a fixed-length feature
 vector per sample.
 
-#### Attribute propagation
-
-Depending on the backend, all attributes (properties) of the features in your reference data (labels, sample identifiers,
-validity dates) are propagated to the extracted output. For `aggregate_spatial`, these
-properties are carried into the vector result. For `filter_spatial`, the feature metadata is
-retained in per-feature outputs when using `sample_by_feature` together with a stable
-`feature_id_property`. In the common workflow, there is no need to join extractions back to the
-reference data afterwards: labels and metadata travel with the extracted values. This saves a
-surprising amount of error-prone bookkeeping, especially when reference data is split across
-multiple files and extraction jobs.
-
-```{tip}
-Always validate on a small test extraction if all original feature properties are retained before relying on it.
-```
-
 ### 2.6 Patch extraction with `filter_spatial`
 
 For models that need spatial context, use
 {py:meth}`~openeo.rest.datacube.DataCube.filter_spatial`
 with polygon geometries describing the patch outlines. The backend then only computes the data cube for those polygons,
-producing a sparse raster output cube. Combine this with the *backend-specific* `sample_by_feature` output option
+producing a sparse raster output cube. Combine this with the **backend-specific** `sample_by_feature` output option
 to write one file per sample (see
 {py:meth}`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` and {doc}`sampling`):
 
@@ -520,8 +525,22 @@ So in the example above, each netCDF file contains the full time series of all b
 [Format and structure](#format-and-structure)). These files can be converted into training tensors for your deep learning
 framework of choice.
 
-These are backend-specific format options: check them with
+These are **backend-specific** format options: check them with
 {py:meth}`~openeo.rest.connection.Connection.list_file_formats` (under `output` → format → `parameters`) for your backend.
+
+#### Attribute propagation
+
+Depending on the backend, all attributes (properties) of the features in your reference data (labels, sample identifiers,
+validity dates) are propagated to the extracted output. For `aggregate_spatial`, these properties are carried into the
+vector result. For `filter_spatial`, the feature metadata is retained in per-feature outputs when using
+`sample_by_feature` together with a stable `feature_id_property`. In the common workflow, there is no need to join
+extractions back to the reference data afterwards: labels and metadata travel with the extracted values. This saves a
+surprising amount of error-prone bookkeeping, especially when reference data is split across multiple files and
+extraction jobs.
+
+```{tip}
+Always validate on a small test extraction if all original feature properties are retained before relying on it.
+```
 
 ```{warning}
 Extraction only works as a batch job, since it produces multiple output files that cannot be transferred in a synchronous
@@ -532,7 +551,9 @@ call.
 
 {py:meth}`download_files <openeo.rest.job.JobResults.download_files>` is convenient for experiments, but batch job results are only kept for a limited time. For larger or
 recurring extractions, let the backend write the results straight to your own object storage with {py:meth}`~openeo.rest.stac_resource.StacResource.export_workspace`
-(where supported), which also writes the STAC metadata:
+(where supported), which also writes the STAC metadata. On backends that support direct STAC API publishing for
+workspaces, this is usually the preferred path: results become queryable in a STAC catalog immediately, without
+download/re-upload loops.
 
 ```python
 result = patches.save_result(
@@ -750,14 +771,15 @@ UDFs are the most flexible and established way to run custom ML code in openEO. 
 
 - **Maximum flexibility:** you can implement any preprocessing, model inference, and postprocessing logic in Python, including custom neural network architectures and specialised embedding models.
 - **Full data cube access:** the UDF receives band names, coordinates, and the `context` object, allowing you to pass per-job parameters and inspect the cube's structure.
-- **Mature ecosystem:** well-documented patterns exist for managing dependencies, either inline in the UDF header (see {ref}`python-udf-dependency-declaration`) or via `udf-dependency-archives`, and for applying UDFs with `apply`, {py:meth}`~openeo.rest.datacube.DataCube.apply_dimension`, and {py:meth}`~openeo.rest.datacube.DataCube.apply_neighborhood`.
+- **Mature ecosystem:** well-documented patterns exist for managing dependencies, either inline in the UDF header (see {ref}`python-udf-dependency-declaration`) or via `udf-dependency-archives`, and for applying UDFs with {py:meth}`~openeo.rest.datacube.DataCube.apply`, {py:meth}`~openeo.rest.datacube.DataCube.apply_dimension`, and {py:meth}`~openeo.rest.datacube.DataCube.apply_neighborhood`.
 
 **Disadvantages:**
 - **Dependency management:** for heavy ML frameworks (for example PyTorch or TensorFlow) you are responsible for building and shipping dependency archives, which can be large and increase cold-start times.
 - **Performance and memory tuning:** pre-defined processes are typically better optimized by the backend; with a UDF, the quality of the user code matters more. Because the backend has no good way to predict the memory needs of custom code, you will usually need to fine-tune the memory settings of UDF jobs.
-- **Best practice:** try to do as much pre- or postprocessing with pre-defined processes before resorting to a UDF, and keep UDFs small and modular to minimise dependencies. Nevertheless, do avoid chaning multiple UDF executions after each other. Typically its more efficient to perform the user-defined code within a single run_udf process.
 
 **Best for:** any model that requires custom Python logic, access to the full data cube (band names, coordinates), or per-job parameterisation via the `context` object. See [Section 4.2](#42-deploying-via-user-defined-functions) for the operational details.
+
+Try to do as much pre- or postprocessing with pre-defined processes before resorting to a UDF, and keep UDFs small and modular to minimise dependencies. Nevertheless, do avoid chaning multiple UDF executions after each other. Typically its more efficient to perform the user-defined code within a single run_udf process.
 
 ```{tip}
 Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
