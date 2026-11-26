@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Richer (HTML based) representation of cube dimension metadata in Jupyter context ([#827](https://github.com/Open-EO/openeo-python-client/issues/827))
+- Add `group_geometries` helper in `openeo.extra.job_management` to group geometries (e.g. sample locations) into spatially clustered batches for job splitting, optionally per tile of a tile grid.
 - Official support for Python 3.15 (now included in unit test matrix on GitHub Actions)
 
 ### Changed

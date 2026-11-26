@@ -1,12 +1,17 @@
+import warnings
+
 import geopandas as gpd
+import pandas as pd
 import pytest
 import shapely
+from geopandas.testing import assert_geodataframe_equal
 
 from openeo.extra.job_management._job_splitting import (
     JobSplittingFailure,
     _PredefinedTileGrid,
     _SizeBasedTileGrid,
     _TileGridInterface,
+    group_geometries,
     split_area,
 )
 from openeo.util import BBoxDict
@@ -386,3 +391,347 @@ class TestSplitArea:
         aoi = {"west": 18_000_000.0, "south": 0.0, "east": 19_000_000.0, "north": 1_000_000.0, "crs": "EPSG:3857"}
         result = split_area(aoi, projection="EPSG:3857", tile_size=1_000_000.0)
         assert len(result) >= 1
+
+
+def _points(coords, crs="EPSG:4326") -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(geometry=[shapely.geometry.Point(x, y) for x, y in coords], crs=crs)
+
+
+def _index_groups(groups) -> list:
+    """Index labels per group, in canonical order (the order of the groups is not part of the contract)."""
+    return sorted(sorted(g.index) for g in groups)
+
+
+class TestGroupGeometries:
+    # --- Grouping without tile grid ---
+
+    def test_all_geometries_in_one_group_without_limit_or_grid(self):
+        # Given
+        gdf = _points([(0, 0), (100, 0), (0, 50)])
+        # When
+        actual = group_geometries(gdf)
+        # Then
+        assert _index_groups(actual) == [[0, 1, 2]]
+
+    def test_one_group_when_count_equals_max_geometries(self):
+        # Given
+        gdf = _points([(0, 0), (1, 0), (2, 0)])
+        # When
+        actual = group_geometries(gdf, max_geometries=3)
+        # Then
+        assert _index_groups(actual) == [[0, 1, 2]]
+
+    def test_groups_are_halved_until_within_max_geometries(self):
+        # Given: 8 points on a line
+        gdf = _points([(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0)])
+        # When
+        actual = group_geometries(gdf, max_geometries=3)
+        # Then: 8 -> 4 + 4 -> 2 + 2 + 2 + 2 (balanced, not 3 + 3 + 2)
+        assert _index_groups(actual) == [[0, 1], [2, 3], [4, 5], [6, 7]]
+
+    def test_groups_follow_location_not_row_order(self):
+        # Given: two clusters, interleaved in row order
+        gdf = _points([(100, 0), (0, 0), (101, 0), (1, 0)])
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then
+        assert _index_groups(actual) == [[0, 2], [1, 3]]
+
+    def test_groups_are_cut_along_the_longest_spread(self):
+        # Given: points spread 30 units in y, but only 1 unit in x
+        gdf = _points([(0, 0), (1, 10), (0, 20), (1, 30)])
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then: cut between y=10 and y=20 (a cut in x would give [[0, 2], [1, 3]])
+        assert _index_groups(actual) == [[0, 1], [2, 3]]
+
+    def test_coincident_points_still_respect_max_geometries(self):
+        # Given: all points at the same location
+        gdf = _points([(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)])
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then: every row once, in groups of at most 2 (which rows go together is unspecified)
+        assert sorted(pd.concat(actual).index) == [0, 1, 2, 3, 4]
+        assert sorted(len(g) for g in actual) == [1, 2, 2]
+
+    def test_polygons_are_grouped_by_location(self):
+        # Given: two clusters of polygons, interleaved in row order
+        gdf = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(x, 0, x + 1, 1) for x in (0, 100, 1, 101)],
+            crs="EPSG:4326",
+        )
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then
+        assert _index_groups(actual) == [[0, 2], [1, 3]]
+
+    def test_multipoint_row_counts_as_one_geometry(self):
+        # Given: a MultiPoint with 3 coordinates, and a Point
+        gdf = gpd.GeoDataFrame(
+            geometry=[
+                shapely.geometry.MultiPoint([(0, 0), (0.1, 0.1), (0.2, 0.2)]),
+                shapely.geometry.Point(0.5, 0.5),
+            ],
+            crs="EPSG:4326",
+        )
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then: 2 rows fit in one group, regardless of the 4 coordinates
+        assert _index_groups(actual) == [[0, 1]]
+
+    def test_groups_keep_original_rows_index_and_columns(self):
+        # Given
+        gdf = gpd.GeoDataFrame(
+            {"id": [10, 11, 12, 13]},
+            geometry=[shapely.geometry.Point(x, 0) for x in (0, 100, 1, 101)],
+            index=["a", "b", "c", "d"],
+            crs="EPSG:4326",
+        )
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then: every input row ends up unchanged in exactly one group
+        assert _index_groups(actual) == [["a", "c"], ["b", "d"]]
+        assert_geodataframe_equal(pd.concat(actual).sort_index(), gdf)
+
+    def test_duplicated_index_labels_keep_each_row_once(self):
+        # Given: all rows share the same index label (e.g. after `explode(index_parts=False)`)
+        gdf = _points([(0, 0), (1, 0), (100, 0), (101, 0)])
+        gdf.index = [7, 7, 7, 7]
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then
+        assert _index_groups(actual) == [[7, 7], [7, 7]]
+        assert sorted(sorted(g.geometry.x) for g in actual) == [[0, 1], [100, 101]]
+
+    def test_empty_geodataframe_gives_no_groups(self):
+        # Given
+        gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+        # When
+        actual = group_geometries(gdf, max_geometries=2)
+        # Then
+        assert actual == []
+
+    def test_geometries_without_crs_are_grouped_without_crs(self):
+        # Given
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0), shapely.geometry.Point(1, 0)])
+        # When
+        actual = group_geometries(gdf)
+        # Then
+        assert _index_groups(actual) == [[0, 1]]
+        assert actual[0].crs is None
+
+    # --- Grouping with a predefined tile grid ---
+
+    def test_tile_grid_groups_per_tile(self):
+        # Given
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(1, 0, 2, 1)], crs="EPSG:4326"
+        )
+        gdf = _points([(0.5, 0.5), (1.5, 0.5), (0.2, 0.5), (1.8, 0.5)])
+        # When
+        actual = group_geometries(gdf, tile_grid=tile_grid)
+        # Then
+        assert _index_groups(actual) == [[0, 2], [1, 3]]
+
+    def test_tile_grid_point_on_shared_edge_goes_to_first_tile(self):
+        # Given: tiles A [0, 1] and B [1, 2], and a point exactly on their shared edge x=1
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(1, 0, 2, 1)], crs="EPSG:4326"
+        )
+        gdf = _points([(1.0, 0.5), (0.5, 0.5), (1.5, 0.5)])
+        # When
+        actual = group_geometries(gdf, tile_grid=tile_grid)
+        # Then: the edge point goes with tile A
+        assert _index_groups(actual) == [[0, 1], [2]]
+
+    def test_tile_grid_point_in_overlap_goes_to_first_tile_in_grid_order(self):
+        # Given: overlapping tiles A [1, 3] (first in grid) and B [0, 2], and a point in the overlap
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(1, 0, 3, 1), shapely.geometry.box(0, 0, 2, 1)], crs="EPSG:4326"
+        )
+        gdf = _points([(1.5, 0.5), (0.5, 0.5), (2.5, 0.5)])
+        # When
+        actual = group_geometries(gdf, tile_grid=tile_grid)
+        # Then: the overlap point goes with tile A
+        assert _index_groups(actual) == [[0, 2], [1]]
+
+    def test_tile_grid_tile_exceeding_max_geometries_is_split(self):
+        # Given: 4 points in a single tile
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 10, 10)], crs="EPSG:4326")
+        gdf = _points([(1, 1), (2, 1), (3, 1), (4, 1)])
+        # When
+        actual = group_geometries(gdf, max_geometries=2, tile_grid=tile_grid)
+        # Then
+        assert _index_groups(actual) == [[0, 1], [2, 3]]
+
+    def test_tile_grid_geometries_outside_all_tiles_are_grouped_separately(self):
+        # Given: 3 points inside the only tile, 2 points just outside it
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+        gdf = _points([(0.2, 0.5), (0.8, 0.5), (0.9, 0.5), (1.5, 0.5), (1.6, 0.5)])
+        # When
+        actual = group_geometries(gdf, max_geometries=3, tile_grid=tile_grid)
+        # Then: without the grid, this would be [[0, 1], [2, 3, 4]]
+        assert _index_groups(actual) == [[0, 1, 2], [3, 4]]
+
+    def test_tile_grid_polygon_assigned_by_representative_point(self):
+        # Given: a polygon overlapping tiles A and B, with its representative point (10.5, 3) in tile B
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[shapely.geometry.box(0, 0, 10, 10), shapely.geometry.box(10, 0, 20, 10)], crs="EPSG:3857"
+        )
+        gdf = gpd.GeoDataFrame(
+            geometry=[
+                shapely.geometry.Point(5, 5),
+                shapely.geometry.Point(15, 5),
+                shapely.geometry.box(8, 2, 13, 4),
+            ],
+            crs="EPSG:3857",
+        )
+        # When
+        actual = group_geometries(gdf, tile_grid=tile_grid)
+        # Then
+        assert _index_groups(actual) == [[0], [1, 2]]
+
+    def test_tile_grid_in_other_crs_groups_reprojected_but_returns_input_crs(self):
+        # Given: tiles west/east of the prime meridian in EPSG:3857, points in EPSG:4326
+        tile_grid = gpd.GeoDataFrame(
+            geometry=[
+                shapely.geometry.box(-200_000, -100_000, 0, 100_000),
+                shapely.geometry.box(0, -100_000, 200_000, 100_000),
+            ],
+            crs="EPSG:3857",
+        )
+        gdf = _points([(-0.5, 0), (0.5, 0), (-1, 0)])
+        # When
+        actual = group_geometries(gdf, tile_grid=tile_grid)
+        # Then
+        assert _index_groups(actual) == [[0, 2], [1]]
+        assert [g.crs.to_epsg() for g in actual] == [4326, 4326]
+
+    def test_tile_grid_instances_are_supported(self):
+        # Given
+        gdf = _points([(0.5, 0.5), (1.5, 0.5)])
+        predefined = _PredefinedTileGrid(
+            tiles=[shapely.geometry.box(0, 0, 1, 1), shapely.geometry.box(1, 0, 2, 1)], crs=4326
+        )
+        size_based = _SizeBasedTileGrid(epsg=4326, size=1.0)
+        # When / Then
+        assert _index_groups(group_geometries(gdf, tile_grid=predefined)) == [[0], [1]]
+        assert _index_groups(group_geometries(gdf, tile_grid=size_based)) == [[0], [1]]
+
+    # --- Grouping with a regular grid (tile_size + projection) ---
+
+    def test_tile_size_grid_is_anchored_at_crs_origin(self):
+        # Given: points at x=3, 6, 8
+        gdf = _points([(3, 0), (6, 0), (8, 0)], crs="EPSG:3857")
+        # When
+        actual = group_geometries(gdf, tile_size=5, projection="EPSG:3857")
+        # Then: tiles [0, 5) and [5, 10), not anchored at the first point ([3, 8) would give [[0, 1], [2]])
+        assert _index_groups(actual) == [[0], [1, 2]]
+
+    def test_tile_size_grouping_unchanged_when_outlier_added(self):
+        # Given
+        base = [(1, 1), (3, 1), (6, 1), (8, 1), (11, 1)]
+        # When
+        actual_base = group_geometries(_points(base, crs="EPSG:3857"), tile_size=5, projection="EPSG:3857")
+        actual_extended = group_geometries(
+            _points(base + [(-1000, 1)], crs="EPSG:3857"), tile_size=5, projection="EPSG:3857"
+        )
+        # Then
+        assert _index_groups(actual_base) == [[0, 1], [2, 3], [4]]
+        assert _index_groups(actual_extended) == [[0, 1], [2, 3], [4], [5]]
+
+    def test_tile_size_is_in_units_of_projection(self):
+        # Given: points 0.1 degree (~11 km) apart at the equator
+        gdf = _points([(0.0, 0.0), (0.1, 0.0)])
+        # When
+        actual_50km = group_geometries(gdf, tile_size=50_000, projection="EPSG:3857")
+        actual_5km = group_geometries(gdf, tile_size=5_000, projection="EPSG:3857")
+        # Then
+        assert _index_groups(actual_50km) == [[0, 1]]
+        assert _index_groups(actual_5km) == [[0], [1]]
+
+    def test_tile_size_concave_polygon_located_by_representative_point(self):
+        # Given: a U shape whose centroid (4.4, 3.7) lies in the notch, in another tile than the U itself
+        u_shape = shapely.geometry.box(0, 0, 10, 10).difference(shapely.geometry.box(2, 2, 9, 10))
+        gdf = gpd.GeoDataFrame(
+            geometry=[u_shape, shapely.geometry.Point(1, 6), shapely.geometry.Point(7, 0.5)], crs="EPSG:3857"
+        )
+        # When
+        actual = group_geometries(gdf, tile_size=5, projection="EPSG:3857")
+        # Then
+        assert _index_groups(actual) == [[0, 1], [2]]
+
+    def test_geometries_without_crs_are_assumed_in_grid_crs(self, caplog):
+        # Given
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(x, 0) for x in (0, 100_000, 200_000)])
+        # When
+        actual = group_geometries(gdf, tile_size=150_000, projection="EPSG:3857")
+        # Then
+        assert _index_groups(actual) == [[0, 1], [2]]
+        assert [g.crs.to_epsg() for g in actual] == [3857, 3857]
+        assert "assuming they are already in the tile grid's CRS (EPSG:3857)" in caplog.text
+
+    # --- Invalid input ---
+
+    @pytest.mark.parametrize(
+        "geometries",
+        [
+            [shapely.geometry.Point(0, 0), shapely.geometry.Point(1, 0)],
+            shapely.geometry.MultiPoint([(0, 0), (1, 0)]),
+        ],
+    )
+    def test_non_geodataframe_raises(self, geometries):
+        with pytest.raises(JobSplittingFailure, match="Expected a GeoDataFrame"):
+            group_geometries(geometries)
+
+    def test_missing_geometry_column_raises(self):
+        gdf = gpd.GeoDataFrame({"foo": [1, 2]})
+        with pytest.raises(JobSplittingFailure, match="must contain a 'geometry' column"):
+            group_geometries(gdf)
+
+    @pytest.mark.parametrize("max_geometries", [0, -1, 2.5, 2.0, "2", True])
+    def test_max_geometries_not_a_positive_integer_raises(self, max_geometries):
+        gdf = _points([(0, 0)])
+        with pytest.raises(JobSplittingFailure, match="'max_geometries' must be a positive integer"):
+            group_geometries(gdf, max_geometries=max_geometries)
+
+    @pytest.mark.parametrize(
+        "geometry",
+        [None, shapely.geometry.Point()],
+    )
+    def test_null_or_empty_geometry_raises(self, geometry):
+        gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(0, 0), geometry], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure, match="Found 1 null or empty geometries"):
+            group_geometries(gdf)
+
+    def test_antimeridian_crossing_geometries_raise(self):
+        gdf = _points([(190.0, 0.0)])
+        with pytest.raises(JobSplittingFailure, match="antimeridian"):
+            group_geometries(gdf)
+
+    @pytest.mark.parametrize("kwargs", [{"tile_size": 1.0}, {"projection": "EPSG:4326"}])
+    def test_tile_size_without_projection_or_vice_versa_raises(self, kwargs):
+        with pytest.raises(JobSplittingFailure, match="must be provided together"):
+            group_geometries(_points([(0, 0)]), **kwargs)
+
+    def test_tile_grid_combined_with_tile_size_raises(self):
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+        with pytest.raises(JobSplittingFailure, match="Cannot combine 'tile_grid'"):
+            group_geometries(_points([(0, 0)]), tile_grid=tile_grid, tile_size=1.0, projection="EPSG:4326")
+
+    def test_tile_grid_without_crs_raises(self):
+        tile_grid = gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)])
+        with pytest.raises(JobSplittingFailure, match="has no CRS set"):
+            group_geometries(_points([(0, 0)]), tile_grid=tile_grid)
+
+    def test_custom_tile_grid_implementation_raises(self):
+        class CustomTileGrid(_TileGridInterface):
+            @property
+            def crs(self) -> int:
+                return 4326
+
+            def get_tiles(self, geometry):
+                return gpd.GeoDataFrame(geometry=[shapely.geometry.box(0, 0, 1, 1)], crs="EPSG:4326")
+
+        with pytest.raises(JobSplittingFailure, match="Unsupported tile_grid type: CustomTileGrid"):
+            group_geometries(_points([(0.5, 0.5)]), tile_grid=CustomTileGrid())
