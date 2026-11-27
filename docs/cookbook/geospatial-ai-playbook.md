@@ -376,22 +376,6 @@ In `split_area`, these two modes are mutually exclusive: either pass `projection
 or pass `tile_grid` for a pre-defined grid. In size-based mode, tiles are anchored at the AOI south-west corner and edge
 tiles are clipped to the AOI boundary; this is convenient for load balancing but not automatically pixel-aligned.
 
-In addition the `group_geometries` helper can be used to pre-batch very large
-feature sets into manageable geometry groups before launching extraction jobs. 
-
-```python
-# group many input features into small batches before extraction.
-try:
-  from openeo.extra.job_management import group_geometries
-
-  groups = group_geometries(reference_data, max_geometries=500)
-except ImportError:
-  # Fallback on older client versions: build groups manually.
-  groups = [reference_data.iloc[i:i + 500] for i in range(0, len(reference_data), 500)]
-```
-
-Use these groups as your per-job input geometries, optionally combined with `split_area` for large AOIs.
-
 ```{important}
 Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
 extent) determines how large a job can be. A tile with thousands of samples may need to be split further, while sparsely
@@ -487,6 +471,26 @@ In contrast to `filter_spatial`, which produces raster output, `aggregate_spatia
 value per sample, band, and timestep, which can be exported to GeoParquet or CSV and used directly for model training. This
 tabular structure is what makes point extraction a natural fit for classical ML models, which expect a fixed-length feature
 vector per sample.
+
+For very large point or feature collections, batch the input geometries before launching extraction jobs. This is a
+feature-table scaling step (request-size control), not an AOI tiling step. If your client version provides
+`group_geometries`, use it; otherwise build batches manually:
+
+```python
+# Group many input features into small batches before extraction.
+try:
+  from openeo.extra.job_management import group_geometries
+
+  groups = group_geometries(reference_data, max_geometries=500)
+except ImportError:
+  # Fallback on older client versions: build groups manually.
+  groups = [reference_data.iloc[i:i + 500] for i in range(0, len(reference_data), 500)]
+```
+
+Each group can then be used as per-job `geometries` input for `aggregate_spatial`.
+For orchestration and tracking, run these grouped jobs through
+{py:class}`~openeo.extra.job_management.MultiBackendJobManager`; for practical patterns and callbacks, see the
+{ref}`job-manager` cookbook page.
 
 ### 2.6 Patch extraction with `filter_spatial`
 
@@ -773,34 +777,34 @@ UDFs are the most flexible and established way to run custom ML code in openEO. 
 - **Full data cube access:** the UDF receives band names, coordinates, and the `context` object, allowing you to pass per-job parameters and inspect the cube's structure.
 - **Mature ecosystem:** well-documented patterns exist for managing dependencies, either inline in the UDF header (see {ref}`python-udf-dependency-declaration`) or via `udf-dependency-archives`, and for applying UDFs with {py:meth}`~openeo.rest.datacube.DataCube.apply`, {py:meth}`~openeo.rest.datacube.DataCube.apply_dimension`, and {py:meth}`~openeo.rest.datacube.DataCube.apply_neighborhood`.
 
-**Disadvantages:**
+Nevertheless; this maximal flexibility does mean users are also responsible for:
 - **Dependency management:** for heavy ML frameworks (for example PyTorch or TensorFlow) you are responsible for building and shipping dependency archives, which can be large and increase cold-start times.
 - **Performance and memory tuning:** pre-defined processes are typically better optimized by the backend; with a UDF, the quality of the user code matters more. Because the backend has no good way to predict the memory needs of custom code, you will usually need to fine-tune the memory settings of UDF jobs.
 
-**Best for:** any model that requires custom Python logic, access to the full data cube (band names, coordinates), or per-job parameterisation via the `context` object. See [Section 4.2](#42-deploying-via-user-defined-functions) for the operational details.
+UDFs are therefore the right choice for  any workflow that requires custom Python logic, access to the full data cube (band names, coordinates), or per-job parameterisation via the `context` object. See [Section 4.2](#42-deploying-via-user-defined-functions) for the operational details.
 
-Try to do as much pre- or postprocessing with pre-defined processes before resorting to a UDF, and keep UDFs small and modular to minimise dependencies. Nevertheless, do avoid chaning multiple UDF executions after each other. Typically its more efficient to perform the user-defined code within a single run_udf process.
+Try to do as much pre- or postprocessing with pre-defined processes before resorting to a UDF, as these processes are highly optimised. In addition, do avoid chaining multiple UDFs after each other. It is computionally more efficient to perform all user-defined code within a single UDF.
 
 ```{tip}
 Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
 
-This also makes the UDF a natural precursor to `predict_onnx`: the UDF gives you room to experiment, add pre- and postprocessing code around the inference call, and pull in extra dependencies. Once the workflow is stable and the extra logic can be moved into native openEO processes (or into the ONNX graph itself), switch to `predict_onnx` with the same ONNX model.
+This  makes the UDF a natural precursor to `predict_onnx`: the UDF gives you room to experiment, add pre- and postprocessing code around the inference call, and pull in extra dependencies. Once the workflow is stable and the extra logic can be moved into native openEO processes (or into the ONNX graph itself), switch to `predict_onnx` with the same ONNX model.
 ```
 
 #### 4.0.2 Native `predict_onnx` Process [experimental]
 
-`predict_onnx` is a more streamlined, backend-native approach for deploying ONNX models. Instead of writing a UDF wrapper, you pass the model directly to the process, and the backend handles the ONNX runtime and data chunking internally.
+`predict_onnx` is a more streamlined, backend-native approach for deploying ONNX models; which is highly optimized for execution on the backend. Instead of writing a UDF wrapper, you pass the model directly to the process, and the backend handles the ONNX runtime and inference internally.
 
 **Advantages:**
 
-- **No UDF code required:** you avoid writing and maintaining a UDF wrapper, which simplifies the operational pipeline.
+- **No UDF code required:** You avoid writing and maintaining a UDF wrapper, and simply have to provide the model, which simplifies the operational pipeline.
 - **Simplified dependency management:** the backend provides and fixes the ONNX runtime; there is no dependency archive to manage.
 - **Performance:** because the backend controls the full execution, it can go far in optimising inference performance.
-- **Precision and testability:** you can test the exact ONNX graph locally with `onnxruntime` to verify parity before running a job, giving high confidence in the results.
 
-**Disadvantages:**
 
-- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is listed on CDSE and Terrascope (verified 2026-11-23), but other backends may not offer it; check {py:meth}`connection.list_processes() <openeo.rest.connection.Connection.list_processes>`. The CDSE community example is the reference implementation. 
+Before using `predict_onnx`, consider these backend and model constraints:
+
+- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is backend-specific; check {py:meth}`connection.list_processes() <openeo.rest.connection.Connection.list_processes>`. The [OlmoEarth community example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) is a reference implementation.
 - **Fixed interface:** the process operates on a tensor interface with no access to band names, coordinates, or the `context` object, making it unsuitable for models that need this metadata.
 - **Limited to ONNX:** only models that can be exported to ONNX and conform to the expected input/output contract are supported.
 
@@ -884,7 +888,7 @@ Using ONNX is a strong choice when all of these are true:
 1. The architecture is mostly fixed.
 2. You can define one stable input/output contract (shape, dtype, layout).
 3. You can pass source-vs-ONNX parity on representative data.
-4. The target backend/runtime can run the exported opset with acceptable latency.
+4. The target backend/runtime supports your intended inference mode: per-pixel, fixed-size patch, or sliding-window prediction with overlap
 
 When exporting a model, treat export as an interface contract and lock the following parameters
 explicitly:
@@ -892,7 +896,7 @@ explicitly:
 1. **Input signature**: names, dtypes, rank, layout (`NCHW`/`NHWC`), dynamic axes. Dynamic axes can be a great asset for
    openEO, because optimization often means making the model run over as large an area as possible in one go. If the batch
    dimension is dynamic, the same exported model can process one tile or many tiles without re-export.
-2. **Opset version**: explicit and pinned, never implicit defaults. Different opset versions support different operators,
+2. **Opset version**: explicit and pinned. Different opset versions support different operators,
    and an opset that works on your local ONNX Runtime may not be supported by the runtime available in the openEO backend.
 3. **Output semantics**: logits/probabilities/embeddings and exact expected shape. This matters most when the output is
    consumed by downstream code that assumes a particular interpretation; a model that outputs logits but is treated as
@@ -925,7 +929,7 @@ torch.onnx.export(
 
 **Sanity checks**
 
-Once the model is ported to ONNX and you want to incorporate the inference into an openEO job, there are a few safety
+Once the model is ported to ONNX and you want to incorporate the inference into an openEO job, there are a few best-practice
 checks one has to build in. When openEO passes the input cube to the model, it is not guaranteed that the order of bands,
 dimensions, or dtype of the cube is as you expected. Whether you consume the model via `predict_onnx` or from inside a
 UDF, it is good practice to ensure there is no:
@@ -940,7 +944,7 @@ UDF, it is good practice to ensure there is no:
 
 3. **dtype drift**: training path used `uint16`, runtime standardizes on float32.
 
-4. **Dynamic-axis mismatch**: batch dynamic but spatial dimensions accidentally fixed (or vice versa). A model exported
+4. **Dynamic-axis mismatch**: batch dynamic but model's spatial dimensions fixed (or vice versa). A model exported
    with a fixed spatial size will fail when during runtime you provide a different tile size.
 
 ### 4.2 Deploying via User-Defined Functions
@@ -951,7 +955,7 @@ lets you import arbitrary Python code into your process graph instead of being l
 This is what makes it possible to run a custom neural network, a specialized embedding model, or any other Python-based
 inference logic inside an openEO job.
 
-That flexibility comes with a catch: UDF runtimes in the cloud are intentionally minimal. They ship with a small set of
+That flexibility comes with a catch: UDF runtimes are intentionally minimal. They ship with a small set of
 pre-installed packages, and they are designed to be lightweight so that jobs can start quickly and run
 efficiently on shared infrastructure. You can inspect what is available with the [runtime
 docs](https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes) or, on an established connection, with:
@@ -1028,7 +1032,7 @@ job_options={
 }
 ```
 
-Inside the UDF, those archives are then available as `deps/` and `model/` relative to the UDF's working directory.
+Inside the UDF, those archives are then unzipped and made available in `deps/` and `model/` relative to the UDF's working directory.
 A typical UDF bootstrap pattern is:
 
 ```python
