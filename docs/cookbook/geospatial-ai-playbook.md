@@ -422,7 +422,7 @@ sample.
 
 For very large point or feature collections, batch the input geometries before launching extraction jobs. This is a
 feature-table scaling step (request-size control), not an AOI tiling step. If your client version provides
-`group_geometries`, use it; otherwise build batches manually:
+`group_geometries` (see {ref}`geometry-grouper`), use it; otherwise build batches manually:
 
 ```python
 # Group many input features into small batches before extraction.
