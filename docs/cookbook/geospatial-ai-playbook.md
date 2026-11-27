@@ -3,8 +3,6 @@
 A hands-on guide to incorporating machine-learning projects with openEO end-to-end, from reference data and feature
 extraction to training, model packaging, inference, validation, and upscaling.
 
-This playbook focuses on what works in real projects and where teams usually lose time.
-
 It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined Functions </udf>`,
 {doc}`User-Defined Processes </udp>`, and {doc}`Batch Jobs </batch_jobs>`.
 
@@ -22,9 +20,9 @@ It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined F
 | Export a model to ONNX | [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration) |
 | Deploy a model | [4.2 UDF](#42-deploying-via-user-defined-functions), [4.3 `predict_onnx`](#43-deploying-via-predict_onnx) |
 | Describe a model with STAC | [5. ML models and STAC](#5-ml-models-and-stac) |
-| Run inference reliably inside a UDF | [7. Running inference inside the UDF](#7-running-inference-inside-the-udf) |
-| Validate a model and benchmark it | [8. Validation pipelines](#8-validation-pipelines-in-openeo) |
-| Scale up, tune job options, control cost | [9.1 Scaling](#91-incremental-scaling-strategy), [9.2 Job-option tuning](#92-job-option-tuning), [9.3 Cost](#93-cost-and-credit-control) |
+| Run inference reliably inside a UDF | [6. Running inference with the UDF](#6-running-inference-with-the-udf) |
+| Validate a model and benchmark it | [7. Validation pipelines](#7-validation-pipelines-in-openeo) |
+| Scale up and control cost | [8.1 Scaling](#81-incremental-scaling-strategy) |
 
 **Scope labels.** Statements are valid on all openEO backends unless marked *CDSE-specific*, *Terrascope-specific*, or
 *backend-specific*. "Verified 2026-11-23" means checked against the live capabilities of `openeo.dataspace.copernicus.eu`
@@ -79,48 +77,31 @@ Each of those stages maps to a section below.
 
 ## 1. Data extraction and feature engineering in openEO
 
-If your goal is an ML model that is eventually operationalized through openEO, start with openEO constraints in mind from
-day one. The biggest failures we see are not model or openEO failures; they are data-distribution failures: training on
-data that is not available on target backends, or training on a product variant that differs from what operations will use
-(for example, processing-baseline differences).
+Many operational problems start with a mismatch between training and production data, not with the model itself. Keep the
+target backend in view from the start so the features used in training can be reproduced during inference.
 
 ### 1.1 Start with backend discovery
 
-The first real step is backend discovery, not model design. Before you write a single line of model code, check
-which collections are actually available on the backend you intend to use in production, whether their temporal coverage is
-good enough for your use case, and whether the backend processing level matches your planned production workflow. A model
-trained on Sentinel-2 L2A data from one backend may not behave the same way when the operational backend serves a different
-processing baseline, a different cloud-masking approach, or a different atmospheric correction. These differences are often
-subtle in isolation but compound across a full inference run.
+Before designing the model, check which collections and dates are available on the production backend, and whether its
+processing level matches your plan. For example, Sentinel-2 L2A can differ between backends in processing baseline, cloud
+mask, or atmospheric correction; small differences can accumulate over a large inference run.
 
-No single backend has everything. When a needed source is missing, openEO's `load_stac` is often the clean fallback path
-for integrating external, open, STAC-compliant assets (see {py:meth}`~openeo.rest.connection.Connection.load_stac`). This lets you
-pull in data from other catalogs without leaving the openEO graph, which keeps the extraction logic in one place rather
-than splitting it across systems.
+If a source is missing, `load_stac` can bring external STAC assets into the graph
+({py:meth}`~openeo.rest.connection.Connection.load_stac`).
 
 ### 1.2 Make the data contract explicit
 
-The practical goal is simple: make feature extraction an openEO-native graph from day one so that the model trained on
-those features still behaves correctly during openEO inference. Once extraction is reproducible and composable, you can
-turn it into integration and regression checks (for example, in ESA APEx: https://apex.esa.int/algorithm-support). That
-gives you a clear 'MLOps' path and a way to share preprocessing pipelines with the community.
-
-In this way, you maintain an explicit data-input pipeline that is transparent about input bands and source collections,
-physical units and scaling (for example, reflectance in `[0, 1]`, DN, SAR dB vs linear), CRS and resolution, temporal
-compositing, cloud/no-data handling, and feature-engineering steps. Each of these choices affects what the model sees, and
-making them explicit rather than implicit is what allows anyone to reproduce a data extraction.
+Build extraction as an openEO graph and record its input contract: collections and bands, units and scaling, CRS and
+resolution, compositing, cloud/no-data handling, and feature engineering. These choices define what the model sees, so
+keeping them explicit makes training and inference reproducible. The graph can also become an integration check, for
+example through [ESA APEx](https://apex.esa.int/algorithm-support).
 
 ### 1.3 Freeze and version the extraction graph
 
-When moving toward the training step, freeze the extraction graph and treat it as part of the model definition. This means
-versioning the graph alongside the model weights, so that when you later load the model for inference, you can verify that
-the input features are being generated by the exact same logic that produced the training data.
-
-A practical way to do this is to publish the extraction graph as a parameterised {doc}`user-defined process </udp>` with an
-explicit version, and record that version with every job. When the processing logic changes, produce new outputs under the
-new version and mark the old ones as superseded instead of overwriting them. Part of the provenance comes for free: on
-backends that expose STAC metadata for batch job results, you can capture the input products and the process graph that
-produced them, so keep that metadata together with the extracted training data.
+Treat the extraction graph as part of the model definition and version it with the weights. A parameterised
+{doc}`user-defined process </udp>` provides a reusable interface; record its version with each job and publish changed
+outputs as new releases rather than overwriting old ones. Where available, keep batch-result STAC provenance with the
+training data.
 
 ### 1.4 Example: a simple feature extraction graph
 
@@ -158,8 +139,6 @@ job = features.execute_batch(
 )
 ```
 
-In the next section, we will go deeper into how to optimally arrange the data extraction.
-
 ## 2. Organising and extracting reference data for ML
 
 Training a machine-learning model on Earth observation data starts with high-quality reference data: a set of locations for
@@ -172,11 +151,8 @@ notebook](https://github.com/Open-EO/openeo-community-examples/tree/main/python/
 
 ### 2.1 Extraction modes
 
-The first decision you make is whether your model needs per-pixel time series or spatial patches, dictated by the
-architecture of the model you intend to train. A random forest or gradient-boosted tree expects a table of features per
-sample, while a convolutional neural network expects a small image chip around each sample.
-openEO supports both, but the extraction process, the output format, and the job-sizing considerations are different enough
-that it is worth deciding early.
+Choose the extraction mode to match the model input: point time series produce feature tables, while patch extraction
+produces raster chips for models that need spatial context. The modes have different output formats and job-sizing needs.
 
 - Point extraction
   Process: `aggregate_spatial`
@@ -217,18 +193,13 @@ Reference data is best managed as a vector dataset, with one feature per sample.
 how smoothly the rest of the pipeline runs, because every downstream step (extraction, training, validation) inherits the
 decisions you make at this stage.
 
-- **Geometry**: a point for point extractions, or a polygon (the patch outline) for patch extractions. For patch
-  extractions, keep patches small, for example 64x64 up to 512x512 pixels; larger areas are better handled as a separate
-  job per sample. The reason for this limit is practical: a single large polygon forces the backend to materialize a large
-  raster cube for that one sample, which can dominate job cost and memory even when the rest of the samples are tiny.
-  Derive patch polygons from a fixed, pixel-aligned grid (for example a UTM-based grid at the target resolution) rather
-  than buffering arbitrary points, so that patches from different sensors and different runs line up pixel by pixel.
+- **Geometry**: points for point extraction, or patch polygons for raster extraction. Keep patches small (for example,
+  64×64–512×512 pixels); large polygons can dominate memory and job cost, so handle larger areas separately. Derive
+  patches from a fixed, pixel-aligned (e.g. UTM based) grid so sensors and runs align.
 - **Target attribute(s)**: the label or value that your model will learn to predict. If you have multiple target variables,
   keep them as separate columns rather than encoding them into a single field; this makes it easier to train different
   models from the same reference dataset without re-extracting.
-- **Sample identifier**: a unique ID per sample, so extracted pixels can be traced back to the original reference data.
-  This becomes essential during validation, when you need to compare predictions against reference labels sample by sample.
-  Keep the ID stable when a label or geometry is corrected later, so earlier extractions remain traceable.
+- **Sample identifier**: a stable, unique ID to trace extractions to reference labels, including after corrections.
 - **Temporal information (recommended)**: a validity date or period per sample, so you can define the correct temporal
   extent when extracting satellite data. Without this, you either extract a fixed window for all samples (which may be
   wrong for samples collected in different seasons) or you manually split the reference data into temporal groups, which is
@@ -260,21 +231,11 @@ weight samples by label quality at training time without re-extracting.
 
 #### Cataloguing with STAC
 
-When your reference data grows beyond a handful of files, the STAC specification can help keep it organised and
-discoverable. A structure that scales well is one STAC collection per reference dataset (identity, description, licence,
-provider, label schema, and overall extent) and one STAC item per published release of that dataset, with the
-GeoParquet/GeoJSON file(s) as assets. Corrections and additions become a new release, with a new item and new, immutable
-file paths, so a training run can always refer to the exact release it used. Use the STAC time fields for the period in
-which the reference observations are valid (`datetime`, or `start_datetime`/`end_datetime`), not for the upload date. The
-label extension can additionally document the classes and tasks of your labels. This makes it easy to search reference data by region or period, and the asset URLs can be passed to
-`load_url` for extraction. The same applies to the extracted training data: where supported, `export_workspace` can
-write batch job results, with their STAC metadata, directly into a STAC API (see
+Once reference data spans multiple files or contributors, STAC makes releases searchable and reproducible. Use one
+collection per dataset and one item per immutable release, with GeoParquet/GeoJSON as assets that can be passed to
+`load_url`. Record when observations are valid (not when files were uploaded), and document the label schema with the Label
+extension. Where supported, `export_workspace` can publish extracted data and metadata directly to a STAC API (see
 [Delivering patches to storage](#delivering-patches-to-storage)).
-
-The practical benefit is that you stop tracking reference data in a spreadsheet or a folder tree. Instead, you can query a
-catalog for "all reference data covering this region and this time period" and get back a list of URLs that feed directly
-into the extraction pipeline. This is especially valuable when reference data is contributed by multiple partners or
-collected over several years.
 
 #### Sampling strategy
 
@@ -355,15 +316,10 @@ multi-week training campaign, you may find that your reference data has expired 
 
 #### Splitting into spatial groups
 
-For large-scale (for example, continental or global) reference datasets, do not extract everything in a single batch
-job. The most fundamental reason is projection: a job that crosses UTM zones has to reproject part of the data, so
-samples in different zones no longer line up with the native pixel grid of the input data. A second reason is request
-size and memory pressure: very large AOIs can exceed backend limits or run out of memory before completion. A third
-reason is job duration: a job that covers e.g. an entire country runs for so long that any transient failure forces
-you to start over. Instead, split your samples into spatial groups, resulting in one GeoParquet/GeoJSON file and one
-openEO batch job per group. The Sentinel-2 tiling grid (MGRS, roughly 110x110 km tiles) is a good unit for this: one
-job per Sentinel-2 tile guarantees that each group stays within a single UTM zone, keeps the job size manageable, and
-aligns with how the input data is stored.
+For continental or global datasets, split samples into spatial groups and run one batch job per group. A job that crosses
+UTM zones may reproject part of the data and lose alignment with native pixels; very large requests also increase memory
+pressure and make failures more expensive to restart. Sentinel-2 MGRS tiles (about 110×110 km) are a useful grouping unit
+because they align with the data and usually stay within one UTM zone.
 
 The openEO Python client offers a job splitting utility
 (the {py:func}`~openeo.extra.job_management.split_area` function, see {ref}`job-splitting-custom-grid`) that partitions your area or
@@ -413,23 +369,19 @@ the sample locations.
 
 ### 2.4 Preprocessing
 
-Whether and where to preprocess is a design choice of your ML pipeline, and it is worth making it explicitly rather than
-letting it emerge by accident. The two options have different trade-offs:
+Decide where preprocessing belongs before you extract the training data. Keeping it in the graph makes each step visible
+and easy to reuse; embedding it in the model can make the inference contract self-contained.
 
-- **Preprocess in openEO**: apply cloud masking (for example, a binary mask derived from the Sentinel-2 SCL band),
-  compute backscatter with {py:meth}`~openeo.rest.datacube.DataCube.sar_backscatter`, composite to regular time steps
-  with {py:meth}`~openeo.rest.datacube.DataCube.aggregate_temporal_period`, and merge sensors with {py:meth}`~openeo.rest.datacube.DataCube.merge_cubes`. This
-  yields analysis-ready training data and keeps the ML code simple. The advantage is that the preprocessing is visible in
-  the openEO graph, versioned alongside the extraction logic, and applied identically to training and inference.
-- **Preprocess in the model**: extract (nearly) raw observations and perform normalisation, compositing, or feature
-  engineering inside the model itself, for example as part of an ONNX model that is later used for inference in openEO.
-  This guarantees that training and inference apply identical preprocessing, but it pushes complexity into the model export
-  and makes the preprocessing harder to inspect or modify without retraining.
+- **In openEO**: cloud-mask, derive backscatter with {py:meth}`~openeo.rest.datacube.DataCube.sar_backscatter`, composite
+  with {py:meth}`~openeo.rest.datacube.DataCube.aggregate_temporal_period`, and merge sensors with
+  {py:meth}`~openeo.rest.datacube.DataCube.merge_cubes`. The graph remains inspectable and can be shared by training and
+  inference.
+- **In the model**: extract (nearly) raw observations and perform e.g.normalisation inside
+  the model, for example in ONNX. This keeps preprocessing identical at inference time, but changes require a model
+  re-export and are less visible in the openEO graph.
 
-Whichever option you choose, make sure the extraction produces exactly the inputs your model expects at inference time. The
-most common source of silent accuracy loss in production is a mismatch between the preprocessing applied during training
-and the preprocessing applied during inference; for example, training on reflectance scaled to `[0, 1]` and inferring on DN
-values, or training with cloud-masked composites and inferring on raw scenes.
+In either case, training and inference must use the same inputs and preprocessing; mismatches in scaling or cloud masking
+can silently reduce accuracy.
 
 ```python
 # Example: simple SCL cloud masking, monthly compositing and merging into a single feature cube
@@ -445,11 +397,8 @@ for merging Sentinel-1 and Sentinel-2 into one cube.
 
 ### 2.5 Point extraction with `aggregate_spatial`
 
-For point-based models, use
-{py:meth}`~openeo.rest.datacube.DataCube.aggregate_spatial`
-to sample the feature cube at your reference locations. The reducer receives the pixel values intersecting each geometry.
-For point geometries this is typically a single pixel, so the choice of reducer barely matters: any reducer (`mean`,
-`median`, `first`, ...) will simply return that pixel's value.
+Use {py:meth}`~openeo.rest.datacube.DataCube.aggregate_spatial` to sample the feature cube at reference locations. A point
+usually intersects one pixel, so the reducer has little effect.
 
 `aggregate_spatial` can also be used with polygon geometries, for example to extract one aggregated time series per parcel
 instead of per pixel. In that case the reducer does matter, as it determines how the pixels within each polygon are
@@ -467,10 +416,9 @@ job = samples.execute_batch(
 )
 ```
 
-In contrast to `filter_spatial`, which produces raster output, `aggregate_spatial` produces vector output: a table with one
-value per sample, band, and timestep, which can be exported to GeoParquet or CSV and used directly for model training. This
-tabular structure is what makes point extraction a natural fit for classical ML models, which expect a fixed-length feature
-vector per sample.
+Unlike raster-producing `filter_spatial`, `aggregate_spatial` returns vector values by sample, band, and timestep, suitable
+for tabular training data such as GeoParquet or CSV. This makes it a natural fit for models that expect one feature row per
+sample.
 
 For very large point or feature collections, batch the input geometries before launching extraction jobs. This is a
 feature-table scaling step (request-size control), not an AOI tiling step. If your client version provides
@@ -494,11 +442,9 @@ For orchestration and tracking, run these grouped jobs through
 
 ### 2.6 Patch extraction with `filter_spatial`
 
-For models that need spatial context, use
-{py:meth}`~openeo.rest.datacube.DataCube.filter_spatial`
-with polygon geometries describing the patch outlines. The backend then only computes the data cube for those polygons,
-producing a sparse raster output cube. Combine this with the **backend-specific** `sample_by_feature` output option
-to write one file per sample (see
+For spatial-context models, use {py:meth}`~openeo.rest.datacube.DataCube.filter_spatial` with patch polygons. The backend
+computes a sparse raster cube; combine it with the backend-specific `sample_by_feature` option to write one file per
+sample (see
 {py:meth}`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` and {doc}`sampling`):
 
 ```python
@@ -514,9 +460,8 @@ job.start_and_wait()
 job.get_results().download_files("patches/")
 ```
 
-Without `sample_by_feature`, the backend typically writes the whole sparse cube as one output, mostly empty space between the
-patches. With `sample_by_feature=True`, it writes a separate file per feature of the `filter_spatial` geometries, each
-covering only that feature's extent. The output format options on CDSE and Terrascope are:
+Without `sample_by_feature`, the backend typically writes one sparse cube with empty space between patches. With it, each
+feature gets a file covering its extent. CDSE and Terrascope support these format options:
 
 | Option | Default | Effect |
 | :--- | :--- | :--- |
@@ -524,10 +469,8 @@ covering only that feature's extent. The output format options on CDSE and Terra
 | `feature_id_property` | `null` | Name of the feature attribute used as feature ID in the file names, to link each output back to its input feature. Without it, the backend chooses the names, so set it to keep outputs traceable. |
 | `filename_prefix` | `null` | Prefix for the output file names (by default `OpenEO` or part of the input file name). |
 
-So in the example above, each netCDF file contains the full time series of all bands for one patch, named after the
-`sample_id` of the corresponding feature. Use a unique, stable ID column (see
-[Format and structure](#format-and-structure)). These files can be converted into training tensors for your deep learning
-framework of choice.
+In the example, each netCDF contains all bands and dates for one patch, named with its stable `sample_id` (see
+[Format and structure](#format-and-structure)). Convert these files to tensors for training.
 
 These are **backend-specific** format options: check them with
 {py:meth}`~openeo.rest.connection.Connection.list_file_formats` (under `output` → format → `parameters`) for your backend.
@@ -553,11 +496,9 @@ call.
 
 #### Delivering patches to storage
 
-{py:meth}`download_files <openeo.rest.job.JobResults.download_files>` is convenient for experiments, but batch job results are only kept for a limited time. For larger or
-recurring extractions, let the backend write the results straight to your own object storage with {py:meth}`~openeo.rest.stac_resource.StacResource.export_workspace`
-(where supported), which also writes the STAC metadata. On backends that support direct STAC API publishing for
-workspaces, this is usually the preferred path: results become queryable in a STAC catalog immediately, without
-download/re-upload loops.
+{py:meth}`download_files <openeo.rest.job.JobResults.download_files>` suits experiments, but results are retained only
+temporarily. For recurring or large extractions, use {py:meth}`~openeo.rest.stac_resource.StacResource.export_workspace`
+where supported to write outputs and STAC metadata directly to object storage or a STAC API.
 
 ```python
 result = patches.save_result(
@@ -578,15 +519,13 @@ workspace options.
 
 ### 2.7 Performance considerations
 
-Extraction is not necessarily cheap: even a sparse output may require reading a large number of raw EO assets. The input
-data volume, not the output size, usually determines cost and duration. A patch extraction that produces a few megabytes of
-netCDF output may still read gigabytes of Sentinel-2 imagery to compute those patches, because the backend has to load
-and process multiple chunks from each scene that intersects the sample locations.
+Input volume, not output size, usually drives extraction cost: a small sparse patch output may require processing many
+chunks from large EO scenes.
 
 - Group samples spatially (see [Splitting into spatial groups](#splitting-into-spatial-groups)) and run one job per
   Sentinel-2 tile.
-- Run a small pilot extraction first, and use its observed cost per sample to estimate the cost of the full extraction (see
-  [9.3](#93-cost-and-credit-control)).
+- Run a small pilot extraction first and use its observed cost per sample to estimate the full run (see
+  [scaling](#81-incremental-scaling-strategy)).
 - Restrict the temporal extent and band selection to what your model actually needs. Every extra band and every extra month
   of data adds to the input volume, even if the model ignores it.
 - Consider caching extractions: store the extracted training data (for example, as GeoParquet in object storage) so that
@@ -597,8 +536,9 @@ and process multiple chunks from each scene that intersects the sample locations
 
 ### 3.1 Training outside openEO (common path)
 
-Deep learning training usually runs outside openEO on GPU-capable environments. Which environment fits depends on what you
-actually need:
+Deep-learning training usually runs outside openEO on GPU-capable environments. The distinction is about fit: openEO focuses
+on scalable EO processing, while external platforms offer mature GPU scheduling and model-development tools. Choose a
+training environment based on your data and compute needs:
 
 - **Existing training datasets.** If your task overlaps with a published EO training dataset, reusing it can remove a
   large part of the reference-data work described in [Section 2](#2-organising-and-extracting-reference-data-for-ml).
@@ -609,17 +549,9 @@ actually need:
   EO-specific platforms that offer GPU workspaces (EOTDL is one such European option). GPU training is the piece openEO
   deliberately does not try to cover.
 
-The reason training typically happens outside openEO is not a limitation of the platform but a matter of fit: openEO is
-optimized for scalable EO data processing, not for GPU-accelerated gradient descent, and the tooling around model
-development (experiment tracking, hyperparameter search, GPU scheduling) is more mature elsewhere.
-
-The important part for this playbook is not where training runs, but that training sees exactly the same feature semantics
-as operational inference. If you train on a laptop with locally downloaded data and then deploy to openEO, you are
-implicitly trusting that the local data and the openEO data are equivalent. That trust is often misplaced, because the two
-paths may differ in cloud masking, atmospheric correction, resampling, or compositing. The same holds for third-party
-training datasets: whatever dataset you train on, the features must match what your openEO inference graph will produce.
-The safest route is to extract the training data with the same openEO graph used for inference (see
-[Section 1](#1-data-extraction-and-feature-engineering-in-openeo)).
+Whatever the training environment, align its features with production inference. Local or third-party datasets may differ
+in cloud masking, resampling, or compositing, so the safest route is to extract training data with the same graph used for
+inference (see [Section 1](#1-data-extraction-and-feature-engineering-in-openeo)).
 
 ### 3.2 Training in openEO for lightweight models
 
@@ -720,9 +652,6 @@ A practical pattern is:
 2. Train small downstream models on top.
 3. Deploy those light models back into openEO.
 
-In the next few sections, we detail how more heavyweight models, such as embedders, can be converted and integrated into openEO.
-While the reference material focuses on embeddings, similar methods have been used to integrate alternative AI model workflows into openEO.
-
 Reference: [geospatial embeddings
 examples](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings). This folder is
 the practical starting point for the embedding-first pattern. It contains several worked examples that cover different
@@ -744,11 +673,11 @@ Once an embedding model is chosen, its pipeline is fixed: a pinned checkpoint, a
 logic between the bands and the model. That makes `predict_onnx` (see [4.3](#43-deploying-via-predict_onnx)) usually
 a better fit than a UDF. Reserve UDFs for the experimental phase, or for steps that native processes cannot express.
 
-Each example is a runnable notebook rather than a fragment, so it doubles as a template for your own pipeline.
+Each example is a runnable notebook that can serve as a pipeline template.
 
 ## 4. Packaging and deploying models for openEO inference
 
-This section covers the two things that happen between "the model is trained" and "the model runs in an openEO job": preparing a deployable artifact, and choosing how that artifact is served by the backend. The first is largely shared across deployment paths; the second is where the two onboarding options diverge.
+This section covers model packaging and the two deployment paths: UDFs and native `predict_onnx`.
 
 ### 4.0 Choosing your onboarding path: UDFs and `predict_onnx`
 
@@ -769,44 +698,35 @@ At a glance:
 
 #### 4.0.1 User-Defined Functions (UDFs)
 
-UDFs are the most flexible and established way to run custom ML code in openEO. The `run_udf` process executes arbitrary Python code on the backend, receiving the data cube as an `xarray.DataArray`.
+UDFs are the flexible path for custom ML code: `run_udf` executes Python on the backend and provides the cube as an
+`xarray.DataArray`.
 
-**Advantages:**
+This flexibility also means you own more of the runtime behavior:
+- **Packaging and dependencies:** for heavy ML frameworks (for example PyTorch or TensorFlow), you need to build and ship dependency archives, which can be large and increase cold-start times.
+- **Performance and memory tuning:** with custom Python code, runtime efficiency depends more on implementation details, and memory settings often need explicit tuning.
 
-- **Maximum flexibility:** you can implement any preprocessing, model inference, and postprocessing logic in Python, including custom neural network architectures and specialised embedding models.
-- **Full data cube access:** the UDF receives band names, coordinates, and the `context` object, allowing you to pass per-job parameters and inspect the cube's structure.
-- **Mature ecosystem:** well-documented patterns exist for managing dependencies, either inline in the UDF header (see {ref}`python-udf-dependency-declaration`) or via `udf-dependency-archives`, and for applying UDFs with {py:meth}`~openeo.rest.datacube.DataCube.apply`, {py:meth}`~openeo.rest.datacube.DataCube.apply_dimension`, and {py:meth}`~openeo.rest.datacube.DataCube.apply_neighborhood`.
+Use a UDF when you need custom Python, cube metadata (such as band names or coordinates), or per-job parameters through
+`context`. That flexibility also means you manage dependencies and should profile memory and runtime; see
+[Section 4.2](#42-deploying-via-user-defined-functions).
 
-Nevertheless; this maximal flexibility does mean users are also responsible for:
-- **Dependency management:** for heavy ML frameworks (for example PyTorch or TensorFlow) you are responsible for building and shipping dependency archives, which can be large and increase cold-start times.
-- **Performance and memory tuning:** pre-defined processes are typically better optimized by the backend; with a UDF, the quality of the user code matters more. Because the backend has no good way to predict the memory needs of custom code, you will usually need to fine-tune the memory settings of UDF jobs.
-
-UDFs are therefore the right choice for  any workflow that requires custom Python logic, access to the full data cube (band names, coordinates), or per-job parameterisation via the `context` object. See [Section 4.2](#42-deploying-via-user-defined-functions) for the operational details.
-
-Try to do as much pre- or postprocessing with pre-defined processes before resorting to a UDF, as these processes are highly optimised. In addition, do avoid chaining multiple UDFs after each other. It is computionally more efficient to perform all user-defined code within a single UDF.
+Prefer optimized native processes for preprocessing and postprocessing. Combine custom steps into one UDF rather than
+chaining UDFs. Each UDF boundary forces intermediate data to move thereby increasing the compurational overhead.
 
 ```{tip}
 Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
 
-This  makes the UDF a natural precursor to `predict_onnx`: the UDF gives you room to experiment, add pre- and postprocessing code around the inference call, and pull in extra dependencies. Once the workflow is stable and the extra logic can be moved into native openEO processes (or into the ONNX graph itself), switch to `predict_onnx` with the same ONNX model.
+Use the UDF as an experimentation phase: keep extra pre/post-processing close to the model while the workflow evolves. When the contract stabilizes and custom logic is no longer needed, move to `predict_onnx` with the same ONNX model.
 ```
 
 #### 4.0.2 Native `predict_onnx` Process [experimental]
 
-`predict_onnx` is a more streamlined, backend-native approach for deploying ONNX models; which is highly optimized for execution on the backend. Instead of writing a UDF wrapper, you pass the model directly to the process, and the backend handles the ONNX runtime and inference internally.
-
-**Advantages:**
-
-- **No UDF code required:** You avoid writing and maintaining a UDF wrapper, and simply have to provide the model, which simplifies the operational pipeline.
-- **Simplified dependency management:** the backend provides and fixes the ONNX runtime; there is no dependency archive to manage.
-- **Performance:** because the backend controls the full execution, it can go far in optimising inference performance.
-
+`predict_onnx` runs a stable ONNX model without a UDF wrapper; the backend manages runtime and execution.
 
 Before using `predict_onnx`, consider these backend and model constraints:
 
 - **Experimental, check your backend:** treat `predict_onnx` as experimental. It is backend-specific; check {py:meth}`connection.list_processes() <openeo.rest.connection.Connection.list_processes>`. The [OlmoEarth community example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) is a reference implementation.
 - **Fixed interface:** the process operates on a tensor interface with no access to band names, coordinates, or the `context` object, making it unsuitable for models that need this metadata.
-- **Limited to ONNX:** only models that can be exported to ONNX and conform to the expected input/output contract are supported.
+- **Limited to ONNX contract:** only models that can be exported to ONNX and conform to the expected input/output interface are supported.
 
 **Best for:** fixed, per-pixel or per-tile computations where the model is a self-contained ONNX graph and the target backend supports the process. See [Section 4.3](#43-deploying-via-predict_onnx) for a deployment example.
 
@@ -820,8 +740,8 @@ Before using `predict_onnx`, consider these backend and model constraints:
 
 Use the following rules of thumb to choose the right onboarding path:
 
-1. **Use `predict_onnx`** if your model is a fixed, per-pixel ONNX graph and the target backend supports the process. It is the simplest operational path, with no UDF wrapper and minimal dependency management.
-2. **Use a UDF** for everything else that requires custom Python code, the `context` object, or access to the full data cube (band names, coordinates). This remains the most flexible and widely applicable option. Keep the UDF small, push as much preprocessing as possible into native openEO processes, and watch memory usage. Prefer an ONNX-converted model inside the UDF for its low memory footprint; this also makes the UDF a good sandbox to iterate in before moving to `predict_onnx`.
+1. **Use `predict_onnx`** for a fixed, per-pixel ONNX model when the backend supports it; it avoids a UDF wrapper and dependency management.
+2. **Use a UDF** when you need custom Python, `context`, or cube metadata. Keep it small, prefer native preprocessing, and use ONNX Runtime where possible to reduce dependencies and memory.
 
 This decision framework complements the STAC-based model description discussed in [Section 5](#5-ml-models-and-stac): by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.
 
@@ -832,13 +752,14 @@ The two options are not mutually exclusive. One can perfectly combine UDFs with 
 **Where to go next**
 
 - **`predict_onnx`:** follow [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration), then [4.3 Deploying via `predict_onnx`](#43-deploying-via-predict_onnx).
-- **UDF:** follow [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration), then [4.2 Deploying via User-Defined Functions](#42-deploying-via-user-defined-functions). Sections 7 to 9 then go deep on UDF inference patterns, validation, and upscaling.
+- **UDF:** follow [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration), then [4.2 Deploying via User-Defined Functions](#42-deploying-via-user-defined-functions).
 
-The rest of this playbook (Sections 7 to 9) goes deep on the UDF path, because it is the most flexible and the most widely applicable option today. `predict_onnx` readers should use the short deployment section below together with the linked external documentation.
+Sections 6 to 8 focus on UDFs; `predict_onnx` users can follow its deployment section and linked documentation.
 
 ### 4.1 Preparing the model: ONNX export and calibration
 
-Whatever deployment path you choose, the artifact that actually runs in the backend is in practice almost always an ONNX model. `predict_onnx` consumes it directly and a UDF typically loads it via ONNX Runtime. The preparation steps in this subsection therefore apply to both paths, and getting them right early saves debugging effort later.
+Both paths commonly use ONNX: `predict_onnx` consumes it directly, while a UDF loads it through ONNX Runtime. These
+preparation steps apply to either path.
 
 #### 4.1.1 Prefer ONNX when feasible
 
@@ -874,7 +795,7 @@ class EncoderONNX(nn.Module):
         return self.backbone((data - self.mean) / (self.std + 1e-9))
 ```
 
-In this way you can be certain that the correct data distribution enters the model at runtime, whether it is invoked via `predict_onnx` or from inside a UDF.
+The same calibration then applies whether the model runs through `predict_onnx` or a UDF.
 
 #### 4.1.3 Tips for the ONNX conversion
 
@@ -929,10 +850,7 @@ torch.onnx.export(
 
 **Sanity checks**
 
-Once the model is ported to ONNX and you want to incorporate the inference into an openEO job, there are a few best-practice
-checks one has to build in. When openEO passes the input cube to the model, it is not guaranteed that the order of bands,
-dimensions, or dtype of the cube is as you expected. Whether you consume the model via `predict_onnx` or from inside a
-UDF, it is good practice to ensure there is no:
+Before deployment, verify that the cube's band order, dimensions, and dtype match the model contract, for either path:
 
 1. **Layout mismatch**: trained with `NCHW`, inferred with `NHWC`. This is the most common mistake, because your
    conventions and openEO cube conventions are not the same, and the transpose may be implicit in one path but not the
@@ -949,16 +867,11 @@ UDF, it is good practice to ensure there is no:
 
 ### 4.2 Deploying via User-Defined Functions
 
-The most common way to run a custom ML model inside openEO is a {doc}`User-Defined Function
-(UDF) </udf>`, simply because it offers incredible flexibility: a UDF
-lets you import arbitrary Python code into your process graph instead of being limited to what the backend ships natively.
-This is what makes it possible to run a custom neural network, a specialized embedding model, or any other Python-based
-inference logic inside an openEO job.
+Use a {doc}`User-Defined Function (UDF) </udf>` when native processes do not cover the required Python inference logic,
+such as a custom neural network or embedding model.
 
-That flexibility comes with a catch: UDF runtimes are intentionally minimal. They ship with a small set of
-pre-installed packages, and they are designed to be lightweight so that jobs can start quickly and run
-efficiently on shared infrastructure. You can inspect what is available with the [runtime
-docs](https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes) or, on an established connection, with:
+UDF runtimes are minimal to support fast startup on shared infrastructure. Check available packages in the [runtime
+documentation](https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes) or with:
 
 ```python
 connection.list_udf_runtimes()
@@ -982,8 +895,7 @@ However, there are two ways to extend what a UDF can use:
    ourselves for the common ML formats (ONNX, PyTorch). The archive is downloaded once per worker and unpacked into the UDF
    runtime, which is why keeping it small matters for cold-start time.
 
-A good strategy order is: start with pre-built dependency archives, then use small runtime additions for tiny extras, and
-keep heavy runtime installation as a last resort.
+Prefer pre-built archives; use inline additions for small dependencies and avoid installing heavy packages at runtime.
 
 For a model exported to ONNX (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), the UDF only needs
 [ONNX Runtime](https://onnxruntime.ai/docs/), not the full training framework. Pre-built ONNX Runtime dependency archives
@@ -996,7 +908,7 @@ https://s3.waw3-1.cloudferro.com/project_dependencies/onnx_deps_python311.zip#on
 Example of wiring a dependency archive through job options:
 
 ```python
-# `pred` is the inference cube built with a UDF, see Section 7.1
+# `pred` is the inference cube built with a UDF, see Section 6.1
 job = pred.execute_batch(
     out_format="NetCDF",
     title="udf_inference_with_deps",
@@ -1044,21 +956,21 @@ sys.path.append("deps")
 import onnx
 ```
 
-Using a ready-made archive like this is exactly the "start with pre-built dependency archives" strategy recommended above:
-it removes the build step from your critical path and lets you focus on the model itself.
+Using a ready-made archive avoids rebuilding common runtime dependencies for each model, leaving you to focus on the
+inference code.
 
 Related UDF examples: [onnx-inference](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/onnx-inference)
 runs a pretrained CNN with ONNX Runtime inside a UDF, and
 [parcel-delineation](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/parcel-delineation)
 deploys a pretrained U-Net.
 
-See [Section 7](#7-running-inference-inside-the-udf) for the patterns that make UDF inference reliable at scale: how to
-choose between `apply`, `apply_dimension`, and `apply_neighborhood`, how to handle chunk padding, and how to cache
-sessions and tune thread counts.
+See [Section 6](#6-running-inference-with-the-udf) for chunking, padding, session caching, and thread tuning.
 
 ### 4.3 Deploying via `predict_onnx`
 
-Once an ONNX artifact is exported and parity-tested (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), `predict_onnx` ({py:func}`openeo.processes.predict_onnx`) is the simplest deployment path on backends that support it. The process takes the model (URL) and the array of values to predict on, typically applied along a dimension of the cube, and the backend handles the ONNX runtime, session caching, and chunking.
+After exporting and parity-testing ONNX (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), use
+`predict_onnx` ({py:func}`openeo.processes.predict_onnx`) on a supporting backend. It accepts a model URL and input array;
+the backend manages ONNX Runtime, session caching, and chunking.
 
 ```python
 from openeo.processes import predict_onnx
@@ -1073,7 +985,7 @@ Three things to watch:
 
 - **Contract, not code.** The input cube must already match the model's expected shape, dtype, and band order. There is no `context` and no band-name access inside the process, so any preprocessing must be done with native openEO processes (or baked into the ONNX graph, see [4.1.2](#412-calibration-lives-inside-the-model)) before the call.
 - **Backend support.** The process is experimental. It is listed on CDSE and Terrascope (verified 2026-11-23) but may be missing elsewhere; check `connection.list_processes()` before designing around it.
-- **Spatial context.** For CNN-style models, check how the backend tiles the input. According to the community examples, the CDSE `predict_onnx` has no overlap option, so tiles are processed without overlap and seams are possible (the OlmoEarth example below accepts this). If your model needs overlapping windows, use a UDF with `apply_neighborhood` instead (see [4.2](#42-deploying-via-user-defined-functions)).
+- **Spatial context.** For CNN-style models, the CDSE `predict_onnx` has no overlap option, so tiles are processed without overlap and seams are possible (the OlmoEarth example below accepts this). If your model needs overlapping windows, use a UDF with `apply_neighborhood` instead (see [4.2](#42-deploying-via-user-defined-functions)).
 
 The [OlmoEarth example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) shows the full pattern for an embedding model:
 
@@ -1085,12 +997,11 @@ For simple per-pixel or per-tile models, `predict_onnx` is usually less code and
 
 ## 5. ML models and STAC
 
-In many projects we have seen that a single global model rarely works equally well everywhere, so the metadata
-around a model matters almost as much as the model itself: it tells a future user, including future you, where the model is
-expected to work and under which exact input contract.
+Model performance can vary by region and period, so metadata should describe where the model applies as well as its exact
+input contract. This helps users select a suitable model and reproduce its predictions later.
 
-The STAC community originally proposes the [Machine Learning Model (MLM) extension](https://github.com/stac-extensions/mlm), which
-adds rich support for things like multiple model inputs, hyperparameters, and accelerator requirements.
+The [STAC Machine Learning Model (MLM) extension](https://github.com/stac-extensions/mlm) describes model inputs,
+hyperparameters, and accelerator requirements.
 
 At minimum, capture the spatiotemporal relevance, input band order, expected units and value ranges, tensor layout, expected tile shape and window
 semantics, the normalization policy, output semantics, runtime requirements, and links to all sidecar
@@ -1120,6 +1031,12 @@ artifacts. This kind of information is especially relevant during deployment.
 }
 ```
 
+This way you can build a model catalogue that makes explicit where and when each model is expected to perform well.
+For example, a global land-cover product can be published as one STAC collection with multiple regional and/or
+time-bounded model items, each with its own contract (bands, layout, normalization, tile semantics, runtime limits).
+At execution time, the workflow can resolve the model from STAC based on the requested area and period, so the best-fit
+model contract is selected automatically without requiring end users to make that decision manually.
+
 ## Related references
 
 - {doc}`Machine Learning </machine_learning>`
@@ -1130,43 +1047,15 @@ artifacts. This kind of information is especially relevant during deployment.
 - [openEO community examples: geospatial embeddings](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings)
 - [openEO community examples: machine learning](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning)
 
-## 6. Emerging: a standardized ML API in openEO
 
-Everything in this playbook currently relies on two mechanisms for getting a trained model into openEO: a `predict_*`
-process that the backend ships natively (as in the forest-fire example), or a UDF that loads the model itself. Both work
-today, and both are what you should build on for production right now.
+## 6. Running inference with the UDF
 
-There is, however, ongoing work to standardize how models are described and loaded in openEO, and it is worth being aware
-of it so you can follow the direction of travel rather than being surprised by it later. The idea is to treat a trained
-model as a first-class, discoverable object rather than as a file behind a URL:
+The UDF must receive data in the spatial or temporal shape the model expects. The patterns below help match openEO's
+application process and chunking behavior to that input.
 
-- Models are described as STAC Items using the [MLM extension](https://github.com/stac-extensions/mlm), which is the same
-  metadata layer discussed in [Section 5](#5-ml-models-and-stac).
-- A dedicated process retrieves such a model directly from a STAC catalog, so the model URL, its input contract, and its
-  provenance travel together.
-- Inference then runs against that loaded model, without the user having to wire up a dependency archive or a UDF by hand
-  for the common case.
+### 6.1 Choosing between `apply`, `apply_dimension`, and `apply_neighborhood`
 
-This is a natural extension of the STAC description work already recommended in Section 5: if you have gone to the trouble
-of describing your model with MLM metadata, a standardized loader is what makes that metadata pay off by letting other jobs
-find and use the model directly. It does not change any of the practical advice in this playbook — keep using UDFs and
-dependency archives for anything non-standard — but it is the direction the ecosystem is moving, and describing your models
-with MLM metadata now positions them to take advantage of it when it lands.
-
-## 7. Running inference inside the UDF
-
-With the model packaged and described, the remaining work happens inside the UDF itself: deciding how the datacube is
-chunked for the model, keeping sessions and sockets alive across invocations, and making sure a window of pixels is handled
-consistently from training all the way through to a large-scale production run. The next few sections walk through the
-patterns that tend to make this reliable in practice.
-
-### 7.1 Choosing between `apply`, `apply_dimension`, and `apply_neighborhood`
-
-openEO offers several ways of applying your custom script along a datacube, and the one you want depends mainly on the
-input your ML network actually needs. Choosing the wrong one is not just inefficient; it can produce incorrect results if
-the model expects spatial context that the process does not provide.
-
-Quick rule of thumb:
+The right process depends on what the model needs to see each time it runs:
 
 1. Use [`apply`](https://openeo.org/documentation/1.0/processes.html#apply) for lightweight element-wise transforms
   (for example scaling or thresholding) where you do not need to control chunking explicitly.
@@ -1174,7 +1063,7 @@ Quick rule of thumb:
    dimension (most often time, `t`) for each pixel location. This is the natural choice for time-series models that consume
    a full temporal profile per pixel.
 3. Use [`apply_neighborhood`](https://openeo.org/documentation/1.0/processes.html#apply_neighborhood) for model inference
-  whenever you need explicit control over spatial and temporal chunking, including many pixel-based models. It is required
+  whenever you need explicit control over spatial chunking, including many pixel-based models. It is required
   for patch-based models (for example CNN-style inference), and it can also be preferable for pixel-based inference because
   you define chunk sizes and overlap yourself instead of relying on backend defaults.
 
@@ -1204,7 +1093,6 @@ pred = features.apply_neighborhood(
     size=[
         {"dimension": "x", "value": 128, "unit": "px"},
         {"dimension": "y", "value":   128, "unit": "px"},
-        {"dimension": "t", "value": 'P1D'}
     ],
     overlap=[
         {"dimension": "x", "value": 8, "unit": "px"},
@@ -1213,12 +1101,9 @@ pred = features.apply_neighborhood(
 )
 ```
 
-### 7.2 Spatial context and chunk semantics
+### 6.2 Spatial context and chunk semantics
 
-For patch-based models that go through `apply_neighborhood`, the window size and overlap you choose at inference time need
-to match what the model actually learned during training. The official process guidance is a useful anchor here: spatial
-window sizes typically range from 64 to 512 pixels, with overlaps of 8 to 32 pixels being common, and openEO will stitch
-the kept centers of neighboring chunks back together once processing finishes. A larger overlap reduces edge artifacts but
+With apply_neighborhood, the model sees an effective tile size of window size + 2 × overlap, which must match the model input shape. After processing, openEO stitches the window-size cores of neighboring chunks into a seamless result, and discards the overlap regions. A larger overlap reduces edge artifacts but
 also increases memory pressure, since every extra pixel of overlap is recomputed in both of its neighboring chunks.
 
 If the entire AOI is not an exact multiple of the apply window, center padding with NaNs is applied during the UDF runtime.
@@ -1226,11 +1111,10 @@ Therefore it is paramount that the UDF implementation knows how to work with NaN
 pixels are valid will either crash or produce garbage at the edges of the AOI, and those errors can be difficult to trace
 back to the padding behavior.
 
-### 7.3 Caching and concurrency
+### 6.3 Caching and concurrency
 
 A single batch job can spin up many workers, and each of those workers may process several chunks over its lifetime.
-Loading a model and spinning up an inference session is comparatively expensive, so it pays off to cache the loaded
-artifact at the module level instead of re-creating it for every chunk.
+Loading a model and spinning up an inference session is comparatively expensive, so it pays off to cache the loaded artifact.
 
 The thread settings on the inference session can also strongly impact performance. ONNX Runtime distinguishes between
 intra-op threads, which parallelize work inside a single operator, and inter-op threads, which run independent branches of
@@ -1238,8 +1122,7 @@ the graph in parallel. Increasing the number of threads whilst avoiding oversubs
 The optimal number of threads is again backend-specific; in our experience 2 works well.
 
 ```{note}
-When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. In our experience
-`intra_op_num_threads=2` and `inter_op_num_threads=2` is a good starting point. Comparing a local run with default
+When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. Comparing a local run with default
 all-core settings to a 2-thread UDF run will give misleading timings.
 ```
 
@@ -1259,26 +1142,61 @@ def get_session(model_path, num_threads=2):
     return ort.InferenceSession(model_path, options, providers=["CPUExecutionProvider"])
 ```
 
-More threads is not automatically faster, and this is one of the more counter-intuitive things to tune. ONNX Runtime, BLAS,
-and PyTorch each try to parallelize across all available cores by default, and when several of these libraries are active
-in the same process, or when several worker processes share a node, their thread pools end up competing for the same
-physical cores. The practical fix is to tune thread limits together with the executor configuration rather than in
-isolation, generally keeping `intra_op_num_threads` close to the number of cores actually allocated to each executor.
+More threads are not always faster: multiple workers can compete for the same cores. Tune thread limits with executor
+configuration, keeping per-session threads near the cores allocated to each executor.
 
-## 8. Validation pipelines in openEO
+### 6.4 Profiling UDF steps
 
-Validation is only informative if it follows the same path as production. It is tempting to validate a model against a
-convenient local dataset and call it done, but the goal here is to catch exactly the kinds of drift described above, so the
-validation path has to go through the same UDF, the same context object, and ultimately the same backend that will run in
-production. A validation that uses a different data path is not really validating the production system; it is validating a
-related but distinct system.
+For local or remote UDF runs, wrap expensive stages—such as model loading, preprocessing, and inference—to see which step
+uses the most time or memory. These measurements help identify what to optimize, but they do not replace backend job
+metrics when sizing workers:
 
-A three-stage validation loop tends to catch problems early and cheaply, before they become expensive to debug on a large
-job. The first stage checks tensor parity between the original model and the exported model (Example 1 below). The second
-stage runs the UDF locally against a representative NetCDF tile,
-which is fast to iterate on and catches most shape, dtype, and band-order mistakes. The third stage runs the same UDF
-through the actual backend on a tiny, held-out area of interest, which is the only stage that can catch backend-specific
-surprises. Each stage is cheap relative to the next, so a problem caught early saves both time and compute.
+| Tool | Measures | Limitation |
+| :--- | :--- | :--- |
+| `time.perf_counter()` | Monotonic elapsed time per stage. | — |
+| `psutil` | Process RSS, including native allocations. | Before/after samples can miss short-lived peaks; may need a dependency archive. |
+| `tracemalloc` | Python-managed allocation peaks. | Does not include NumPy, ONNX Runtime, or other native allocations. |
+| `resource.getrusage()` | Process peak RSS on Unix-like systems. | Cumulative high-water mark, not per-stage; units vary by platform. |
+
+```python
+import time
+import tracemalloc
+
+import psutil
+
+process = psutil.Process()
+tracemalloc.start()
+
+
+def profile_step(name, function, *args, **kwargs):
+    rss_before = process.memory_info().rss
+    traced_before, _ = tracemalloc.get_traced_memory()
+    tracemalloc.reset_peak()
+    started = time.perf_counter()
+    result = function(*args, **kwargs)
+    elapsed = time.perf_counter() - started
+    _, traced_peak = tracemalloc.get_traced_memory()
+    rss_after = process.memory_info().rss
+    print(
+        f"{name}: {elapsed:.2f}s, RSS delta={(rss_after - rss_before) / 2**20:.1f} MiB, "
+        f"Python peak increase={max(0, traced_peak - traced_before) / 2**20:.1f} MiB"
+    )
+    return result
+```
+
+RSS before/after is only a snapshot; confirm worker-level peaks with backend job metrics.
+
+## 7. Validation pipelines in openEO
+
+Validation is only informative if it follows the same path as production. The
+validation path has to use the same inference mode (`run_udf` or `predict_onnx`), the same input contract, and ultimately
+the same backend that will run in production.
+
+A three-stage validation loop tends to catch problems early and cheaply:
+
+- **Stage 1: model parity check.** Check tensor parity between the original model and the exported ONNX model (Example 1 below).
+- **Stage 2: path-specific preflight.** For UDFs, run the UDF locally against a representative NetCDF tile to catch shape, dtype, and band-order issues quickly. For `predict_onnx`, run contract checks on representative tensors/cubes (shape, dtype, layout, band order, normalization assumptions), since there is no UDF wrapper to test locally.
+- **Stage 3: backend smoke run.** Run the same production graph on the actual backend over a tiny held-out area of interest; this is the only stage that can catch backend-specific surprises.
 
 ```{image} /_static/images/geospatial-ai-validation-loop.svg
 :alt: Three-stage validation loop: model parity check, local UDF test on a representative tile, then a backend smoke run on a tiny held-out area; failures loop back to an earlier stage.
@@ -1322,52 +1240,42 @@ Example 3: tiny CDSE smoke run before scaling.
 
 Start with a very small area (around 1x1 km), verify the output, and then scale up in small steps.
 
-During this phase, add enough logging inside the UDF. You can retrieve these logs in the openEO
+When workking with a UDF; add enough logging inside the UDF. You can retrieve these logs in the openEO
 Web Editor (https://editor.openeo.org/) and quickly see what worked and what failed. Logging is
-especially valuable here because the UDF runs remotely and you cannot attach a debugger;
-the logs are your only window into what the code actually did.
+especially valuable here because when the UDF runs remotely and you cannot attach a debugger; the logs are your only window into what the code actually did.
 
-Once the model runs reliably, expand the extent gradually. At some point you will likely hit OOM issues. When that happens,
-increasing Python memory or executor memory overhead is usually the first thing to try. If that is
-not enough, reach out through the Copernicus Data Space Ecosystem forum
-(https://forum.dataspace.copernicus.eu/) for upscaling support, or get in touch with ESA APEx,
-which provides algorithm support services (https://apex.esa.int/algorithm-support).
-
-See [4.2](#42-deploying-via-user-defined-functions) for how UDF runtimes, inline dependencies, and dependency
-archives work.
+See [4.2](#42-deploying-via-user-defined-functions) for how UDF runtimes, inline dependencies, and dependency archives work.
 
 ### Accuracy assessment and continuous benchmarking
 
-The three stages above check that the production path computes what you intended; they do not tell you how accurate the
-model is. For that, run the openEO inference graph over the held-out test samples of the spatially independent split (see
-[Spatially independent data splits](#spatially-independent-data-splits)) and compute metrics against the reference labels.
-Because sample IDs travel with the extracted values, predictions can be joined to labels sample by sample.
+The three stages check execution, not accuracy. Run the production graph on the held-out spatial split (see
+[Spatially independent data splits](#spatially-independent-data-splits)) and compare predictions with reference labels.
 
-Once a model is operational, turn this into a benchmark that runs repeatedly, so that regressions in accuracy or cost are
-caught early:
+Repeat benchmarks periodically and after changes to the code, model, or platform to catch accuracy and cost regressions.
 
-- Schedule benchmarks periodically, and additionally when the algorithm code, the model, or the platform changes. Unstable
-  workflows deserve a higher frequency.
-- If benchmarks fail consistently, stop scheduling new runs until the cause is fixed, since every run costs compute.
-- Only report differences in accuracy or cost that are statistically significant, and group similar regressions across
-  benchmarks, to keep the noise down.
-- Use the same benchmark to compare model versions, or alternative algorithms that produce the same output.
 
-## 9. Upscaling and performance tuning
+If your workflow is mature enough for broader reuse, consider onboarding it in
+[ESA APEx algorithms](https://github.com/ESA-APEx/apex_algorithms). Once onboarded, it can also be exposed through the
+[APEx algorithm catalogue](https://algorithm-catalogue.apex.esa.int/apps/timeseries_statistics#description).
+APEx provides a further quality gate through regular regression and integration checks on compatible backends.
 
-### 9.1 Incremental scaling strategy
+## 8. Upscaling and performance tuning
 
-Scaling up is best done in phases rather than in one jump from a tiny test to the full operational extent. Start with a
-small area of interest and a short time period. After validating the workflow, increase the area and time range in measured
-steps, changing the spatial and temporal extents separately while keeping the process graph and job options fixed. Check
-coverage, output quality, and runtime after each step. Tune job options separately as described in
-[9.2](#92-job-option-tuning).
+### 8.1 Incremental scaling strategy
 
-In practice, this incremental approach pairs well with the
-{py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`), which is built
-specifically for running and tracking large numbers of batch jobs rather than babysitting them one at a time. Instead of
-manually looping over areas or job options and keeping track of what succeeded, you describe the work as a small table, one row per job,
-and let the manager submit, poll, track, and (optionally) download results for you. More orchestration examples are in
+Avoid jumping from a tiny test to the full operational area. Start with a small area and short period; after validation,
+increase spatial and temporal extents in separate steps while keeping the graph and job options fixed. Check coverage,
+output quality, and runtime after each step so you can see which change drives resource use.
+
+At larger scales, tune job options from backend usage metrics rather than guesswork: use CPU utilization to guide
+parallelism (for example, `max-executors`) and executor memory usage/requested values to size memory and overhead. If
+stages fail, increase resources or reduce chunk size before scaling further. If metric-guided tuning is insufficient,
+contact the Copernicus Data Space
+Ecosystem forum (https://forum.dataspace.copernicus.eu/) for upscaling support, or get in touch with ESA APEx, which
+provides algorithm support services (https://apex.esa.int/algorithm-support).
+
+The {py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`) can submit and track a table
+of batch jobs instead of requiring a manual submission loop. More examples are in
 [70 · Platform and large scale](https://github.com/Open-EO/openeo-community-examples/tree/main/python/70_platform-and-large-scale).
 For an area-scaling sweep, vary only the spatial extent while keeping the process graph and job options fixed:
 
@@ -1415,35 +1323,9 @@ manager.add_backend("cdse", connection=connection, parallel_jobs=4)
 manager.run_jobs(job_db=job_db, start_job=start_job)
 ```
 
-Because the job database is persisted to disk (as CSV or Parquet), the whole run can be interrupted and resumed later with
-{py:func}`~openeo.extra.job_management.get_job_db` without losing track of which tiles already finished, which is exactly the kind of bookkeeping that becomes
-tedious to do by hand once you are past a handful of jobs.
 
-If other tools, such as a dashboard, need to read the job state, the job database can also live in a STAC API with
-{py:class}`~openeo.extra.job_management.stac_job_db.STACAPIJobDatabase`. This is still experimental, so pin your client
-version when relying on it. When results are written to object storage with `export_workspace` (see
-[Delivering patches to storage](#delivering-patches-to-storage)), create the manager with `download_results=False` (see {ref}`job-manager-download-results`), so results are not downloaded a second time.
-
-### 9.2 Job option tuning
-
-For job-option tuning, keep the AOI, time
-range, bands, and process graph fixed; change one option at a time and compare runtime, resource use, and output quality.
-Backend behavior can affect these results, so validate any improvement with a repeatable run.
-
-```{note}
-**CDSE/Geotrellis-specific:** two logged metrics are especially useful when tuning executor options:
-
-- **CPU utilization rate** helps guide `max-executors` tuning; compare it across repeatable runs rather than assuming that more executors always help.
-- **Peak executor memory** helps size `executor` and `executor-memoryOverhead`; leave headroom for workload variation.
-
-These metrics and their interpretation are backend-specific, not universal. Validate any adjustment with a repeatable small
-run.
-```
-
-### 9.3 Cost and credit control
-
-Cost control should start from a representative pilot. When using the {py:class}`~openeo.extra.job_management.MultiBackendJobManager` for the upscaling/tuning exercise, pass
+When using the {py:class}`~openeo.extra.job_management.MultiBackendJobManager` for scaling, pass
 `cancel_running_job_after` (in seconds, see {ref}`job-manager-cancel-running-job`) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
 the limit from pilot runtimes, with enough margin for normal variation. For the area sweep in
-[9.1](#91-incremental-scaling-strategy), ensure the limit accommodates the largest planned extent; otherwise, omit it for
+[8.1](#81-incremental-scaling-strategy), ensure the limit accommodates the largest planned extent; otherwise, omit it for
 that sweep.
