@@ -5,6 +5,7 @@ openEO CookBook
    :maxdepth: 3
    :caption: Contents:
 
+   geospatial-ai-playbook
    ard
    sampling
    udp_sharing
