@@ -6,7 +6,7 @@ extraction to training, model packaging, inference, validation, and upscaling.
 It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined Functions </udf>`,
 {doc}`User-Defined Processes </udp>`, and {doc}`Batch Jobs </batch_jobs>`.
 
-```{admonition} Quickstart: what is where
+:::{admonition} Quickstart: what is where
 :class: tip
 
 | If you want to... | Go to |
@@ -23,7 +23,7 @@ It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined F
 | Run inference reliably inside a UDF | [6. Running inference with the UDF](#6-running-inference-with-the-udf) |
 | Validate a model and benchmark it | [7. Validation pipelines](#7-validation-pipelines-in-openeo) |
 | Scale up and control cost | [8.1 Scaling](#81-incremental-scaling-strategy) |
-```
+:::
 
 **Scope labels.** Statements are valid on all openEO backends unless marked *CDSE-specific*, *Terrascope-specific*, or
 *backend-specific*. "Verified 2026-11-23" means checked against the live capabilities of `openeo.dataspace.copernicus.eu`
@@ -46,7 +46,6 @@ Verified 2026-11-23: all processes above are listed on both CDSE and Terrascope.
 
 **Job options policy.** `job_options` keys and values are backend-specific. Read the target backend's documentation or
 ask the user; never copy values from the examples here unchanged.
-````
 
 ## Where openEO helps most in a Machine Learning (ML) workflow
 
@@ -70,11 +69,7 @@ Each of those stages maps to a section below.
 
 ## End-to-end story
 
-```{image} /_static/images/geospatial-ai-workflow.svg
-:alt: End-to-end geospatial AI workflow
-:width: 100%
-:align: center
-```
+![End-to-end geospatial AI workflow](../_static/images/geospatial-ai-workflow.svg)
 
 ## 1. Data extraction and feature engineering in openEO
 
@@ -210,11 +205,11 @@ The recommended file formats are GeoParquet and GeoJSON. GeoParquet is preferred
 columnar, and faster to read. GeoJSON is fine for small datasets and for cases where you need to inspect the file by hand,
 but it becomes unwieldy beyond a few thousand features.
 
-```{tip}
+:::{tip}
 The WorldCereal Reference Data Module (RDM) is a good example of how reference data can be curated and harmonised at
 scale: samples are stored with a unique ID, a harmonised label, a validity time, and quality attributes, and are exported
 as GeoParquet for extraction.
-```
+:::
 
 #### Label quality
 
@@ -333,13 +328,13 @@ In `split_area`, these two modes are mutually exclusive: either pass `projection
 or pass `tile_grid` for a pre-defined grid. In size-based mode, tiles are anchored at the AOI south-west corner and edge
 tiles are clipped to the AOI boundary; this is convenient for load balancing but not automatically pixel-aligned.
 
-```{important}
+:::{important}
 Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
 extent) determines how large a job can be. A tile with thousands of samples may need to be split further, while sparsely
 sampled tiles could be merged into a single job. Finding the right job size may require some trial-and-error fine-tuning.
 A good starting point is to aim for a few hundred to a few thousand samples per job, then adjust based on observed
 runtime and memory usage.
-```
+:::
 
 ### 2.3 Loading satellite data
 
@@ -486,14 +481,14 @@ extractions back to the reference data afterwards: labels and metadata travel wi
 surprising amount of error-prone bookkeeping, especially when reference data is split across multiple files and
 extraction jobs.
 
-```{tip}
+:::{tip}
 Always validate on a small test extraction if all original feature properties are retained before relying on it.
-```
+:::
 
-```{warning}
+:::{warning}
 Extraction only works as a batch job, since it produces multiple output files that cannot be transferred in a synchronous
 call.
-```
+:::
 
 #### Delivering patches to storage
 
@@ -713,11 +708,11 @@ Use a UDF when you need custom Python, cube metadata (such as band names or coor
 Prefer optimized native processes for preprocessing and postprocessing. Combine custom steps into one UDF rather than
 chaining UDFs. Each UDF boundary forces intermediate data to move thereby increasing the compurational overhead.
 
-```{tip}
+:::{tip}
 Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
 
 Use the UDF as an experimentation phase: keep extra pre/post-processing close to the model while the workflow evolves. When the contract stabilizes and custom logic is no longer needed, move to `predict_onnx` with the same ONNX model.
-```
+:::
 
 #### 4.0.2 Native `predict_onnx` Process [experimental]
 
@@ -733,11 +728,7 @@ Before using `predict_onnx`, consider these backend and model constraints:
 
 #### 4.0.3 Decision Guide
 
-```{image} /_static/images/geospatial-ai-inference-path.svg
-:alt: Decision guide: predict_onnx for fixed ONNX models without custom logic when the backend lists predict_onnx; otherwise a UDF with ONNX Runtime.
-:width: 100%
-:align: center
-```
+![Decision guide: predict_onnx for fixed ONNX models without custom logic when the backend lists predict_onnx; otherwise a UDF with ONNX Runtime.](../_static/images/geospatial-ai-inference-path.svg)
 
 Use the following rules of thumb to choose the right onboarding path:
 
@@ -746,9 +737,9 @@ Use the following rules of thumb to choose the right onboarding path:
 
 This decision framework complements the STAC-based model description discussed in [Section 5](#5-ml-models-and-stac): by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.
 
-```{note}
+:::{note}
 The two options are not mutually exclusive. One can perfectly combine UDFs with predict_onnx into a single pipeline if need be.
-```
+:::
 
 **Where to go next**
 
@@ -878,11 +869,11 @@ documentation](https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes) o
 connection.list_udf_runtimes()
 ```
 
-```{note}
+:::{note}
 UDF runtimes and package support are backend-specific. Always check
 `connection.list_udf_runtimes()` (or the backend runtime endpoint) before pinning dependency
 archives, and retest when runtime versions change.
-```
+:::
 
 However, there are two ways to extend what a UDF can use:
 
@@ -923,14 +914,14 @@ job = pred.execute_batch(
 )
 ```
 
-```{note}
+:::{note}
 `job_options` are backend-specific: both supported keys and optimal values (for example, scheduler/executor tuning)
 depend on the concrete backend that executes the job.
 
 Take extra care on federation and multi-backend endpoints: jobs are routed to a concrete backend, and only that backend's
 supported options are applied. Always check the target backend documentation/capabilities, keep a small
 backend-specific profile, and validate with a tiny smoke run before scaling.
-```
+:::
 
 The syntax matters here because the archive is mounted into the UDF runtime at a specific path, and the `#` fragment in the
 URL is what names that path. A model file and its runtime dependencies are typically passed as separate archives with
@@ -1122,10 +1113,10 @@ intra-op threads, which parallelize work inside a single operator, and inter-op 
 the graph in parallel. Increasing the number of threads whilst avoiding oversubscription can pay off during runtime.
 The optimal number of threads is again backend-specific; in our experience 2 works well.
 
-```{note}
+:::{note}
 When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. Comparing a local run with default
 all-core settings to a 2-thread UDF run will give misleading timings.
-```
+:::
 
 ```python
 import functools
@@ -1199,11 +1190,7 @@ A three-stage validation loop tends to catch problems early and cheaply:
 - **Stage 2: path-specific preflight.** For UDFs, run the UDF locally against a representative NetCDF tile to catch shape, dtype, and band-order issues quickly. For `predict_onnx`, run contract checks on representative tensors/cubes (shape, dtype, layout, band order, normalization assumptions), since there is no UDF wrapper to test locally.
 - **Stage 3: backend smoke run.** Run the same production graph on the actual backend over a tiny held-out area of interest; this is the only stage that can catch backend-specific surprises.
 
-```{image} /_static/images/geospatial-ai-validation-loop.svg
-:alt: Three-stage validation loop: model parity check, local UDF test on a representative tile, then a backend smoke run on a tiny held-out area; failures loop back to an earlier stage.
-:width: 100%
-:align: center
-```
+![Three-stage validation loop: model parity check, local UDF test on a representative tile, then a backend smoke run on a tiny held-out area; failures loop back to an earlier stage.](../_static/images/geospatial-ai-validation-loop.svg)
 
 Example 1: source-vs-ONNX parity check.
 

@@ -60,6 +60,10 @@ master_doc = "index"
 # Generate anchors for Markdown headings (used for in-page links in MyST documents).
 myst_heading_anchors = 4
 
+# Allow ":::{note}" style directives, which degrade more gracefully than "```{note}" when
+# Markdown files are viewed on GitHub.
+myst_enable_extensions = ["colon_fence"]
+
 # General information about the project.
 project = "openEO Python Client"
 copyright = "2017 - {d}, Jeroen Dries".format(d=datetime.date.today().strftime("%Y"))
