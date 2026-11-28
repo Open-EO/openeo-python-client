@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve compatibility with oschmod 0.5.0 on Windows ([#967](https://github.com/Open-EO/openeo-python-client/issues/967)).
 - `STACAPIJobDatabase`: ensure `item_id` values are strings (e.g. when falling back to the dataframe index), as required for STAC item ids ([#792](https://github.com/Open-EO/openeo-python-client/issues/792)).
 - Support pandas 3: lift the `pandas<3` cap, accept the `pandas.Series` annotation path in UDFs, and keep `MultiBackendJobManager` string columns assignable when they start out as all-NaN ([#856](https://github.com/Open-EO/openeo-python-client/issues/856)).
+- Support identity callbacks such as `lambda x: x` by wrapping their parameter result in a `constant` process node ([#569](https://github.com/Open-EO/openeo-python-client/issues/569)).
 
 
 ## [0.54.0] - 2026-10-28
