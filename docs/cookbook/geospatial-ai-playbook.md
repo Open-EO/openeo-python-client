@@ -3,8 +3,8 @@
 A hands-on guide to incorporating machine-learning projects with openEO end-to-end, from reference data and feature
 extraction to training, model packaging, inference, validation, and upscaling.
 
-It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined Functions </udf>`,
-{doc}`User-Defined Processes </udp>`, and {doc}`Batch Jobs </batch_jobs>`.
+It complements [Machine Learning](../machine_learning.rst), [User-Defined Functions](../udf.rst),
+[User-Defined Processes](../udp.rst), and [Batch Jobs](../batch_jobs.rst).
 
 :::{admonition} Quickstart: what is where
 :class: tip
@@ -95,7 +95,7 @@ example through [ESA APEx](https://apex.esa.int/algorithm-support).
 ### 1.3 Freeze and version the extraction graph
 
 Treat the extraction graph as part of the model definition and version it with the weights. A parameterised
-{doc}`user-defined process </udp>` provides a reusable interface; record its version with each job and publish changed
+[user-defined process](../udp.rst) provides a reusable interface; record its version with each job and publish changed
 outputs as new releases rather than overwriting old ones. Where available, keep batch-result STAC provenance with the
 training data.
 
@@ -291,7 +291,7 @@ pass a short-lived signed (presigned) URL to `load_url`. Store the stable, unsig
 signed URL itself, and generate a fresh signed URL when you submit an extraction job: a job resubmitted with an expired URL
 will fail.
 
-If you do not have your own hosting, the openEO Python client provides an {doc}`artifact helper </api-artifacts>` that
+If you do not have your own hosting, the openEO Python client provides an [artifact helper](../api-artifacts.rst) that
 temporarily stores files on S3 storage offered by the backend and returns a presigned URL that can be passed straight to
 `load_url`:
 
@@ -441,7 +441,7 @@ For orchestration and tracking, run these grouped jobs through
 For spatial-context models, use {py:meth}`~openeo.rest.datacube.DataCube.filter_spatial` with patch polygons. The backend
 computes a sparse raster cube; combine it with the backend-specific `sample_by_feature` option to write one file per
 sample (see
-{py:meth}`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` and {doc}`sampling`):
+{py:meth}`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` and [sampling](sampling.md)):
 
 ```python
 patches = features.filter_spatial(geometries=reference_data)
@@ -859,7 +859,7 @@ Before deployment, verify that the cube's band order, dimensions, and dtype matc
 
 ### 4.2 Deploying via User-Defined Functions
 
-Use a {doc}`User-Defined Function (UDF) </udf>` when native processes do not cover the required Python inference logic,
+Use a [User-Defined Function (UDF)](../udf.rst) when native processes do not cover the required Python inference logic,
 such as a custom neural network or embedding model.
 
 UDF runtimes are minimal to support fast startup on shared infrastructure. Check available packages in the [runtime
@@ -1031,11 +1031,11 @@ model contract is selected automatically without requiring end users to make tha
 
 ## Related references
 
-- {doc}`Machine Learning </machine_learning>`
-- {doc}`User-Defined Functions </udf>`
-- {doc}`User-Defined Processes </udp>`
-- {doc}`Batch Jobs </batch_jobs>`
-- {doc}`Data Access </data_access>`
+- [Machine Learning](../machine_learning.rst)
+- [User-Defined Functions](../udf.rst)
+- [User-Defined Processes](../udp.rst)
+- [Batch Jobs](../batch_jobs.rst)
+- [Data Access](../data_access.rst)
 - [openEO community examples: geospatial embeddings](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings)
 - [openEO community examples: machine learning](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning)
 
