@@ -1,0 +1,733 @@
+.. _job-manager:
+
+====================================
+Multi Backend Job Manager
+====================================
+
+The :py:class:`~openeo.extra.job_management.MultiBackendJobManager`
+helps to run and manage a large number of batch jobs
+across one or more openEO backends.
+It handles job creation, submission, status tracking, result downloading,
+error handling, and persistence of job metadata, all automatically.
+
+It is designed for scenarios where you need to process many tasks in parallel,
+for example tiling a large area of interest into smaller regions
+and running a batch job for each tile.
+
+.. tip::
+
+    For hands-on, end-to-end Jupyter notebook examples, see the
+    `Managing Multiple Large Scale Jobs <https://github.com/Open-EO/openeo-community-examples/tree/main/python/ManagingMultipleLargeScaleJobs>`_
+    notebooks in the openEO community examples repository.
+    These cover real-world workflows including job splitting, result visualization, and more.
+
+.. contents:: On this page
+    :local:
+    :depth: 2
+
+
+Getting Started
+===============
+
+There are three main ingredients to using the
+:py:class:`~openeo.extra.job_management.MultiBackendJobManager`:
+
+1. A **manager** with one or more registered backends.
+2. A **job database** (backed by a DataFrame) that describes the work to do; one row per job.
+3. A **start_job callback** that turns a single row into an openEO batch job.
+
+The sections below walk through each of these, and then show how they
+come together.
+
+Setting up the manager
+----------------------
+
+Create a :py:class:`~openeo.extra.job_management.MultiBackendJobManager`
+and register the backend you want to use.
+Each backend gets a name and an authenticated connection
+:py:class:`~openeo.rest.connection.Connection`:
+
+.. code-block:: python
+
+    import openeo
+    from openeo.extra.job_management import MultiBackendJobManager
+
+    manager = MultiBackendJobManager()
+    manager.add_backend("cdse", connection=openeo.connect(
+        "https://openeo.dataspace.copernicus.eu/"
+    ).authenticate_oidc())
+
+You can register more than one backend, the manager will distribute
+jobs across them automatically:
+
+.. code-block:: python
+
+    manager.add_backend("dev", connection=openeo.connect(
+        "https://openeo-dev.example.com"
+    ).authenticate_oidc())
+
+The optional ``parallel_jobs`` argument to
+:py:meth:`~openeo.extra.job_management.MultiBackendJobManager.add_backend`
+controls how many jobs the manager will try to keep active simultaneously on that backend (default: 2).
+This is the manager's own limit, independent of the backend's infrastructure limits.
+The actual number of jobs that can run in parallel depends on the backend's capacity per user.
+
+In addition, the manager also applies an internal queueing cap per backend
+to avoid flooding a backend with too many queued jobs at once.
+
+Preparing the job database
+--------------------------
+
+The job database is a :py:class:`pandas.DataFrame` where **each row
+represents one job** you want to run. The columns hold the parameters
+your ``start_job`` callback will read for example a year, a spatial
+extent, a file path, etc.
+
+Wrap the DataFrame in a persistent job database
+(CSV or Parquet) so progress is saved to disk and can be resumed if
+interrupted:
+
+.. code-block:: python
+
+    import pandas as pd
+    from openeo.extra.job_management import create_job_db
+
+    df = pd.DataFrame({
+        "spatial_extent": [
+            {"west": 5.0, "south": 51.0, "east": 5.1, "north": 51.1},
+            {"west": 5.1, "south": 51.1, "east": 5.2, "north": 51.2},
+        ],
+        "year": [2021, 2022],
+    })
+    job_db = create_job_db("jobs.csv", df=df)
+
+The manager will automatically add bookkeeping columns
+(``status``, ``id``, ``backend_name``, ``start_time``, …),
+you only need to supply the columns relevant to your processing.
+
+Defining the start_job callback
+-------------------------------
+
+The ``start_job`` callback is a function you write. It receives a
+:py:class:`pandas.Series` (one row of the DataFrame) and a
+:py:class:`~openeo.rest.connection.Connection`, and should return
+a :py:class:`~openeo.rest.job.BatchJob`:
+
+.. code-block:: python
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection(
+            "SENTINEL2_L2A",
+            spatial_extent=row["spatial_extent"],
+            temporal_extent=[f"{row['year']}-01-01", f"{row['year']+1}-01-01"],
+            bands=["B04", "B08"],
+        )
+        cube = cube.ndvi(nir="B08", red="B04")
+        return cube.create_job(
+            title=f"NDVI {row['year']}",
+            out_format="GTiff",
+        )
+
+A few things to note:
+
+- The callback should **create** the job (``create_job``), but does not
+  need to **start** it, the manager takes care of that.
+- Always include ``**kwargs`` so the manager can pass extra arguments
+  (like ``provider``, ``connection_provider``) without causing errors.
+- You can read any column you put in the DataFrame via ``row["..."]``.
+
+See :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
+for the full list of parameters passed to the callback.
+
+Running everything
+------------------
+
+With all three pieces in place, a single call kicks off the processing
+loop. It blocks until every job has finished, failed, or been canceled:
+
+.. code-block:: python
+
+    import logging
+
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO,
+    )
+
+    manager.run_jobs(job_db=job_db, start_job=start_job)
+
+The logging (as shown above) is recommended as the manager
+logs status changes, retries, and errors so you can follow progress.
+
+
+Job Database
+============
+
+The job manager persists job metadata (status, backend, timing, costs, …)
+to a **job database** so that processing can be resumed after an interruption.
+Several storage backends are available.
+
+CSV and Parquet files
+---------------------
+
+The easiest option is to use a local CSV or Parquet file.
+Use the :py:func:`~openeo.extra.job_management.create_job_db` factory
+to create and initialize a job database from a :py:class:`pandas.DataFrame` or a :py:class:`geopandas.GeoDataFrame`:
+
+.. code-block:: python
+
+    from openeo.extra.job_management import create_job_db
+
+    job_db = create_job_db("jobs.csv", df=df)
+    # or for Parquet:
+    job_db = create_job_db("jobs.parquet", df=df)
+
+If the file already exists (e.g. from a previous interrupted run),
+you can re-open it with :py:func:`~openeo.extra.job_management.get_job_db`:
+
+.. code-block:: python
+
+    from openeo.extra.job_management import get_job_db
+
+    job_db = get_job_db("jobs.csv")
+
+and pass it directly to
+:py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
+to resume where you left off.
+
+.. tip::
+
+    Parquet files are generally recommended over CSV for large job databases,
+    as they are faster to read/write and handle data types more reliably.
+    Parquet support requires the ``pyarrow`` package
+    (see :ref:`optional dependencies <installation-optional-dependencies>`).
+
+
+STAC API (experimental)
+-----------------------
+
+For advanced use cases, the
+:py:class:`~openeo.extra.job_management.stac_job_db.STACAPIJobDatabase`
+allows persisting job metadata to a STAC API service.
+This is an **unstable, experimental** feature.
+
+.. code-block:: python
+
+    from openeo.extra.job_management.stac_job_db import STACAPIJobDatabase
+
+    job_db = STACAPIJobDatabase(
+        collection_id="my-jobs",
+        stac_root_url="https://stac.example.com",
+    )
+    job_db.initialize_from_df(df)
+
+Custom interfaces
+-----------------
+
+You can implement your own storage backend by subclassing
+:py:class:`~openeo.extra.job_management.JobDatabaseInterface`.
+See the :ref:`API reference below <job-manager-api-reference>` for the full interface.
+
+Job Splitting
+=============
+
+The :py:func:`~openeo.extra.job_management.split_area` helper function allows you to split a large area of interest into smaller areas, which can then be processed as separate jobs.
+A user may have a large spatial extent, in the form of a bounding box or polygon, that exceeds the processing limits of a single job on the backend.
+The results are returned as a :py:class:`geopandas.GeoDataFrame` with one row per tile, which can be used as the starting point for a job database where each row corresponds to a manageable job.
+
+The spatial extent can either be split into a regular grid of square tiles, with fixed size and projection, or into a custom grid of variable tiles provided by the user.
+
+Example: splitting a bounding box into 10x10 km tiles in EPSG:3857:
+
+.. code-block:: python
+
+    from openeo.extra.job_management import split_area
+
+    # Define the bounding box to split
+    extent = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+
+    # Split into 10x10 km tiles in EPSG:3857
+    gdf = split_area(
+        aoi=extent,
+        tile_size=10_000,  # tile size in meters (units of the projection)
+        projection="EPSG:3857",  # projection for tiling
+    )
+
+This will create a GeoDataFrame with one row per tile, and a geometry column containing the tile polygons.
+
+.. code-block:: pycon
+
+   >>> gdf.head()
+                                              geometry
+   0  POLYGON ((566597.454 6621293.723, 566597.454 6...
+   1  POLYGON ((566597.454 6631293.723, 566597.454 6...
+   2  POLYGON ((566597.454 6641293.723, 566597.454 6...
+   3  POLYGON ((566597.454 6651293.723, 566597.454 6...
+   4  POLYGON ((576597.454 6621293.723, 576597.454 6...
+
+Note that while the original bounding box was in EPSG:4326, the resulting GeoDataFrame is in the tiling projection (EPSG:3857 in this case).
+
+.. note::
+
+   The size-based splitting anchors tiles at the southwest corner of the
+   extent and does **not** snap tile boundaries to multiples of a
+   pixel size. This means the resulting tile coordinates may not be
+   pixel-aligned, which can lead to sub-pixel shifts when mosaicking
+   results afterwards.
+
+   If pixel-aligned tile boundaries are important for your workflow (e.g.
+   for seamless merging of output rasters), consider providing a
+   pre-computed tile grid via the ``tile_grid`` parameter instead. See the
+   :ref:`custom tile grid example <job-splitting-custom-grid>` below.
+
+.. _job-splitting-custom-grid:
+
+Using a custom tile grid
+------------------------
+
+For workflows that require pixel-aligned tiles, a specific tiling scheme,
+or any other custom partitioning, you can pass a pre-computed
+:class:`~geopandas.GeoDataFrame` as the ``tile_grid`` argument.
+``split_area`` will then only return tiles that intersect the area of interest.
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import split_area
+
+    extent  = {"west": 5.0, "south": 51.0, "east": 5.2, "north": 51.2, "crs": "EPSG:4326"}
+
+    # Load a pre-computed tile grid (e.g. a pixel-aligned UTM grid stored as GeoParquet)
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+
+    # Only tiles intersecting the AOI are returned
+    gdf = split_area(aoi=extent, tile_grid=tile_grid)
+
+.. _geometry-grouper:
+
+Grouping geometries (e.g. point-based extractions)
+--------------------------------------------------
+
+When the work to split is a set of geometries (e.g. sample locations)
+rather than a single large area, e.g. for point-based extraction jobs,
+:py:func:`~openeo.extra.job_management._job_splitting.group_geometries` groups
+the rows of a GeoDataFrame into batches, optionally of at most ``max_geometries`` rows.
+Each row is treated as a single feature to group, based on its representative point,
+regardless of geometry type (e.g. ``Point``, ``MultiPoint``, ``Polygon``).
+Null or empty geometries are not allowed.
+Geometries are not split themselves: use ``split_area`` for a large area of interest.
+Like with ``split_area``, geometries without
+CRS information are assumed to be in the CRS of the tile grid (if any).
+Groups are formed by recursive bisection at the median along the longer axis,
+so that batches stay geographically clustered and balanced.
+The returned GeoDataFrames keep the original index, to link back to the input rows:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    from openeo.extra.job_management import group_geometries
+
+    points = gpd.read_file("my_sample_locations.gpkg")
+    batches = group_geometries(points, max_geometries=500)
+    # batches is a list of GeoDataFrames, each with at most 500 rows
+
+Optionally, a ``tile_grid`` (e.g. a satellite tiling grid) can be passed so
+that each feature is first assigned to the tile containing its representative point
+and batches are formed per tile.
+Features outside every tile are batched separately:
+
+.. code-block:: python
+
+    tile_grid = gpd.read_parquet("my_tile_grid.parquet")
+    batches = group_geometries(points, max_geometries=500, tile_grid=tile_grid)
+
+Alternatively, a regular grid can be specified through ``tile_size`` and ``projection``.
+This grid is anchored at the origin of the projection,
+so the grouping of existing features does not change when other features are added:
+
+.. code-block:: python
+
+    # group points per 50x50 km tile in EPSG:3857
+    batches = group_geometries(points, max_geometries=500, tile_size=50_000, projection="EPSG:3857")
+
+Without ``max_geometries`` (default ``None``), there is no size limit and
+geometries are simply grouped per tile:
+
+.. code-block:: python
+
+    # one batch per tile
+    batches = group_geometries(points, tile_grid=tile_grid)
+
+Current limitations:
+
+- Geometries are never split: a polygon crossing tile edges, or larger than a tile,
+  ends up in a single batch and extends beyond its tile.
+  Use ``split_area`` for large areas of interest.
+- Multi-part geometries (e.g. ``MultiPolygon``) are kept together as one feature,
+  placed by a single representative point, even if their parts are far apart.
+  To group parts individually, explode them into separate rows first
+  (the original index is kept, to link back to the input rows;
+  note that a single feature may then be spread over multiple batches):
+
+  .. code-block:: python
+
+      batches = group_geometries(points.explode(index_parts=False), max_geometries=500)
+
+- Batches are limited by number of geometries only, not by area or processing cost.
+  Use a tile grid to limit the spatial extent of batches.
+- With overlapping tiles (e.g. Sentinel-2 MGRS), a feature is assigned to the first tile
+  (in grid order) containing its representative point, not to the tile with the largest overlap.
+- Batches are cut along the axis with the largest spread, measured in the units of the CRS.
+  In a geographic CRS (e.g. EPSG:4326), degrees of longitude shrink towards the poles,
+  so batches at high latitudes are cut along longitude more than needed.
+  Use a projected CRS (for the input, the ``tile_grid`` or ``projection``) to group by actual distance.
+- The regular grid from ``tile_size`` and ``projection`` is anchored at the origin of the projection,
+  while ``split_area`` anchors its tiles at the corner of the area of interest.
+  The same tile size can therefore give different tile boundaries in both functions.
+
+From grouped geometries to a job database
+-----------------------------------------
+
+``group_geometries`` returns a list of GeoDataFrames, which have to be
+turned into a job database with one row per batch.
+There are two ways to pass the geometries of a batch to its job:
+
+**Inline GeoJSON in the process graph.**
+Store each batch as a GeoJSON ``FeatureCollection`` in the job database,
+and pass it directly to e.g. ``aggregate_spatial``.
+This is simple, but has some important downsides:
+
+- GeoJSON geometries must be in lat/lon (EPSG:4326),
+  so batches in another CRS have to be reprojected first.
+- Reprojecting very large or complex geometries to EPSG:4326 can introduce
+  precision/distortion artifacts (especially near poles or the antimeridian),
+  which may lead to slight but unwanted geometry differences in the job input.
+- All geometries end up in the process graph itself.
+  Batches with many (or complex) geometries lead to very large process graphs,
+  which may be slow to submit or even get rejected by the backend.
+
+.. code-block:: python
+
+    import json
+    import pandas as pd
+    from openeo.extra.job_management import create_job_db
+
+    df = pd.DataFrame({
+        "geometry_geojson": [batch.to_crs(epsg=4326).to_json() for batch in batches],
+    })
+    job_db = create_job_db("jobs.csv", df=df)
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection("SENTINEL2_L2A", temporal_extent=["2024-06-01", "2024-07-01"], bands=["B04", "B08"])
+        geometries = json.loads(row["geometry_geojson"])
+        return cube.aggregate_spatial(geometries=geometries, reducer="mean").create_job()
+
+**GeoParquet files referenced by URL (recommended for native CRS).**
+Write each batch to a GeoParquet file, upload it to object storage, and only store
+its URL in the job database.
+This keeps process graphs small and preserves the CRS of the batch.
+In ``start_job``, explicitly load the geometry URL with ``connection.load_url(..., format="Parquet")``
+and pass that to spatial operations such as ``aggregate_spatial``.
+
+If your backend supports it, the :ref:`artifact helper <api-openeo-extra-artifacts>`
+can be used to upload the files to backend-provided object storage
+and get a presigned URL for each of them:
+
+.. code-block:: python
+
+    import pandas as pd
+    from openeo.extra.artifacts import build_artifact_helper
+    from openeo.extra.job_management import create_job_db
+
+    artifact_helper = build_artifact_helper(connection)
+
+    rows = []
+    for i, batch in enumerate(batches):
+        path = f"batch_{i}.parquet"
+        batch.to_parquet(path)
+        storage_uri = artifact_helper.upload_file(path, object_name=path)
+        url = artifact_helper.get_presigned_url(storage_uri, expires_in_seconds=7 * 24 * 3600)
+        rows.append({"batch_id": i, "geometry_url": url})
+    job_db = create_job_db("jobs.csv", df=pd.DataFrame(rows))
+
+    def start_job(row, connection, **kwargs):
+        cube = connection.load_collection("SENTINEL2_L2A", temporal_extent=["2024-06-01", "2024-07-01"], bands=["B04", "B08"])
+        geometries = connection.load_url(row["geometry_url"], format="Parquet")
+        return cube.aggregate_spatial(geometries).create_job()
+
+Keep the following in mind with this approach:
+
+- Presigned URLs contain credentials: keep the job database private.
+- Presigned URLs expire (after ``expires_in_seconds``):
+  make sure this covers the full run of the job manager,
+  or create new URLs for jobs that have not started yet.
+- Artifact storage is meant for temporary data and may be cleaned up by the backend.
+  Keep your original geometries locally.
+- Practical limits to the artifact helper do apply: local memory,
+  network limits, and quotas or policies of the backend's object storage.
+- The artifact helper needs the optional ``artifacts`` extra (``pip install openeo[artifacts]``).
+- The temporary storage credentials of the artifact helper are not refreshed automatically,
+  so for long-running scripts, create a new artifact helper when uploads start failing.
+- Instead of the artifact helper, you can use your own object storage,
+  as long as the backend can read the URLs.
+
+Customizing Job Handling
+========================
+
+The :py:class:`~openeo.extra.job_management.MultiBackendJobManager` provides
+callback methods that can be overridden to customize what happens
+when a job finishes, fails, or is canceled:
+
+-   :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.on_job_done`:
+    called when a job completes successfully.
+    The default implementation downloads the results and saves job metadata.
+
+-   :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.on_job_error`:
+    called when a job fails with an error.
+    The default implementation saves the error logs to a JSON file.
+
+-   :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.on_job_cancel`:
+    called when a job is canceled.
+    The default implementation does nothing.
+
+Example: subclass to add custom post-processing:
+
+.. code-block:: python
+
+    class MyJobManager(MultiBackendJobManager):
+
+        def on_job_done(self, job, row):
+            # First, do the default download
+            super().on_job_done(job, row)
+            # Then add custom post-processing
+            job_dir = self.get_job_dir(job.job_id)
+            print(f"Results for job {job.job_id} saved to {job_dir}")
+
+        def on_job_error(self, job, row):
+            super().on_job_error(job, row)
+            # e.g. send a notification
+            print(f"Job {job.job_id} failed!")
+
+
+.. _job-manager-download-results:
+
+Automatic Result Downloading
+============================
+
+By default, the job manager downloads results of completed jobs automatically.
+This can be disabled by setting ``download_results=False``:
+
+.. code-block:: python
+
+    manager = MultiBackendJobManager(download_results=False)
+
+Results and metadata are saved under the ``root_dir`` directory
+(defaults to the current directory), in per-job subfolders like ``job_{job_id}/``.
+
+.. versionadded:: 0.47.0
+    The ``download_results`` parameter.
+
+
+.. _job-manager-cancel-running-job:
+
+Canceling Long-Running Jobs
+============================
+
+You can set an automatic timeout for running jobs with the
+``cancel_running_job_after`` parameter (in seconds).
+Jobs that exceed this duration will be automatically canceled:
+
+.. code-block:: python
+
+    # Cancel any job that has been running for more than 2 hours
+    manager = MultiBackendJobManager(cancel_running_job_after=7200)
+
+.. versionadded:: 0.32.0
+
+
+Running in a Background Thread
+==============================
+
+
+By default, :py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs` blocks the main thread until all jobs are finished, failed, or canceled.
+To keep your main program responsive (e.g., in a Jupyter notebook or GUI),
+run the job manager loop in a background thread so you can still monitor
+or interact with the dataframe.
+
+.. code-block:: python
+
+    manager.start_job_thread(start_job=start_job, job_db=job_db)
+
+    # ... do other work in the main thread ...
+    # For example, you can monitor job_db, update a UI, or submit new jobs.
+
+    # When done, stop the background thread
+    manager.stop_job_thread()
+
+While the background thread is running, you can inspect the job database (e.g., with pandas or geopandas) to monitor progress, or perform other tasks in your main program. This is especially useful in interactive environments where you want to avoid blocking the UI or kernel.
+
+**Caveats:**
+
+- The background thread will keep running until all jobs are finished, failed, or canceled, or until you call ``stop_job_thread()``.
+- Logging output from the background thread will still appear in the console.
+
+.. versionadded:: 0.32.0
+
+
+Job Status Tracking
+===================
+
+The job database includes a ``status`` column that reflects the lifecycle of each job.
+This makes it easy to monitor progress and spot failures directly in the DataFrame.
+
+``status``
+
+    Typical lifecycle:
+    ``not_started`` → ``queued_for_start`` → ``created`` → ``queued`` → ``running`` → terminal state.
+
+    Terminal states are:
+
+    - ``finished``: job completed successfully.
+    - ``error``: job failed after submission.
+    - ``canceled``: job was canceled.
+    - ``start_failed``: job could not be created/submitted by the manager.
+    - ``skipped``: job was intentionally not submitted.
+
+    In short, most jobs follow the standard openEO states,
+    while ``not_started`` , ``queued_for_start``, ``start_failed``, and ``skipped`` are manager-side bookkeeping states.
+
+
+
+.. _job-management-with-process-based-job-creator:
+
+Job creation based on parameterized processes
+===============================================
+
+The openEO API supports parameterized processes out of the box,
+which allows to work with flexible, reusable openEO building blocks in the form of :ref:`user-defined processes <user-defined-processes>`.
+
+This can also be leveraged for job creation in the context of the
+:py:class:`~openeo.extra.job_management.MultiBackendJobManager`:
+define a "template" job as a parameterized process
+and let the job manager fill in the parameters from a given data frame of parameter values.
+
+The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` helper class
+allows to do exactly that.
+Given a reference to a parameterized process,
+such as a user-defined process or remote process definition,
+it can be used directly as ``start_job`` callable to
+:py:meth:`~openeo.extra.job_management.MultiBackendJobManager.run_jobs`
+which will fill in the process parameters from the dataframe.
+
+
+Example use case:
+----------------------------------------------------------------------
+
+The :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` is especially useful
+for running the same UDP many times, each with different parameters;
+for example, different spatial extents, time ranges, or bands.
+This is a common pattern for large-scale analysis such as computing NDVI across many tiles or time periods.
+
+For a real-world, end-to-end example (including visualization and result management), see the Jupyter notebook:
+`VisualisingMultipleOpeneoJobs.ipynb <https://github.com/Open-EO/openeo-community-examples/blob/main/python/ManagingMultipleLargeScaleJobs/VisualisingMultipleOpeneoJobs.ipynb>`_
+in the openEO community examples repository.
+
+Three rules govern how parameters are handled:
+
+1. **The UDP must declare all parameters** it needs (e.g. ``bands``, ``spatial_extent``, ``temporal_extent``).
+   The namespace URL (or backend process ID) points to that UDP definition.
+
+2. **Constant parameters** identical values for every job; go in ``parameter_defaults``.
+   They will be used for any job whose DataFrame row does not override them.
+
+3. **Varying parameters** which differ per job, must be **columns in the job database DataFrame**,
+   with column names that exactly match the UDP parameter names.
+   The value from each row is passed to the corresponding parameter for that job.
+
+Below is a minimal example where ``bands`` and ``spatial_extent`` are constant (set via ``parameter_defaults``)
+while ``temporal_extent`` varies per job (set via a DataFrame column):
+
+.. code-block:: python
+    :linenos:
+    :caption: Basic :py:class:`~openeo.extra.job_management.process_based.ProcessBasedJobCreator` example
+
+    import pandas as pd
+    from openeo.extra.job_management import MultiBackendJobManager, create_job_db
+    from openeo.extra.job_management.process_based import ProcessBasedJobCreator
+
+    # Point to the remote UDP definition (e.g. hosted on an openEO backend or public URL).
+    # The UDP is expected to accept parameters: bands, spatial_extent, temporal_extent.
+    job_starter = ProcessBasedJobCreator(
+        namespace="https://example.com/ndvi_process.json",
+        parameter_defaults={
+            # These values are constant across all jobs.
+            "bands": ["B04", "B08"],
+            "spatial_extent": {"west": 5.0, "south": 51.0, "east": 5.1, "north": 51.1},
+        },
+    )
+
+    # Each row defines one job. The column name must match the UDP parameter name exactly.
+    # Here, temporal_extent varies per job; bands and spatial_extent use the defaults above.
+    df = pd.DataFrame({
+        "temporal_extent": [
+            ["2021-01-01", "2021-01-31"],
+            ["2021-02-01", "2021-02-28"],
+            ["2021-03-01", "2021-03-31"],
+        ],
+    })
+
+    job_db = create_job_db("jobs.csv", df=df)
+
+    job_manager = MultiBackendJobManager(...)
+    job_manager.run_jobs(job_db=job_db, start_job=job_starter)
+
+.. tip::
+
+    To vary any parameter per job (e.g. ``bands`` or ``spatial_extent``),
+    simply add a column with the matching name to the DataFrame.
+    A column value always takes precedence over the corresponding ``parameter_defaults`` entry.
+
+-----------------------------------------------------------------------------------
+
+.. _job-manager-api-reference:
+
+API Reference
+=============
+
+.. warning::
+    This is a new experimental API, subject to change.
+
+MultiBackendJobManager
+----------------------
+
+.. autoclass:: openeo.extra.job_management.MultiBackendJobManager
+    :members:
+
+Job Database
+------------
+
+.. autoclass:: openeo.extra.job_management.JobDatabaseInterface
+    :members:
+
+.. autoclass:: openeo.extra.job_management.FullDataFrameJobDatabase
+    :members: initialize_from_df
+
+.. autoclass:: openeo.extra.job_management.CsvJobDatabase
+
+.. autoclass:: openeo.extra.job_management.ParquetJobDatabase
+
+
+.. autofunction:: openeo.extra.job_management.create_job_db
+
+.. autofunction:: openeo.extra.job_management.get_job_db
+
+.. autofunction:: openeo.extra.job_management.split_area
+
+.. autoclass:: openeo.extra.job_management.stac_job_db.STACAPIJobDatabase
+
+ProcessBasedJobCreator
+----------------------
+
+.. autoclass:: openeo.extra.job_management.process_based.ProcessBasedJobCreator
+    :members:
+    :special-members: __call__

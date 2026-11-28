@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Geospatial AI Playbook &#8212; openEO Python Client 0.55.0a3 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=75c7c72ae941e8b558d8" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=75c7c72ae941e8b558d8" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx_autodoc_typehints.css?v=057ac668" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=75c7c72ae941e8b558d8"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=75c7c72ae941e8b558d8" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=75c7c72ae941e8b558d8" />
+
+    <script src="../_static/documentation_options.js?v=792cdf57"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'cookbook/geospatial-ai-playbook';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Analysis Ready Data generation" href="ard.html" />
+    <link rel="prev" title="openEO CookBook" href="index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.55" />
+    <meta name="docbuild:last-update" content="2026/11/28"/>
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation" aria-expanded="false" aria-controls="pst-primary-sidebar-modal">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page" aria-expanded="false" aria-controls="pst-secondary-sidebar-modal">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal" tabindex="-1"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">openEO CookBook</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Geospatial AI Playbook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ard.html">Analysis Ready Data generation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html">Dataset sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="udp_sharing.html">Sharing of user-defined processes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spectral_indices.html">Spectral Indices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="job_manager.html">Multi Backend Job Manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localprocessing.html">Client-side (local) processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tricks.html">Miscellaneous tips and tricks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.55.0a3</code></div>
+  <div>Last updated: 2026/11/28</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-house"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">openEO CookBook</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Geospatial AI Playbook</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="geospatial-ai-playbook">
+<h1>Geospatial AI Playbook<a class="headerlink" href="#geospatial-ai-playbook" title="Link to this heading">#</a></h1>
+<p>A hands-on guide to incorporating machine-learning projects with openEO end-to-end, from reference data and feature
+extraction to training, model packaging, inference, validation, and upscaling.</p>
+<p>It complements <a class="reference internal" href="../machine_learning.html"><span class="std std-doc">Machine Learning</span></a>, <a class="reference internal" href="../udf.html"><span class="std std-doc">User-Defined Functions</span></a>,
+<a class="reference internal" href="../udp.html"><span class="std std-doc">User-Defined Processes</span></a>, and <a class="reference internal" href="../batch_jobs.html"><span class="std std-doc">Batch Jobs</span></a>.</p>
+<blockquote>
+<div><p><strong>Quickstart: what is where</strong></p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>If you want to…</p></th>
+<th class="head text-left"><p>Go to</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p>Understand where openEO fits in an ML workflow</p></td>
+<td class="text-left"><p><a class="reference internal" href="#where-openeo-helps-most-in-a-machine-learning-ml-workflow">Where openEO helps most</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Extract features with an openEO graph</p></td>
+<td class="text-left"><p><a class="reference internal" href="#data-extraction-and-feature-engineering-in-openeo">1. Data extraction and feature engineering</a></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Organise reference data, sample, split, host it at a URL</p></td>
+<td class="text-left"><p><a class="reference internal" href="#organising-and-extracting-reference-data-for-ml">2. Reference data</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Extract points or patches, deliver to storage</p></td>
+<td class="text-left"><p><a class="reference internal" href="#point-extraction-with-aggregate-spatial">2.5 Point extraction with <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code></a>, <a class="reference internal" href="#patch-extraction-with-filter-spatial">2.6 Patch extraction with <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Decide where to train, or train lightweight models in openEO</p></td>
+<td class="text-left"><p><a class="reference internal" href="#training-strategy-where-openeo-fits">3. Training strategy</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Choose between UDF and <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></p></td>
+<td class="text-left"><p><a class="reference internal" href="#choosing-your-onboarding-path-udfs-and-predict-onnx">4.0 Choosing your onboarding path</a></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Export a model to ONNX</p></td>
+<td class="text-left"><p><a class="reference internal" href="#preparing-the-model-onnx-export-and-calibration">4.1 Preparing the model</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Deploy a model</p></td>
+<td class="text-left"><p><a class="reference internal" href="#deploying-via-user-defined-functions">4.2 UDF</a>, <a class="reference internal" href="#deploying-via-predict-onnx">4.3 <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></a></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Describe a model with STAC</p></td>
+<td class="text-left"><p><a class="reference internal" href="#ml-models-and-stac">5. ML models and STAC</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Run inference reliably inside a UDF</p></td>
+<td class="text-left"><p><a class="reference internal" href="#running-inference-with-the-udf">6. Running inference with the UDF</a></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Validate a model and benchmark it</p></td>
+<td class="text-left"><p><a class="reference internal" href="#validation-pipelines-in-openeo">7. Validation pipelines</a></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>Scale up and control cost</p></td>
+<td class="text-left"><p><a class="reference internal" href="#incremental-scaling-strategy">8.1 Scaling</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div></blockquote>
+<p><strong>Scope labels.</strong> Statements are valid on all openEO backends unless marked <em>CDSE-specific</em>, <em>Terrascope-specific</em>, or
+<em>backend-specific</em>. “Verified 2026-11-23” means checked against the live capabilities of <code class="docutils literal notranslate"><span class="pre">openeo.dataspace.copernicus.eu</span></code>
+(CDSE) and <code class="docutils literal notranslate"><span class="pre">openeo.vito.be</span></code> (Terrascope).</p>
+<p><strong>Check the backend before generating code.</strong> Process and runtime support differs per backend:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"openeofed.dataspace.copernicus.eu"</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span>
+
+<span class="n">needed</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"load_url"</span><span class="p">,</span> <span class="s2">"aggregate_spatial"</span><span class="p">,</span> <span class="s2">"filter_spatial"</span><span class="p">,</span> <span class="s2">"predict_onnx"</span><span class="p">,</span> <span class="s2">"export_workspace"</span><span class="p">,</span> <span class="s2">"run_udf"</span><span class="p">}</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"missing processes:"</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">needed</span> <span class="o">-</span> <span class="p">{</span><span class="n">p</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">connection</span><span class="o">.</span><span class="n">list_processes</span><span class="p">()}))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"UDF runtimes:"</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">list_udf_runtimes</span><span class="p">()))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"output formats:"</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">list_output_formats</span><span class="p">()))</span>
+</pre></div>
+</div>
+<p>Verified 2026-11-23: all processes above are listed on both CDSE and Terrascope.</p>
+<p><strong>Job options policy.</strong> <code class="docutils literal notranslate"><span class="pre">job_options</span></code> keys and values are backend-specific. Read the target backend’s documentation or
+ask the user; never copy values from the examples here unchanged.</p>
+<section id="where-openeo-helps-most-in-a-machine-learning-ml-workflow">
+<h2>Where openEO helps most in a Machine Learning (ML) workflow<a class="headerlink" href="#where-openeo-helps-most-in-a-machine-learning-ml-workflow" title="Link to this heading">#</a></h2>
+<p>openEO is strongest at consistent, reproducible EO data access and processing at scale. In practice, a robust setup uses
+openEO for feature extraction and operational inference, while heavy training often stays in external GPU environments.
+Once trained, the model is brought back into openEO as a reusable inference block.</p>
+<p>This split is usually a strength: extraction and inference stay reproducible, while model development stays flexible. By
+keeping openEO constraints in mind from the start, many later operational hurdles can be avoided.</p>
+<p>This playbook shares the working patterns we have learned from real projects. Its scope covers:</p>
+<ul class="simple">
+<li><p>organising reference data with STAC,</p></li>
+<li><p>extracting EO features,</p></li>
+<li><p>training models, converting them to ONNX,</p></li>
+<li><p>describing models with STAC,</p></li>
+<li><p>running inference and validation pipelines in openEO, and</p></li>
+<li><p>upscaling with performance tuning.</p></li>
+</ul>
+<p>Each of those stages maps to a section below.</p>
+</section>
+<section id="end-to-end-story">
+<h2>End-to-end story<a class="headerlink" href="#end-to-end-story" title="Link to this heading">#</a></h2>
+<p><img alt="End-to-end geospatial AI workflow" src="../_images/geospatial-ai-workflow.svg" /></p>
+</section>
+<section id="data-extraction-and-feature-engineering-in-openeo">
+<span id="1-data-extraction-and-feature-engineering-in-openeo"></span><h2>1. Data extraction and feature engineering in openEO<a class="headerlink" href="#data-extraction-and-feature-engineering-in-openeo" title="Link to this heading">#</a></h2>
+<p>Many operational problems start with a mismatch between training and production data, not with the model itself. Keep the
+target backend in view from the start so the features used in training can be reproduced during inference.</p>
+<section id="start-with-backend-discovery">
+<span id="11-start-with-backend-discovery"></span><h3>1.1 Start with backend discovery<a class="headerlink" href="#start-with-backend-discovery" title="Link to this heading">#</a></h3>
+<p>Before designing the model, check which collections and dates are available on the production backend, and whether its
+processing level matches your plan. For example, Sentinel-2 L2A can differ between backends in processing baseline, cloud
+mask, or atmospheric correction; small differences can accumulate over a large inference run.</p>
+<p>If a source is missing, <code class="docutils literal notranslate"><span class="pre">load_stac</span></code> can bring external STAC assets into the graph
+(<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.load_stac"><code class="docutils literal notranslate"><span class="pre">load_stac()</span></code></a>).</p>
+</section>
+<section id="make-the-data-contract-explicit">
+<span id="12-make-the-data-contract-explicit"></span><h3>1.2 Make the data contract explicit<a class="headerlink" href="#make-the-data-contract-explicit" title="Link to this heading">#</a></h3>
+<p>Build extraction as an openEO graph and record its input contract: collections and bands, units and scaling, CRS and
+resolution, compositing, cloud/no-data handling, and feature engineering. These choices define what the model sees, so
+keeping them explicit makes training and inference reproducible. The graph can also become an integration check, for
+example through <a class="reference external" href="https://apex.esa.int/algorithm-support">ESA APEx</a>.</p>
+</section>
+<section id="freeze-and-version-the-extraction-graph">
+<span id="13-freeze-and-version-the-extraction-graph"></span><h3>1.3 Freeze and version the extraction graph<a class="headerlink" href="#freeze-and-version-the-extraction-graph" title="Link to this heading">#</a></h3>
+<p>Treat the extraction graph as part of the model definition and version it with the weights. A parameterised
+<a class="reference internal" href="../udp.html"><span class="std std-doc">user-defined process</span></a> provides a reusable interface; record its version with each job and publish changed
+outputs as new releases rather than overwriting old ones. Where available, keep batch-result STAC provenance with the
+training data.</p>
+</section>
+<section id="example-a-simple-feature-extraction-graph">
+<span id="14-example-a-simple-feature-extraction-graph"></span><h3>1.4 Example: a simple feature extraction graph<a class="headerlink" href="#example-a-simple-feature-extraction-graph" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"openeofed.dataspace.copernicus.eu"</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span>
+
+<span class="n">spatial_extent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"west"</span><span class="p">:</span> <span class="mf">5.08</span><span class="p">,</span> <span class="s2">"south"</span><span class="p">:</span> <span class="mf">51.20</span><span class="p">,</span> <span class="s2">"east"</span><span class="p">:</span> <span class="mf">5.22</span><span class="p">,</span> <span class="s2">"north"</span><span class="p">:</span> <span class="mf">51.31</span><span class="p">}</span>
+<span class="n">temporal_extent</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"2024-04-01"</span><span class="p">,</span> <span class="s2">"2024-09-30"</span><span class="p">]</span>
+
+<span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">"SENTINEL2_L2A"</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="n">spatial_extent</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">"B02"</span><span class="p">,</span> <span class="s2">"B03"</span><span class="p">,</span> <span class="s2">"B04"</span><span class="p">,</span> <span class="s2">"B08"</span><span class="p">],</span>
+    <span class="n">max_cloud_cover</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Simple cloud mask: SCL classes 3 (cloud shadow), 8-9 (cloud) and 10 (cirrus).</span>
+<span class="n">scl</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">"SENTINEL2_L2A"</span><span class="p">,</span>
+    <span class="n">spatial_extent</span><span class="o">=</span><span class="n">spatial_extent</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">"SCL"</span><span class="p">],</span>
+    <span class="n">max_cloud_cover</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="s2">"SCL"</span><span class="p">)</span>
+<span class="n">cloud_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">9</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">10</span><span class="p">)</span>
+
+<span class="n">features</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span><span class="n">cloud_mask</span><span class="p">)</span><span class="o">.</span><span class="n">aggregate_temporal_period</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="s2">"dekad"</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">"median"</span><span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span>
+    <span class="n">out_format</span><span class="o">=</span><span class="s2">"NetCDF"</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"features_s2_dekad_v1"</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="organising-and-extracting-reference-data-for-ml">
+<span id="2-organising-and-extracting-reference-data-for-ml"></span><h2>2. Organising and extracting reference data for ML<a class="headerlink" href="#organising-and-extracting-reference-data-for-ml" title="Link to this heading">#</a></h2>
+<p>Training a machine-learning model on Earth observation data starts with high-quality reference data: a set of locations for
+which the target variable (for example, a crop type, land-cover class, or biophysical measurement) is known. This section
+describes how to organise such reference data and how to extract the corresponding satellite observations with openEO,
+either as points (tabular time series per sample) or as patches (small raster chips per sample).
+For a worked end-to-end example, see the <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/extracting-training-data">extracting-training-data
+notebook</a>
+(Sentinel-2 L2A with LUCAS 2022 reference samples).</p>
+<section id="extraction-modes">
+<span id="21-extraction-modes"></span><h3>2.1 Extraction modes<a class="headerlink" href="#extraction-modes" title="Link to this heading">#</a></h3>
+<p>Choose the extraction mode to match the model input: point time series produce feature tables, while patch extraction
+produces raster chips for models that need spatial context. The modes have different output formats and job-sizing needs.</p>
+<ul class="simple">
+<li><p>Point extraction
+Process: <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>
+Typical model: models operating on per-pixel time-series inputs, such as random forests,
+gradient boosting, or time-series deep-learning models (for example, LSTM, transformers)
+Output: a vector cube, exported as tabular data (Parquet/CSV) with one row per sample and
+observation date</p></li>
+<li><p>Patch extraction
+Process: <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code>
+Typical model: models requiring spatial context, such as convolutional neural networks or
+vision transformers
+Output: a sparse raster cube, exported as one netCDF or GeoTIFF file per sample polygon</p></li>
+</ul>
+<p>For process details and parameters, see
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_spatial"><code class="docutils literal notranslate"><span class="pre">aggregate_spatial()</span></code></a>
+and
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.filter_spatial"><code class="docutils literal notranslate"><span class="pre">filter_spatial()</span></code></a>.</p>
+<p>The output format follows from the extraction mode and from how you consume the result:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Format</p></th>
+<th class="head text-left"><p>Type</p></th>
+<th class="head text-left"><p>Typical use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p>GeoTIFF (cloud-optimized)</p></td>
+<td class="text-left"><p>raster</p></td>
+<td class="text-left"><p>Patches that should open in any GIS or web viewer.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>netCDF</p></td>
+<td class="text-left"><p>raster</p></td>
+<td class="text-left"><p>A full time series per patch in a single file; common for deep-learning training.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>Zarr (experimental)</p></td>
+<td class="text-left"><p>raster</p></td>
+<td class="text-left"><p>Large arrays for cloud-native analysis.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>(Geo)Parquet</p></td>
+<td class="text-left"><p>vector</p></td>
+<td class="text-left"><p>Point extractions with many samples; retains feature attributes.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p>GeoJSON</p></td>
+<td class="text-left"><p>vector</p></td>
+<td class="text-left"><p>Small extractions that you want to inspect by hand.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p>CSV / JSON</p></td>
+<td class="text-left"><p>vector</p></td>
+<td class="text-left"><p>Quick inspection in spreadsheets; may not retain feature attributes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Supported formats and their options are backend-specific; check them with
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_file_formats"><code class="docutils literal notranslate"><span class="pre">list_file_formats()</span></code></a>.</p>
+</section>
+<section id="organising-your-reference-data">
+<span id="22-organising-your-reference-data"></span><h3>2.2 Organising your reference data<a class="headerlink" href="#organising-your-reference-data" title="Link to this heading">#</a></h3>
+<section id="format-and-structure">
+<h4>Format and structure<a class="headerlink" href="#format-and-structure" title="Link to this heading">#</a></h4>
+<p>Reference data is best managed as a vector dataset, with one feature per sample. The structure you choose here determines
+how smoothly the rest of the pipeline runs, because every downstream step (extraction, training, validation) inherits the
+decisions you make at this stage.</p>
+<ul class="simple">
+<li><p><strong>Geometry</strong>: points for point extraction, or patch polygons for raster extraction. Keep patches small (for example,
+64×64–512×512 pixels); large polygons can dominate memory and job cost, so handle larger areas separately. Derive
+patches from a fixed, pixel-aligned (e.g. UTM based) grid so sensors and runs align.</p></li>
+<li><p><strong>Target attribute(s)</strong>: the label or value that your model will learn to predict. If you have multiple target variables,
+keep them as separate columns rather than encoding them into a single field; this makes it easier to train different
+models from the same reference dataset without re-extracting.</p></li>
+<li><p><strong>Sample identifier</strong>: a stable, unique ID to trace extractions to reference labels, including after corrections.</p></li>
+<li><p><strong>Temporal information (recommended)</strong>: a validity date or period per sample, so you can define the correct temporal
+extent when extracting satellite data. Without this, you either extract a fixed window for all samples (which may be
+wrong for samples collected in different seasons) or you manually split the reference data into temporal groups, which is
+error-prone at scale.</p></li>
+</ul>
+<p>The recommended file formats are GeoParquet and GeoJSON. GeoParquet is preferred for larger datasets, as it is compressed,
+columnar, and faster to read. GeoJSON is fine for small datasets and for cases where you need to inspect the file by hand,
+but it becomes unwieldy beyond a few thousand features.</p>
+<blockquote>
+<div><p><strong>Tip</strong></p>
+<p>The WorldCereal Reference Data Module (RDM) is a good example of how reference data can be curated and harmonised at
+scale: samples are stored with a unique ID, a harmonised label, a validity time, and quality attributes, and are exported
+as GeoParquet for extraction.</p>
+</div></blockquote>
+</section>
+<section id="label-quality">
+<h4>Label quality<a class="headerlink" href="#label-quality" title="Link to this heading">#</a></h4>
+<p>Reference labels can be wrong, so treat their quality as explicit metadata rather than an assumption. A simple controlled
+vocabulary at dataset level works well, for example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">unverified</span></code>: delivered as-is by the provider;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">automated</span></code>: passed automated checks (geometry validity, schema, duplicates, class consistency);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reviewed</span></code>: a sample was checked by an interpreter, with the reported sample size and estimated label accuracy;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">validated</span></code>: every feature was independently verified.</p></li>
+</ul>
+<p>Where available, add per-feature columns such as <code class="docutils literal notranslate"><span class="pre">qa_status</span></code>, <code class="docutils literal notranslate"><span class="pre">qa_method</span></code>, <code class="docutils literal notranslate"><span class="pre">qa_date</span></code>, and <code class="docutils literal notranslate"><span class="pre">qa_confidence</span></code>. Because
+attributes travel with the extracted values (see <a class="reference internal" href="#attribute-propagation">Attribute propagation</a>), you can then filter or
+weight samples by label quality at training time without re-extracting.</p>
+</section>
+<section id="cataloguing-with-stac">
+<h4>Cataloguing with STAC<a class="headerlink" href="#cataloguing-with-stac" title="Link to this heading">#</a></h4>
+<p>Once reference data spans multiple files or contributors, STAC makes releases searchable and reproducible. Use one
+collection per dataset and one item per immutable release, with GeoParquet/GeoJSON as assets that can be passed to
+<code class="docutils literal notranslate"><span class="pre">load_url</span></code>. Record when observations are valid (not when files were uploaded), and document the label schema with the Label
+extension. Where supported, <code class="docutils literal notranslate"><span class="pre">export_workspace</span></code> can publish extracted data and metadata directly to a STAC API (see
+<a class="reference internal" href="#delivering-patches-to-storage">Delivering patches to storage</a>).</p>
+</section>
+<section id="sampling-strategy">
+<h4>Sampling strategy<a class="headerlink" href="#sampling-strategy" title="Link to this heading">#</a></h4>
+<p>Which samples you extract determines both the cost and the quality of the model. A random or regular selection over all
+available reference data is usually dominated by common classes and spatially clustered locations. A strategy that works
+well in practice:</p>
+<ol class="arabic simple">
+<li><p><strong>Start from the approved reference data.</strong> Exclude or down-weight samples with insufficient label quality (see
+<a class="reference internal" href="#label-quality">Label quality</a>).</p></li>
+<li><p><strong>Stratify by class</strong> and, where spatial variability matters, also by zone (for example ecoregion, climate zone, or
+country). Rare classes can be merged into a parent class when too few samples exist.</p></li>
+<li><p><strong>Allocate a target number of samples per stratum.</strong> Common rules are equal allocation (balanced classification), a
+minimum per class with the remainder proportional to class frequency, a compromise proportional to class frequency
+raised to a power between 0 and 1, or explicit quotas. Strata with fewer candidates than their target are taken in full
+and reported as under-represented.</p></li>
+<li><p><strong>Spread samples spatially within each stratum</strong>, for example with spatially balanced sampling (GRTS), a minimum
+separation distance, or quotas per coarse grid cell, to avoid clusters.</p></li>
+<li><p><strong>Account for patches with multiple classes.</strong> A patch selected for one class also contains others: count classes from
+the actual patch content, and fill rare classes first.</p></li>
+<li><p><strong>Report before extracting.</strong> Check per-class and per-zone counts, class balance, and spatial coverage before spending
+compute on extraction.</p></li>
+</ol>
+<p>Make the selection reproducible: use a fixed random seed, a versioned strategy, and a stable ordering (for example a hash
+of seed and sample ID), so that new reference data can be added later without reshuffling the existing selection.</p>
+</section>
+<section id="spatially-independent-data-splits">
+<h4>Spatially independent data splits<a class="headerlink" href="#spatially-independent-data-splits" title="Link to this heading">#</a></h4>
+<p>Neighbouring samples are strongly correlated. If samples from the same field or the same few kilometres end up in both the
+training and the test set, accuracy estimates will be too optimistic. Assign each sample to a spatial block, taken from a
+coarse grid that is larger than the expected autocorrelation range (often tens of kilometres), and put whole blocks into
+the train, validation, or test split, stratified so that every split contains all classes where possible. Store the split
+as an attribute of the reference data rather than deriving it at training time, and keep a block in the same split when
+new data is added.</p>
+</section>
+<section id="hosting-the-data-at-a-url">
+<h4>Hosting the data at a URL<a class="headerlink" href="#hosting-the-data-at-a-url" title="Link to this heading">#</a></h4>
+<p>Sending many geometries inline as GeoJSON quickly makes openEO requests too large. Instead, upload your reference data to a
+URL the backend can reach, for example object storage (S3), Artifactory, or a GitHub repository, and load it into openEO
+with the <code class="docutils literal notranslate"><span class="pre">load_url</span></code> process
+(<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.load_url"><code class="docutils literal notranslate"><span class="pre">Connection.load_url()</span></code></a>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">openeo</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"openeofed.dataspace.copernicus.eu"</span><span class="p">)</span><span class="o">.</span><span class="n">authenticate_oidc</span><span class="p">()</span>
+
+<span class="n">reference_data</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_url</span><span class="p">(</span>
+    <span class="s2">"https://example.com/my_reference_data.parquet"</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s2">"Parquet"</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>For GeoJSON files, use <code class="docutils literal notranslate"><span class="pre">format=&quot;GeoJSON&quot;</span></code> instead.</p>
+<p>Not all reference data can be public: labels are often licensed or restricted. In that case, keep the files private and
+pass a short-lived signed (presigned) URL to <code class="docutils literal notranslate"><span class="pre">load_url</span></code>. Store the stable, unsigned location in your catalogue, never the
+signed URL itself, and generate a fresh signed URL when you submit an extraction job: a job resubmitted with an expired URL
+will fail.</p>
+<p>If you do not have your own hosting, the openEO Python client provides an <a class="reference internal" href="../api-artifacts.html"><span class="std std-doc">artifact helper</span></a> that
+temporarily stores files on S3 storage offered by the backend and returns a presigned URL that can be passed straight to
+<code class="docutils literal notranslate"><span class="pre">load_url</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.artifacts</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_artifact_helper</span>
+
+<span class="n">artifact_helper</span> <span class="o">=</span> <span class="n">build_artifact_helper</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+<span class="n">storage_uri</span> <span class="o">=</span> <span class="n">artifact_helper</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="s2">"my_reference_data.parquet"</span><span class="p">)</span>
+<span class="n">reference_data_url</span> <span class="o">=</span> <span class="n">artifact_helper</span><span class="o">.</span><span class="n">get_presigned_url</span><span class="p">(</span><span class="n">storage_uri</span><span class="p">)</span>
+
+<span class="n">reference_data</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_url</span><span class="p">(</span><span class="n">reference_data_url</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"Parquet"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>CDSE-specific.</strong> The artifact helper is <strong>backend-specific</strong> functionality and the uploaded files are only kept
+temporarily, so it is well suited for one-off extractions, but not as a long-term home for your reference dataset.
+By default, the presigned URL returned by <code class="docutils literal notranslate"><span class="pre">get_presigned_url</span></code> is valid for 7 days. If you rely on it for a
+multi-week training campaign, you may find that your reference data has expired between runs.</p>
+</section>
+<section id="splitting-into-spatial-groups">
+<h4>Splitting into spatial groups<a class="headerlink" href="#splitting-into-spatial-groups" title="Link to this heading">#</a></h4>
+<p>For continental or global datasets, split samples into spatial groups and run one batch job per group. A job that crosses
+UTM zones may reproject part of the data and lose alignment with native pixels; very large requests also increase memory
+pressure and make failures more expensive to restart. Sentinel-2 MGRS tiles (about 110×110 km) are a useful grouping unit
+because they align with the data and usually stay within one UTM zone.</p>
+<p>The openEO Python client offers a job splitting utility
+(the <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.split_area"><code class="docutils literal notranslate"><span class="pre">split_area()</span></code></a> function, see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#using-a-custom-tile-grid">job splitting custom grid</a>) that partitions your area or
+samples over a tile grid, such as a pre-computed Sentinel-2 tile grid, and returns a GeoDataFrame with one row per tile — a
+ready-made starting point for a job database. The openEO <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager"><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a> (see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html">job manager</a>) can
+then run and track the resulting list of extraction jobs. For patch extractions, note that size-based splitting does not
+guarantee pixel alignment: pass a pre-computed grid, and derive the patch polygons from that same pixel-aligned grid.</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">split_area</span></code>, these two modes are mutually exclusive: either pass <code class="docutils literal notranslate"><span class="pre">projection</span></code> + <code class="docutils literal notranslate"><span class="pre">tile_size</span></code> for size-based tiling,
+or pass <code class="docutils literal notranslate"><span class="pre">tile_grid</span></code> for a pre-defined grid. In size-based mode, tiles are anchored at the AOI south-west corner and edge
+tiles are clipped to the AOI boundary; this is convenient for load balancing but not automatically pixel-aligned.</p>
+<blockquote>
+<div><p><strong>Important</strong></p>
+<p>Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
+extent) determines how large a job can be. A tile with thousands of samples may need to be split further, while sparsely
+sampled tiles could be merged into a single job. Finding the right job size may require some trial-and-error fine-tuning.
+A good starting point is to aim for a few hundred to a few thousand samples per job, then adjust based on observed
+runtime and memory usage.</p>
+</div></blockquote>
+</section>
+</section>
+<section id="loading-satellite-data">
+<span id="23-loading-satellite-data"></span><h3>2.3 Loading satellite data<a class="headerlink" href="#loading-satellite-data" title="Link to this heading">#</a></h3>
+<p>Load the satellite collections that provide the input features of your model, restricting the spatial and temporal extent
+to what is needed for your samples. A typical multi-sensor example with Sentinel-2 optical data and Sentinel-1 GRD (SAR)
+data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">temporal_extent</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"2024-01-01"</span><span class="p">,</span> <span class="s2">"2024-12-31"</span><span class="p">]</span>
+
+<span class="n">s2</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">"SENTINEL2_L2A"</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">"B02"</span><span class="p">,</span> <span class="s2">"B03"</span><span class="p">,</span> <span class="s2">"B04"</span><span class="p">,</span> <span class="s2">"B08"</span><span class="p">,</span> <span class="s2">"B11"</span><span class="p">,</span> <span class="s2">"B12"</span><span class="p">],</span>
+    <span class="n">max_cloud_cover</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">s1</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+    <span class="s2">"SENTINEL1_GRD"</span><span class="p">,</span>
+    <span class="n">temporal_extent</span><span class="o">=</span><span class="n">temporal_extent</span><span class="p">,</span>
+    <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">"VV"</span><span class="p">,</span> <span class="s2">"VH"</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>At this point, there is no need to specify a <code class="docutils literal notranslate"><span class="pre">spatial_extent</span></code>: the extraction processes referenced above
+(<code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> or <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code>) come into play at the end of the process graph and restrict the computation to
+the sample locations.</p>
+</section>
+<section id="preprocessing">
+<span id="24-preprocessing"></span><h3>2.4 Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h3>
+<p>Decide where preprocessing belongs before you extract the training data. Keeping it in the graph makes each step visible
+and easy to reuse; embedding it in the model can make the inference contract self-contained.</p>
+<ul class="simple">
+<li><p><strong>In openEO</strong>: cloud-mask, derive backscatter with <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.sar_backscatter"><code class="docutils literal notranslate"><span class="pre">sar_backscatter()</span></code></a>, composite
+with <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_temporal_period"><code class="docutils literal notranslate"><span class="pre">aggregate_temporal_period()</span></code></a>, and merge sensors with
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.merge_cubes"><code class="docutils literal notranslate"><span class="pre">merge_cubes()</span></code></a>. The graph remains inspectable and can be shared by training and
+inference.</p></li>
+<li><p><strong>In the model</strong>: extract (nearly) raw observations and perform e.g.normalisation inside
+the model, for example in ONNX. This keeps preprocessing identical at inference time, but changes require a model
+re-export and are less visible in the openEO graph.</p></li>
+</ul>
+<p>In either case, training and inference must use the same inputs and preprocessing; mismatches in scaling or cloud masking
+can silently reduce accuracy.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: simple SCL cloud masking, monthly compositing and merging into a single feature cube</span>
+<span class="n">cloud_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">9</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">scl</span> <span class="o">==</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">s2_monthly</span> <span class="o">=</span> <span class="n">s2</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span><span class="n">cloud_mask</span><span class="p">)</span><span class="o">.</span><span class="n">aggregate_temporal_period</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="s2">"month"</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">"median"</span><span class="p">)</span>
+<span class="n">s1_monthly</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">aggregate_temporal_period</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="s2">"month"</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">)</span>
+
+<span class="n">features</span> <span class="o">=</span> <span class="n">s2_monthly</span><span class="o">.</span><span class="n">merge_cubes</span><span class="p">(</span><span class="n">s1_monthly</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Related community example: <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/30_openeo-processing/basic-sentinel-merge">basic-sentinel-merge</a>
+for merging Sentinel-1 and Sentinel-2 into one cube.</p>
+</section>
+<section id="point-extraction-with-aggregate-spatial">
+<span id="25-point-extraction-with-aggregate_spatial"></span><h3>2.5 Point extraction with <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code><a class="headerlink" href="#point-extraction-with-aggregate-spatial" title="Link to this heading">#</a></h3>
+<p>Use <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_spatial"><code class="docutils literal notranslate"><span class="pre">aggregate_spatial()</span></code></a> to sample the feature cube at reference locations. A point
+usually intersects one pixel, so the reducer has little effect.</p>
+<p><code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> can also be used with polygon geometries, for example to extract one aggregated time series per parcel
+instead of per pixel. In that case the reducer does matter, as it determines how the pixels within each polygon are
+combined (for example, <code class="docutils literal notranslate"><span class="pre">mean</span></code> or <code class="docutils literal notranslate"><span class="pre">median</span></code>).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">aggregate_spatial</span><span class="p">(</span>
+    <span class="n">geometries</span><span class="o">=</span><span class="n">reference_data</span><span class="p">,</span>
+    <span class="n">reducer</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span>
+    <span class="n">out_format</span><span class="o">=</span><span class="s2">"Parquet"</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"ML point extraction"</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Unlike raster-producing <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code>, <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code> returns vector values by sample, band, and timestep, suitable
+for tabular training data such as GeoParquet or CSV. This makes it a natural fit for models that expect one feature row per
+sample.</p>
+<p>For very large point or feature collections, batch the input geometries before launching extraction jobs. This is a
+feature-table scaling step (request-size control), not an AOI tiling step. If your client version provides
+<code class="docutils literal notranslate"><span class="pre">group_geometries</span></code> (see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#grouping-geometries-e-g-point-based-extractions">geometry grouper</a>), use it; otherwise build batches manually:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Group many input features into small batches before extraction.</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management</span><span class="w"> </span><span class="kn">import</span> <span class="n">group_geometries</span>
+
+  <span class="n">groups</span> <span class="o">=</span> <span class="n">group_geometries</span><span class="p">(</span><span class="n">reference_data</span><span class="p">,</span> <span class="n">max_geometries</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="c1"># Fallback on older client versions: build groups manually.</span>
+  <span class="n">groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">reference_data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="mi">500</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reference_data</span><span class="p">),</span> <span class="mi">500</span><span class="p">)]</span>
+</pre></div>
+</div>
+<p>Each group can then be used as per-job <code class="docutils literal notranslate"><span class="pre">geometries</span></code> input for <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>.
+For orchestration and tracking, run these grouped jobs through
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager"><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a>; for practical patterns and callbacks, see the
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html">job manager</a> cookbook page.</p>
+</section>
+<section id="patch-extraction-with-filter-spatial">
+<span id="26-patch-extraction-with-filter_spatial"></span><h3>2.6 Patch extraction with <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code><a class="headerlink" href="#patch-extraction-with-filter-spatial" title="Link to this heading">#</a></h3>
+<p>For spatial-context models, use <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.filter_spatial"><code class="docutils literal notranslate"><span class="pre">filter_spatial()</span></code></a> with patch polygons. The backend
+computes a sparse raster cube; combine it with the backend-specific <code class="docutils literal notranslate"><span class="pre">sample_by_feature</span></code> option to write one file per
+sample (see
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.create_job"><code class="docutils literal notranslate"><span class="pre">DataCube.create_job()</span></code></a> and <a class="reference internal" href="sampling.html"><span class="std std-doc">sampling</span></a>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">patches</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">filter_spatial</span><span class="p">(</span><span class="n">geometries</span><span class="o">=</span><span class="n">reference_data</span><span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"ML patch extraction"</span><span class="p">,</span>
+    <span class="n">out_format</span><span class="o">=</span><span class="s2">"netCDF"</span><span class="p">,</span>
+    <span class="n">sample_by_feature</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">feature_id_property</span><span class="o">=</span><span class="s2">"sample_id"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">job</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">()</span>
+<span class="n">job</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span><span class="o">.</span><span class="n">download_files</span><span class="p">(</span><span class="s2">"patches/"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Without <code class="docutils literal notranslate"><span class="pre">sample_by_feature</span></code>, the backend typically writes one sparse cube with empty space between patches. With it, each
+feature gets a file covering its extent. CDSE and Terrascope support these format options:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Option</p></th>
+<th class="head text-left"><p>Default</p></th>
+<th class="head text-left"><p>Effect</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">sample_by_feature</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td class="text-left"><p>netCDF: one file per feature, containing all bands and dates. GTiff: one file per feature <em>and</em> date.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">feature_id_property</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">null</span></code></p></td>
+<td class="text-left"><p>Name of the feature attribute used as feature ID in the file names, to link each output back to its input feature. Without it, the backend chooses the names, so set it to keep outputs traceable.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">filename_prefix</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">null</span></code></p></td>
+<td class="text-left"><p>Prefix for the output file names (by default <code class="docutils literal notranslate"><span class="pre">OpenEO</span></code> or part of the input file name).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>In the example, each netCDF contains all bands and dates for one patch, named with its stable <code class="docutils literal notranslate"><span class="pre">sample_id</span></code> (see
+<a class="reference internal" href="#format-and-structure">Format and structure</a>). Convert these files to tensors for training.</p>
+<p>These are <strong>backend-specific</strong> format options: check them with
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_file_formats"><code class="docutils literal notranslate"><span class="pre">list_file_formats()</span></code></a> (under <code class="docutils literal notranslate"><span class="pre">output</span></code> → format → <code class="docutils literal notranslate"><span class="pre">parameters</span></code>) for your backend.</p>
+<section id="attribute-propagation">
+<h4>Attribute propagation<a class="headerlink" href="#attribute-propagation" title="Link to this heading">#</a></h4>
+<p>Depending on the backend, all attributes (properties) of the features in your reference data (labels, sample identifiers,
+validity dates) are propagated to the extracted output. For <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>, these properties are carried into the
+vector result. For <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code>, the feature metadata is retained in per-feature outputs when using
+<code class="docutils literal notranslate"><span class="pre">sample_by_feature</span></code> together with a stable <code class="docutils literal notranslate"><span class="pre">feature_id_property</span></code>. In the common workflow, there is no need to join
+extractions back to the reference data afterwards: labels and metadata travel with the extracted values. This saves a
+surprising amount of error-prone bookkeeping, especially when reference data is split across multiple files and
+extraction jobs.</p>
+<blockquote>
+<div><p><strong>Tip</strong></p>
+<p>Always validate on a small test extraction if all original feature properties are retained before relying on it.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Warning</strong></p>
+<p>Extraction only works as a batch job, since it produces multiple output files that cannot be transferred in a synchronous
+call.</p>
+</div></blockquote>
+</section>
+<section id="delivering-patches-to-storage">
+<h4>Delivering patches to storage<a class="headerlink" href="#delivering-patches-to-storage" title="Link to this heading">#</a></h4>
+<p><a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.job.JobResults.download_files"><code class="docutils literal notranslate"><span class="pre">download_files</span></code></a> suits experiments, but results are retained only
+temporarily. For recurring or large extractions, use <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.stac_resource.StacResource.export_workspace"><code class="docutils literal notranslate"><span class="pre">export_workspace()</span></code></a>
+where supported to write outputs and STAC metadata directly to object storage or a STAC API.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">save_result</span><span class="p">(</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s2">"netCDF"</span><span class="p">,</span>
+    <span class="c1"># backend-specific format options</span>
+    <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s2">"sample_by_feature"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"feature_id_property"</span><span class="p">:</span> <span class="s2">"sample_id"</span><span class="p">},</span>
+<span class="p">)</span><span class="o">.</span><span class="n">export_workspace</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="s2">"my_workspace"</span><span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"ML patch extraction"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Which workspaces are available, and whether you can register your own storage, is backend-specific. When running such
+extractions through the job manager, create it with <code class="docutils literal notranslate"><span class="pre">download_results=False</span></code> (see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#automatic-result-downloading">job manager download results</a>), so results are not downloaded a second time.
+Check the backend process listing (for example <code class="docutils literal notranslate"><span class="pre">/openeo/1.2/processes</span></code>) to confirm <code class="docutils literal notranslate"><span class="pre">export_workspace</span></code> availability and
+workspace options.</p>
+</section>
+</section>
+<section id="performance-considerations">
+<span id="27-performance-considerations"></span><h3>2.7 Performance considerations<a class="headerlink" href="#performance-considerations" title="Link to this heading">#</a></h3>
+<p>Input volume, not output size, usually drives extraction cost: a small sparse patch output may require processing many
+chunks from large EO scenes.</p>
+<ul class="simple">
+<li><p>Group samples spatially (see <a class="reference internal" href="#splitting-into-spatial-groups">Splitting into spatial groups</a>) and run one job per
+Sentinel-2 tile.</p></li>
+<li><p>Run a small pilot extraction first and use its observed cost per sample to estimate the full run (see
+<a class="reference internal" href="#incremental-scaling-strategy">scaling</a>).</p></li>
+<li><p>Restrict the temporal extent and band selection to what your model actually needs. Every extra band and every extra month
+of data adds to the input volume, even if the model ignores it.</p></li>
+<li><p>Consider caching extractions: store the extracted training data (for example, as GeoParquet in object storage) so that
+model iterations do not require re-extraction. This is especially valuable during the experimentation phase, when you may
+retrain a model dozens of times with different hyperparameters but the same input features.</p></li>
+</ul>
+</section>
+</section>
+<section id="training-strategy-where-openeo-fits">
+<span id="3-training-strategy-where-openeo-fits"></span><h2>3. Training strategy: where openEO fits<a class="headerlink" href="#training-strategy-where-openeo-fits" title="Link to this heading">#</a></h2>
+<section id="training-outside-openeo-common-path">
+<span id="31-training-outside-openeo-common-path"></span><h3>3.1 Training outside openEO (common path)<a class="headerlink" href="#training-outside-openeo-common-path" title="Link to this heading">#</a></h3>
+<p>Deep-learning training usually runs outside openEO on GPU-capable environments. The distinction is about fit: openEO focuses
+on scalable EO processing, while external platforms offer mature GPU scheduling and model-development tools. Choose a
+training environment based on your data and compute needs:</p>
+<ul class="simple">
+<li><p><strong>Existing training datasets.</strong> If your task overlaps with a published EO training dataset, reusing it can remove a
+large part of the reference-data work described in <a class="reference internal" href="#organising-and-extracting-reference-data-for-ml">Section 2</a>.
+Datasets are shared through several channels, for example <a class="reference external" href="https://source.coop/">Source Cooperative</a>,
+<a class="reference external" href="https://huggingface.co/datasets">Hugging Face</a>, the dataset loaders of <a class="reference external" href="https://torchgeo.readthedocs.io/">TorchGeo</a>,
+or <a class="reference external" href="https://www.eotdl.com/">EOTDL</a> (Earth Observation Training Data Lab). Pin the exact dataset version you train on.</p></li>
+<li><p><strong>GPU compute.</strong> Options range from local or institutional GPU machines and HPC centres to commercial clouds and
+EO-specific platforms that offer GPU workspaces (EOTDL is one such European option). GPU training is the piece openEO
+deliberately does not try to cover.</p></li>
+</ul>
+<p>Whatever the training environment, align its features with production inference. Local or third-party datasets may differ
+in cloud masking, resampling, or compositing, so the safest route is to extract training data with the same graph used for
+inference (see <a class="reference internal" href="#data-extraction-and-feature-engineering-in-openeo">Section 1</a>).</p>
+</section>
+<section id="training-in-openeo-for-lightweight-models">
+<span id="32-training-in-openeo-for-lightweight-models"></span><h3>3.2 Training in openEO for lightweight models<a class="headerlink" href="#training-in-openeo-for-lightweight-models" title="Link to this heading">#</a></h3>
+<p>Reference implementation used here: <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/random-forest-forest-fire">random-forest forest-fire
+example</a>.</p>
+<p>For tree-based models, openEO does support native training and inference, given that it is genuinely CPU-friendly:
+<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.vectorcube.VectorCube.fit_class_random_forest"><code class="docutils literal notranslate"><span class="pre">fit_class_random_forest()</span></code></a> trains server-side on the backend’s regular compute nodes. You send openEO a cube
+of input features (predictors) and a set of labelled points (y_train), and the backend fits the
+trees.</p>
+<p>In that reference workflow, <code class="docutils literal notranslate"><span class="pre">training_cube</span></code> is built by merging the cubes produced by the <code class="docutils literal notranslate"><span class="pre">s1_features</span></code> (Sentinel-1) and
+<code class="docutils literal notranslate"><span class="pre">s2_features</span></code> (Sentinel-2) helper functions before calling <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code>. This keeps training and inference aligned
+because the same feature-building helpers are reused for prediction:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">s1_feature_cube</span> <span class="o">=</span> <span class="n">s1_features</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">temporal_extent</span><span class="p">,</span> <span class="n">spatial_extent</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">)</span>
+<span class="n">s2_feature_cube</span> <span class="o">=</span> <span class="n">s2_features</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">temporal_extent</span><span class="p">,</span> <span class="n">spatial_extent</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">,</span> <span class="n">padding_window_size</span><span class="p">)</span>
+<span class="n">training_cube</span> <span class="o">=</span> <span class="n">s2_feature_cube</span><span class="o">.</span><span class="n">merge_cubes</span><span class="p">(</span><span class="n">s1_feature_cube</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="c1"># y_train: GeoDataFrame with labelled training points (geometry + "target" column)</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">y_train</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+<span class="n">predictors</span> <span class="o">=</span> <span class="n">training_cube</span><span class="o">.</span><span class="n">aggregate_spatial</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">reducer</span><span class="o">=</span><span class="s2">"median"</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">predictors</span><span class="o">.</span><span class="n">fit_class_random_forest</span><span class="p">(</span>
+    <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+    <span class="n">num_trees</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+    <span class="n">seed</span><span class="o">=</span><span class="mi">2082</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Save the model as a batch job result asset</span>
+<span class="c1"># so that we can load it in another job.</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">save_ml_model</span><span class="p">()</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"random_forest_training"</span><span class="p">)</span>
+<span class="n">job</span><span class="o">.</span><span class="n">start_and_wait</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fit_class_random_forest</span></code> trains directly on the backend against those aggregated predictors and the <code class="docutils literal notranslate"><span class="pre">target</span></code> labels.</p>
+<p>When saving the model, it does not return to your laptop; instead, the batch job persists the fitted model as a
+result asset, alongside the usual STAC metadata.</p>
+</section>
+<section id="using-the-trained-model-at-inference-time">
+<span id="33-using-the-trained-model-at-inference-time"></span><h3>3.3 Using the trained model at inference time<a class="headerlink" href="#using-the-trained-model-at-inference-time" title="Link to this heading">#</a></h3>
+<p>The companion notebook, <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/random-forest-forest-fire"><code class="docutils literal notranslate"><span class="pre">random-forest-inference-udp.ipynb</span></code></a>, picks the model up purely by URL:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># link to the trained model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="s2">"https://s3.waw3-1.cloudferro.com/apex-examples/RF-ForestFire/RandomForest-ForestFire-model.json"</span>
+</pre></div>
+</div>
+<p>We can then reuse the same <code class="docutils literal notranslate"><span class="pre">s1_features</span></code> / <code class="docutils literal notranslate"><span class="pre">s2_features</span></code> helper functions to build the inference cube; there is no risk of
+training/serving skew from re-implementing feature logic twice:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load s1 and s2 features</span>
+<span class="n">s1_feature_cube</span> <span class="o">=</span> <span class="n">s1_features</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">temporal_extent</span><span class="p">,</span> <span class="n">spatial_extent</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">)</span>
+<span class="n">s2_feature_cube</span> <span class="o">=</span> <span class="n">s2_features</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">temporal_extent</span><span class="p">,</span> <span class="n">spatial_extent</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">,</span> <span class="n">padding_window_size</span><span class="p">)</span>
+<span class="c1"># Merge the two feature cubes</span>
+<span class="n">inference_cube</span> <span class="o">=</span> <span class="n">s2_feature_cube</span><span class="o">.</span><span class="n">merge_cubes</span><span class="p">(</span><span class="n">s1_feature_cube</span><span class="p">)</span>
+
+<span class="c1"># predict on new data</span>
+<span class="n">inference</span> <span class="o">=</span> <span class="n">inference_cube</span><span class="o">.</span><span class="n">predict_random_forest</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">"bands"</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>If your model cannot be expressed as a random forest (or another <code class="docutils literal notranslate"><span class="pre">predict_*</span></code> process openEO ships natively), fall back to
+the ONNX/UDF path described below.</p>
+</section>
+<section id="embedding-first-strategy">
+<span id="34-embedding-first-strategy"></span><h3>3.4 Embedding-first strategy<a class="headerlink" href="#embedding-first-strategy" title="Link to this heading">#</a></h3>
+<p>While at first glance CPU-friendly support seems limiting, it opens interesting alternative options in today’s new paradigm with
+embeddings.</p>
+<p>Embeddings are “general” features learned from multi-modal satellite data. Such pre-computed or on-demand computed
+features, based on advanced ML architectures, can already provide the heavy lifting for many applications. Instead of
+training a large model from scratch for each new task, you can use an embedding model to convert raw imagery into a compact
+representation, then train a small, task-specific model on top of that representation. This is often both cheaper and more
+accurate than training a task-specific model end-to-end, because the embedding model has already learned to capture
+relevant spatial and spectral patterns from a much larger and more diverse dataset.</p>
+<p>Hence, in combination with such embeddings, CPU-friendly training methodologies become a cost-efficient way of getting to
+specific insights. A random forest or logistic regression on top of embeddings can be trained in minutes on a laptop, while
+still benefiting from the representational power of a large backbone.</p>
+<p>Within openEO, it is perfectly possible to generate embeddings on the fly as part of the feature-extraction pipeline. This
+means you do not need to pre-compute and store embeddings for your entire area of interest; instead, the embedding model
+runs as part of the same graph that produces your training features and your inference outputs, which guarantees
+consistency between the two.</p>
+<p>A practical pattern is:</p>
+<ol class="arabic simple">
+<li><p>Compute embeddings once in openEO.</p></li>
+<li><p>Train small downstream models on top.</p></li>
+<li><p>Deploy those light models back into openEO.</p></li>
+</ol>
+<p>Reference: <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings">geospatial embeddings
+examples</a>. This folder is
+the practical starting point for the embedding-first pattern. It contains several worked examples that cover different
+points on the spectrum from classical dimensionality reduction to foundation-model-style embeddings:</p>
+<ul class="simple">
+<li><p><strong><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/dimensionality-reduction">Dimensionality reduction</a></strong>,
+a PCA-based UDF showing how a compact representation can be derived without a heavy backbone, useful as a baseline
+before committing to a large model.</p></li>
+<li><p><strong><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/corsa">CORSA</a></strong>,
+learned compression of Sentinel-2 through custom backend processes.</p></li>
+<li><p><strong><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/tessera">TESSERA</a></strong>
+(PyTorch UDF) and <strong><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/terramind">TerraMind</a></strong>
+(ONNX UDF), which demonstrate foundation-model-style embeddings. TerraMind also shows how the input calibration the
+network depends on is baked into the exported ONNX graph (see <a class="reference internal" href="#calibration-lives-inside-the-model">Section 4.1.2</a>).</p></li>
+<li><p><strong><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth">OlmoEarth</a></strong>,
+which computes annual Sentinel-1/2 embeddings with native <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>: no UDF, no dependency archive and no GPU.</p></li>
+</ul>
+<p>Once an embedding model is chosen, its pipeline is fixed: a pinned checkpoint, a known input layout and no custom
+logic between the bands and the model. That makes <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> (see <a class="reference internal" href="#deploying-via-predict-onnx">4.3</a>) usually
+a better fit than a UDF. Reserve UDFs for the experimental phase, or for steps that native processes cannot express.</p>
+<p>Each example is a runnable notebook that can serve as a pipeline template.</p>
+</section>
+</section>
+<section id="packaging-and-deploying-models-for-openeo-inference">
+<span id="4-packaging-and-deploying-models-for-openeo-inference"></span><h2>4. Packaging and deploying models for openEO inference<a class="headerlink" href="#packaging-and-deploying-models-for-openeo-inference" title="Link to this heading">#</a></h2>
+<p>This section covers model packaging and the two deployment paths: UDFs and native <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>.</p>
+<section id="choosing-your-onboarding-path-udfs-and-predict-onnx">
+<span id="40-choosing-your-onboarding-path-udfs-and-predict_onnx"></span><h3>4.0 Choosing your onboarding path: UDFs and <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code><a class="headerlink" href="#choosing-your-onboarding-path-udfs-and-predict-onnx" title="Link to this heading">#</a></h3>
+<p>openEO currently offers two  mechanisms for running ML inference, each with a different balance of flexibility, operational simplicity, and portability. This section compares them so you can choose the right tool for your use case rather than defaulting to the most familiar one.</p>
+<p>At a glance:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Criterion</p></th>
+<th class="head text-left"><p>UDF (User-Defined Function)</p></th>
+<th class="head text-left"><p><code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> (native process)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p><strong>Flexibility</strong></p></td>
+<td class="text-left"><p>High: arbitrary Python code, full <code class="docutils literal notranslate"><span class="pre">xarray</span></code> access, <code class="docutils literal notranslate"><span class="pre">context</span></code> object</p></td>
+<td class="text-left"><p>Fixed: operates on a tensor interface, no <code class="docutils literal notranslate"><span class="pre">context</span></code> or band-name access</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><strong>Operational simplicity</strong></p></td>
+<td class="text-left"><p>Medium: you manage the UDF wrapper and dependencies</p></td>
+<td class="text-left"><p>High: no UDF code, backend handles ONNX runtime</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><strong>Portability</strong></p></td>
+<td class="text-left"><p>Medium to high: basic <code class="docutils literal notranslate"><span class="pre">xarray</span></code>/NumPy code is very portable across versions; requires backends to implement <code class="docutils literal notranslate"><span class="pre">run_udf</span></code></p></td>
+<td class="text-left"><p>Medium: ONNX is portable, but process support is backend-specific</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><strong>Dependency management</strong></p></td>
+<td class="text-left"><p>High: Inline in the UDF header (PEP 723) or via dependency archives for ML frameworks (PyTorch, TensorFlow)</p></td>
+<td class="text-left"><p>None: the ONNX runtime is fixed by the backend</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><strong>Performance</strong></p></td>
+<td class="text-left"><p>Medium: Depends largely on the quality of the user code</p></td>
+<td class="text-left"><p>High: Backend can optimise generistic execution</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><strong>Best for</strong></p></td>
+<td class="text-left"><p>Custom preprocessing/postprocessing or custom libraries</p></td>
+<td class="text-left"><p>Fixed per-pixel/per-tile ONNX models on supported backends</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="user-defined-functions-udfs">
+<span id="401-user-defined-functions-udfs"></span><h4>4.0.1 User-Defined Functions (UDFs)<a class="headerlink" href="#user-defined-functions-udfs" title="Link to this heading">#</a></h4>
+<p>UDFs are the flexible path for custom ML code: <code class="docutils literal notranslate"><span class="pre">run_udf</span></code> executes Python on the backend and provides the cube as an
+<code class="docutils literal notranslate"><span class="pre">xarray.DataArray</span></code>.</p>
+<p>This flexibility also means you own more of the runtime behavior:</p>
+<ul class="simple">
+<li><p><strong>Packaging and dependencies:</strong> for heavy ML frameworks (for example PyTorch or TensorFlow), you need to build and ship dependency archives, which can be large and increase cold-start times.</p></li>
+<li><p><strong>Performance and memory tuning:</strong> with custom Python code, runtime efficiency depends more on implementation details, and memory settings often need explicit tuning.</p></li>
+</ul>
+<p>Use a UDF when you need custom Python, cube metadata (such as band names or coordinates), or per-job parameters through
+<code class="docutils literal notranslate"><span class="pre">context</span></code>. That flexibility also means you manage dependencies and should profile memory and runtime; see
+<a class="reference internal" href="#deploying-via-user-defined-functions">Section 4.2</a>.</p>
+<p>Prefer optimized native processes for preprocessing and postprocessing. Combine custom steps into one UDF rather than
+chaining UDFs. Each UDF boundary forces intermediate data to move thereby increasing the compurational overhead.</p>
+<blockquote>
+<div><p><strong>Tip</strong></p>
+<p>Even inside a UDF, it is best practice to run inference on an ONNX-converted model with <code class="docutils literal notranslate"><span class="pre">onnxruntime</span></code> rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.</p>
+<p>Use the UDF as an experimentation phase: keep extra pre/post-processing close to the model while the workflow evolves. When the contract stabilizes and custom logic is no longer needed, move to <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> with the same ONNX model.</p>
+</div></blockquote>
+</section>
+<section id="native-predict-onnx-process-experimental">
+<span id="402-native-predict_onnx-process-experimental"></span><h4>4.0.2 Native <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> Process [experimental]<a class="headerlink" href="#native-predict-onnx-process-experimental" title="Link to this heading">#</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> runs a stable ONNX model without a UDF wrapper; the backend manages runtime and execution.</p>
+<p>Before using <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>, consider these backend and model constraints:</p>
+<ul class="simple">
+<li><p><strong>Experimental, check your backend:</strong> treat <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> as experimental. It is backend-specific; check <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_processes"><code class="docutils literal notranslate"><span class="pre">connection.list_processes()</span></code></a>. The <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth">OlmoEarth community example</a> is a reference implementation.</p></li>
+<li><p><strong>Fixed interface:</strong> the process operates on a tensor interface with no access to band names, coordinates, or the <code class="docutils literal notranslate"><span class="pre">context</span></code> object, making it unsuitable for models that need this metadata.</p></li>
+<li><p><strong>Limited to ONNX contract:</strong> only models that can be exported to ONNX and conform to the expected input/output interface are supported.</p></li>
+</ul>
+<p><strong>Best for:</strong> fixed, per-pixel or per-tile computations where the model is a self-contained ONNX graph and the target backend supports the process. See <a class="reference internal" href="#deploying-via-predict-onnx">Section 4.3</a> for a deployment example.</p>
+</section>
+<section id="decision-guide">
+<span id="403-decision-guide"></span><h4>4.0.3 Decision Guide<a class="headerlink" href="#decision-guide" title="Link to this heading">#</a></h4>
+<p><img alt="Decision guide: predict_onnx for fixed ONNX models without custom logic when the backend lists predict_onnx; otherwise a UDF with ONNX Runtime." src="../_images/geospatial-ai-inference-path.svg" /></p>
+<p>Use the following rules of thumb to choose the right onboarding path:</p>
+<ol class="arabic simple">
+<li><p><strong>Use <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></strong> for a fixed, per-pixel ONNX model when the backend supports it; it avoids a UDF wrapper and dependency management.</p></li>
+<li><p><strong>Use a UDF</strong> when you need custom Python, <code class="docutils literal notranslate"><span class="pre">context</span></code>, or cube metadata. Keep it small, prefer native preprocessing, and use ONNX Runtime where possible to reduce dependencies and memory.</p></li>
+</ol>
+<p>This decision framework complements the STAC-based model description discussed in <a class="reference internal" href="#ml-models-and-stac">Section 5</a>: by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.</p>
+<blockquote>
+<div><p><strong>Note</strong></p>
+<p>The two options are not mutually exclusive. One can perfectly combine UDFs with predict_onnx into a single pipeline if need be.</p>
+</div></blockquote>
+<p><strong>Where to go next</strong></p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>:</strong> follow <a class="reference internal" href="#preparing-the-model-onnx-export-and-calibration">4.1 Preparing the model</a>, then <a class="reference internal" href="#deploying-via-predict-onnx">4.3 Deploying via <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></a>.</p></li>
+<li><p><strong>UDF:</strong> follow <a class="reference internal" href="#preparing-the-model-onnx-export-and-calibration">4.1 Preparing the model</a>, then <a class="reference internal" href="#deploying-via-user-defined-functions">4.2 Deploying via User-Defined Functions</a>.</p></li>
+</ul>
+<p>Sections 6 to 8 focus on UDFs; <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> users can follow its deployment section and linked documentation.</p>
+</section>
+</section>
+<section id="preparing-the-model-onnx-export-and-calibration">
+<span id="41-preparing-the-model-onnx-export-and-calibration"></span><h3>4.1 Preparing the model: ONNX export and calibration<a class="headerlink" href="#preparing-the-model-onnx-export-and-calibration" title="Link to this heading">#</a></h3>
+<p>Both paths commonly use ONNX: <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> consumes it directly, while a UDF loads it through ONNX Runtime. These
+preparation steps apply to either path.</p>
+<section id="prefer-onnx-when-feasible">
+<span id="411-prefer-onnx-when-feasible"></span><h4>4.1.1 Prefer ONNX when feasible<a class="headerlink" href="#prefer-onnx-when-feasible" title="Link to this heading">#</a></h4>
+<p>Default to ONNX export for stable inference models.</p>
+<p>In practice, this usually wins because it is lighter and simpler to operate. You generally get a faster startup and less
+dependency pain than shipping a full deep-learning framework. An ONNX Runtime archive is on the order of tens of megabytes,
+while a full PyTorch archive can be hundreds of megabytes, and that difference translates directly into cold-start time and
+memory overhead for every worker that loads the archive.</p>
+<p>Use full-framework deployment only when you really need it: custom operators that do not export, highly dynamic model
+logic, or models that are still changing every week.</p>
+</section>
+<section id="calibration-lives-inside-the-model">
+<span id="412-calibration-lives-inside-the-model"></span><h4>4.1.2 Calibration lives inside the model<a class="headerlink" href="#calibration-lives-inside-the-model" title="Link to this heading">#</a></h4>
+<p>An added benefit of ONNX is that the framework provides more than a CPU-friendly transition: it is flexible enough to embed
+the input calibration the network depends on (for example, z-score normalization), so the exported graph stays
+self-contained instead of relying on the UDF to reproduce preprocessing exactly.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">EncoderONNX</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backbone</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span> <span class="o">=</span> <span class="n">backbone</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">"mean"</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">mean</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">"std"</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">std</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">backbone</span><span class="p">((</span><span class="n">data</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">+</span> <span class="mf">1e-9</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>The same calibration then applies whether the model runs through <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> or a UDF.</p>
+</section>
+<section id="tips-for-the-onnx-conversion">
+<span id="413-tips-for-the-onnx-conversion"></span><h4>4.1.3 Tips for the ONNX conversion<a class="headerlink" href="#tips-for-the-onnx-conversion" title="Link to this heading">#</a></h4>
+<p>For general conversion guides, see the <a class="reference external" href="https://onnx.ai/onnx/intro/converters.html">ONNX tutorials</a> and the
+framework-specific exporters, such as <a class="reference external" href="https://docs.pytorch.org/docs/stable/onnx.html"><code class="docutils literal notranslate"><span class="pre">torch.onnx</span></code></a> for PyTorch,
+<a class="reference external" href="https://github.com/onnx/tensorflow-onnx">tf2onnx</a> for TensorFlow/Keras, and
+<a class="reference external" href="https://onnx.ai/sklearn-onnx/">skl2onnx</a> for scikit-learn.</p>
+<p>Using ONNX is a strong choice when all of these are true:</p>
+<ol class="arabic simple">
+<li><p>The architecture is mostly fixed.</p></li>
+<li><p>You can define one stable input/output contract (shape, dtype, layout).</p></li>
+<li><p>You can pass source-vs-ONNX parity on representative data.</p></li>
+<li><p>The target backend/runtime supports your intended inference mode: per-pixel, fixed-size patch, or sliding-window prediction with overlap</p></li>
+</ol>
+<p>When exporting a model, treat export as an interface contract and lock the following parameters
+explicitly:</p>
+<ol class="arabic simple">
+<li><p><strong>Input signature</strong>: names, dtypes, rank, layout (<code class="docutils literal notranslate"><span class="pre">NCHW</span></code>/<code class="docutils literal notranslate"><span class="pre">NHWC</span></code>), dynamic axes. Dynamic axes can be a great asset for
+openEO, because optimization often means making the model run over as large an area as possible in one go. If the batch
+dimension is dynamic, the same exported model can process one tile or many tiles without re-export.</p></li>
+<li><p><strong>Opset version</strong>: explicit and pinned. Different opset versions support different operators,
+and an opset that works on your local ONNX Runtime may not be supported by the runtime available in the openEO backend.</p></li>
+<li><p><strong>Output semantics</strong>: logits/probabilities/embeddings and exact expected shape. This matters most when the output is
+consumed by downstream code that assumes a particular interpretation; a model that outputs logits but is treated as
+probabilities will produce subtly wrong results.</p></li>
+<li><p><strong>Runtime target</strong>: test on the runtime you will actually use in production (usually ONNX Runtime CPU in openEO UDF
+jobs). Testing on a different runtime, or on a GPU, can hide issues that only appear on the production runtime.</p></li>
+</ol>
+<p><strong>Reference export pipeline (PyTorch)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="c1"># 0) Wrap the trained backbone so calibration is part of the exported graph (see 4.1.2).</span>
+<span class="n">wrapped</span> <span class="o">=</span> <span class="n">EncoderONNX</span><span class="p">(</span><span class="n">backbone</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">)</span>
+
+<span class="c1"># 1) Build a realistic dummy input in the exact layout your runtime will receive.</span>
+<span class="n">dummy</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+<span class="c1"># 2) Export with explicit names, dynamic axes, and pinned opset.</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">onnx</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
+    <span class="n">wrapped</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span>
+    <span class="n">dummy</span><span class="p">,</span>
+    <span class="s2">"encoder.onnx"</span><span class="p">,</span>
+    <span class="n">input_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"data"</span><span class="p">],</span>
+    <span class="n">output_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"embedding"</span><span class="p">],</span>
+    <span class="n">dynamic_axes</span><span class="o">=</span><span class="p">{</span><span class="s2">"data"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"batch"</span><span class="p">},</span> <span class="s2">"embedding"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"batch"</span><span class="p">}},</span>
+    <span class="n">opset_version</span><span class="o">=</span><span class="mi">17</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Sanity checks</strong></p>
+<p>Before deployment, verify that the cube’s band order, dimensions, and dtype match the model contract, for either path:</p>
+<ol class="arabic simple">
+<li><p><strong>Layout mismatch</strong>: trained with <code class="docutils literal notranslate"><span class="pre">NCHW</span></code>, inferred with <code class="docutils literal notranslate"><span class="pre">NHWC</span></code>. This is the most common mistake, because your
+conventions and openEO cube conventions are not the same, and the transpose may be implicit in one path but not the
+other.</p></li>
+<li><p><strong>Implicit preprocessing</strong>: training normalised input, but the exported graph assumes raw data. If normalisation is not baked
+into e.g. the exported ONNX graph, the UDF must reproduce it exactly, and any deviation will degrade accuracy without raising an
+error.</p></li>
+<li><p><strong>dtype drift</strong>: training path used <code class="docutils literal notranslate"><span class="pre">uint16</span></code>, runtime standardizes on float32.</p></li>
+<li><p><strong>Dynamic-axis mismatch</strong>: batch dynamic but model’s spatial dimensions fixed (or vice versa). A model exported
+with a fixed spatial size will fail when during runtime you provide a different tile size.</p></li>
+</ol>
+</section>
+</section>
+<section id="deploying-via-user-defined-functions">
+<span id="42-deploying-via-user-defined-functions"></span><h3>4.2 Deploying via User-Defined Functions<a class="headerlink" href="#deploying-via-user-defined-functions" title="Link to this heading">#</a></h3>
+<p>Use a <a class="reference internal" href="../udf.html"><span class="std std-doc">User-Defined Function (UDF)</span></a> when native processes do not cover the required Python inference logic,
+such as a custom neural network or embedding model.</p>
+<p>UDF runtimes are minimal to support fast startup on shared infrastructure. Check available packages in the <a class="reference external" href="https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes">runtime
+documentation</a> or with:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">connection</span><span class="o">.</span><span class="n">list_udf_runtimes</span><span class="p">()</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note</strong></p>
+<p>UDF runtimes and package support are backend-specific. Always check
+<code class="docutils literal notranslate"><span class="pre">connection.list_udf_runtimes()</span></code> (or the backend runtime endpoint) before pinning dependency
+archives, and retest when runtime versions change.</p>
+</div></blockquote>
+<p>However, there are two ways to extend what a UDF can use:</p>
+<ol class="arabic simple">
+<li><p><strong>Small packages</strong>: install them inline inside the UDF itself via the PEP 723 “inline script metadata”
+standard (see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/udf.html#standard-for-declaring-python-udf-dependencies">python udf dependency declaration</a>). This is the lightest
+option and works well for pure-Python dependencies. It is best suited for small utilities that do not have compiled
+extensions or complex transitive dependencies.</p></li>
+<li><p><strong>Heavier packages</strong> (the common case for ML): ship a prebuilt dependency archive and attach it through <a class="reference external" href="https://documentation.dataspace.copernicus.eu/APIs/openEO/job_config.html">job
+options</a>. Building and maintaining such
+archives requires dedicated tooling and solid openEO/runtime knowledge, so we build and maintain ready-to-use archives
+ourselves for the common ML formats (ONNX, PyTorch). The archive is downloaded once per worker and unpacked into the UDF
+runtime, which is why keeping it small matters for cold-start time.</p></li>
+</ol>
+<p>Prefer pre-built archives; use inline additions for small dependencies and avoid installing heavy packages at runtime.</p>
+<p>For a model exported to ONNX (see <a class="reference internal" href="#preparing-the-model-onnx-export-and-calibration">4.1</a>), the UDF only needs
+<a class="reference external" href="https://onnxruntime.ai/docs/">ONNX Runtime</a>, not the full training framework. Pre-built ONNX Runtime dependency archives
+are available, for example:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>https://s3.waw3-1.cloudferro.com/project_dependencies/onnx_deps_python311.zip#onnx_deps
+</pre></div>
+</div>
+<p>Example of wiring a dependency archive through job options:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># `pred` is the inference cube built with a UDF, see Section 6.1</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">pred</span><span class="o">.</span><span class="n">execute_batch</span><span class="p">(</span>
+    <span class="n">out_format</span><span class="o">=</span><span class="s2">"NetCDF"</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">"udf_inference_with_deps"</span><span class="p">,</span>
+    <span class="n">job_options</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"udf-dependency-archives"</span><span class="p">:</span> <span class="p">[</span>
+            <span class="s2">"https://example.org/archives/onnxruntime_deps.zip#deps"</span>
+        <span class="p">],</span>
+        <span class="s2">"executor-memory"</span><span class="p">:</span> <span class="s2">"3g"</span><span class="p">,</span>
+        <span class="s2">"max-executors"</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">job_options</span></code> are backend-specific: both supported keys and optimal values (for example, scheduler/executor tuning)
+depend on the concrete backend that executes the job.</p>
+<p>Take extra care on federation and multi-backend endpoints: jobs are routed to a concrete backend, and only that backend’s
+supported options are applied. Always check the target backend documentation/capabilities, keep a small
+backend-specific profile, and validate with a tiny smoke run before scaling.</p>
+</div></blockquote>
+<p>The syntax matters here because the archive is mounted into the UDF runtime at a specific path, and the <code class="docutils literal notranslate"><span class="pre">#</span></code> fragment in the
+URL is what names that path. A model file and its runtime dependencies are typically passed as separate archives with
+separate mount points, so the UDF can refer to them by a stable path regardless of the worker it happens to run on:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job_options</span><span class="o">=</span><span class="p">{</span>
+    <span class="s2">"udf-dependency-archives"</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">"https://example.org/archives/onnxruntime_deps.zip#deps"</span><span class="p">,</span>
+        <span class="s2">"https://example.org/archives/model_files.zip#model"</span><span class="p">,</span>
+    <span class="p">],</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Inside the UDF, those archives are then unzipped and made available in <code class="docutils literal notranslate"><span class="pre">deps/</span></code> and <code class="docutils literal notranslate"><span class="pre">model/</span></code> relative to the UDF’s working directory.
+A typical UDF bootstrap pattern is:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="c1"># Keep default module resolution first; add mounted dependencies as fallback.</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"deps"</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">onnx</span>
+</pre></div>
+</div>
+<p>Using a ready-made archive avoids rebuilding common runtime dependencies for each model, leaving you to focus on the
+inference code.</p>
+<p>Related UDF examples: <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/onnx-inference">onnx-inference</a>
+runs a pretrained CNN with ONNX Runtime inside a UDF, and
+<a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/parcel-delineation">parcel-delineation</a>
+deploys a pretrained U-Net.</p>
+<p>See <a class="reference internal" href="#running-inference-with-the-udf">Section 6</a> for chunking, padding, session caching, and thread tuning.</p>
+</section>
+<section id="deploying-via-predict-onnx">
+<span id="43-deploying-via-predict_onnx"></span><h3>4.3 Deploying via <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code><a class="headerlink" href="#deploying-via-predict-onnx" title="Link to this heading">#</a></h3>
+<p>After exporting and parity-testing ONNX (see <a class="reference internal" href="#preparing-the-model-onnx-export-and-calibration">4.1</a>), use
+<code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> (<a class="reference external" href="https://open-eo.github.io/openeo-python-client/api-processes.html#openeo.processes.predict_onnx"><code class="docutils literal notranslate"><span class="pre">openeo.processes.predict_onnx()</span></code></a>) on a supporting backend. It accepts a model URL and input array;
+the backend manages ONNX Runtime, session caching, and chunking.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">openeo.processes</span><span class="w"> </span><span class="kn">import</span> <span class="n">predict_onnx</span>
+
+<span class="n">prediction</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">"bands"</span><span class="p">,</span>
+    <span class="n">process</span><span class="o">=</span><span class="k">lambda</span> <span class="n">bands</span><span class="p">:</span> <span class="n">predict_onnx</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">bands</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">"https://example.org/encoder.onnx"</span><span class="p">),</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Three things to watch:</p>
+<ul class="simple">
+<li><p><strong>Contract, not code.</strong> The input cube must already match the model’s expected shape, dtype, and band order. There is no <code class="docutils literal notranslate"><span class="pre">context</span></code> and no band-name access inside the process, so any preprocessing must be done with native openEO processes (or baked into the ONNX graph, see <a class="reference internal" href="#calibration-lives-inside-the-model">4.1.2</a>) before the call.</p></li>
+<li><p><strong>Backend support.</strong> The process is experimental. It is listed on CDSE and Terrascope (verified 2026-11-23) but may be missing elsewhere; check <code class="docutils literal notranslate"><span class="pre">connection.list_processes()</span></code> before designing around it.</p></li>
+<li><p><strong>Spatial context.</strong> For CNN-style models, the CDSE <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> has no overlap option, so tiles are processed without overlap and seams are possible (the OlmoEarth example below accepts this). If your model needs overlapping windows, use a UDF with <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code> instead (see <a class="reference internal" href="#deploying-via-user-defined-functions">4.2</a>).</p></li>
+</ul>
+<p>The <a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth">OlmoEarth example</a> shows the full pattern for an embedding model:</p>
+<ul class="simple">
+<li><p>the model is exported and parity-checked locally;</p></li>
+<li><p>the monthly Sentinel-1/2 inputs are built with native processes;</p></li>
+<li><p>the ONNX file is uploaded as an artifact and run through <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>, with a STAC model description.</p></li>
+</ul>
+<p>For simple per-pixel or per-tile models, <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> is usually less code and less operational overhead than the equivalent UDF. For anything that needs custom logic around the model, fall back to Section 4.2.</p>
+</section>
+</section>
+<section id="ml-models-and-stac">
+<span id="5-ml-models-and-stac"></span><h2>5. ML models and STAC<a class="headerlink" href="#ml-models-and-stac" title="Link to this heading">#</a></h2>
+<p>Model performance can vary by region and period, so metadata should describe where the model applies as well as its exact
+input contract. This helps users select a suitable model and reproduce its predictions later.</p>
+<p>The <a class="reference external" href="https://github.com/stac-extensions/mlm">STAC Machine Learning Model (MLM) extension</a> describes model inputs,
+hyperparameters, and accelerator requirements.</p>
+<p>At minimum, capture the spatiotemporal relevance, input band order, expected units and value ranges, tensor layout, expected tile shape and window
+semantics, the normalization policy, output semantics, runtime requirements, and links to all sidecar
+artifacts. This kind of information is especially relevant during deployment.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"stac_extensions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s2">"https://stac-extensions.github.io/mlm/v1.4.0/schema.json"</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"mlm:name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"crop-encoder-v3"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"mlm:architecture"</span><span class="p">:</span><span class="w"> </span><span class="s2">"resnet-encoder"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"mlm:tasks"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"classification"</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"apex:input_bands"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"B02"</span><span class="p">,</span><span class="w"> </span><span class="s2">"B03"</span><span class="p">,</span><span class="w"> </span><span class="s2">"B04"</span><span class="p">,</span><span class="w"> </span><span class="s2">"B08"</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"apex:input_units"</span><span class="p">:</span><span class="w"> </span><span class="s2">"surface_reflectance_0_1"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"apex:input_layout"</span><span class="p">:</span><span class="w"> </span><span class="s2">"NCHW"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"apex:tile_shape"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"apex:normalization"</span><span class="p">:</span><span class="w"> </span><span class="s2">"embedded_in_onnx"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"apex:output"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"embedding"</span><span class="p">,</span><span class="w"> </span><span class="nt">"dimensions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"batch"</span><span class="p">,</span><span class="w"> </span><span class="mi">768</span><span class="p">]},</span>
+<span class="w">    </span><span class="nt">"apex:onnx_opset"</span><span class="p">:</span><span class="w"> </span><span class="mi">17</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"assets"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"model"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"href"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://example.org/model.onnx"</span><span class="p">,</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"application/onnx"</span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"weights"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"href"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://example.org/model.onnx.data"</span><span class="p">,</span><span class="w"> </span><span class="nt">"roles"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"data"</span><span class="p">]}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This way you can build a model catalogue that makes explicit where and when each model is expected to perform well.
+For example, a global land-cover product can be published as one STAC collection with multiple regional and/or
+time-bounded model items, each with its own contract (bands, layout, normalization, tile semantics, runtime limits).
+At execution time, the workflow can resolve the model from STAC based on the requested area and period, so the best-fit
+model contract is selected automatically without requiring end users to make that decision manually.</p>
+</section>
+<section id="related-references">
+<h2>Related references<a class="headerlink" href="#related-references" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../machine_learning.html"><span class="std std-doc">Machine Learning</span></a></p></li>
+<li><p><a class="reference internal" href="../udf.html"><span class="std std-doc">User-Defined Functions</span></a></p></li>
+<li><p><a class="reference internal" href="../udp.html"><span class="std std-doc">User-Defined Processes</span></a></p></li>
+<li><p><a class="reference internal" href="../batch_jobs.html"><span class="std std-doc">Batch Jobs</span></a></p></li>
+<li><p><a class="reference internal" href="../data_access.html"><span class="std std-doc">Data Access</span></a></p></li>
+<li><p><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings">openEO community examples: geospatial embeddings</a></p></li>
+<li><p><a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning">openEO community examples: machine learning</a></p></li>
+</ul>
+</section>
+<section id="running-inference-with-the-udf">
+<span id="6-running-inference-with-the-udf"></span><h2>6. Running inference with the UDF<a class="headerlink" href="#running-inference-with-the-udf" title="Link to this heading">#</a></h2>
+<p>The UDF must receive data in the spatial or temporal shape the model expects. The patterns below help match openEO’s
+application process and chunking behavior to that input.</p>
+<section id="choosing-between-apply-apply-dimension-and-apply-neighborhood">
+<span id="61-choosing-between-apply-apply_dimension-and-apply_neighborhood"></span><h3>6.1 Choosing between <code class="docutils literal notranslate"><span class="pre">apply</span></code>, <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code>, and <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code><a class="headerlink" href="#choosing-between-apply-apply-dimension-and-apply-neighborhood" title="Link to this heading">#</a></h3>
+<p>The right process depends on what the model needs to see each time it runs:</p>
+<ol class="arabic simple">
+<li><p>Use <a class="reference external" href="https://openeo.org/documentation/1.0/processes.html#apply"><code class="docutils literal notranslate"><span class="pre">apply</span></code></a> for lightweight element-wise transforms
+(for example scaling or thresholding) where you do not need to control chunking explicitly.</p></li>
+<li><p>Use <a class="reference external" href="https://openeo.org/documentation/1.0/processes.html#apply_dimension"><code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code></a> when logic runs along one
+dimension (most often time, <code class="docutils literal notranslate"><span class="pre">t</span></code>) for each pixel location. This is the natural choice for time-series models that consume
+a full temporal profile per pixel.</p></li>
+<li><p>Use <a class="reference external" href="https://openeo.org/documentation/1.0/processes.html#apply_neighborhood"><code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code></a> for model inference
+whenever you need explicit control over spatial chunking, including many pixel-based models. It is required
+for patch-based models (for example CNN-style inference), and it can also be preferable for pixel-based inference because
+you define chunk sizes and overlap yourself instead of relying on backend defaults.</p></li>
+</ol>
+<p>Minimal patterns:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1) Lightweight element-wise transform: no custom chunking needed.</span>
+<span class="n">scaled</span> <span class="o">=</span> <span class="n">prediction</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">*</span> <span class="mf">100.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 2) Per-pixel time-series logic along one dimension.</span>
+<span class="n">udf_temporal</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">"udf_temporal.py"</span><span class="p">)</span>
+
+<span class="n">temporal_out</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">apply_dimension</span><span class="p">(</span>
+    <span class="n">dimension</span><span class="o">=</span><span class="s2">"t"</span><span class="p">,</span>
+    <span class="n">process</span><span class="o">=</span><span class="n">udf_temporal</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># 3) Spatial patch inference with overlap.</span>
+<span class="n">udf_spatial</span> <span class="o">=</span> <span class="n">openeo</span><span class="o">.</span><span class="n">UDF</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">"udf_spatial.py"</span><span class="p">)</span>
+
+<span class="n">pred</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">apply_neighborhood</span><span class="p">(</span>
+    <span class="n">process</span><span class="o">=</span><span class="n">udf_spatial</span><span class="p">,</span>
+    <span class="n">size</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">"dimension"</span><span class="p">:</span> <span class="s2">"x"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mi">128</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"px"</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">"dimension"</span><span class="p">:</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span>   <span class="mi">128</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"px"</span><span class="p">},</span>
+    <span class="p">],</span>
+    <span class="n">overlap</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">"dimension"</span><span class="p">:</span> <span class="s2">"x"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"px"</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">"dimension"</span><span class="p">:</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"px"</span><span class="p">},</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="spatial-context-and-chunk-semantics">
+<span id="62-spatial-context-and-chunk-semantics"></span><h3>6.2 Spatial context and chunk semantics<a class="headerlink" href="#spatial-context-and-chunk-semantics" title="Link to this heading">#</a></h3>
+<p>With apply_neighborhood, the model sees an effective tile size of window size + 2 × overlap, which must match the model input shape. After processing, openEO stitches the window-size cores of neighboring chunks into a seamless result, and discards the overlap regions. A larger overlap reduces edge artifacts but
+also increases memory pressure, since every extra pixel of overlap is recomputed in both of its neighboring chunks.</p>
+<p>If the entire AOI is not an exact multiple of the apply window, center padding with NaNs is applied during the UDF runtime.
+Therefore it is paramount that the UDF implementation knows how to work with NaN inputs. A UDF that assumes all input
+pixels are valid will either crash or produce garbage at the edges of the AOI, and those errors can be difficult to trace
+back to the padding behavior.</p>
+</section>
+<section id="caching-and-concurrency">
+<span id="63-caching-and-concurrency"></span><h3>6.3 Caching and concurrency<a class="headerlink" href="#caching-and-concurrency" title="Link to this heading">#</a></h3>
+<p>A single batch job can spin up many workers, and each of those workers may process several chunks over its lifetime.
+Loading a model and spinning up an inference session is comparatively expensive, so it pays off to cache the loaded artifact.</p>
+<p>The thread settings on the inference session can also strongly impact performance. ONNX Runtime distinguishes between
+intra-op threads, which parallelize work inside a single operator, and inter-op threads, which run independent branches of
+the graph in parallel. Increasing the number of threads whilst avoiding oversubscription can pay off during runtime.
+The optimal number of threads is again backend-specific; in our experience 2 works well.</p>
+<blockquote>
+<div><p><strong>Note</strong></p>
+<p>When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. Comparing a local run with default
+all-core settings to a 2-thread UDF run will give misleading timings.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">onnxruntime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ort</span>
+
+
+<span class="nd">@functools</span><span class="o">.</span><span class="n">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_session</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">num_threads</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">ort</span><span class="o">.</span><span class="n">SessionOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">intra_op_num_threads</span> <span class="o">=</span> <span class="n">num_threads</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">inter_op_num_threads</span> <span class="o">=</span> <span class="n">num_threads</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">execution_mode</span> <span class="o">=</span> <span class="n">ort</span><span class="o">.</span><span class="n">ExecutionMode</span><span class="o">.</span><span class="n">ORT_SEQUENTIAL</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">graph_optimization_level</span> <span class="o">=</span> <span class="n">ort</span><span class="o">.</span><span class="n">GraphOptimizationLevel</span><span class="o">.</span><span class="n">ORT_ENABLE_ALL</span>
+    <span class="k">return</span> <span class="n">ort</span><span class="o">.</span><span class="n">InferenceSession</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="s2">"CPUExecutionProvider"</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>More threads are not always faster: multiple workers can compete for the same cores. Tune thread limits with executor
+configuration, keeping per-session threads near the cores allocated to each executor.</p>
+</section>
+<section id="profiling-udf-steps">
+<span id="64-profiling-udf-steps"></span><h3>6.4 Profiling UDF steps<a class="headerlink" href="#profiling-udf-steps" title="Link to this heading">#</a></h3>
+<p>For local or remote UDF runs, wrap expensive stages—such as model loading, preprocessing, and inference—to see which step
+uses the most time or memory. These measurements help identify what to optimize, but they do not replace backend job
+metrics when sizing workers:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Tool</p></th>
+<th class="head text-left"><p>Measures</p></th>
+<th class="head text-left"><p>Limitation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">time.perf_counter()</span></code></p></td>
+<td class="text-left"><p>Monotonic elapsed time per stage.</p></td>
+<td class="text-left"><p>—</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">psutil</span></code></p></td>
+<td class="text-left"><p>Process RSS, including native allocations.</p></td>
+<td class="text-left"><p>Before/after samples can miss short-lived peaks; may need a dependency archive.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">tracemalloc</span></code></p></td>
+<td class="text-left"><p>Python-managed allocation peaks.</p></td>
+<td class="text-left"><p>Does not include NumPy, ONNX Runtime, or other native allocations.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">resource.getrusage()</span></code></p></td>
+<td class="text-left"><p>Process peak RSS on Unix-like systems.</p></td>
+<td class="text-left"><p>Cumulative high-water mark, not per-stage; units vary by platform.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tracemalloc</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">psutil</span>
+
+<span class="n">process</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">()</span>
+<span class="n">tracemalloc</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">profile_step</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">rss_before</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">memory_info</span><span class="p">()</span><span class="o">.</span><span class="n">rss</span>
+    <span class="n">traced_before</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">tracemalloc</span><span class="o">.</span><span class="n">get_traced_memory</span><span class="p">()</span>
+    <span class="n">tracemalloc</span><span class="o">.</span><span class="n">reset_peak</span><span class="p">()</span>
+    <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">started</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">traced_peak</span> <span class="o">=</span> <span class="n">tracemalloc</span><span class="o">.</span><span class="n">get_traced_memory</span><span class="p">()</span>
+    <span class="n">rss_after</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">memory_info</span><span class="p">()</span><span class="o">.</span><span class="n">rss</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s, RSS delta=</span><span class="si">{</span><span class="p">(</span><span class="n">rss_after</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">rss_before</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="o">**</span><span class="mi">20</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MiB, "</span>
+        <span class="sa">f</span><span class="s2">"Python peak increase=</span><span class="si">{</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">traced_peak</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">traced_before</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="o">**</span><span class="mi">20</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MiB"</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p>RSS before/after is only a snapshot; confirm worker-level peaks with backend job metrics.</p>
+</section>
+</section>
+<section id="validation-pipelines-in-openeo">
+<span id="7-validation-pipelines-in-openeo"></span><h2>7. Validation pipelines in openEO<a class="headerlink" href="#validation-pipelines-in-openeo" title="Link to this heading">#</a></h2>
+<p>Validation is only informative if it follows the same path as production. The
+validation path has to use the same inference mode (<code class="docutils literal notranslate"><span class="pre">run_udf</span></code> or <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>), the same input contract, and ultimately
+the same backend that will run in production.</p>
+<p>A three-stage validation loop tends to catch problems early and cheaply:</p>
+<ul class="simple">
+<li><p><strong>Stage 1: model parity check.</strong> Check tensor parity between the original model and the exported ONNX model (Example 1 below).</p></li>
+<li><p><strong>Stage 2: path-specific preflight.</strong> For UDFs, run the UDF locally against a representative NetCDF tile to catch shape, dtype, and band-order issues quickly. For <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code>, run contract checks on representative tensors/cubes (shape, dtype, layout, band order, normalization assumptions), since there is no UDF wrapper to test locally.</p></li>
+<li><p><strong>Stage 3: backend smoke run.</strong> Run the same production graph on the actual backend over a tiny held-out area of interest; this is the only stage that can catch backend-specific surprises.</p></li>
+</ul>
+<p><img alt="Three-stage validation loop: model parity check, local UDF test on a representative tile, then a backend smoke run on a tiny held-out area; failures loop back to an earlier stage." src="../_images/geospatial-ai-validation-loop.svg" /></p>
+<p>Example 1: source-vs-ONNX parity check.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">onnxruntime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ort</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="c1"># `wrapped` is the model from the export step in 4.1.3, `data` a representative input tensor</span>
+<span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">inference_mode</span><span class="p">():</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">wrapped</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="n">session</span> <span class="o">=</span> <span class="n">ort</span><span class="o">.</span><span class="n">InferenceSession</span><span class="p">(</span><span class="s2">"encoder.onnx"</span><span class="p">,</span> <span class="n">providers</span><span class="o">=</span><span class="p">[</span><span class="s2">"CPUExecutionProvider"</span><span class="p">])</span>
+<span class="n">exported</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">{</span><span class="s2">"data"</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">numpy</span><span class="p">()})[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="k">assert</span> <span class="n">source</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">exported</span><span class="o">.</span><span class="n">shape</span>
+<span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">exported</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Example 2: local UDF test on an openEO-generated cube.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">udf</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_datacube</span>
+
+<span class="n">inputs</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">"results/representative_input.nc"</span><span class="p">)</span>
+<span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s2">"crs"</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">)</span>
+<span class="n">cube</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">to_array</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">"bands"</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"float32"</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="s2">"bands"</span><span class="p">,</span> <span class="s2">"t"</span><span class="p">,</span> <span class="s2">"y"</span><span class="p">,</span> <span class="s2">"x"</span><span class="p">)</span>
+<span class="n">tile</span> <span class="o">=</span> <span class="n">cube</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1024</span><span class="p">),</span> <span class="n">x</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1024</span><span class="p">))</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">apply_datacube</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="p">{})</span>
+</pre></div>
+</div>
+<p>Example 3: tiny CDSE smoke run before scaling.</p>
+<p>Start with a very small area (around 1x1 km), verify the output, and then scale up in small steps.</p>
+<p>When workking with a UDF; add enough logging inside the UDF. You can retrieve these logs in the openEO
+Web Editor (https://editor.openeo.org/) and quickly see what worked and what failed. Logging is
+especially valuable here because when the UDF runs remotely and you cannot attach a debugger; the logs are your only window into what the code actually did.</p>
+<p>See <a class="reference internal" href="#deploying-via-user-defined-functions">4.2</a> for how UDF runtimes, inline dependencies, and dependency archives work.</p>
+<section id="accuracy-assessment-and-continuous-benchmarking">
+<h3>Accuracy assessment and continuous benchmarking<a class="headerlink" href="#accuracy-assessment-and-continuous-benchmarking" title="Link to this heading">#</a></h3>
+<p>The three stages check execution, not accuracy. Run the production graph on the held-out spatial split (see
+<a class="reference internal" href="#spatially-independent-data-splits">Spatially independent data splits</a>) and compare predictions with reference labels.</p>
+<p>Repeat benchmarks periodically and after changes to the code, model, or platform to catch accuracy and cost regressions.</p>
+<p>If your workflow is mature enough for broader reuse, consider onboarding it in
+<a class="reference external" href="https://github.com/ESA-APEx/apex_algorithms">ESA APEx algorithms</a>. Once onboarded, it can also be exposed through the
+<a class="reference external" href="https://algorithm-catalogue.apex.esa.int/apps/timeseries_statistics#description">APEx algorithm catalogue</a>.
+APEx provides a further quality gate through regular regression and integration checks on compatible backends.</p>
+</section>
+</section>
+<section id="upscaling-and-performance-tuning">
+<span id="8-upscaling-and-performance-tuning"></span><h2>8. Upscaling and performance tuning<a class="headerlink" href="#upscaling-and-performance-tuning" title="Link to this heading">#</a></h2>
+<section id="incremental-scaling-strategy">
+<span id="81-incremental-scaling-strategy"></span><h3>8.1 Incremental scaling strategy<a class="headerlink" href="#incremental-scaling-strategy" title="Link to this heading">#</a></h3>
+<p>Avoid jumping from a tiny test to the full operational area. Start with a small area and short period; after validation,
+increase spatial and temporal extents in separate steps while keeping the graph and job options fixed. Check coverage,
+output quality, and runtime after each step so you can see which change drives resource use.</p>
+<p>At larger scales, tune job options from backend usage metrics rather than guesswork: use CPU utilization to guide
+parallelism (for example, <code class="docutils literal notranslate"><span class="pre">max-executors</span></code>) and executor memory usage/requested values to size memory and overhead. If
+stages fail, increase resources or reduce chunk size before scaling further. If metric-guided tuning is insufficient,
+contact the Copernicus Data Space
+Ecosystem forum (https://forum.dataspace.copernicus.eu/) for upscaling support, or get in touch with ESA APEx, which
+provides algorithm support services (https://apex.esa.int/algorithm-support).</p>
+<p>The <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager"><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a> (see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html">job manager</a>) can submit and track a table
+of batch jobs instead of requiring a manual submission loop. More examples are in
+<a class="reference external" href="https://github.com/Open-EO/openeo-community-examples/tree/main/python/70_platform-and-large-scale">70 · Platform and large scale</a>.
+For an area-scaling sweep, vary only the spatial extent while keeping the process graph and job options fixed:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.extra.job_management</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiBackendJobManager</span><span class="p">,</span> <span class="n">create_job_db</span>
+
+
+<span class="c1"># One row per job, each with its own AOI (here: growing squares in UTM zone 31N, EPSG:32631).</span>
+<span class="n">scales</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="p">{</span><span class="s2">"title"</span><span class="p">:</span> <span class="s2">"scale_1km"</span><span class="p">,</span> <span class="s2">"west"</span><span class="p">:</span> <span class="mi">640000</span><span class="p">,</span> <span class="s2">"south"</span><span class="p">:</span> <span class="mi">5650000</span><span class="p">,</span> <span class="s2">"east"</span><span class="p">:</span> <span class="mi">641000</span><span class="p">,</span> <span class="s2">"north"</span><span class="p">:</span> <span class="mi">5651000</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">"title"</span><span class="p">:</span> <span class="s2">"scale_2km"</span><span class="p">,</span> <span class="s2">"west"</span><span class="p">:</span> <span class="mi">640000</span><span class="p">,</span> <span class="s2">"south"</span><span class="p">:</span> <span class="mi">5650000</span><span class="p">,</span> <span class="s2">"east"</span><span class="p">:</span> <span class="mi">642000</span><span class="p">,</span> <span class="s2">"north"</span><span class="p">:</span> <span class="mi">5652000</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">"title"</span><span class="p">:</span> <span class="s2">"scale_5km"</span><span class="p">,</span> <span class="s2">"west"</span><span class="p">:</span> <span class="mi">640000</span><span class="p">,</span> <span class="s2">"south"</span><span class="p">:</span> <span class="mi">5650000</span><span class="p">,</span> <span class="s2">"east"</span><span class="p">:</span> <span class="mi">645000</span><span class="p">,</span> <span class="s2">"north"</span><span class="p">:</span> <span class="mi">5655000</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">"title"</span><span class="p">:</span> <span class="s2">"scale_10km"</span><span class="p">,</span> <span class="s2">"west"</span><span class="p">:</span> <span class="mi">640000</span><span class="p">,</span> <span class="s2">"south"</span><span class="p">:</span> <span class="mi">5650000</span><span class="p">,</span> <span class="s2">"east"</span><span class="p">:</span> <span class="mi">650000</span><span class="p">,</span> <span class="s2">"north"</span><span class="p">:</span> <span class="mi">5660000</span><span class="p">},</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">job_db</span> <span class="o">=</span> <span class="n">create_job_db</span><span class="p">(</span><span class="s2">"scaling_jobs.csv"</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">scales</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">start_job</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="c1"># Replace this with your actual inference graph, so the sweep measures inference rather than raw data loading.</span>
+    <span class="n">cube</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">load_collection</span><span class="p">(</span>
+        <span class="s2">"SENTINEL2_L2A"</span><span class="p">,</span>
+        <span class="n">spatial_extent</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">"west"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"west"</span><span class="p">],</span>
+            <span class="s2">"south"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"south"</span><span class="p">],</span>
+            <span class="s2">"east"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"east"</span><span class="p">],</span>
+            <span class="s2">"north"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"north"</span><span class="p">],</span>
+            <span class="s2">"crs"</span><span class="p">:</span> <span class="s2">"EPSG:32631"</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">temporal_extent</span><span class="o">=</span><span class="p">[</span><span class="s2">"2024-04-01"</span><span class="p">,</span> <span class="s2">"2024-09-30"</span><span class="p">],</span>
+        <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s2">"B02"</span><span class="p">,</span> <span class="s2">"B03"</span><span class="p">,</span> <span class="s2">"B04"</span><span class="p">,</span> <span class="s2">"B08"</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="c1"># Return a created (not started) job: the manager starts and tracks it.</span>
+    <span class="k">return</span> <span class="n">cube</span><span class="o">.</span><span class="n">create_job</span><span class="p">(</span>
+        <span class="n">out_format</span><span class="o">=</span><span class="s2">"GTiff"</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">row</span><span class="p">[</span><span class="s2">"title"</span><span class="p">],</span>
+    <span class="p">)</span>
+
+
+<span class="n">manager</span> <span class="o">=</span> <span class="n">MultiBackendJobManager</span><span class="p">()</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">add_backend</span><span class="p">(</span><span class="s2">"cdse"</span><span class="p">,</span> <span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">,</span> <span class="n">parallel_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">run_jobs</span><span class="p">(</span><span class="n">job_db</span><span class="o">=</span><span class="n">job_db</span><span class="p">,</span> <span class="n">start_job</span><span class="o">=</span><span class="n">start_job</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When using the <a class="reference external" href="https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager"><code class="docutils literal notranslate"><span class="pre">MultiBackendJobManager</span></code></a> for scaling, pass
+<code class="docutils literal notranslate"><span class="pre">cancel_running_job_after</span></code> (in seconds, see <a class="reference external" href="https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#canceling-long-running-jobs">job manager cancel running job</a>) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
+the limit from pilot runtimes, with enough margin for normal variation. For the area sweep in
+<a class="reference internal" href="#incremental-scaling-strategy">8.1</a>, ensure the limit accommodates the largest planned extent; otherwise, omit it for
+that sweep.</p>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">openEO CookBook</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ard.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Analysis Ready Data generation</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal" tabindex="-1"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#where-openeo-helps-most-in-a-machine-learning-ml-workflow">Where openEO helps most in a Machine Learning (ML) workflow</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#end-to-end-story">End-to-end story</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-extraction-and-feature-engineering-in-openeo">1. Data extraction and feature engineering in openEO</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#start-with-backend-discovery">1.1 Start with backend discovery</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#make-the-data-contract-explicit">1.2 Make the data contract explicit</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#freeze-and-version-the-extraction-graph">1.3 Freeze and version the extraction graph</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example-a-simple-feature-extraction-graph">1.4 Example: a simple feature extraction graph</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#organising-and-extracting-reference-data-for-ml">2. Organising and extracting reference data for ML</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#extraction-modes">2.1 Extraction modes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#organising-your-reference-data">2.2 Organising your reference data</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#format-and-structure">Format and structure</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#label-quality">Label quality</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#cataloguing-with-stac">Cataloguing with STAC</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#sampling-strategy">Sampling strategy</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#spatially-independent-data-splits">Spatially independent data splits</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#hosting-the-data-at-a-url">Hosting the data at a URL</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#splitting-into-spatial-groups">Splitting into spatial groups</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-satellite-data">2.3 Loading satellite data</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing">2.4 Preprocessing</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#point-extraction-with-aggregate-spatial">2.5 Point extraction with <code class="docutils literal notranslate"><span class="pre">aggregate_spatial</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#patch-extraction-with-filter-spatial">2.6 Patch extraction with <code class="docutils literal notranslate"><span class="pre">filter_spatial</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#attribute-propagation">Attribute propagation</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#delivering-patches-to-storage">Delivering patches to storage</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#performance-considerations">2.7 Performance considerations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#training-strategy-where-openeo-fits">3. Training strategy: where openEO fits</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#training-outside-openeo-common-path">3.1 Training outside openEO (common path)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#training-in-openeo-for-lightweight-models">3.2 Training in openEO for lightweight models</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-the-trained-model-at-inference-time">3.3 Using the trained model at inference time</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#embedding-first-strategy">3.4 Embedding-first strategy</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#packaging-and-deploying-models-for-openeo-inference">4. Packaging and deploying models for openEO inference</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-your-onboarding-path-udfs-and-predict-onnx">4.0 Choosing your onboarding path: UDFs and <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#user-defined-functions-udfs">4.0.1 User-Defined Functions (UDFs)</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#native-predict-onnx-process-experimental">4.0.2 Native <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code> Process [experimental]</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#decision-guide">4.0.3 Decision Guide</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preparing-the-model-onnx-export-and-calibration">4.1 Preparing the model: ONNX export and calibration</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#prefer-onnx-when-feasible">4.1.1 Prefer ONNX when feasible</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-lives-inside-the-model">4.1.2 Calibration lives inside the model</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tips-for-the-onnx-conversion">4.1.3 Tips for the ONNX conversion</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deploying-via-user-defined-functions">4.2 Deploying via User-Defined Functions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deploying-via-predict-onnx">4.3 Deploying via <code class="docutils literal notranslate"><span class="pre">predict_onnx</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ml-models-and-stac">5. ML models and STAC</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-references">Related references</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-inference-with-the-udf">6. Running inference with the UDF</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#choosing-between-apply-apply-dimension-and-apply-neighborhood">6.1 Choosing between <code class="docutils literal notranslate"><span class="pre">apply</span></code>, <code class="docutils literal notranslate"><span class="pre">apply_dimension</span></code>, and <code class="docutils literal notranslate"><span class="pre">apply_neighborhood</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#spatial-context-and-chunk-semantics">6.2 Spatial context and chunk semantics</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#caching-and-concurrency">6.3 Caching and concurrency</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#profiling-udf-steps">6.4 Profiling UDF steps</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-pipelines-in-openeo">7. Validation pipelines in openEO</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accuracy-assessment-and-continuous-benchmarking">Accuracy assessment and continuous benchmarking</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#upscaling-and-performance-tuning">8. Upscaling and performance tuning</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#incremental-scaling-strategy">8.1 Incremental scaling strategy</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=75c7c72ae941e8b558d8"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=75c7c72ae941e8b558d8"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

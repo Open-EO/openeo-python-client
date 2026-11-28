@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="610" viewBox="0 0 920 610" role="img" aria-labelledby="title desc">
+  <title id="title">End-to-end geospatial AI workflow</title>
+  <desc id="desc">Ten-stage workflow from reference data and feature extraction through training, packaging, inference, validation, and scaling.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5174a5"/>
+    </marker>
+    <style>
+      .card { fill:#f7f9fc; stroke:#b8c7dc; stroke-width:2; rx:10; }
+      .openeo { fill:#edf4fb; stroke:#5174a5; }
+      .number { fill:#5174a5; font:700 13px Arial,sans-serif; }
+      .title { fill:#24344d; font:700 16px Arial,sans-serif; }
+      .detail { fill:#5d6b7d; font:13px Arial,sans-serif; }
+      .arrow { fill:none; stroke:#5174a5; stroke-width:2.5; marker-end:url(#arrow); }
+      .label { fill:#5174a5; font:700 12px Arial,sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="920" height="610" rx="16" fill="#ffffff" stroke="#e4e9f1" stroke-width="2"/>
+
+  <!-- Row 1: preparation and extraction -->
+  <g>
+    <rect class="card" x="35" y="58" width="230" height="82"/>
+    <circle cx="60" cy="82" r="14" fill="#5174a5"/><text class="number" x="55.5" y="87" fill="#fff">1</text>
+    <text class="title" x="82" y="79">Reference data</text>
+    <text class="detail" x="82" y="103">Labels and locations</text>
+    <text class="detail" x="82" y="123">Quality and splits</text>
+
+    <rect class="openeo card" x="345" y="58" width="230" height="82"/>
+    <circle cx="370" cy="82" r="14" fill="#5174a5"/><text class="number" x="365.5" y="87" fill="#fff">2</text>
+    <text class="title" x="392" y="79">Feature extraction</text>
+    <text class="detail" x="392" y="103">openEO process graph</text>
+    <text class="detail" x="392" y="123">Points or patches</text>
+
+    <rect class="card" x="655" y="58" width="230" height="82"/>
+    <circle cx="680" cy="82" r="14" fill="#5174a5"/><text class="number" x="675.5" y="87" fill="#fff">3</text>
+    <text class="title" x="702" y="79">Training dataset</text>
+    <text class="detail" x="702" y="103">Features and targets</text>
+    <text class="detail" x="702" y="123">Versioned and reproducible</text>
+  </g>
+
+  <!-- Row 2: training and packaging -->
+  <g>
+    <rect class="card" x="655" y="239" width="230" height="82"/>
+    <circle cx="680" cy="263" r="14" fill="#5174a5"/><text class="number" x="675.5" y="268" fill="#fff">4</text>
+    <text class="title" x="702" y="260">Model training</text>
+    <text class="detail" x="702" y="284">Offline or in openEO</text>
+    <text class="detail" x="702" y="304">Track and compare runs</text>
+
+    <rect class="card" x="345" y="239" width="230" height="82"/>
+    <circle cx="370" cy="263" r="14" fill="#5174a5"/><text class="number" x="365.5" y="268" fill="#fff">5</text>
+    <text class="title" x="392" y="260">Model export</text>
+    <text class="detail" x="392" y="284">ONNX or framework package</text>
+    <text class="detail" x="392" y="304">Lock the input contract</text>
+
+    <rect class="card" x="35" y="239" width="230" height="82"/>
+    <circle cx="60" cy="263" r="14" fill="#5174a5"/><text class="number" x="55.5" y="268" fill="#fff">6</text>
+    <text class="title" x="82" y="260">Offline validation</text>
+    <text class="detail" x="82" y="284">Tensor and result parity</text>
+    <text class="detail" x="82" y="304">Held-out test samples</text>
+  </g>
+
+  <!-- Row 3: deployment and operation -->
+  <g>
+    <rect class="card" x="35" y="420" width="230" height="82"/>
+    <circle cx="60" cy="444" r="14" fill="#5174a5"/><text class="number" x="55.5" y="449" fill="#fff">7</text>
+    <text class="title" x="82" y="441">STAC model description</text>
+    <text class="detail" x="82" y="465">Optional: MLM metadata</text>
+    <text class="detail" x="82" y="485">Contract and provenance</text>
+
+    <rect class="openeo card" x="345" y="420" width="230" height="82"/>
+    <circle cx="370" cy="444" r="14" fill="#5174a5"/><text class="number" x="365.5" y="449" fill="#fff">8</text>
+    <text class="title" x="392" y="441">openEO inference</text>
+    <text class="detail" x="392" y="465">predict_onnx or UDF</text>
+    <text class="detail" x="392" y="485">Backend handles execution</text>
+
+    <rect class="card" x="655" y="420" width="230" height="82"/>
+    <circle cx="680" cy="444" r="14" fill="#5174a5"/><text class="number" x="675.5" y="449" fill="#fff">9</text>
+    <text class="title" x="702" y="441">Validation and metrics</text>
+    <text class="detail" x="702" y="465">Accuracy and cost</text>
+    <text class="detail" x="702" y="485">Compare model versions</text>
+  </g>
+
+  <!-- Downstream stage -->
+  <rect class="openeo card" x="345" y="510" width="230" height="82"/>
+  <circle cx="370" cy="534" r="14" fill="#5174a5"/><text class="number" x="365.5" y="539" fill="#fff">10</text>
+  <text class="title" x="392" y="531">Upscale and tune</text>
+  <text class="detail" x="392" y="555">Job sweeps and budgets</text>
+
+  <!-- Arrows: snake flow across the page -->
+  <path class="arrow" d="M265 99 H345"/>
+  <path class="arrow" d="M575 99 H655"/>
+  <path class="arrow" d="M770 140 V239"/>
+  <path class="arrow" d="M655 280 H575"/>
+  <path class="arrow" d="M345 280 H265"/>
+  <path class="arrow" d="M150 321 V420"/>
+  <path class="arrow" d="M265 461 H345"/>
+  <path class="arrow" d="M575 461 H655"/>
+  <path class="arrow" d="M770 502 V551 H575"/>
+</svg>

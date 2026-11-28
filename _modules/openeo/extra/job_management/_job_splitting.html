@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openeo.extra.job_management._job_splitting &#8212; openEO Python Client 0.55.0a3 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=75c7c72ae941e8b558d8" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=75c7c72ae941e8b558d8" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx_autodoc_typehints.css?v=057ac668" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/custom.css?v=f67b7f53" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../../../_static/scripts/fontawesome.js?digest=75c7c72ae941e8b558d8"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=75c7c72ae941e8b558d8" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=75c7c72ae941e8b558d8" />
+
+    <script src="../../../../_static/documentation_options.js?v=792cdf57"></script>
+    <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../../_static/copybutton.js?v=18a8d5f5"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/openeo/extra/job_management/_job_splitting';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = true;</script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.55" />
+    <meta name="docbuild:last-update" content="2026/11/28"/>
+  
+    
+    <script src="../../../../_static/searchtools.js"></script>
+    <script src="../../../../_static/language_data.js"></script>
+    <script src="../../../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation" aria-expanded="false" aria-controls="pst-primary-sidebar-modal">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">openEO Python Client</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal" tabindex="-1"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button type="button" class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/Open-EO/openeo-python-client" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/openeo/" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-box fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://openeo.org/" title="openEO" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-solid fa-globe fa-lg" aria-hidden="true"></i><span class="visually-hidden">openEO</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">openEO Python Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../basics.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../data_access.html">Finding and loading data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../processes.html">Working with processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../batch_jobs.html">Batch Jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udp.html">User-Defined Processes (UDP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auth.html">Authentication and Account Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../udf.html">User-Defined Functions (UDF) explained</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datacube_construction.html">DataCube construction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../machine_learning.html">Machine Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbook/index.html">openEO CookBook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">API (General)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-processes.html">API: <code class="docutils literal notranslate"><span class="pre">openeo.processes</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api-artifacts.html">API: openeo.extra.artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../process_mapping.html">openEO Process Mapping</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../development.html">Development and maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../best_practices.html">Best practices, coding style and general tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../federation-extension.html">Federation extension</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div></div>
+        <div class="sidebar-primary-item"><div class="sidebar-meta">
+  <h3>Meta</h3>
+  <div>Docs for openEO Python Client</div>
+  <div>Version: <code>0.55.0a3</code></div>
+  <div>Last updated: 2026/11/28</div>
+</div></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-house"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">openeo.extra.job_management._job_splitting</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for openeo.extra.job_management._job_splitting</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numbers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shapely.geometry.base</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">shapely.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiPolygon</span><span class="p">,</span> <span class="n">Polygon</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openeo.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">BBoxDict</span><span class="p">,</span> <span class="n">normalize_crs</span>
+
+<span class="n">_log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">JobSplittingFailure</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_TileGridInterface</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Interface for tile grid classes that split a geometry into tiles.</span>
+
+<span class="sd">    Implementations must define :meth:`get_tiles` and the :attr:`crs` property.</span>
+
+<span class="sd">    Shared helpers :meth:`_parse_input_geometry` and</span>
+<span class="sd">    :meth:`_reproject_to_grid_crs` handle input normalisation and CRS</span>
+<span class="sd">    reprojection so that subclasses don't need to duplicate that logic.</span>
+<span class="sd">    """</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">crs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""EPSG code of the tile grid's coordinate reference system."""</span>
+        <span class="o">...</span>
+
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geometry</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Calculate tiles to cover the given geometry.</span>
+
+<span class="sd">        :param geometry: area of interest as a bounding-box dict</span>
+<span class="sd">            (with keys ``west``, ``south``, ``east``, ``north``, and optionally ``crs``),</span>
+<span class="sd">            a :class:`~shapely.geometry.Polygon`, or a :class:`~shapely.geometry.MultiPolygon`.</span>
+<span class="sd">        :return: GeoDataFrame with one row per tile and CRS set.</span>
+<span class="sd">        """</span>
+        <span class="o">...</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_input_geometry</span><span class="p">(</span>
+        <span class="n">geometry</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Normalise the user-supplied *geometry* into a shapely geometry and an</span>
+<span class="sd">        optional EPSG code.</span>
+
+<span class="sd">        :return: ``(shapely_geom, source_epsg)`` where *source_epsg* is</span>
+<span class="sd">            ``None`` when the input carries no CRS information (bare Polygon).</span>
+<span class="sd">        :raises JobSplittingFailure: on unsupported input types.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geometry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">bbox</span> <span class="o">=</span> <span class="n">BBoxDict</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+            <span class="n">raw_crs</span> <span class="o">=</span> <span class="n">bbox</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"crs"</span><span class="p">)</span>
+            <span class="n">source_epsg</span> <span class="o">=</span> <span class="n">normalize_crs</span><span class="p">(</span><span class="n">raw_crs</span><span class="p">)</span> <span class="k">if</span> <span class="n">raw_crs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">bbox</span><span class="p">[</span><span class="s2">"south"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">bbox</span><span class="p">[</span><span class="s2">"north"</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                    <span class="s2">"Invalid bounding box: south must be less than north."</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">bbox</span><span class="p">[</span><span class="s2">"west"</span><span class="p">]</span> <span class="o">==</span> <span class="n">bbox</span><span class="p">[</span><span class="s2">"east"</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                    <span class="s2">"Invalid bounding box: west must not equal east (zero-width bounding box)."</span>
+                <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">bbox</span><span class="o">.</span><span class="n">as_geometry</span><span class="p">(),</span> <span class="n">source_epsg</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geometry</span><span class="p">,</span> <span class="p">(</span><span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">geometry</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Expected a bounding-box dict, Polygon, or MultiPolygon, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_reproject_to_grid_crs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">geom</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">],</span>
+        <span class="n">source_epsg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Reproject *geom* from *source_epsg* to the tile grid's :attr:`crs`.</span>
+
+<span class="sd">        - If *source_epsg* is ``None`` the geometry is returned unchanged</span>
+<span class="sd">          (assumed to already be in the grid's CRS).</span>
+<span class="sd">        - If *source_epsg* equals the grid's CRS, no work is done.</span>
+<span class="sd">        - Otherwise a geopandas reprojection is performed.</span>
+
+<span class="sd">        After reprojection the geometry is checked for antimeridian crossing.</span>
+<span class="sd">        """</span>
+        <span class="n">grid_epsg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crs</span>
+        <span class="k">if</span> <span class="n">source_epsg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">"Input geometry has no CRS information; assuming it is already in the tile grid's CRS (EPSG:</span><span class="si">%d</span><span class="s2">)."</span><span class="p">,</span>
+                <span class="n">grid_epsg</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">source_epsg</span> <span class="o">!=</span> <span class="n">grid_epsg</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Reprojecting input geometry from EPSG:</span><span class="si">%d</span><span class="s2"> to EPSG:</span><span class="si">%d</span><span class="s2">."</span><span class="p">,</span> <span class="n">source_epsg</span><span class="p">,</span> <span class="n">grid_epsg</span><span class="p">)</span>
+            <span class="n">src</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="p">[</span><span class="n">geom</span><span class="p">],</span> <span class="n">crs</span><span class="o">=</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="n">source_epsg</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">geom</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="n">grid_epsg</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">geometry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_antimeridian_crossing</span><span class="p">(</span><span class="n">geom</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">grid_epsg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">geom</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_antimeridian_crossing</span><span class="p">(</span><span class="n">bounds</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">epsg</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Raise :exc:`JobSplittingFailure` when *bounds* suggest that a geometry</span>
+<span class="sd">        crosses or extends beyond the antimeridian in a geographic CRS.</span>
+
+<span class="sd">        The check only applies to geographic coordinate reference systems</span>
+<span class="sd">        (e.g. EPSG:4326).  For projected CRSs the longitude range is</span>
+<span class="sd">        meaningless, so the check is silently skipped.</span>
+
+<span class="sd">        :param bounds: ``(min_x, min_y, max_x, max_y)`` of the geometry.</span>
+<span class="sd">        :param epsg: EPSG code of the CRS the geometry is expressed in.</span>
+<span class="sd">        :raises JobSplittingFailure: if longitude falls outside [-180, 180].</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">pyproj</span>
+
+            <span class="n">crs_obj</span> <span class="o">=</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span><span class="o">.</span><span class="n">from_epsg</span><span class="p">(</span><span class="n">epsg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">crs_obj</span><span class="o">.</span><span class="n">is_geographic</span><span class="p">:</span>
+                <span class="k">return</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">min_lon</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">max_lon</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">bounds</span>
+        <span class="k">if</span> <span class="n">min_lon</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">180</span> <span class="ow">or</span> <span class="n">max_lon</span> <span class="o">&gt;</span> <span class="mi">180</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="s2">"Geometry appears to cross or extend beyond the antimeridian "</span>
+                <span class="s2">"(longitude coordinates outside the [-180, 180] range). "</span>
+                <span class="s2">"Antimeridian-crossing geometries are not supported."</span>
+            <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_SizeBasedTileGrid</span><span class="p">(</span><span class="n">_TileGridInterface</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Tile grid that splits a geometry into regular tiles of a given size.</span>
+
+<span class="sd">    Tiles are anchored at the AOI's own lower-left corner and never extend</span>
+<span class="sd">    beyond the AOI boundary.  Edge tiles may therefore be smaller than</span>
+<span class="sd">    *size* x *size*.</span>
+
+<span class="sd">    The *size* is interpreted in the unit of the projection (meters for most</span>
+<span class="sd">    projected CRSs, degrees for EPSG:4326).</span>
+
+<span class="sd">    :param epsg: EPSG code of the projection to use for tiling.</span>
+<span class="sd">    :param size: maximum tile edge length in the unit of the projection.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">epsg</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">epsg</span> <span class="o">=</span> <span class="n">normalize_crs</span><span class="p">(</span><span class="n">epsg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Failed to normalize EPSG code for tile grid splitting: </span><span class="si">{</span><span class="n">epsg</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">epsg</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Only integer EPSG codes are supported for tile grid splitting, got </span><span class="si">{</span><span class="n">epsg</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_epsg</span> <span class="o">=</span> <span class="n">epsg</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Tile size must be positive, got </span><span class="si">{</span><span class="n">size</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">crs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_epsg</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_size_projection</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">projection</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"_SizeBasedTileGrid"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create a tile grid from size and projection"""</span>
+        <span class="c1"># TODO: the constructor also does normalize_crs, so this factory looks like overkill at the moment</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="n">normalize_crs</span><span class="p">(</span><span class="n">projection</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_split_bounding_box</span><span class="p">(</span><span class="n">to_cover</span><span class="p">:</span> <span class="n">BBoxDict</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Polygon</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Subdivide a bounding box into tiles of at most *tile_size*.</span>
+
+<span class="sd">        Tiles are anchored at the AOI's lower-left corner (``west``, ``south``)</span>
+<span class="sd">        and clipped to the AOI boundary, so edge tiles can be smaller than</span>
+<span class="sd">        *tile_size*.</span>
+
+<span class="sd">        :param to_cover: bounding box to subdivide.</span>
+<span class="sd">        :param tile_size: maximum tile edge length.</span>
+<span class="sd">        :return: list of tile polygons.</span>
+<span class="sd">        """</span>
+        <span class="n">west</span><span class="p">,</span> <span class="n">south</span> <span class="o">=</span> <span class="n">to_cover</span><span class="p">[</span><span class="s2">"west"</span><span class="p">],</span> <span class="n">to_cover</span><span class="p">[</span><span class="s2">"south"</span><span class="p">]</span>
+        <span class="n">east</span><span class="p">,</span> <span class="n">north</span> <span class="o">=</span> <span class="n">to_cover</span><span class="p">[</span><span class="s2">"east"</span><span class="p">],</span> <span class="n">to_cover</span><span class="p">[</span><span class="s2">"north"</span><span class="p">]</span>
+
+        <span class="n">n_cols</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">round</span><span class="p">((</span><span class="n">east</span> <span class="o">-</span> <span class="n">west</span><span class="p">)</span> <span class="o">/</span> <span class="n">tile_size</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">n_rows</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">round</span><span class="p">((</span><span class="n">north</span> <span class="o">-</span> <span class="n">south</span><span class="p">)</span> <span class="o">/</span> <span class="n">tile_size</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">n_cols</span> <span class="o">&gt;</span> <span class="mi">500</span> <span class="ow">or</span> <span class="n">n_rows</span> <span class="o">&gt;</span> <span class="mi">500</span><span class="p">:</span>
+            <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">"Attempting to split AOI into </span><span class="si">%d</span><span class="s2"> columns and </span><span class="si">%d</span><span class="s2"> rows of tiles. "</span>
+                <span class="s2">"This may take a while and consume a lot of memory. Consider increasing the tile size."</span><span class="p">,</span>
+                <span class="n">n_cols</span><span class="p">,</span>
+                <span class="n">n_rows</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">tiles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_cols</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rows</span><span class="p">):</span>
+                <span class="n">tiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">BBoxDict</span><span class="p">(</span>
+                        <span class="n">west</span><span class="o">=</span><span class="n">west</span> <span class="o">+</span> <span class="n">col</span> <span class="o">*</span> <span class="n">tile_size</span><span class="p">,</span>
+                        <span class="n">south</span><span class="o">=</span><span class="n">south</span> <span class="o">+</span> <span class="n">row</span> <span class="o">*</span> <span class="n">tile_size</span><span class="p">,</span>
+                        <span class="n">east</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">west</span> <span class="o">+</span> <span class="p">(</span><span class="n">col</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">east</span><span class="p">),</span>
+                        <span class="n">north</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">south</span> <span class="o">+</span> <span class="p">(</span><span class="n">row</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">north</span><span class="p">),</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">as_geometry</span><span class="p">()</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">tiles</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geometry</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+        <span class="n">geom</span><span class="p">,</span> <span class="n">source_epsg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_input_geometry</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+        <span class="n">geom</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reproject_to_grid_crs</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">source_epsg</span><span class="p">)</span>
+
+        <span class="c1"># Process each constituent polygon independently so that a</span>
+        <span class="c1"># MultiPolygon (e.g. from an antimeridian-crossing bbox) does not</span>
+        <span class="c1"># produce tiles for the full combined bounding box.</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">geom</span><span class="o">.</span><span class="n">geoms</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">geom</span><span class="p">]</span>
+        <span class="n">all_polygons</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Polygon</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">:</span>
+            <span class="n">bbox</span> <span class="o">=</span> <span class="n">BBoxDict</span><span class="o">.</span><span class="n">from_any</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_epsg</span><span class="p">)</span>
+            <span class="n">all_polygons</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_split_bounding_box</span><span class="p">(</span><span class="n">to_cover</span><span class="o">=</span><span class="n">bbox</span><span class="p">,</span> <span class="n">tile_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">all_polygons</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_epsg</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="c1"># Drop tiles that don't actually intersect the original geometry.</span>
+        <span class="c1"># This matters for concave or complex shapes whose bounding box is</span>
+        <span class="c1"># significantly larger than the shape itself.</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">geom</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_PredefinedTileGrid</span><span class="p">(</span><span class="n">_TileGridInterface</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Tile grid based on a user-supplied collection of geometries.</span>
+
+<span class="sd">    Only geometries that intersect the given area of interest are returned by</span>
+<span class="sd">    :meth:`get_tiles`.</span>
+
+<span class="sd">    Geometries can be any shapely geometry type (Polygon, MultiPolygon, …).</span>
+
+<span class="sd">    :param tiles: pre-defined geometries as a :class:`~geopandas.GeoDataFrame`,</span>
+<span class="sd">        a :class:`~geopandas.GeoSeries`, or a plain list of shapely geometries.</span>
+<span class="sd">    :param crs: EPSG code of the geometry coordinate system.</span>
+<span class="sd">        Required when *tiles* is a plain list (geometry objects carry no CRS).</span>
+<span class="sd">        Ignored when *tiles* is a GeoDataFrame/GeoSeries that already has a CRS.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">tiles</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">]],</span>
+        <span class="n">crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tiles</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span> <span class="o">=</span> <span class="n">tiles</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tiles</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">tiles</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tiles</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tiles</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"At least one tile geometry must be provided."</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">shapely</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">BaseGeometry</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tiles</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"All tiles must be shapely geometry instances."</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"'crs' is required when tiles are provided as a plain list of geometries."</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">tiles</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="n">normalize_crs</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Expected a GeoDataFrame, GeoSeries, or list of geometries, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">tiles</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"The tile GeoDataFrame must contain at least one row."</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                    <span class="s2">"The tile GeoDataFrame has no CRS set. "</span> <span class="s2">"Either set the CRS on the GeoDataFrame or pass 'crs'."</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">set_crs</span><span class="p">(</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="n">normalize_crs</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_antimeridian_crossing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">total_bounds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">crs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">crs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geometry</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+        <span class="n">geom</span><span class="p">,</span> <span class="n">source_epsg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_input_geometry</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+        <span class="n">geom</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reproject_to_grid_crs</span><span class="p">(</span><span class="n">geom</span><span class="p">,</span> <span class="n">source_epsg</span><span class="p">)</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">geom</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="split_area">
+<a class="viewcode-back" href="../../../../cookbook/job_manager.html#openeo.extra.job_management.split_area">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">split_area</span><span class="p">(</span>
+    <span class="n">aoi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">,</span> <span class="n">MultiPolygon</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">projection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tile_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tile_grid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">_TileGridInterface</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Split an area of interest into tiles.</span>
+
+<span class="sd">    There are two ways to define how the area is tiled:</span>
+
+<span class="sd">    1. **By tile size and projection** — pass *projection* and *tile_size*.</span>
+<span class="sd">       A :class:`_SizeBasedTileGrid` is created under the hood.</span>
+
+<span class="sd">    2. **By pre-defined grid** — pass a :class:`_TileGridInterface` instance</span>
+<span class="sd">       (e.g. :class:`_PredefinedTileGrid`) or a :class:`~geopandas.GeoDataFrame`</span>
+<span class="sd">       as *tile_grid*.</span>
+
+<span class="sd">    :param aoi: area of interest as a bounding-box dict</span>
+<span class="sd">        (keys ``west``, ``south``, ``east``, ``north``, optionally ``crs``),</span>
+<span class="sd">        a :class:`~shapely.geometry.Polygon`, or</span>
+<span class="sd">        a :class:`~shapely.geometry.MultiPolygon`.</span>
+<span class="sd">    :param projection: EPSG string (e.g. ``"EPSG:3857"``) for the tile grid.</span>
+<span class="sd">        Required when *tile_grid* is not supplied.</span>
+<span class="sd">    :param tile_size: tile edge length in the unit of the projection.</span>
+<span class="sd">        Required when *tile_grid* is not supplied.</span>
+<span class="sd">    :param tile_grid: a :class:`_TileGridInterface` instance or a</span>
+<span class="sd">        :class:`~geopandas.GeoDataFrame` (with CRS set) that defines the tiling</span>
+<span class="sd">        strategy.  Mutually exclusive with *projection* / *tile_size*.</span>
+<span class="sd">    :return: :class:`~geopandas.GeoDataFrame` with one row per tile and CRS equal to the tile grid CRS.</span>
+<span class="sd">    :raises JobSplittingFailure: on invalid or contradictory arguments.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">tile_grid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">projection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">tile_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="s2">"Cannot combine 'tile_grid' with 'projection' or 'tile_size'. "</span>
+                <span class="s2">"Either pass a _TileGridInterface, or pass projection + tile_size."</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="n">tile_grid</span> <span class="o">=</span> <span class="n">_PredefinedTileGrid</span><span class="p">(</span><span class="n">tiles</span><span class="o">=</span><span class="n">tile_grid</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tile_grid</span><span class="o">.</span><span class="n">get_tiles</span><span class="p">(</span><span class="n">aoi</span><span class="p">)</span>
+
+    <span class="c1"># --- Size-based splitting path ---</span>
+    <span class="k">if</span> <span class="n">tile_size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"Either provide a 'tile_grid', or provide both 'tile_size' and 'projection'."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">projection</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"'projection' is required when using size-based tiling."</span><span class="p">)</span>
+
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">_SizeBasedTileGrid</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="n">normalize_crs</span><span class="p">(</span><span class="n">projection</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">tile_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">grid</span><span class="o">.</span><span class="n">get_tiles</span><span class="p">(</span><span class="n">aoi</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_predefined_tile_keys</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">:</span> <span class="s2">"_PredefinedTileGrid"</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""For each point (in the grid CRS), the position of the first tile containing it (-1: none)."""</span>
+    <span class="c1"># TODO: polygons are assigned by their representative point only, so they may extend beyond their tile.</span>
+    <span class="c1">#   Assigning them to e.g. the tile with the largest overlap could be a future addition.</span>
+    <span class="n">n_tiles</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tile_grid</span><span class="o">.</span><span class="n">_gdf</span><span class="p">)</span>
+    <span class="n">point_idx</span><span class="p">,</span> <span class="n">tile_idx</span> <span class="o">=</span> <span class="n">tile_grid</span><span class="o">.</span><span class="n">_gdf</span><span class="o">.</span><span class="n">sindex</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="s2">"intersects"</span><span class="p">)</span>
+    <span class="c1"># Lowest tile position wins for points on shared tile edges.</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">),</span> <span class="n">n_tiles</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">point_idx</span><span class="p">,</span> <span class="n">tile_idx</span><span class="p">)</span>
+    <span class="n">keys</span><span class="p">[</span><span class="n">keys</span> <span class="o">==</span> <span class="n">n_tiles</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="n">keys</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bisect_group</span><span class="p">(</span>
+    <span class="n">positions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">xs</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">ys</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">max_geometries</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Recursively bisect a group of rows (given as positions) at the median of their locations,</span>
+<span class="sd">    along the longer axis of the locations' spread, until groups have at most *max_geometries* rows.</span>
+<span class="sd">    """</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="p">[</span><span class="n">positions</span><span class="p">]</span>
+    <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">max_geometries</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">max_geometries</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">px</span><span class="p">,</span> <span class="n">py</span> <span class="o">=</span> <span class="n">xs</span><span class="p">[</span><span class="n">pos</span><span class="p">],</span> <span class="n">ys</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="n">px</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">px</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">ptp</span><span class="p">(</span><span class="n">py</span><span class="p">)</span> <span class="k">else</span> <span class="n">py</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)]</span>
+        <span class="n">cut</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="n">cut</span><span class="p">:])</span>
+        <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">[:</span><span class="n">cut</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">group_geometries</span><span class="p">(</span>
+    <span class="n">geometries</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">max_geometries</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">projection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tile_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tile_grid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">_PredefinedTileGrid</span><span class="p">,</span> <span class="n">_SizeBasedTileGrid</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Group geometries (e.g. sample locations for point-based extraction)</span>
+<span class="sd">    into spatially clustered groups of at most *max_geometries* each.</span>
+
+<span class="sd">    Each row is treated as a single "feature" to group, regardless of its</span>
+<span class="sd">    geometry type (e.g. ``Point``, ``MultiPoint``, ``Polygon``):</span>
+<span class="sd">    *max_geometries* limits the number of rows (features) per group,</span>
+<span class="sd">    not the number of individual coordinates. To limit individual</span>
+<span class="sd">    coordinates instead, explode multi-part geometries into separate rows</span>
+<span class="sd">    first, e.g. with ``geometries.explode(index_parts=False)``.</span>
+
+<span class="sd">    Features are located by their ``representative_point()`` (computed in the input CRS),</span>
+<span class="sd">    they are not split themselves. For a single large area of interest that has to be split,</span>
+<span class="sd">    use :func:`split_area` instead.</span>
+
+<span class="sd">    Grouping is done by recursive bisection (k-d tree style): a group is cut at the</span>
+<span class="sd">    median of the feature locations along the longer axis of their spread,</span>
+<span class="sd">    until it has at most *max_geometries* features.</span>
+<span class="sd">    This keeps groups spatially clustered and balanced.</span>
+
+<span class="sd">    If *tile_grid* is given (e.g. a Sentinel-2 MGRS/UTM tile grid), each feature is first</span>
+<span class="sd">    assigned to the tile containing its representative point, and every tile is bisected separately.</span>
+<span class="sd">    Features whose representative point is not in any tile are grouped (and bisected) separately.</span>
+<span class="sd">    Alternatively, *tile_size* and *projection* can be given to group</span>
+<span class="sd">    features in a regular grid of square tiles anchored at the origin of the projection</span>
+<span class="sd">    (so grouping does not change when other features are added).</span>
+
+<span class="sd">    Current limitations:</span>
+
+<span class="sd">    - Features are never split: a polygon crossing tile edges, or larger than a tile,</span>
+<span class="sd">      is assigned to a single tile and extends beyond it. Use :func:`split_area` for large areas.</span>
+<span class="sd">    - Groups are limited by feature count only, not by area or processing cost.</span>
+<span class="sd">      Use a tile grid to limit the spatial extent of groups.</span>
+<span class="sd">    - Multi-part geometries are placed by a single representative point,</span>
+<span class="sd">      so their parts can be far away from the rest of their group.</span>
+<span class="sd">    - With overlapping tiles, a feature is assigned to the first tile (in grid order)</span>
+<span class="sd">      containing its representative point, not to the tile with the largest overlap.</span>
+<span class="sd">    - Bisection compares spreads in the units of the CRS used for grouping</span>
+<span class="sd">      (the input CRS, or the tile grid's CRS if given). In a geographic CRS (e.g. EPSG:4326),</span>
+<span class="sd">      a degree of longitude is shorter than a degree of latitude away from the equator,</span>
+<span class="sd">      so groups at high latitudes are cut along longitude more than their real extent warrants.</span>
+<span class="sd">      Use a projected CRS (e.g. reproject the input, or pass a *tile_grid* or *projection*</span>
+<span class="sd">      in a projected CRS) to group by actual distance.</span>
+
+<span class="sd">    :param geometries: GeoDataFrame with a ``geometry`` column.</span>
+<span class="sd">        Null or empty geometries are not allowed.</span>
+<span class="sd">    :param max_geometries: maximum number of geometries per group, as a positive integer.</span>
+<span class="sd">        ``None`` (default) means no limit.</span>
+<span class="sd">    :param projection: EPSG string (e.g. ``"EPSG:3857"``) of the regular grid</span>
+<span class="sd">        to group by. Must be combined with *tile_size*.</span>
+<span class="sd">    :param tile_size: tile edge length in the unit of *projection*.</span>
+<span class="sd">        Must be combined with *projection*.</span>
+<span class="sd">    :param tile_grid: optional :class:`_PredefinedTileGrid` or</span>
+<span class="sd">        :class:`_SizeBasedTileGrid` instance, or GeoDataFrame of tile polygons</span>
+<span class="sd">        (with CRS set) to co-join geometries by before splitting, e.g. a</span>
+<span class="sd">        satellite tiling grid.</span>
+<span class="sd">        Mutually exclusive with *projection* / *tile_size*.</span>
+<span class="sd">        Note that a :class:`_SizeBasedTileGrid` is anchored at the origin of its CRS here,</span>
+<span class="sd">        unlike in :func:`split_area`, where its tiles are anchored at the corner of the area of interest.</span>
+<span class="sd">    :return: list of GeoDataFrames, with the original index of *geometries* preserved.</span>
+<span class="sd">    :raises JobSplittingFailure: on invalid input (e.g. *max_geometries* not a positive integer,</span>
+<span class="sd">        null/empty geometries, contradictory grid arguments).</span>
+
+<span class="sd">    Like with :func:`split_area`, geometries without CRS information</span>
+<span class="sd">    are assumed to be in the tile grid's CRS.</span>
+<span class="sd">    Without tile grid, no CRS is needed and the returned groups have no CRS either.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">geometries</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Expected a GeoDataFrame, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">geometries</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"geometry"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">geometries</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"The GeoDataFrame must contain a 'geometry' column."</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">max_geometries</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_geometries</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_geometries</span><span class="p">,</span> <span class="n">numbers</span><span class="o">.</span><span class="n">Integral</span><span class="p">)</span> <span class="ow">or</span> <span class="n">max_geometries</span> <span class="o">&lt;=</span> <span class="mi">0</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"'max_geometries' must be a positive integer, got </span><span class="si">{</span><span class="n">max_geometries</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">tile_grid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">projection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">tile_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="s2">"Cannot combine 'tile_grid' with 'projection' or 'tile_size'. "</span>
+                <span class="s2">"Either pass a tile_grid, or pass projection + tile_size."</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="n">tile_grid</span> <span class="o">=</span> <span class="n">_PredefinedTileGrid</span><span class="p">(</span><span class="n">tiles</span><span class="o">=</span><span class="n">tile_grid</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="p">(</span><span class="n">_PredefinedTileGrid</span><span class="p">,</span> <span class="n">_SizeBasedTileGrid</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span>
+                <span class="s2">"Unsupported tile_grid type: "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">. Expected _PredefinedTileGrid, _SizeBasedTileGrid, or GeoDataFrame."</span>
+            <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">projection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">tile_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">projection</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">tile_size</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="s2">"'projection' and 'tile_size' must be provided together."</span><span class="p">)</span>
+        <span class="n">tile_grid</span> <span class="o">=</span> <span class="n">_SizeBasedTileGrid</span><span class="o">.</span><span class="n">from_size_projection</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">tile_size</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="n">projection</span><span class="p">)</span>
+
+    <span class="n">n_invalid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">geometries</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span> <span class="o">|</span> <span class="n">geometries</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">is_empty</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">n_invalid</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Found </span><span class="si">{</span><span class="n">n_invalid</span><span class="si">}</span><span class="s2"> null or empty geometries, which cannot be grouped."</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">geometries</span><span class="o">.</span><span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">tile_grid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">"Geometries have no CRS information; assuming they are already in the tile grid's CRS (EPSG:</span><span class="si">%d</span><span class="s2">)."</span><span class="p">,</span>
+            <span class="n">tile_grid</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">geometries</span> <span class="o">=</span> <span class="n">geometries</span><span class="o">.</span><span class="n">set_crs</span><span class="p">(</span><span class="sa">f</span><span class="s2">"EPSG:</span><span class="si">{</span><span class="n">tile_grid</span><span class="o">.</span><span class="n">crs</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">geometries</span><span class="o">.</span><span class="n">crs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">geometries</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_TileGridInterface</span><span class="o">.</span><span class="n">_check_antimeridian_crossing</span><span class="p">(</span><span class="n">geometries</span><span class="o">.</span><span class="n">total_bounds</span><span class="p">,</span> <span class="n">geometries</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">geometries</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="c1"># TODO: limiting groups by area or processing cost (e.g. a weight per feature) is not supported yet.</span>
+    <span class="c1"># Work with positions (not index labels), so duplicated index labels are no problem.</span>
+    <span class="n">locations</span> <span class="o">=</span> <span class="n">geometries</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">representative_point</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">tile_grid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">locations</span> <span class="o">=</span> <span class="n">locations</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="n">tile_grid</span><span class="o">.</span><span class="n">crs</span><span class="p">)</span>
+    <span class="n">xs</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="n">locations</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">locations</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+
+    <span class="n">all_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">geometries</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">tile_grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">position_groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_positions</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="n">_SizeBasedTileGrid</span><span class="p">):</span>
+            <span class="c1"># Regular grid anchored at the origin of the CRS.</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"x"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">xs</span> <span class="o">/</span> <span class="n">tile_grid</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="s2">"y"</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">ys</span> <span class="o">/</span> <span class="n">tile_grid</span><span class="o">.</span><span class="n">size</span><span class="p">)})</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="n">_PredefinedTileGrid</span><span class="p">):</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"tile"</span><span class="p">:</span> <span class="n">_predefined_tile_keys</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">,</span> <span class="n">locations</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">())})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">JobSplittingFailure</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported tile grid type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">tile_grid</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="n">position_groups</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">keys</span><span class="o">.</span><span class="n">columns</span><span class="p">),</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">positions</span> <span class="ow">in</span> <span class="n">position_groups</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">_bisect_group</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">xs</span><span class="o">=</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="o">=</span><span class="n">ys</span><span class="p">,</span> <span class="n">max_geometries</span><span class="o">=</span><span class="n">max_geometries</span><span class="p">):</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">geometries</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">group</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../../_static/scripts/bootstrap.js?digest=75c7c72ae941e8b558d8"></script>
+<script defer src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=75c7c72ae941e8b558d8"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2017 - 2026, Jeroen Dries.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

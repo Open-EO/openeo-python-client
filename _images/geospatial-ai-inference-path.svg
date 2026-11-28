@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="260" viewBox="0 0 920 260" role="img" aria-labelledby="title desc">
+  <title id="title">Choosing an inference path</title>
+  <desc id="desc">Decision guide: if the model is a fixed ONNX graph without custom logic and the backend supports predict_onnx, use predict_onnx. Otherwise use a UDF with ONNX Runtime.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5174a5"/>
+    </marker>
+    <style>
+      .q { fill:#ffffff; stroke:#5174a5; stroke-width:2; }
+      .card { fill:#edf4fb; stroke:#5174a5; stroke-width:2; }
+      .title { fill:#24344d; font:700 16px Arial,sans-serif; }
+      .qtext { fill:#24344d; font:700 14px Arial,sans-serif; }
+      .detail { fill:#5d6b7d; font:13px Arial,sans-serif; }
+      .arrow { fill:none; stroke:#5174a5; stroke-width:2.5; marker-end:url(#arrow); }
+      .label { fill:#5174a5; font:700 13px Arial,sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="920" height="260" rx="16" fill="#ffffff" stroke="#e4e9f1" stroke-width="2"/>
+
+  <!-- Question -->
+  <rect class="q" x="35" y="80" width="300" height="100" rx="40"/>
+  <text class="qtext" x="185" y="113" text-anchor="middle">Fixed ONNX model, no custom</text>
+  <text class="qtext" x="185" y="133" text-anchor="middle">logic, and backend lists</text>
+  <text class="qtext" x="185" y="153" text-anchor="middle">predict_onnx?</text>
+
+  <!-- Outcome: predict_onnx -->
+  <rect class="card" x="560" y="20" width="325" height="100" rx="10"/>
+  <text class="title" x="580" y="52">predict_onnx</text>
+  <text class="detail" x="580" y="78">No UDF code to maintain</text>
+  <text class="detail" x="580" y="98">Preprocess with native processes</text>
+
+  <!-- Outcome: UDF -->
+  <rect class="card" x="560" y="140" width="325" height="100" rx="10"/>
+  <text class="title" x="580" y="172">UDF with ONNX Runtime</text>
+  <text class="detail" x="580" y="198">Custom logic, context, band names</text>
+  <text class="detail" x="580" y="218">Good sandbox before predict_onnx</text>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M335 110 H450 V70 H560"/>
+  <text class="label" x="400" y="102" text-anchor="middle">yes</text>
+
+  <path class="arrow" d="M335 155 H450 V190 H560"/>
+  <text class="label" x="400" y="175" text-anchor="middle">no</text>
+</svg>
