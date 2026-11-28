@@ -6,7 +6,8 @@ extraction to training, model packaging, inference, validation, and upscaling.
 It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined Functions </udf>`,
 {doc}`User-Defined Processes </udp>`, and {doc}`Batch Jobs </batch_jobs>`.
 
-```{tip} Quickstart: what is where
+```{admonition} Quickstart: what is where
+:class: tip
 
 | If you want to... | Go to |
 | :--- | :--- |
