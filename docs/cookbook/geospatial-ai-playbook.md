@@ -6,24 +6,22 @@ extraction to training, model packaging, inference, validation, and upscaling.
 It complements [Machine Learning](../machine_learning.rst), [User-Defined Functions](../udf.rst),
 [User-Defined Processes](../udp.rst), and [Batch Jobs](../batch_jobs.rst).
 
-:::{admonition} Quickstart: what is where
-:class: tip
-
-| If you want to... | Go to |
-| :--- | :--- |
-| Understand where openEO fits in an ML workflow | [Where openEO helps most](#where-openeo-helps-most-in-a-machine-learning-ml-workflow) |
-| Extract features with an openEO graph | [1. Data extraction and feature engineering](#1-data-extraction-and-feature-engineering-in-openeo) |
-| Organise reference data, sample, split, host it at a URL | [2. Reference data](#2-organising-and-extracting-reference-data-for-ml) |
-| Extract points or patches, deliver to storage | [2.5 Point extraction with `aggregate_spatial`](#25-point-extraction-with-aggregate_spatial), [2.6 Patch extraction with `filter_spatial`](#26-patch-extraction-with-filter_spatial) |
-| Decide where to train, or train lightweight models in openEO | [3. Training strategy](#3-training-strategy-where-openeo-fits) |
-| Choose between UDF and `predict_onnx` | [4.0 Choosing your onboarding path](#40-choosing-your-onboarding-path-udfs-and-predict_onnx) |
-| Export a model to ONNX | [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration) |
-| Deploy a model | [4.2 UDF](#42-deploying-via-user-defined-functions), [4.3 `predict_onnx`](#43-deploying-via-predict_onnx) |
-| Describe a model with STAC | [5. ML models and STAC](#5-ml-models-and-stac) |
-| Run inference reliably inside a UDF | [6. Running inference with the UDF](#6-running-inference-with-the-udf) |
-| Validate a model and benchmark it | [7. Validation pipelines](#7-validation-pipelines-in-openeo) |
-| Scale up and control cost | [8.1 Scaling](#81-incremental-scaling-strategy) |
-:::
+> **Quickstart: what is where**
+>
+> | If you want to... | Go to |
+> | :--- | :--- |
+> | Understand where openEO fits in an ML workflow | [Where openEO helps most](#where-openeo-helps-most-in-a-machine-learning-ml-workflow) |
+> | Extract features with an openEO graph | [1. Data extraction and feature engineering](#1-data-extraction-and-feature-engineering-in-openeo) |
+> | Organise reference data, sample, split, host it at a URL | [2. Reference data](#2-organising-and-extracting-reference-data-for-ml) |
+> | Extract points or patches, deliver to storage | [2.5 Point extraction with `aggregate_spatial`](#25-point-extraction-with-aggregate_spatial), [2.6 Patch extraction with `filter_spatial`](#26-patch-extraction-with-filter_spatial) |
+> | Decide where to train, or train lightweight models in openEO | [3. Training strategy](#3-training-strategy-where-openeo-fits) |
+> | Choose between UDF and `predict_onnx` | [4.0 Choosing your onboarding path](#40-choosing-your-onboarding-path-udfs-and-predict_onnx) |
+> | Export a model to ONNX | [4.1 Preparing the model](#41-preparing-the-model-onnx-export-and-calibration) |
+> | Deploy a model | [4.2 UDF](#42-deploying-via-user-defined-functions), [4.3 `predict_onnx`](#43-deploying-via-predict_onnx) |
+> | Describe a model with STAC | [5. ML models and STAC](#5-ml-models-and-stac) |
+> | Run inference reliably inside a UDF | [6. Running inference with the UDF](#6-running-inference-with-the-udf) |
+> | Validate a model and benchmark it | [7. Validation pipelines](#7-validation-pipelines-in-openeo) |
+> | Scale up and control cost | [8.1 Scaling](#81-incremental-scaling-strategy) |
 
 **Scope labels.** Statements are valid on all openEO backends unless marked *CDSE-specific*, *Terrascope-specific*, or
 *backend-specific*. "Verified 2026-11-23" means checked against the live capabilities of `openeo.dataspace.copernicus.eu`
@@ -83,7 +81,7 @@ processing level matches your plan. For example, Sentinel-2 L2A can differ betwe
 mask, or atmospheric correction; small differences can accumulate over a large inference run.
 
 If a source is missing, `load_stac` can bring external STAC assets into the graph
-({py:meth}`~openeo.rest.connection.Connection.load_stac`).
+([`load_stac()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.load_stac)).
 
 ### 1.2 Make the data contract explicit
 
@@ -163,9 +161,9 @@ produces raster chips for models that need spatial context. The modes have diffe
   Output: a sparse raster cube, exported as one netCDF or GeoTIFF file per sample polygon
 
 For process details and parameters, see
-{py:meth}`~openeo.rest.datacube.DataCube.aggregate_spatial`
+[`aggregate_spatial()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_spatial)
 and
-{py:meth}`~openeo.rest.datacube.DataCube.filter_spatial`.
+[`filter_spatial()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.filter_spatial).
 
 The output format follows from the extraction mode and from how you consume the result:
 
@@ -179,7 +177,7 @@ The output format follows from the extraction mode and from how you consume the 
 | CSV / JSON | vector | Quick inspection in spreadsheets; may not retain feature attributes. |
 
 Supported formats and their options are backend-specific; check them with
-{py:meth}`~openeo.rest.connection.Connection.list_file_formats`.
+[`list_file_formats()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_file_formats).
 
 ### 2.2 Organising your reference data
 
@@ -205,11 +203,11 @@ The recommended file formats are GeoParquet and GeoJSON. GeoParquet is preferred
 columnar, and faster to read. GeoJSON is fine for small datasets and for cases where you need to inspect the file by hand,
 but it becomes unwieldy beyond a few thousand features.
 
-:::{tip}
-The WorldCereal Reference Data Module (RDM) is a good example of how reference data can be curated and harmonised at
-scale: samples are stored with a unique ID, a harmonised label, a validity time, and quality attributes, and are exported
-as GeoParquet for extraction.
-:::
+> **Tip**
+>
+> The WorldCereal Reference Data Module (RDM) is a good example of how reference data can be curated and harmonised at
+> scale: samples are stored with a unique ID, a harmonised label, a validity time, and quality attributes, and are exported
+> as GeoParquet for extraction.
 
 #### Label quality
 
@@ -271,7 +269,7 @@ new data is added.
 Sending many geometries inline as GeoJSON quickly makes openEO requests too large. Instead, upload your reference data to a
 URL the backend can reach, for example object storage (S3), Artifactory, or a GitHub repository, and load it into openEO
 with the `load_url` process
-({py:meth}`Connection.load_url() <openeo.rest.connection.Connection.load_url>`):
+([`Connection.load_url()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.load_url)):
 
 ```python
 import openeo
@@ -318,9 +316,9 @@ pressure and make failures more expensive to restart. Sentinel-2 MGRS tiles (abo
 because they align with the data and usually stay within one UTM zone.
 
 The openEO Python client offers a job splitting utility
-(the {py:func}`~openeo.extra.job_management.split_area` function, see {ref}`job-splitting-custom-grid`) that partitions your area or
+(the [`split_area()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.split_area) function, see [job splitting custom grid](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#using-a-custom-tile-grid)) that partitions your area or
 samples over a tile grid, such as a pre-computed Sentinel-2 tile grid, and returns a GeoDataFrame with one row per tile — a
-ready-made starting point for a job database. The openEO {py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`) can
+ready-made starting point for a job database. The openEO [`MultiBackendJobManager`](https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager) (see [job manager](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html)) can
 then run and track the resulting list of extraction jobs. For patch extractions, note that size-based splitting does not
 guarantee pixel alignment: pass a pre-computed grid, and derive the patch polygons from that same pixel-aligned grid.
 
@@ -328,13 +326,13 @@ In `split_area`, these two modes are mutually exclusive: either pass `projection
 or pass `tile_grid` for a pre-defined grid. In size-based mode, tiles are anchored at the AOI south-west corner and edge
 tiles are clipped to the AOI boundary; this is convenient for load balancing but not automatically pixel-aligned.
 
-:::{important}
-Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
-extent) determines how large a job can be. A tile with thousands of samples may need to be split further, while sparsely
-sampled tiles could be merged into a single job. Finding the right job size may require some trial-and-error fine-tuning.
-A good starting point is to aim for a few hundred to a few thousand samples per job, then adjust based on observed
-runtime and memory usage.
-:::
+> **Important**
+>
+> Not only the spatial extent of a group, but also its spatial density (how many reference observations fall within that
+> extent) determines how large a job can be. A tile with thousands of samples may need to be split further, while sparsely
+> sampled tiles could be merged into a single job. Finding the right job size may require some trial-and-error fine-tuning.
+> A good starting point is to aim for a few hundred to a few thousand samples per job, then adjust based on observed
+> runtime and memory usage.
 
 ### 2.3 Loading satellite data
 
@@ -368,9 +366,9 @@ the sample locations.
 Decide where preprocessing belongs before you extract the training data. Keeping it in the graph makes each step visible
 and easy to reuse; embedding it in the model can make the inference contract self-contained.
 
-- **In openEO**: cloud-mask, derive backscatter with {py:meth}`~openeo.rest.datacube.DataCube.sar_backscatter`, composite
-  with {py:meth}`~openeo.rest.datacube.DataCube.aggregate_temporal_period`, and merge sensors with
-  {py:meth}`~openeo.rest.datacube.DataCube.merge_cubes`. The graph remains inspectable and can be shared by training and
+- **In openEO**: cloud-mask, derive backscatter with [`sar_backscatter()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.sar_backscatter), composite
+  with [`aggregate_temporal_period()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_temporal_period), and merge sensors with
+  [`merge_cubes()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.merge_cubes). The graph remains inspectable and can be shared by training and
   inference.
 - **In the model**: extract (nearly) raw observations and perform e.g.normalisation inside
   the model, for example in ONNX. This keeps preprocessing identical at inference time, but changes require a model
@@ -393,7 +391,7 @@ for merging Sentinel-1 and Sentinel-2 into one cube.
 
 ### 2.5 Point extraction with `aggregate_spatial`
 
-Use {py:meth}`~openeo.rest.datacube.DataCube.aggregate_spatial` to sample the feature cube at reference locations. A point
+Use [`aggregate_spatial()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.aggregate_spatial) to sample the feature cube at reference locations. A point
 usually intersects one pixel, so the reducer has little effect.
 
 `aggregate_spatial` can also be used with polygon geometries, for example to extract one aggregated time series per parcel
@@ -418,7 +416,7 @@ sample.
 
 For very large point or feature collections, batch the input geometries before launching extraction jobs. This is a
 feature-table scaling step (request-size control), not an AOI tiling step. If your client version provides
-`group_geometries` (see {ref}`geometry-grouper`), use it; otherwise build batches manually:
+`group_geometries` (see [geometry grouper](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#grouping-geometries-e-g-point-based-extractions)), use it; otherwise build batches manually:
 
 ```python
 # Group many input features into small batches before extraction.
@@ -433,15 +431,15 @@ except ImportError:
 
 Each group can then be used as per-job `geometries` input for `aggregate_spatial`.
 For orchestration and tracking, run these grouped jobs through
-{py:class}`~openeo.extra.job_management.MultiBackendJobManager`; for practical patterns and callbacks, see the
-{ref}`job-manager` cookbook page.
+[`MultiBackendJobManager`](https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager); for practical patterns and callbacks, see the
+[job manager](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html) cookbook page.
 
 ### 2.6 Patch extraction with `filter_spatial`
 
-For spatial-context models, use {py:meth}`~openeo.rest.datacube.DataCube.filter_spatial` with patch polygons. The backend
+For spatial-context models, use [`filter_spatial()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.filter_spatial) with patch polygons. The backend
 computes a sparse raster cube; combine it with the backend-specific `sample_by_feature` option to write one file per
 sample (see
-{py:meth}`DataCube.create_job() <openeo.rest.datacube.DataCube.create_job>` and [sampling](sampling.md)):
+[`DataCube.create_job()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.datacube.DataCube.create_job) and [sampling](sampling.md)):
 
 ```python
 patches = features.filter_spatial(geometries=reference_data)
@@ -469,7 +467,7 @@ In the example, each netCDF contains all bands and dates for one patch, named wi
 [Format and structure](#format-and-structure)). Convert these files to tensors for training.
 
 These are **backend-specific** format options: check them with
-{py:meth}`~openeo.rest.connection.Connection.list_file_formats` (under `output` → format → `parameters`) for your backend.
+[`list_file_formats()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_file_formats) (under `output` → format → `parameters`) for your backend.
 
 #### Attribute propagation
 
@@ -481,19 +479,19 @@ extractions back to the reference data afterwards: labels and metadata travel wi
 surprising amount of error-prone bookkeeping, especially when reference data is split across multiple files and
 extraction jobs.
 
-:::{tip}
-Always validate on a small test extraction if all original feature properties are retained before relying on it.
-:::
+> **Tip**
+>
+> Always validate on a small test extraction if all original feature properties are retained before relying on it.
 
-:::{warning}
-Extraction only works as a batch job, since it produces multiple output files that cannot be transferred in a synchronous
-call.
-:::
+> **Warning**
+>
+> Extraction only works as a batch job, since it produces multiple output files that cannot be transferred in a synchronous
+> call.
 
 #### Delivering patches to storage
 
-{py:meth}`download_files <openeo.rest.job.JobResults.download_files>` suits experiments, but results are retained only
-temporarily. For recurring or large extractions, use {py:meth}`~openeo.rest.stac_resource.StacResource.export_workspace`
+[`download_files`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.job.JobResults.download_files) suits experiments, but results are retained only
+temporarily. For recurring or large extractions, use [`export_workspace()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.stac_resource.StacResource.export_workspace)
 where supported to write outputs and STAC metadata directly to object storage or a STAC API.
 
 ```python
@@ -507,7 +505,7 @@ job = result.create_job(title="ML patch extraction")
 ```
 
 Which workspaces are available, and whether you can register your own storage, is backend-specific. When running such
-extractions through the job manager, create it with `download_results=False` (see {ref}`job-manager-download-results`), so results are not downloaded a second time.
+extractions through the job manager, create it with `download_results=False` (see [job manager download results](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#automatic-result-downloading)), so results are not downloaded a second time.
 Check the backend process listing (for example `/openeo/1.2/processes`) to confirm `export_workspace` availability and
 workspace options.
 
@@ -555,7 +553,7 @@ Reference implementation used here: [random-forest forest-fire
 example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/40_machine-learning/random-forest-forest-fire).
 
 For tree-based models, openEO does support native training and inference, given that it is genuinely CPU-friendly:
-{py:meth}`~openeo.rest.vectorcube.VectorCube.fit_class_random_forest` trains server-side on the backend's regular compute nodes. You send openEO a cube
+[`fit_class_random_forest()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.vectorcube.VectorCube.fit_class_random_forest) trains server-side on the backend's regular compute nodes. You send openEO a cube
 of input features (predictors) and a set of labelled points (y_train), and the backend fits the
 trees.
 
@@ -708,11 +706,11 @@ Use a UDF when you need custom Python, cube metadata (such as band names or coor
 Prefer optimized native processes for preprocessing and postprocessing. Combine custom steps into one UDF rather than
 chaining UDFs. Each UDF boundary forces intermediate data to move thereby increasing the compurational overhead.
 
-:::{tip}
-Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
-
-Use the UDF as an experimentation phase: keep extra pre/post-processing close to the model while the workflow evolves. When the contract stabilizes and custom logic is no longer needed, move to `predict_onnx` with the same ONNX model.
-:::
+> **Tip**
+>
+> Even inside a UDF, it is best practice to run inference on an ONNX-converted model with `onnxruntime` rather than loading the full training framework (PyTorch, TensorFlow). ONNX Runtime has a much smaller memory footprint and dependency archive, which reduces out-of-memory errors and cold-start times.
+>
+> Use the UDF as an experimentation phase: keep extra pre/post-processing close to the model while the workflow evolves. When the contract stabilizes and custom logic is no longer needed, move to `predict_onnx` with the same ONNX model.
 
 #### 4.0.2 Native `predict_onnx` Process [experimental]
 
@@ -720,7 +718,7 @@ Use the UDF as an experimentation phase: keep extra pre/post-processing close to
 
 Before using `predict_onnx`, consider these backend and model constraints:
 
-- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is backend-specific; check {py:meth}`connection.list_processes() <openeo.rest.connection.Connection.list_processes>`. The [OlmoEarth community example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) is a reference implementation.
+- **Experimental, check your backend:** treat `predict_onnx` as experimental. It is backend-specific; check [`connection.list_processes()`](https://open-eo.github.io/openeo-python-client/api.html#openeo.rest.connection.Connection.list_processes). The [OlmoEarth community example](https://github.com/Open-EO/openeo-community-examples/tree/main/python/60_geospatial-embeddings/olmoearth) is a reference implementation.
 - **Fixed interface:** the process operates on a tensor interface with no access to band names, coordinates, or the `context` object, making it unsuitable for models that need this metadata.
 - **Limited to ONNX contract:** only models that can be exported to ONNX and conform to the expected input/output interface are supported.
 
@@ -737,9 +735,9 @@ Use the following rules of thumb to choose the right onboarding path:
 
 This decision framework complements the STAC-based model description discussed in [Section 5](#5-ml-models-and-stac): by describing your model with MLM metadata, you make it discoverable regardless of which onboarding path you ultimately choose.
 
-:::{note}
-The two options are not mutually exclusive. One can perfectly combine UDFs with predict_onnx into a single pipeline if need be.
-:::
+> **Note**
+>
+> The two options are not mutually exclusive. One can perfectly combine UDFs with predict_onnx into a single pipeline if need be.
 
 **Where to go next**
 
@@ -869,16 +867,16 @@ documentation](https://openeo.dataspace.copernicus.eu/openeo/1.2/udf_runtimes) o
 connection.list_udf_runtimes()
 ```
 
-:::{note}
-UDF runtimes and package support are backend-specific. Always check
-`connection.list_udf_runtimes()` (or the backend runtime endpoint) before pinning dependency
-archives, and retest when runtime versions change.
-:::
+> **Note**
+>
+> UDF runtimes and package support are backend-specific. Always check
+> `connection.list_udf_runtimes()` (or the backend runtime endpoint) before pinning dependency
+> archives, and retest when runtime versions change.
 
 However, there are two ways to extend what a UDF can use:
 
 1. **Small packages**: install them inline inside the UDF itself via the PEP 723 "inline script metadata"
-   standard (see {ref}`python-udf-dependency-declaration`). This is the lightest
+   standard (see [python udf dependency declaration](https://open-eo.github.io/openeo-python-client/udf.html#standard-for-declaring-python-udf-dependencies)). This is the lightest
    option and works well for pure-Python dependencies. It is best suited for small utilities that do not have compiled
    extensions or complex transitive dependencies.
 2. **Heavier packages** (the common case for ML): ship a prebuilt dependency archive and attach it through [job
@@ -914,14 +912,14 @@ job = pred.execute_batch(
 )
 ```
 
-:::{note}
-`job_options` are backend-specific: both supported keys and optimal values (for example, scheduler/executor tuning)
-depend on the concrete backend that executes the job.
-
-Take extra care on federation and multi-backend endpoints: jobs are routed to a concrete backend, and only that backend's
-supported options are applied. Always check the target backend documentation/capabilities, keep a small
-backend-specific profile, and validate with a tiny smoke run before scaling.
-:::
+> **Note**
+>
+> `job_options` are backend-specific: both supported keys and optimal values (for example, scheduler/executor tuning)
+> depend on the concrete backend that executes the job.
+>
+> Take extra care on federation and multi-backend endpoints: jobs are routed to a concrete backend, and only that backend's
+> supported options are applied. Always check the target backend documentation/capabilities, keep a small
+> backend-specific profile, and validate with a tiny smoke run before scaling.
 
 The syntax matters here because the archive is mounted into the UDF runtime at a specific path, and the `#` fragment in the
 URL is what names that path. A model file and its runtime dependencies are typically passed as separate archives with
@@ -961,7 +959,7 @@ See [Section 6](#6-running-inference-with-the-udf) for chunking, padding, sessio
 ### 4.3 Deploying via `predict_onnx`
 
 After exporting and parity-testing ONNX (see [4.1](#41-preparing-the-model-onnx-export-and-calibration)), use
-`predict_onnx` ({py:func}`openeo.processes.predict_onnx`) on a supporting backend. It accepts a model URL and input array;
+`predict_onnx` ([`openeo.processes.predict_onnx()`](https://open-eo.github.io/openeo-python-client/api-processes.html#openeo.processes.predict_onnx)) on a supporting backend. It accepts a model URL and input array;
 the backend manages ONNX Runtime, session caching, and chunking.
 
 ```python
@@ -1113,10 +1111,10 @@ intra-op threads, which parallelize work inside a single operator, and inter-op 
 the graph in parallel. Increasing the number of threads whilst avoiding oversubscription can pay off during runtime.
 The optimal number of threads is again backend-specific; in our experience 2 works well.
 
-:::{note}
-When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. Comparing a local run with default
-all-core settings to a 2-thread UDF run will give misleading timings.
-:::
+> **Note**
+>
+> When benchmarking locally against openEO, set the same ONNX Runtime thread limits you use in the UDF. Comparing a local run with default
+> all-core settings to a 2-thread UDF run will give misleading timings.
 
 ```python
 import functools
@@ -1262,7 +1260,7 @@ contact the Copernicus Data Space
 Ecosystem forum (https://forum.dataspace.copernicus.eu/) for upscaling support, or get in touch with ESA APEx, which
 provides algorithm support services (https://apex.esa.int/algorithm-support).
 
-The {py:class}`~openeo.extra.job_management.MultiBackendJobManager` (see {ref}`job-manager`) can submit and track a table
+The [`MultiBackendJobManager`](https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager) (see [job manager](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html)) can submit and track a table
 of batch jobs instead of requiring a manual submission loop. More examples are in
 [70 · Platform and large scale](https://github.com/Open-EO/openeo-community-examples/tree/main/python/70_platform-and-large-scale).
 For an area-scaling sweep, vary only the spatial extent while keeping the process graph and job options fixed:
@@ -1312,8 +1310,8 @@ manager.run_jobs(job_db=job_db, start_job=start_job)
 ```
 
 
-When using the {py:class}`~openeo.extra.job_management.MultiBackendJobManager` for scaling, pass
-`cancel_running_job_after` (in seconds, see {ref}`job-manager-cancel-running-job`) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
+When using the [`MultiBackendJobManager`](https://open-eo.github.io/openeo-python-client/api.html#openeo.extra.job_management.MultiBackendJobManager) for scaling, pass
+`cancel_running_job_after` (in seconds, see [job manager cancel running job](https://open-eo.github.io/openeo-python-client/cookbook/job_manager.html#canceling-long-running-jobs)) to cancel jobs that exceed a runtime budget and limit unnecessary credit use. Set
 the limit from pilot runtimes, with enough margin for normal variation. For the area sweep in
 [8.1](#81-incremental-scaling-strategy), ensure the limit accommodates the largest planned extent; otherwise, omit it for
 that sweep.
