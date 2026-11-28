@@ -6,8 +6,7 @@ extraction to training, model packaging, inference, validation, and upscaling.
 It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined Functions </udf>`,
 {doc}`User-Defined Processes </udp>`, and {doc}`Batch Jobs </batch_jobs>`.
 
-````{admonition} Quickstart: what is where
-:class: tip
+```{tip} Quickstart: what is where
 
 | If you want to... | Go to |
 | :--- | :--- |
@@ -23,6 +22,7 @@ It complements {doc}`Machine Learning </machine_learning>`, {doc}`User-Defined F
 | Run inference reliably inside a UDF | [6. Running inference with the UDF](#6-running-inference-with-the-udf) |
 | Validate a model and benchmark it | [7. Validation pipelines](#7-validation-pipelines-in-openeo) |
 | Scale up and control cost | [8.1 Scaling](#81-incremental-scaling-strategy) |
+```
 
 **Scope labels.** Statements are valid on all openEO backends unless marked *CDSE-specific*, *Terrascope-specific*, or
 *backend-specific*. "Verified 2026-11-23" means checked against the live capabilities of `openeo.dataspace.copernicus.eu`
